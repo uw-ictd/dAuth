@@ -1,0 +1,8 @@
+import os
+import sys
+import sysconfig
+
+from sawtooth_ccellular.processor.main import main
+
+if __name__ == '__main__':
+    main()

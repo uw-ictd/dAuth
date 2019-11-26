@@ -1,0 +1,13 @@
+[Unit]
+Description=Sawtooth Community Cellular Transaction Processor
+After=network.target
+
+[Service]
+User=sawtooth
+Group=sawtooth
+EnvironmentFile=/etc/default/sawtooth-ccellular-tp-python
+ExecStart=/usr/bin/ccellular-tp $SAWTOOTH_CCELLULAR_TP_PYTHON_ARGS
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

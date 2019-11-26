@@ -1,0 +1,14 @@
+syntax = "proto3";
+package structures;
+
+enum Verb {
+    SET = 0;
+    INC = 1;
+    DEC = 2;
+}
+
+message Key {
+    Verb verb = 1;
+    string name = 2;
+    int32 value = 3;
+}
