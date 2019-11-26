@@ -22,7 +22,9 @@ setup(
     url='https://github.com/uw-ictd/asterales',
     packages=find_packages(),
     install_requires=[
+        'requests',
         'protobuf',
+        'pymongo',
         'cbor',
         'sawtooth-sdk'
     ],

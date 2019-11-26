@@ -1,14 +1,13 @@
 syntax = "proto3";
 package structures;
 
-enum Verb {
+enum Action {
     SET = 0;
-    INC = 1;
-    DEC = 2;
+    GET = 1;
 }
 
 message Key {
-    Verb verb = 1;
-    string name = 2;
-    int32 value = 3;
+    Action verb = 1;
+    string imsi = 2;
+    repeated int32 value = 3;
 }
