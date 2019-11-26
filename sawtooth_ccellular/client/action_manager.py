@@ -20,11 +20,12 @@ def do_set(args):
     imsi, auth_vector = args.name, args.value
     client = _get_client(args)
     response = client.set(imsi, auth_vector)
-    print(response)
+    print(imsi, response)
 
 
 def do_get(args):
     imsi = args.name
+    print('Received instruction to get {}'.format(imsi))
     client = _get_client(args)
     response = client.get(imsi)
     print(response)

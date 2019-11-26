@@ -1,6 +1,9 @@
 import hashlib
 import random
 import requests
+import base64
+import yaml
+import json
 import cbor # Go ahead and remove the dependency on this with protobuf serialization format.
 
 from sawtooth_sdk.protobuf.transaction_pb2 import TransactionHeader
@@ -46,9 +49,15 @@ class CCellularClient:
 
     def get(self, imsi):
         address = self._get_address(imsi)
-        result = self._send_request("state/{}".format(address), name=ismi,)
+        print("Looking for {k} at {a}".format(k=imsi, a=address))
+        result = self._send_request("state/{}".format(address), name=imsi,)
         try:
-            return cbor.loads(base64.b64decode(yaml.safe_load(result)['data']))[name]
+            json_result = json.loads(result)
+            data_response = json_result['data']
+            b64data = yaml.safe_load(data_response)
+            b64decoded = base64.b64decode(b64data)
+            cbor_decoded = cbor.loads(b64decoded)
+            return cbor_decoded[imsi]
         except BaseException as e:
             print("Received a base exception. " + e)
             return None
