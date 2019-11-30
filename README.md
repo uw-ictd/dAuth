@@ -30,3 +30,27 @@ You might need the corresponding build tools to get the build for the `secp256k1
 ```bash
 $ sudo apt install build-essential automake pkg-config libtool libffi-dev libgmp-dev
 ```
+
+Generate the required `protobuf` files using:
+```bash
+$ protoc --proto_path=proto --python_out=sawtooth_ccellular/structures proto/structures.proto
+```
+
+### Database Setup
+
+For safety reasons and enabling triggers, the `mongod` instance should be started with a `replSet` mode. For example
+this can be achieved by doing something along the lines of:
+
+```bash
+$ mongod --port 27017 --dbpath data --replSet rs0
+```
+
+Follow this up by creating an actual replica initiation:
+
+```bash
+> rs.initiate()
+> rs.add("localhost:27018")
+> rs.status()
+> rs.conf()   # To check for configuration
+> rs.slaveOk()  # To ensure that the slave / replica nodes can be enabled for read.
+```

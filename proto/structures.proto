@@ -11,3 +11,16 @@ message Key {
     string imsi = 2;
     repeated int32 value = 3;
 }
+
+message AuthenticationVectors {
+    repeated uint32 values = 1;
+}
+
+message DatabaseInstruction {
+    enum Operation {
+        INSERT = 0;
+        DELETE = 1;
+    }
+    Operation operation = 1;
+    string hex_encoded_object = 2;
+}

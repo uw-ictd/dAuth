@@ -1,4 +1,5 @@
 __all__ = [
     'client',
-    'processor'
+    'processor',
+    'structures'
 ]

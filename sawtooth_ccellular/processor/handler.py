@@ -7,6 +7,8 @@ from sawtooth_sdk.processor.exceptions import InvalidTransaction
 from sawtooth_sdk.processor.exceptions import InternalError
 
 from sawtooth_ccellular.processor.constants import FAMILY_NAME, FAMILY_VERSION
+from sawtooth_ccellular.processor.database import DatabaseManager
+from sawtooth_ccellular.processor.utils import deserialize_proto_database_instructions
 
 
 def _sha512(data):
@@ -25,6 +27,12 @@ CCELLULAR_ADDRESS_PREFIX = get_prefix()
 
 
 class CCellularTransactionHandler(TransactionHandler):
+    database = None
+
+    def __init__(self):
+        db = DatabaseManager()
+        self.database = db
+
     @property
     def family_name(self):
         return FAMILY_NAME
@@ -40,7 +48,7 @@ class CCellularTransactionHandler(TransactionHandler):
     def apply(self, transaction, context):
         action, imsi, value = _unpack_transaction(transaction)
         state = _get_state_data(imsi, context)
-        updated_state = _do_ccellular(action, imsi, value, state)
+        updated_state = _do_ccellular(action, imsi, value, state, self.database)
         _set_state_data(imsi, updated_state, context)
 
 
@@ -80,13 +88,18 @@ def _set_state_data(imsi, state, context):
         raise InternalError('Failed to set the local state of the sawtooth node')
 
 
-def _do_ccellular(action, imsi, value, state):
+def _do_ccellular(action, imsi, value, state, database):
     if action == 'set':
         message = 'Setting {} to {}'.format(imsi, value)
+        # Value is the serialized protobuf message which needs to be deserialized before being sent to MongoDB
+        proto_message = deserialize_proto_database_instructions(value)
         print(message)
         if imsi in state:
             raise InvalidTransaction('IMSI {} already exists with value {}'.format(imsi, state[imsi]))
+        # Update the Sawtooth Merkle Database
         updated = dict(state.items())
         updated[imsi] = value
-        return  updated
+        # Update the corresponding MongoDB database of the client
+        database.operate(proto_message)
+        return updated
     raise InternalError('Invalid function requested to be executed by CCellular Handler')
