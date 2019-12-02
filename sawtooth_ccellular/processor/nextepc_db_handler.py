@@ -54,19 +54,20 @@ class NextEPCHandler:
             for data_collection in cursor:
                 if data_collection['imsi'] == object_dict['imsi']:
                     print("[DATABASE][KEY EXISTS] : The value of the IMSI already exists. I am the initiator")
-                    # TODO: Send a message requesting the data to be sent via a sawtooth transaction here since this
-                    #       was the node where the new IMSI details have been entered. We need to ensure that other
-                    #       connectors can read this and register the same information in their corresponding databases.
-
-                    # TODO: Sanity check, It's easy to make a mistake here forcing 2 rounds of communication. Careful.
-                    object_dict['remote'] = True  # Use this boolean to ensure that message initiator is this HSS
-                    serialized_cursor = serialize_mongodb_cursor(object_dict)
-                    proto_message = create_database_instruction_message_insert(serialized_cursor)
-                    serialized_proto_message = serialize_proto_database_instruction(proto_message)
-                    # Set an instruction to add value to the HSS
-                    # Run the equivalent of `ccellular set <IMSI> <serialized_proto_message>`
-                    ccellular_client = _get_client(None)
-                    ccellular_client.set(object_dict['imsi'], serialized_proto_message)
+                    if 'remote' in object_dict:
+                        # Don't do anything anymore. The instruction has been inserted from Transaction Processors side
+                        print("[TPINSERT] Receiver node replaying instructions. Avoid reissuing a sawtooth transaction")
+                        # This message was received from another node. Do not retry a commit.
+                    else:
+                        object_dict['remote'] = True  # Use this boolean to ensure that message initiator is this HSS
+                        object_dict['ownership'] = 'peer'
+                        serialized_cursor = serialize_mongodb_cursor(object_dict)
+                        proto_message = create_database_instruction_message_insert(serialized_cursor)
+                        serialized_proto_message = serialize_proto_database_instruction(proto_message)
+                        # Set an instruction to add value to the HSS
+                        # Run the equivalent of `ccellular set <IMSI> <serialized_proto_message>`
+                        ccellular_client = _get_client(None)
+                        ccellular_client.set(object_dict['imsi'], serialized_proto_message)
                 else:
                     print("Inserting the value to the {} in collection {}".format(DB_DATABASE_NAME, DB_COLLECTION_NAME))
                     self.db[DB_COLLECTION_NAME].insert_one(object_dict)
