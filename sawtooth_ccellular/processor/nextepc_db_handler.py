@@ -22,11 +22,10 @@ class NextEPCHandler:
         print(db.name, " is the database being used.")
         triggers = MongoTrigger(self.client)
         print("[Connector] Registering a trigger monitor for the Insert Operations on the database")
-        triggers.register_insert_trigger(self._notify_changes_to_mongo_insert, DB_DATABASE_NAME, DB_COLLECTION_NAME)
         print("[Connector][OK] Registering a trigger monitor for the Insert Operations on the database")
         print("[Connector] Registering a trigger monitor for the Delete Operations on the database")
-        triggers.register_delete_trigger(self._notify_changes_to_mongo_delete, DB_DATABASE_NAME, DB_COLLECTION_NAME)
         print("[Connector][OK] Registering a trigger monitor for the Delete Operations on the database")
+        triggers.register_op_trigger(self._notify_operation_changes, DB_DATABASE_NAME, DB_COLLECTION_NAME)
         print("[Connector] Starting to watch the status of the database on the replica set")
         triggers.tail_oplog()
         print("[Connector][OK] Starting to watch the status of the database on the replica set")
@@ -36,6 +35,18 @@ class NextEPCHandler:
         print("[Connector] Releasing all the locks and stopping watchers from watching the MongoDB Database")
         self.triggers.stop_tail()
         print("[Connector][OK] Releasing all the locks and stopping watchers from watching the MongoDB Database")
+
+    def _notify_operation_changes(self, op_document):
+        if op_document['op'] == 'u':
+            f = op_document['o2']
+            cursor = self.db[DB_COLLECTION_NAME].find(f)
+            for data_collection in cursor:
+                op_document['imsi'] = data_collection['imsi']
+            print(op_document)
+        if op_document['op'] == 'i':
+            self._notify_changes_to_mongo_insert(op_document)
+        if op_document['op'] == 'd':
+            self._notify_changes_to_mongo_delete(op_document)
 
     def _notify_changes_to_mongo_insert(self, op_document):
         object_modified = op_document['o']

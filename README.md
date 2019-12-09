@@ -54,3 +54,13 @@ Follow this up by creating an actual replica initiation:
 > rs.conf()   # To check for configuration
 > rs.slaveOk()  # To ensure that the slave / replica nodes can be enabled for read.
 ```
+
+
+# Notes
+
+1. The authentication vector AV consists of the following fields which are forwarded to the MME from the HSS.
+    - `RAND`
+    - `XRES`
+    - `AUTN_hss`
+    - `K_asme`
+2. 
