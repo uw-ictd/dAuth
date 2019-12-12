@@ -20,6 +20,7 @@ message DatabaseInstruction {
     enum Operation {
         INSERT = 0;
         DELETE = 1;
+        UPDATE = 2;
     }
     Operation operation = 1;
     string hex_encoded_object = 2;

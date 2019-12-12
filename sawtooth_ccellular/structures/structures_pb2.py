@@ -21,7 +21,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='structures',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x10structures.proto\x12\nstructures\"D\n\x03Key\x12 \n\x04verb\x18\x01 \x01(\x0e\x32\x12.structures.Action\x12\x0c\n\x04imsi\x18\x02 \x01(\t\x12\r\n\x05value\x18\x03 \x03(\x05\"\'\n\x15\x41uthenticationVectors\x12\x0e\n\x06values\x18\x01 \x03(\r\"\x94\x01\n\x13\x44\x61tabaseInstruction\x12<\n\toperation\x18\x01 \x01(\x0e\x32).structures.DatabaseInstruction.Operation\x12\x1a\n\x12hex_encoded_object\x18\x02 \x01(\t\"#\n\tOperation\x12\n\n\x06INSERT\x10\x00\x12\n\n\x06\x44\x45LETE\x10\x01*\x1a\n\x06\x41\x63tion\x12\x07\n\x03SET\x10\x00\x12\x07\n\x03GET\x10\x01\x62\x06proto3')
+  serialized_pb=_b('\n\x10structures.proto\x12\nstructures\"D\n\x03Key\x12 \n\x04verb\x18\x01 \x01(\x0e\x32\x12.structures.Action\x12\x0c\n\x04imsi\x18\x02 \x01(\t\x12\r\n\x05value\x18\x03 \x03(\x05\"\'\n\x15\x41uthenticationVectors\x12\x0e\n\x06values\x18\x01 \x03(\r\"\xa0\x01\n\x13\x44\x61tabaseInstruction\x12<\n\toperation\x18\x01 \x01(\x0e\x32).structures.DatabaseInstruction.Operation\x12\x1a\n\x12hex_encoded_object\x18\x02 \x01(\t\"/\n\tOperation\x12\n\n\x06INSERT\x10\x00\x12\n\n\x06\x44\x45LETE\x10\x01\x12\n\n\x06UPDATE\x10\x02*\x1a\n\x06\x41\x63tion\x12\x07\n\x03SET\x10\x00\x12\x07\n\x03GET\x10\x01\x62\x06proto3')
 )
 
 _ACTION = _descriptor.EnumDescriptor(
@@ -41,8 +41,8 @@ _ACTION = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=294,
-  serialized_end=320,
+  serialized_start=306,
+  serialized_end=332,
 )
 _sym_db.RegisterEnumDescriptor(_ACTION)
 
@@ -65,11 +65,15 @@ _DATABASEINSTRUCTION_OPERATION = _descriptor.EnumDescriptor(
       name='DELETE', index=1, number=1,
       serialized_options=None,
       type=None),
+    _descriptor.EnumValueDescriptor(
+      name='UPDATE', index=2, number=2,
+      serialized_options=None,
+      type=None),
   ],
   containing_type=None,
   serialized_options=None,
   serialized_start=257,
-  serialized_end=292,
+  serialized_end=304,
 )
 _sym_db.RegisterEnumDescriptor(_DATABASEINSTRUCTION_OPERATION)
 
@@ -185,7 +189,7 @@ _DATABASEINSTRUCTION = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=144,
-  serialized_end=292,
+  serialized_end=304,
 )
 
 _KEY.fields_by_name['verb'].enum_type = _ACTION

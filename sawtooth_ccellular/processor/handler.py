@@ -94,8 +94,6 @@ def _do_ccellular(action, imsi, value, state, database):
         # Value is the serialized protobuf message which needs to be deserialized before being sent to MongoDB
         proto_message = deserialize_proto_database_instructions(value)
         print(message)
-        if imsi in state:
-            raise InvalidTransaction('IMSI {} already exists with value {}'.format(imsi, state[imsi]))
         # Update the Sawtooth Merkle Database
         updated = dict(state.items())
         updated[imsi] = value

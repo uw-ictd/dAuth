@@ -12,6 +12,8 @@ from sawtooth_sdk.protobuf.batch_pb2 import BatchHeader
 from sawtooth_sdk.protobuf.batch_pb2 import BatchList
 from sawtooth_sdk.protobuf.batch_pb2 import Batch
 
+from sawtooth_ccellular.structures.structures_pb2 import DatabaseInstruction
+
 from sawtooth_ccellular.client.constants import BINARY_NAME, BINARY_VERSION
 
 from sawtooth_signing import create_context
@@ -44,7 +46,7 @@ class CCellularClient:
             print(self._signer)
 
     def set(self, imsi, value):
-        print("Trying to set {} to {}".format(imsi, value))
+        # print("Trying to set {} to {}".format(imsi, value))
         return self._send_transaction('set', imsi, value)
 
     def get(self, imsi):
@@ -57,10 +59,13 @@ class CCellularClient:
             b64data = yaml.safe_load(data_response)
             b64decoded = base64.b64decode(b64data)
             cbor_decoded = cbor.loads(b64decoded)
+            instruction = DatabaseInstruction()
+            instruction.ParseFromString(cbor_decoded[imsi])
             return cbor_decoded[imsi]
         except BaseException as e:
             print("Received a base exception. " + e)
             return None
+
 
     # Private methods used by the client
     @staticmethod
@@ -115,10 +120,10 @@ class CCellularClient:
             nonce=hex(random.randint(0, 2 ** 64))
         ).SerializeToString()
 
-        print("Header : {}".format(header))
+        # print("Header : {}".format(header))
 
         signature = self._signer.sign(header)
-        print("Signature: {}".format(signature))
+        # print("Signature: {}".format(signature))
 
         transaction = Transaction(
             header=header,
@@ -126,7 +131,7 @@ class CCellularClient:
             header_signature=signature
         )
 
-        print("Transaction: {}".format(transaction))
+        # print("Transaction: {}".format(transaction))
 
         batch_list = self._create_batch_list([transaction])
 
