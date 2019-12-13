@@ -49,6 +49,7 @@ class DatabaseManager:
                     if '$unset' in execute_instruction:
                         execute_instruction.pop('$v')
                     cursor = self.db[DB_COLLECTION_NAME].find(object_queried)
+                    print("Updated the database from the instruction received from Sawtooth")
                     self.db[DB_COLLECTION_NAME].update(object_queried, execute_instruction)
                 except:
                     print("Failed to perform database insert")

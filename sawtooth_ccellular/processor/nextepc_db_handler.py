@@ -99,7 +99,7 @@ class NextEPCHandler:
             imsi_modified = data_collection['imsi']
             execute_instruction = modification_to_apply
             if 'ownership' in data_collection:
-                if 'initiated' not in object_dict:
+                if data_collection['ownership'] != 'peer':
                     if '$set' in modification_to_apply:
                         execute_instruction.pop('$v')
                     if '$unset' in modification_to_apply:
@@ -119,7 +119,7 @@ class NextEPCHandler:
 
     def _db_handle_delete(self, object_key_id):
         query = object_key_id
-        cursor = self.db.open5gstest.find(query)
+        cursor = self.db[DB_COLLECTION_NAME].find(query)
         for data_collection in cursor:
             if 'imsi' in data_collection:
                 # TODO: Add more logic here for deletion of an item from the HSS database of an EPC
