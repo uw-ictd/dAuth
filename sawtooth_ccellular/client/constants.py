@@ -1,7 +1,7 @@
 BINARY_NAME = 'ccellular'
 BINARY_VERSION = '1.0'
 DISTRIBUTION_NAME = 'sawtooth-ccellular'
-DEFAULT_URL = 'http://192.168.99.101:8008'
+DEFAULT_URL = 'http://172.17.0.1:8008'
 
 # Messages & Information strings
 SET_MESSAGE = 'Set the IMSI values with the corresponding Authentication Vectors. e.g. set <IMSI> <Auth Vectors>'

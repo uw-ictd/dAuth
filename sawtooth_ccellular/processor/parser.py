@@ -1,7 +1,7 @@
 import argparse
 import pkg_resources
 
-from sawtooth_ccellular.processor.constants import DISTRIBUTION_NAME, DEFAULT_URL
+from sawtooth_ccellular.processor.constants import DISTRIBUTION_NAME, DEFAULT_URL, DB_DATABASE_NAME
 
 
 def parse_args(args):
@@ -9,6 +9,7 @@ def parse_args(args):
 
     parser.add_argument('-C', '--connect', default=DEFAULT_URL, help='TCP Endpoint for the validator connection')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='Verbosity Level for the logging')
+    parser.add_argument('-d', '--dbname', default=DB_DATABASE_NAME, help='Manually set database name')
 
     try:
         version = pkg_resources.get_distribution(DISTRIBUTION_NAME).version

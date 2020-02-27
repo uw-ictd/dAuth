@@ -1,9 +1,11 @@
 from pymongo import MongoClient
 
-from sawtooth_ccellular.processor.constants import DB_CONNECTION_HOST, DB_CONNECTION_PORT, DB_DATABASE_NAME, \
+from sawtooth_ccellular.processor.constants import DB_CONNECTION_HOST, DB_CONNECTION_PORT, \
     DB_COLLECTION_NAME, PROCESSOR_NAME
 from sawtooth_ccellular.processor.protoHelper import read_database_instruction_message_proto
 from sawtooth_ccellular.structures import structures_pb2
+
+from sawtooth_ccellular.processor.globals import GlobalVariables as gvars
 
 from bson.objectid import ObjectId
 
@@ -14,11 +16,12 @@ class DatabaseManager:
 
     def __init__(self):
         client = MongoClient(DB_CONNECTION_HOST, DB_CONNECTION_PORT)
-        db = client[DB_DATABASE_NAME]
+        db = client[gvars.db_database_name]
         self.db = db
         self.client = client
-        print("[DATABASE MANAGER] Database Manager is connected to {}".format(DB_DATABASE_NAME))
+        print("[DATABASE MANAGER] Database Manager is connected to {}".format(gvars.db_database_name))
 
+    # Used when receiving from another node
     def operate(self, proto_database_operation):
         """
         We expect a protobuf deserialized DatabaseInstruction here

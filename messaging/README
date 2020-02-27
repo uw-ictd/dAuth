@@ -1,0 +1,34 @@
+Messageing System:
+
+    Overview:
+    - The purpose of the messaging system is to allow nodes to send arbitrary but predefined messages
+      to arbitrary but predefined services (for example, client nodes can send log messages to a logging
+      service)
+
+    Server:
+    - The server is a single, central point that all client nodes report to. It can run arbitrary services
+      that implement a simple API with start, stop, and message_in functions. Services do not need to utilize
+      the start and stop functions if there isn't a service thread to run. If processing a message (via message_in)
+      is not quick, message_in should simply add a message to a queue, and the service should have a message
+      processing thread.
+
+    Client:
+    - The client implements messaging for each service. Messaging is done via message queues for each service. The
+      client is single processing thread that reads all available messages from each service message queue and 
+      streams to the server. stream_max is a configuration to limit the messages that are streamed before moving on
+      to the next queue.
+
+    Usage:
+    - Server:
+        - Run and host the server on any arbitrary machine directly (make sure the hosting address is correct).
+    - Client:
+        - Importing and using the global messaging class is the easiest way to use the client.
+        - Import and create a instance of the client, then use the set_client from the global class
+        - Use the start and stop methods of the global messaging class to control the client process
+        - Use the appropriate global service class to send messages to a specific service on the server
+
+    TODO:
+    - Add arg parsing and configuring for server
+    - Add configuring for client
+        - Add separate stream_max for each service
+    - Add dynamic global client methods depending on active services
