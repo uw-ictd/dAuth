@@ -5,10 +5,10 @@ import network_manager
 import socket
 import threading
 import time
-
+from concurrent.futures import ThreadPoolExecutor
 
 class PingTester:
-    def __init__(self, host='127.0.0.1', port=12115, use_local=True, use_nw_manager=True):
+    def __init__(self, host='127.0.0.1', port=12115, use_local=True, use_nw_manager=True, block_size=None, sleep_time=0.001):
         self._use_local = use_local
         self._host = host
         self._port = port
@@ -17,7 +17,7 @@ class PingTester:
         self._nw_manager = None
 
         if use_nw_manager:
-            self._nw_manager = network_manager.NetworkManager()
+            self._nw_manager = network_manager.NetworkManager(block_size=block_size, sleep_time=sleep_time)
             self._nw_manager.start()
 
     # Send a message with a time stamp
@@ -85,7 +85,6 @@ class PingTester:
                     conn.sendall(conn.recv(1024))
 
 class PingTests:
-    # Use to se
     use_local = True
     host = "127.0.0.1"
     port = 12117
@@ -97,9 +96,9 @@ class PingTests:
         print()
 
         print(" Simple Ping Test")
-        for interval in [0.0001, 0.001, 0.01, 0.1]:
+        for interval in [0.0001, 0.001, 0.01]:
             print("   ", interval, "second interval:")
-            for pings in [10, 100, 1000]:
+            for pings in [10, 100, 500]:
                 results_direct_send = PingTests.simple_ping(ping_interval=interval, num_pings=pings)
                 avg = sum(results_direct_send) // len(results_direct_send)
                 print("      Average ping time for direct send:", avg, "ns (" + str(avg / 1000000) + " ms) with", pings, "pings")
@@ -109,9 +108,9 @@ class PingTests:
                 print()
 
         print(" Single Priority Ping Comparison Test")
-        for interval in [0.0001, 0.001, 0.01, 0.1]:
+        for interval in [0.0001, 0.001, 0.01]:
             print("   ", interval, "second interval:")
-            for pings in [10, 100, 1000]:
+            for pings in [10, 100, 500]:
                 print("      Network manager is " + str(PingTests.compare_simple_pings(num_pings=pings, ping_interval=interval)) + "x slower with ", pings, "pings")
 
         print()
@@ -120,13 +119,18 @@ class PingTests:
 
     # Tests that pings work, returns results of timing
     @staticmethod
-    def simple_ping(num_pings=10, ping_interval=0.01, use_nw_manager=False):
+    def simple_ping(num_pings=10, ping_interval=0.001, use_nw_manager=False):
         tester = PingTests._default_tester(use_nw_manager)
         time.sleep(1)
         results = []
-        for _ in range(num_pings):
-            results.append(tester.ping())
-            time.sleep(ping_interval)
+        threads = []
+        with ThreadPoolExecutor(100) as executor:
+            for _ in range(num_pings):
+                threads.append(executor.submit(tester.ping))
+                time.sleep(ping_interval)
+
+            for t in threads:
+                results.append(t.result())
 
         tester.stop_nw_manager()
         tester.stop_server()
@@ -146,7 +150,7 @@ class PingTests:
     # Builds and starts a tester with PingTests defaults
     @staticmethod
     def _default_tester(use_nw_manager):
-        tester = PingTester(host=PingTests.host, port=PingTests.port, use_local=PingTests.use_local, use_nw_manager=use_nw_manager)
+        tester = PingTester(host=PingTests.host, port=PingTests.port, use_local=PingTests.use_local, use_nw_manager=use_nw_manager, block_size=100000000000, sleep_time=0.0001)
         tester.start_server()
         return tester
 

@@ -2,13 +2,17 @@ from threading import Lock
 from time import time, sleep
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
+import heapq
 import threading
-import bisect
 
 # Possible improvements/directions:
 #  - Add a 'smart' way of keeping QUs in the active queue, maybe specify frequent priorities?
+#  - Add a param to pop multiple messages at a time (avoid overhead of getting active queue)
 #  - Add bandwidth limiter (lots of problems with this)
+#  -- maybe make it specific to certain queues?
 #  - flip comparator (or add init comparator?) for QueueUnit
+#  - Maybe add some way to store results? A dict perhaps?
+#  -- May be too much trouble, just assume the user passes a storage object
 
 # Small class that holds on to a priority, function, and arguments
 class NetworkMessage:
@@ -44,6 +48,9 @@ class QueueUnit:
 
     def size(self):
         return len(self._queue)
+
+    def __bool__(self):
+        return self._queue
     
     def __lt__(self, other):
         return self.priority < other.priority
@@ -52,20 +59,19 @@ class QueueUnit:
         return "QueueUnit: " + str(self.priority)
 
 
-# Priority queue intended to store NetworkMessages, higher values have higher priority
+# Priority queue intended to store NetworkMessages, lower values have higher priority
 # Any interger can be used as a priority, implemeneted by mapping priorities to queues
-# Thread safe, but using only one 'getter' will likely lead to better performance
+# Thread safe
 class NetworkPriotyQueue:
     def __init__(self):
-        # --- Internal ---
         # mapping of all priority queues
         self._priority_queues = {}
 
         # ordered list of priority queue keys
         self._priority_queue_keys = []
 
-        # holds all the queues with messages
-        self._active_queues = []
+        # holds all the queues with available messages
+        self._active_queues_heap = []
 
         # remaining messages
         self._qsize = 0
@@ -86,7 +92,7 @@ class NetworkPriotyQueue:
 
         # if the queue unit doesn't have any messages, put it in the active queue
         if qu.empty():
-            self._insert(self._active_queues, qu)
+            self._insert_active_queue(qu)
 
         # put the message in the queue and increment total
         qu.put(message)
@@ -97,6 +103,10 @@ class NetworkPriotyQueue:
     # Finds and returns the next highest priority message, or None if not found
     def get(self):
         return self._next()
+
+    # Returns at most num_messages (less if there aren't that many left)
+    def get_multiple(self, num_messages):
+        return self._next(num_messages=num_messages)
     
     def empty(self):
         return self._qsize < 1
@@ -104,7 +114,7 @@ class NetworkPriotyQueue:
     def size(self):
         return self._qsize
     
-    def _next(self):
+    def _next(self, num_messages=None):
         # check that at least one message exists
         if self.empty():
             return None
@@ -112,26 +122,59 @@ class NetworkPriotyQueue:
         self._lock.acquire()
 
         # sanity check
-        if len(self._active_queues) < 1:
+        if len(self._active_queues_heap) < 1:
             self._lock.release()
             return None
         
-        # get the highest priority queue and pop a message from it
-        qu = self._active_queues.pop()
-        message = qu.get()
-        self._qsize -= 1
+        # get up to num_messages messages
+        if num_messages is not None:
+            num_messages = min(self._qsize, num_messages)
+            message = []
+            while num_messages > 0:
+                # grab the next queue in line and figure number of messages to get from it
+                qu = self._get_highest_active_queue()
+                num_get = min(qu.size(), num_messages)
+                num_messages -= num_get
+                target = self._qsize - num_get
 
-        # add list back if it still has elements
-        if not qu.empty():
-            self._active_queues.append(qu)
+                while self._qsize > target:
+                    message.append(qu.get())
+                    self._qsize -= 1
+
+                # remove queue if empty
+                if qu.empty():
+                    self._remove_highest_active_queue()
+
+        # get the highest priority queue and pop a message from it
+        else:
+            qu = self._get_highest_active_queue()
+            message = qu.get()
+            self._qsize -= 1
+
+            # remove queue from list if it has no messages left
+            if qu.empty():
+                self._remove_highest_active_queue()
 
         self._lock.release()
 
         return message
 
-    # Do an insert into a sorted list
-    def _insert(self, lst, e):
-        bisect.insort(lst, e)
+    # Add a new priority queue to the active list
+    def _insert_active_queue(self, q):
+        heapq.heappush(self._active_queues_heap, q)
+    
+    # Return the highest priority queue
+    def _get_highest_active_queue(self):
+        if len(self._active_queues_heap) > 0:
+            # in a heap, the first element is the highest priority
+            return self._active_queues_heap[0]
+        else:
+            return None
+
+    # Simply remove the highest priority queue
+    def _remove_highest_active_queue(self):
+        if len(self._active_queues_heap) > 0:
+            heapq.heappop(self._active_queues_heap)
 
     def __str__(self):
         return "Network Prioirty Queue ({} total messages)\n  ".format(self.size()) +\
@@ -139,7 +182,7 @@ class NetworkPriotyQueue:
 
 
 class NetworkManager:
-    def __init__(self, sleep_time=0.001, use_thread_pool=True, thread_pool_workers=10):
+    def __init__(self, block_size=0, sleep_time=0.0001, use_thread_pool=True, thread_pool_workers=10):
         self._queue = NetworkPriotyQueue()
         self._sender_thread = None
         self._running = False
@@ -147,6 +190,7 @@ class NetworkManager:
         self._thread_pool = None
         self._thread_pool_workers = thread_pool_workers
         self._use_thread_pool = use_thread_pool
+        self._block_size = block_size
 
     def __bool__(self):
         return self._running
@@ -192,21 +236,25 @@ class NetworkManager:
             self._thread_pool = None
 
 
-    # Get next message and return it
+    # Get next message(s), return as list
     def _get_next(self):
-        return self._queue.get()
+        if self._block_size < 2:
+            return [self._queue.get()]
+        else:
+            return self._queue.get_multiple(self._block_size)
         
     def _sender(self):
         self._log("sender entering")
         while self._running:
-            message = self._get_next()
+            messages = self._get_next()
 
             # If message is found, send it
-            if message:
+            if messages:
                 if self._thread_pool:
-                    self._thread_pool.submit(self._send, message)
+                    self._thread_pool.map(self._send, messages)
                 else:
-                    threading.Thread(target=self._send, args=(message,)).start()
+                    for message in messages:
+                        threading.Thread(target=self._send, args=(message,)).start()
 
             # Otherwise, sleep before checking again
             else:

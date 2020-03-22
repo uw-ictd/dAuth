@@ -95,21 +95,20 @@ class NetworkQueueTests:
 
         def comp(l):
             nw = network_manager.NetworkPriotyQueue()
+            nwm = network_manager.NetworkPriotyQueue()
             q = TestQueue()
-
-            nw_insert_time = time.time()
-            add_all(l, nw)
-            nw_insert_time = time.time() - nw_insert_time
 
             q_insert_time = time.time()
             add_all(l, q)
             q_insert_time = time.time() - q_insert_time
 
-            nw_send_time = time.time()
-            while not nw.empty():
-                message = nw.get()
-                message.send()
-            nw_send_time = time.time() - nw_send_time
+            nw_insert_time = time.time()
+            add_all(l, nw)
+            nw_insert_time = time.time() - nw_insert_time
+
+            nwm_insert_time = time.time()
+            add_all(l, nwm)
+            nwm_insert_time = time.time() - nwm_insert_time
 
             q_send_time = time.time()
             while not q.empty():
@@ -117,12 +116,27 @@ class NetworkQueueTests:
                 message.send()
             q_send_time = time.time() - q_send_time
 
+            nw_send_time = time.time()
+            while not nw.empty():
+                message = nw.get()
+                message.send()
+            nw_send_time = time.time() - nw_send_time
+
+            nwm_send_time = time.time()
+            while not nwm.empty():
+                messages = nwm.get_multiple(10000000)
+                for message in messages:
+                    message.send()
+            nwm_send_time = time.time() - nwm_send_time
+
             print(" Insert times (ms)")
             print("  Normal queue: (ms)", int(q_insert_time * 1000))
             print("  Network queue: (ms)", int(nw_insert_time * 1000))
+            print("  Network M queue: (ms)", int(nwm_insert_time * 1000))
             print(" Send times")
             print("  Normal queue: (ms)", int(q_send_time * 1000))
             print("  Network queue: (ms)", int(nw_send_time * 1000))
+            print("  Network M queue: (ms)", int(nwm_send_time * 1000))
             print()
 
         messages = []
@@ -176,14 +190,16 @@ class NetworkQueueTests:
             messages = []
             for _ in range(num_inserts):
                 messages.append(network_manager.NetworkMessage(random.randint(0, num_priorities-1), test_send_func, message_delay))
-            print("load " + str(t) + " (" + str(len(nw._active_queues))+ "/" + str(num_priorities) + " priorities used)")
+            print("load " + str(t) + " (" + str(len(nw._active_queues_heap))+ "/" + str(num_priorities) + " priorities used)")
             random.shuffle(messages)
             load(messages, nw)
         
         nw_send_time = time.time()
         while not nw.empty():
-            message = nw.get()
-            message.send()
+            # nw.get().send()
+            messages = nw.get_multiple(300000000)  # wtf is this better than replacing 'messages'...
+            for message in messages:
+                message.send()
         nw_send_time = time.time() - nw_send_time
         print("Network queue send time: {} messages in {} ms (~{} m/s)".format(num_inserts*num_repeats, int(nw_send_time * 1000), int(num_inserts*num_repeats/nw_send_time)))
 
@@ -206,7 +222,7 @@ class NetworkManagerTests:
                 nm.start()
 
                 for i in range(iterations):
-                    nm.post(i%2, test_func, i%2, i)
+                    nm.post(i%5, test_func, i%5, i)
                 
                 while nm.has_messages():
                     time.sleep(0.1)
@@ -326,13 +342,13 @@ class NetworkManagerTests:
             print()
 
 if __name__ == "__main__":
-    # nqt = NetworkQueueTests()
+    nqt = NetworkQueueTests()
     # nqt.test_functionality()
-    # nqt.run_performance_tests()
+    nqt.run_performance_tests()
     # nqt.run_stress_tests()
     nmt = NetworkManagerTests()
     # nmt.test_functionality([10])
     # nmt.test_straight_performance([10000, 100000], 0.000001)
     # nmt.test_straight_performance([10000, 100000], 0.1)
     # nmt.test_performance([10], 5, 0.01, 10)
-    nmt.test_performance([10000], 10, 0.01, 10)
+    # nmt.test_performance([10000], 10, 0.01, 10)
