@@ -181,8 +181,16 @@ class NetworkPriotyQueue:
                "\n  ".join(["Priority {} with {} messages".format(k, v.size()) for k, v in self._priority_queues.items()])
 
 
+# Maintains a queue of network messages at certain priorities
+# Sends messages in order of priority as it gets them
 class NetworkManager:
-    def __init__(self, block_size=0, sleep_time=0.0001, use_thread_pool=True, thread_pool_workers=10):
+    # Params:
+    # - block_size: Number of messages to pull from the queue at a time, or <1 to pull all messages
+    #               higher numbers can be more efficient, but may not work well if priorities must be followed closely
+    # - sleep_time: delay before checking for new messages (higher results in less cpu usage, but higher potential latency)
+    # - use_thread_pool: uses a thread pool instead of spawing threads for each message. Less overhead and more efficient in most cases
+    # - thread_pool_workers: Number of workers for the thread pool, ignored if no thread pool is used
+    def __init__(self, block_size=1, sleep_time=0.0001, use_thread_pool=True, thread_pool_workers=10):
         self._queue = NetworkPriotyQueue()
         self._sender_thread = None
         self._running = False
@@ -235,17 +243,17 @@ class NetworkManager:
             self._thread_pool.shutdown()
             self._thread_pool = None
 
-
     # Get next message(s), return as list
     def _get_next(self):
-        if self._block_size < 2:
+        if self._block_size == 1:
             return [self._queue.get()]
         else:
-            return self._queue.get_multiple(self._block_size)
+            return self._queue.get_multiple(self._block_size if self._block_size > 1 else self._queue.size())
         
     def _sender(self):
         self._log("sender entering")
         while self._running:
+            # get a list of avaiable messages
             messages = self._get_next()
 
             # If message is found, send it
