@@ -1,158 +1,106 @@
 import sys
+sys.path.append("../protos")
 sys.path.append("..")
 
-import network_manager
-import socket
-import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from services import DebugPing
+from network_manager import NetworkManager
+
+# This is simple test of the debugping service
+# Contains two functions
 
 class PingTester:
-    def __init__(self, host='127.0.0.1', port=12115, use_local=True, use_nw_manager=True, block_size=None, sleep_time=0.001):
-        self._use_local = use_local
+    def __init__(self, host='localhost', port=12115):
+        # Used for main manager
         self._host = host
         self._port = port
-        self._server_thread = None
-        self._server_running = False
-        self._nw_manager = None
 
-        if use_nw_manager:
-            self._nw_manager = network_manager.NetworkManager(block_size=block_size, sleep_time=sleep_time)
-            self._nw_manager.start()
-
-    # Send a message with a time stamp
-    def ping(self, priority=0):
-        message = int(time.time()*1000000000) # time in ns
-        ret = int(self._send(message, priority))
-        return int(time.time()*1000000000) - int(ret)
-    
-    # Spawn thread to run server
-    def start_server(self):
-        if self._use_local and not self._server_thread:
-            self._server_thread = threading.Thread(target=self._local_server)
-            self._server_running = True
-            self._server_thread.start()
-
-    # Stop thread currently running server
-    def stop_server(self):
-        self._server_running = False
-        if self._server_thread:
-            self._server_thread.join()
-            self._server_thread = None
-    
-    # Stop thread currently running server
-    def stop_nw_manager(self):
-        if self._nw_manager:
-            self._nw_manager.stop()
-
-    # Directly send message
-    def _send(self, message, priority):
-        r = None
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((self._host, self._port))
-            m = str(message).encode()
-
-            # queue message
-            if self._nw_manager:
-                self._nw_manager.post(priority, s.sendall, m)
-            # send directly
-            else:
-                s.sendall(m)
-
-            r = s.recv(1024).decode()
-        
-        return r
-        
-    # For hosting a local server, returns the delay
-    # TODO: just send back the timestamp?
-    def _local_server(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.bind((self._host, self._port))
-            s.settimeout(0.1)
-            s.listen()
-
-            while self._server_running:
-                try:
-                    conn, addr = s.accept()
-                except socket.timeout:
-                    continue
-
-                with conn:
-                    # data = conn.recv(1024)
-                    # t = str(int(time.time() * 1000000000) - int(data.decode()))
-                    # conn.sendall(t.encode())
-                    conn.sendall(conn.recv(1024))
-
-class PingTests:
-    use_local = True
-    host = "127.0.0.1"
-    port = 12117
-
-    # Simply runs all available tests
-    @staticmethod
-    def run_all_tests():
-        print(" --- Running all tests ---")
-        print()
-
-        print(" Simple Ping Test")
-        for interval in [0.0001, 0.001, 0.01]:
-            print("   ", interval, "second interval:")
-            for pings in [10, 100, 500]:
-                results_direct_send = PingTests.simple_ping(ping_interval=interval, num_pings=pings)
-                avg = sum(results_direct_send) // len(results_direct_send)
-                print("      Average ping time for direct send:", avg, "ns (" + str(avg / 1000000) + " ms) with", pings, "pings")
-                results_nw_manager = PingTests.simple_ping(ping_interval=interval, num_pings=pings, use_nw_manager=True)
-                avg = sum(results_nw_manager) // len(results_nw_manager)
-                print("      Average ping time for nw manager: ", avg, "ns (" + str(avg / 1000000) + " ms) with", pings, "pings")
-                print()
-
-        print(" Single Priority Ping Comparison Test")
-        for interval in [0.0001, 0.001, 0.01]:
-            print("   ", interval, "second interval:")
-            for pings in [10, 100, 500]:
-                print("      Network manager is " + str(PingTests.compare_simple_pings(num_pings=pings, ping_interval=interval)) + "x slower with ", pings, "pings")
-
-        print()
-        print(" --- End of tests ---")
-
-
-    # Tests that pings work, returns results of timing
-    @staticmethod
-    def simple_ping(num_pings=10, ping_interval=0.001, use_nw_manager=False):
-        tester = PingTests._default_tester(use_nw_manager)
+    # Simple test to ping self
+    def ping_self(self, num_pings=1, ping_delay=0):
+        print("Running ping_self test")
+        nwm, dp_service = self.make_manager("localhost", self._port)
+        nwm.start()
+        for _ in range(num_pings):
+            dp_service.ping(self.address())
+            time.sleep(ping_delay)
         time.sleep(1)
-        results = []
-        threads = []
-        with ThreadPoolExecutor(100) as executor:
+        results, remaining_messages = dp_service.get_results()
+        self.process_results(results, self.address(), dp_service._creation_time, remaining_messages)
+        nwm.stop()
+
+    # Addresses is a list of address strings of form 'host:port'
+    # Goes through each address one at a time
+    # Pings each address num_pings times, with ping_delay time between each ping
+    def ping_multiple(self, addresses, num_pings=1, ping_delay=0):
+        print("Running ping test")
+
+        # start local network manager
+        nwm, dp_service = self.make_manager(self._host, self._port)
+        nwm.start()
+
+        # go through and test each address
+        for address in addresses:
             for _ in range(num_pings):
-                threads.append(executor.submit(tester.ping))
-                time.sleep(ping_interval)
+                dp_service.ping(address)
+                time.sleep(ping_delay)
+            time.sleep(0.1)
 
-            for t in threads:
-                results.append(t.result())
+        time.sleep(0.001*len(addresses)*num_pings)
 
-        tester.stop_nw_manager()
-        tester.stop_server()
-        return results
-
-    # Does a simple ping test with and without the network manager
-    # Returns the average of the two
-    @staticmethod
-    def compare_simple_pings(num_pings=10, ping_interval=0.01):
-        results_direct_send = PingTests.simple_ping(num_pings=num_pings, ping_interval=ping_interval)
-        avg_direct = sum(results_direct_send) // len(results_direct_send)
-        results_nw_manager = PingTests.simple_ping(use_nw_manager=True)
-        avg_nw_manager = sum(results_nw_manager) // len(results_nw_manager)
-        return avg_nw_manager / avg_direct
+        # process and print results, then stop network manager
+        results, remaining_messages = dp_service.get_results()
+        self.process_results(results, self.address(), dp_service._creation_time, remaining_messages)
+        nwm.stop()
         
+    # Makes a manager with the debug ping service
+    # Returns the manager and the service
+    def make_manager(self, host, port):
+        dp_service = DebugPing()
+        nwm = NetworkManager(host=host, port=port)
+        nwm.add_service(dp_service)
+        return nwm, dp_service
 
-    # Builds and starts a tester with PingTests defaults
-    @staticmethod
-    def _default_tester(use_nw_manager):
-        tester = PingTester(host=PingTests.host, port=PingTests.port, use_local=PingTests.use_local, use_nw_manager=use_nw_manager, block_size=100000000000, sleep_time=0.0001)
-        tester.start_server()
-        return tester
+    def address(self, host=None, port=None):
+        if not host:
+            host = self._host
+        if not port:
+            port = self._port
+
+        return host + ":" + str(port)
+
+
+    # Processes and print results from ping tests
+    def process_results(self, results, from_address, cap, remaining_messages):
+        avg_set = {}
+        max_set = {}
+        min_set = {}
+        for address, time_list in results.items():
+            mn = cap
+            mx = 0
+            s = 0
+            c = 0
+            for t in time_list:
+                if t < cap:
+                    mn = min(mn, t)
+                    mx = max(mx, t)
+                    s += t
+                    c += 1
+
+            if c:
+                avg_set[address] = s/c
+                min_set[address] = mn
+                max_set[address] = mx
+            else:
+                avg_set[address] = 0
+                min_set[address] = 0
+                max_set[address] = 0
+        
+        print("  Ping times for", from_address, "(" + str(remaining_messages) + " pings not yet received)")
+
+        for address, avg in avg_set.items():
+            print("   ", address, " -- ", "{0:1f}".format(avg*1000), " ms ", "(min ", "{0:1f}".format(min_set[address]*1000), ", max ", "{0:1f}".format(max_set[address]*1000), ")", sep="")
+
 
 if __name__ == "__main__":
-    PingTests.run_all_tests()
+    tester = PingTester()
+    tester.ping_multiple(["localhost:12115"])

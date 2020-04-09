@@ -1,0 +1,40 @@
+Brief overview of the network manager
+-------------------------------------------
+
+The network manager is intended as a way to control and prioritize messages.
+It offers services as an easier way to maintain control over network communication, but
+also allows for direct message sending via stub sending functions.
+
+The network manager is comprised of the following main parts:
+ - network priority queue
+ - gRPC server
+ - services
+
+
+Priority Queue:
+
+    The network priority queue is designed to allow messages with arbitrary (but comparable) 
+    priorities. For optimization, priorities can be limited to a set of known priorities.
+
+    The queue is implemented using a heapq of deques, as well as a mapping of priorities to deques.
+    The runtimes are O(1) for get and O(log(n)) for put (but commonly used priorities will be closer to O(1)).
+
+
+gRPC server:
+
+    All messages are received via a gRPC server that the network manages. Services can be added to manage incoming messages.
+
+
+Services:
+
+    Services are attachments to the network manager that are used for managing messages, either to and/or from the network.
+
+    Three example services exist: DebugPing, LoggerServer, and LoggerClient. Each is a different implementation of a service,
+    and so can be used as references for designing a new service.
+
+    To send messages, services should create and manage gRPC stubs.
+
+    Services can be implemented as either simple wrapper around sending/receiving (see DebugPing), or as separate microservices/threads
+    by utilizing the start/stop functions inherent to services (see Logging Client/Server).
+
+    Services can be directly added the network manager, which will add the service's servicer to the gRPC server (see Services).

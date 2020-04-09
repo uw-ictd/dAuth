@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+
+service Logger {
+    // Client sends a stream of messages
+    rpc SendLogMessages(stream LogMessage) returns (LogResponse) {}
+}
+
+
+message LogMessage {
+    string timestamp = 1;
+    string host = 2;
+    string category = 3;
+    string content = 4;
+}
+
+message LogResponse {
+    // Nothing to respond with for now
+}
