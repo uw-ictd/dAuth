@@ -33,7 +33,7 @@ def log_test(num_clients=2, num_messages=3, delay=0.01):
     for i in range(num_messages):
         for client in clients:
             srvc = client.get_service(services.LoggingClient.name)
-            srvc.send_message("test category " + str(i%2), "test content " + str(i))
+            srvc.log("test category " + str(i%2), "test content " + str(i))
             time.sleep(delay)
 
     # Sleep for a time scaled by the number of clients and messages

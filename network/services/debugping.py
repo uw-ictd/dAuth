@@ -1,11 +1,11 @@
 import time
 import grpc
-import protos
-from services import Service
+from network.protos import debugping_pb2, debugping_pb2_grpc
+from network.services import Service
 
 # Simple debug ping, records round-trip ping time for all hosts
 # Demonstrates how services work with the network/service managers and gRPC
-class DebugPing(Service, protos.DebugPingServicer):
+class DebugPing(Service, debugping_pb2_grpc.DebugPingServicer):
     name = "DebugPing"
     priority = 2
 
@@ -22,14 +22,14 @@ class DebugPing(Service, protos.DebugPingServicer):
 
     # Add self to server
     def add_service_to_server(self, server):
-        protos.add_DebugPingServicer_to_server(self, server)
+        debugping_pb2_grpc.add_DebugPingServicer_to_server(self, server)
 
 
     # gRPC SERVICER FUNCTIONS
 
     # Called when receiving a new ping
     def DebugPing(self, request, context):
-        return protos.PingResponse(time=request.time)
+        return debugping_pb2.PingReply(time=request.time)
 
 
     # SERVICE SPECIFIC FUNCTIONS
@@ -40,7 +40,7 @@ class DebugPing(Service, protos.DebugPingServicer):
     def ping(self, address):
         self._active_pings += 1
         stub = self.get_stub(address)
-        self._send(stub.DebugPing, protos.PingMessage(time=time.time()), address)
+        self._send(stub.DebugPing, debugping_pb2.PingMessage(time=time.time()), address)
 
     # Sends a ping to all known hosts
     def ping_all(self):
@@ -78,7 +78,7 @@ class DebugPing(Service, protos.DebugPingServicer):
     # Create a new stub for the provided address
     # Also create a result entry
     def _make_stub(self, address):
-        self._stubs[address] = protos.DebugPingStub(grpc.insecure_channel(address))
+        self._stubs[address] = debugping_pb2_grpc.DebugPingStub(grpc.insecure_channel(address))
         self._results[address] = []
 
     # Internal send function, passes message to service manager

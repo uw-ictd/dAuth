@@ -2,7 +2,7 @@ syntax = "proto3";
 
 
 service DebugPing {
-    rpc DebugPing (PingMessage) returns (PingResponse) {}
+    rpc DebugPing (PingMessage) returns (PingReply) {}
 }
 
 
@@ -10,6 +10,6 @@ message PingMessage {
     double time = 1;
 }
 
-message PingResponse {
+message PingReply {
     double time = 1;
 }

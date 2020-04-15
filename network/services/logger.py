@@ -4,11 +4,11 @@ import threading
 import logging
 import grpc
 import os
-import protos
-from services import Service
+from network.protos import logger_pb2, logger_pb2_grpc
+from network.services import Service
 
 # Service for receiving and processing logs from other hosts
-class LoggingServer(Service, protos.LoggerServicer):
+class LoggingServer(Service, logger_pb2_grpc.LoggerServicer):
     # Name used to identify service
     name = "logging_server"
     priority = 2
@@ -38,7 +38,7 @@ class LoggingServer(Service, protos.LoggerServicer):
 
     # Add self to server
     def add_service_to_server(self, server):
-        protos.add_LoggerServicer_to_server(self, server)
+        logger_pb2_grpc.add_LoggerServicer_to_server(self, server)
 
 
     # gRPC SERVICER FUNCTIONS
@@ -47,7 +47,7 @@ class LoggingServer(Service, protos.LoggerServicer):
     def SendLogMessages(self, request_iterator, context):
         for request in request_iterator:
             self._message_queue.put(request)
-        return protos.LogResponse()
+        return logger_pb2.LogResponse()
 
 
     # SERVICE SPECIFIC FUNCTIONS
@@ -178,7 +178,7 @@ class LoggingClient(Service):
     priority = 2
 
     # Takes in address of the server to send messages to
-    def __init__(self, host="localhost", port=13172, stream_max=10000, stream_max_wait=False):
+    def __init__(self, host="localhost", port=13173, stream_max=10000, stream_max_wait=False):
         self._host = host
         self._port = port
         self._server_address = host + ":" + str(port)
@@ -187,16 +187,16 @@ class LoggingClient(Service):
         self._wait_time_sec = 1
         self._stream_max = stream_max  # Prevents one service from hogging
         self._stream_max_wait = stream_max_wait  # If stream_max is reached, wait before sending more
-        self._stub = protos.LoggerStub(grpc.insecure_channel(self._server_address))
+        self._stub = logger_pb2_grpc.LoggerStub(grpc.insecure_channel(self._server_address))
         self._send_function = self._stub.SendLogMessages
         self._message_queue = queue.Queue()
 
 
     # Queues a message to be sent to the service
-    def send_message(self, category, content):
+    def log(self, category, content):
         if self._network_manager:
             if self._running:
-                message = protos.LogMessage(timestamp="{0:.10f}".format(time.time()),
+                message = logger_pb2.LogMessage(timestamp="{0:.10f}".format(time.time()),
                                                    host=self._network_manager.address(),
                                                    category=category,
                                                    content=content)

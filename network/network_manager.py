@@ -2,10 +2,9 @@ import threading
 import logging
 import os
 import grpc
-import services
 import time
 from concurrent.futures import ThreadPoolExecutor
-from network_queue import NetworkPriotyQueue, NetworkMessage
+from network.network_queue import NetworkPriotyQueue, NetworkMessage
 
 
 # TODO:
@@ -17,7 +16,8 @@ from network_queue import NetworkPriotyQueue, NetworkMessage
 class NetworkManager:
     # Params:
     #  Operation:
-    # - host/port: the host and port to run the gRPC server on (host is used by some services)
+    # - host: the ip/host of the gRPC server (not really used outside of logging info)
+    # - port: the port to run the gRPC server on
     # - known_priorities: a list of priorities that will be used
     # - limit_to_known_priorities: does not allow new priorities after initializing known priorities
     #  

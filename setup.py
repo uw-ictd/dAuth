@@ -50,12 +50,14 @@ if __name__ == '__main__':
             'pymongo',
             'mongotriggers',
             'cbor',
-            'sawtooth-sdk'
+            'sawtooth-sdk',
+            'grpcio'
         ],
         data_files=data_files,
         entry_points={
             'console_scripts': [
                 'ccellular = sawtooth_ccellular.client.ccellular_cli:main_wrapper',
-                'ccellular-tp = sawtooth_ccellular.processor.main:main'
+                'ccellular-tp = sawtooth_ccellular.processor.main:main',
+                'logging-server = network.logging_server:run_server'
             ]
         })
