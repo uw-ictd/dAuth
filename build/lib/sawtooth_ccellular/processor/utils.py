@@ -34,7 +34,6 @@ def serialize_proto_database_instruction(instruction):
 
 
 def deserialize_proto_database_instructions(serialized_instruction):
-    instruction = structures_pb2.DatabaseData()
+    instruction = structures_pb2.DatabaseInstruction()
     instruction.ParseFromString(serialized_instruction)
     return instruction
-

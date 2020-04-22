@@ -25,3 +25,21 @@ message DatabaseInstruction {
     Operation operation = 1;
     string hex_encoded_object = 2;
 }
+
+message DatabaseData {
+    enum Operation {
+        INSERT = 0;
+        DELETE = 1;
+        UPDATE = 2;
+    }
+    Operation operation = 1;
+    bool remote = 7;
+    string ownership = 8;
+
+    // Database data
+    string imsi = 2;
+    string k = 3;
+    string amf = 4;
+    string op = 5;
+    string opc = 6;
+}

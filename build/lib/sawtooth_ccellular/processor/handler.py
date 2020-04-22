@@ -6,7 +6,7 @@ from sawtooth_sdk.processor.handler import TransactionHandler
 from sawtooth_sdk.processor.exceptions import InvalidTransaction
 from sawtooth_sdk.processor.exceptions import InternalError
 
-from sawtooth_ccellular.processor.global_variables import GlobalVariables as gvars
+from sawtooth_ccellular.processor.constants import FAMILY_NAME, FAMILY_VERSION
 from sawtooth_ccellular.processor.database import DatabaseManager
 from sawtooth_ccellular.processor.utils import deserialize_proto_database_instructions
 
@@ -16,7 +16,7 @@ def _sha512(data):
 
 
 def get_prefix():
-    return _sha512(gvars.FAMILY_NAME.encode('utf-8'))[0:6]
+    return _sha512(FAMILY_NAME.encode('utf-8'))[0:6]
 
 
 def make_ccellular_address(imsi):
@@ -35,11 +35,11 @@ class CCellularTransactionHandler(TransactionHandler):
 
     @property
     def family_name(self):
-        return gvars.FAMILY_NAME
+        return FAMILY_NAME
 
     @property
     def family_versions(self):
-        return [gvars.FAMILY_VERSION]
+        return [FAMILY_VERSION]
 
     @property
     def namespaces(self):
