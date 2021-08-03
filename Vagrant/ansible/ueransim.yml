@@ -1,0 +1,8 @@
+---
+
+- name: Set up a local isolated vm for using ueransim
+  hosts: ['ueransim']
+  become: yes
+
+  tasks:
+    # TODO
