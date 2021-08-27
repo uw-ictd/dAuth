@@ -1,0 +1,26 @@
+---
+
+- name: Set up a local isolated vm for colte development
+  hosts: ['colte1', 'colte2']
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  become: yes
+
+  tasks:
+    # NOTE: All commented parts could be necessary, but currently seem to do nothing
+
+    # - name: Install dependencies - software-properties-common
+    #   apt:
+    #     name: software-properties-common
+    #     state: present
+
+    - name: Add open5gs repo
+      apt_repository:
+        repo: ppa:open5gs/latest
+    
+    - name: Install open5gs
+      apt:
+        name: open5gs
+        state: present
+
+  # TODO: Add ways to autoconfigure, i.e. by colte script

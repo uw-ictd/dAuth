@@ -2,7 +2,42 @@
 
 - name: Set up a local isolated vm for using ueransim
   hosts: ['ueransim']
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
   become: yes
 
   tasks:
-    # TODO
+    # NOTE: All commented parts could be necessary, but currently seem to do nothing
+  
+    # - name: Remove old cmake
+    #   apt:
+    #     name: cmake
+    #     state: absent
+    #     purge: yes
+
+    # - name: Install cmake dependencies - software-properties-common
+    #   apt:
+    #     name: software-properties-common
+    #     state: present
+
+    # - name: Install cmake dependencies - lsb-release
+    #   apt:
+    #     name: lsb-release
+    #     state: present
+    #     update_cache: yes
+
+    - name: Install cmake key
+      apt_key:
+        url: "https://apt.kitware.com/keys/kitware-archive-latest.asc"
+        state: present
+
+    - name: Install cmake repo
+      apt_repository:
+        repo: "deb https://apt.kitware.com/ubuntu/ bionic main"
+        state: present
+        update_cache: yes
+
+    # Needs to be fixed/modified
+    # - name: Clone UERANSIM
+    #   script:
+    #     cmd: git clone https://github.com/aligungr/UERANSIM
