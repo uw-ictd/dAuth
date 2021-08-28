@@ -7,18 +7,20 @@
   become: yes
 
   tasks:
-    # NOTE: All commented parts could be necessary, but currently seem to do nothing
-    #       Commented out for testing performance
-  
-    # - name: Remove old cmake
-    #   apt:
-    #     name: cmake
-    #     state: absent
-    #     purge: yes
-
     - name: Install dependencies - g++
       apt:
         name: g++
+        state: present
+
+    - name: Install dependencies - libsctp-dev
+      apt:
+        name: libsctp-dev
+        state: present
+        update_cache: yes
+
+    - name: Install dependencies - lksctp-tools
+      apt:
+        name: lksctp-tools
         state: present
 
     - name: Install dependencies - software-properties-common
@@ -52,8 +54,13 @@
       git:
         repo: https://github.com/aligungr/UERANSIM
         dest: /home/vagrant/UERANSIM
-    
-    # Takes a long time
+
     - name: Make UERANSIM
       make:
         chdir: /home/vagrant/UERANSIM
+
+    - name: Copy configs over
+      copy:
+        src: "../../configs/"
+        dest: "/home/vagrant/configs"
+        remote_src: no

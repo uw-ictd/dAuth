@@ -7,13 +7,10 @@
   become: yes
 
   tasks:
-    # NOTE: All commented parts could be necessary, but currently seem to do nothing
-    #       Commented out for testing performance
-
-    # - name: Install dependencies - software-properties-common
-    #   apt:
-    #     name: software-properties-common
-    #     state: present
+    - name: Install dependencies - software-properties-common
+      apt:
+        name: software-properties-common
+        state: present
 
     - name: Add open5gs repo
       apt_repository:
