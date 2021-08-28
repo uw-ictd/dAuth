@@ -8,6 +8,7 @@
 
   tasks:
     # NOTE: All commented parts could be necessary, but currently seem to do nothing
+    #       Commented out for testing performance
 
     # - name: Install dependencies - software-properties-common
     #   apt:
