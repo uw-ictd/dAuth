@@ -8,7 +8,7 @@
 
   tasks:
     - name: Update and upgrade apt packages
-      become: true
+      become: yes
       apt:
         upgrade: yes
         update_cache: yes
@@ -65,8 +65,24 @@
       make:
         chdir: /home/vagrant/UERANSIM
 
-    - name: Copy configs over
+    - name: Copy ueransim configs
       copy:
-        src: "../../configs/"
+        src: "../../configs/ueransim"
         dest: "/home/vagrant/configs"
         remote_src: no
+
+    - name: Copy scripts
+      copy:
+        src: "../../scripts/"
+        dest: "/home/vagrant/scripts"
+        remote_src: no
+
+    - name: Copy network config
+      copy:
+        src: "../../configs/network/ueransim.yaml"
+        dest: "/etc/netplan/60-static-routes.yaml"
+        remote_src: no
+    
+    - name: Apply network changes
+      command: netplan apply
+      become: yes
