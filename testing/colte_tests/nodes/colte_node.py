@@ -3,9 +3,9 @@ from typing import Union
 from colte_tests.nodes.node import Node
 
 
-class CoreNode(Node):
+class ColteNode(Node):
   """
-  Represents an Open5gs core node VM.
+  Represents an colte core node VM.
   """
 
   def __init__(self, host_name: str, vagrant_dir: str="./") -> None:
@@ -15,7 +15,7 @@ class CoreNode(Node):
 
   def add_subscriber(self, imsi: str, key: str, opc: str, ip: str=None) -> Union[str, str]:
     """
-    Adds a subscriber to the core's db.
+    Adds a subscriber to the db.
     Returns the result of executing the db change script.
     """
     if ip is not None:
@@ -27,16 +27,18 @@ class CoreNode(Node):
 
   def remove_subscriber(self, imsi: str) -> Union[str, str]:
     """
-    Removes a subscriber from the core's db.
+    Removes a subscriber from the db.
     Returns the result of executing the db change script.
     """
     command = " ".join([self.db_script_path, "remove", imsi])
+
     return self.run_command(command)
 
   def reset(self) -> Union[str, str]:
     """
-    Resets the core's db.
+    Resets the db, removing everything.
     Returns the result of executing the db change script.
     """
     command = " ".join([self.db_script_path, "reset"])
+
     return self.run_command(command)

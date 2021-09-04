@@ -1,8 +1,8 @@
 from distutils.core import setup
 
-setup(name='colte-ueransim testing',
+setup(name='colte-tests',
       version='1.0',
       description='Testing scripts for colte using ueransim.',
       author='Nick Durand',
-      packages=['tests'],
+      packages=['colte_tests']
      )
