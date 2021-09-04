@@ -10,7 +10,7 @@ class Node:
   Meant to be subclassed.
   """
 
-  def __init__(self, host_name: str, vagrant_dir :str="./") -> None:
+  def __init__(self, host_name: str, vagrant_dir: str="./") -> None:
     self.host_name = host_name
     self.vagrant_dir = vagrant_dir
     self.success_stderr = "Connection to"
