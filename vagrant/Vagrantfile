@@ -19,7 +19,7 @@ Vagrant.configure(2) do |config|
       ansible.compatibility_mode = "2.0"
       ansible.host_key_checking = false
       ansible.playbook = "ansible/ueransim.yml"
-      ansible.raw_arguments = ['--timeout=20']
+      ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
     end
 
@@ -41,7 +41,7 @@ Vagrant.configure(2) do |config|
       ansible.compatibility_mode = "2.0"
       ansible.host_key_checking = false
       ansible.playbook = "ansible/colte.yml"
-      ansible.raw_arguments = ['--timeout=20']
+      ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
     end
 
@@ -63,7 +63,7 @@ Vagrant.configure(2) do |config|
       ansible.compatibility_mode = "2.0"
       ansible.host_key_checking = false
       ansible.playbook = "ansible/colte.yml"
-      ansible.raw_arguments = ['--timeout=20']
+      ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
     end
 
