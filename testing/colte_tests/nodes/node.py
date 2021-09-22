@@ -5,6 +5,7 @@ from paramiko import SSHConfig, SSHClient, AutoAddPolicy
 from typing import Union
 
 from colte_tests.nodes.command_exception import CommandException
+from paramiko.channel import ChannelFile, ChannelStderrFile, ChannelStdinFile
 
 
 class Node:
@@ -17,7 +18,7 @@ class Node:
     self.host_name = host_name
     self.vagrant_dir = vagrant_dir
 
-    # Initialize paramiko connection
+    # Initialize paramiko connection and make main connection
     config = SSHConfig()
     config.parse(
       io.StringIO(
@@ -25,13 +26,21 @@ class Node:
           ["vagrant", "ssh-config", host_name], 
           cwd=vagrant_dir).decode()))
     self.ssh_info = config.lookup(host_name)
-    self.ssh_client = SSHClient()
-    self.ssh_client.set_missing_host_key_policy(AutoAddPolicy())
-    self.ssh_client.connect(self.ssh_info["hostname"],
+    self.ssh_client = self.build_ssh_client()
+
+
+  def build_ssh_client(self) -> SSHClient:
+    """
+    Builds and returns an ssh client to the node.
+    """
+    ssh_client = SSHClient()
+    ssh_client.set_missing_host_key_policy(AutoAddPolicy())
+    ssh_client.connect(self.ssh_info["hostname"],
       port=int(self.ssh_info["port"]),
       username=self.ssh_info["user"],
       key_filename=self.ssh_info["identityfile"][0],
       timeout=30)
+    return ssh_client
 
   def run_command(self, command: str) -> Union[str, str]:
     """
@@ -40,3 +49,10 @@ class Node:
     """
     outputs = self.ssh_client.exec_command(command)
     return (outputs[1].read().decode(), outputs[2].read().decode())
+
+  def run_input_command(self, command: str) -> Union[ChannelStdinFile, ChannelFile, ChannelStderrFile]:
+    """
+    Runs the provided command in in the home dir of the VM.
+    Returns active streams for stdin, stout, and stderr.
+    """
+    return self.ssh_client.exec_command(command)

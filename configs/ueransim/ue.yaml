@@ -21,6 +21,7 @@ imeiSv: '4370816125816151'
 # List of gNB IP addresses for Radio Link Simulation
 gnbSearchList:
   - 192.168.40.200
+  - 192.168.40.201
 
 # UAC Access Identities Configuration
 uacAic:

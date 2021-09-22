@@ -15,13 +15,16 @@ def dev_main():
   print(" ueransim -", ueransim.run_command("echo hello world"))
   print(" colte1 -", colte1.run_command("echo hello world"))
   print()
+
+  print("Starting devices")
+  gnb = ueransim.add_gnb("./configs/ueransim/gnb-1.yaml", "192.168.40.200")
+  ue = ueransim.add_ue("./configs/ueransim/ue.yaml")
   
   print("Device IDs test:")
   print(" ueransim -", ueransim.get_device_ids())
   print()
 
   print("Device build test")
-  ueransim.detect_devices()
   print(" GNBs: ", ", ".join([d.id for d in ueransim.gnbs]))
   print(" UEs: ", ", ".join([d.id for d in ueransim.ues]))
   print()

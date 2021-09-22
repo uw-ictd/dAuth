@@ -43,4 +43,14 @@
       command: netplan apply
       become: yes
 
-  # TODO: Add ways to autoconfigure, i.e. by colte script
+    - name: Start smf service
+      systemd:
+        name: open5gs-smfd
+        state: started
+        enabled: yes
+
+    - name: Start upf service
+      systemd:
+        name: open5gs-upfd
+        state: started
+        enabled: yes

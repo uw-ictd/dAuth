@@ -1,6 +1,10 @@
-from typing import List, Union
+import time
+from os import path
+from typing import List, Set, Union
+from colte_tests.nodes.command_exception import CommandException
 
 from colte_tests.nodes.node import Node
+from paramiko.client import SSHClient
 
 
 class UeransimNode(Node):
@@ -9,10 +13,10 @@ class UeransimNode(Node):
   """
 
   def __init__(self, host_name: str, vagrant_dir: str="./",
-               cli_path="./UERANSIM/build/nr-cli") -> None:
+               build_path: str="./UERANSIM/build/") -> None:
     super().__init__(host_name, vagrant_dir=vagrant_dir)
 
-    self.cli_path = cli_path
+    self.build_path: str = build_path
     self.gnbs: List[GNB] = []
     self.ues: List[UE] = []
 
@@ -22,32 +26,38 @@ class UeransimNode(Node):
     Commands vary by id type (GNB or UE).
     Returns a tuple of stdout and stderr results.
     """
-    return self.run_command(" ".join([self.cli_path, command]))
+    return self.run_command(" ".join([path.join(self.build_path, "nr-cli"), command]))
 
-  def get_device_ids(self) -> List[str]:
+  def get_device_ids(self) -> Set[str]:
     """
     Finds all active UERANSIM devices.
-    Returns a list of all GNB and UE ids.
+    Returns a set of all GNB and UE ids.
     """
     stdout = self.run_cli_command("-d")[0]
     
-    return [id.strip() for id in stdout.split("\n") if id.strip() != '']
+    return set([id.strip() for id in stdout.split("\n") if id.strip() != ''])
 
-  def detect_devices(self) -> None:
+  def add_gnb(self, config_path: str, ip: str) -> "GNB":
     """
-    Finds active UERANSIM devices and creates objects representing them.
-    Replaces existing lists.
+    Builds and starts a GNB device.
+    Returns the resulting GNB object.
     """
-    device_ids = self.get_device_ids()
 
-    self.gnbs.clear()
-    self.ues.clear()
+    gnb = GNB(self, config_path, ip)
+    gnb.start_device()
+    self.gnbs.append(gnb)
+    return gnb
 
-    for device_id in device_ids:
-      if device_id.startswith("imsi-"):
-        self.ues.append(UE(self, device_id))
-      else:
-        self.gnbs.append(GNB(self, device_id))
+  def add_ue(self, config_path: str) -> "UE":
+    """
+    Builds and starts a GNB device.
+    Returns the resulting GNB object.
+    """
+
+    ue = UE(self, config_path)
+    ue.start_device()
+    self.ues.append(ue)
+    return ue
 
 
 class DeviceInstance:
@@ -56,9 +66,47 @@ class DeviceInstance:
   May be either a GNB or a UE.
   """
 
-  def __init__(self, node: UeransimNode, id: str) -> None:
-    self.node = node
-    self.id = id
+  def __init__(self, node: UeransimNode, config_path: str, ip: str) -> None:
+    self.node: UeransimNode = node
+    self.config_path: str = config_path
+    self.ip: str = ip
+  
+    self.id: str = None
+    self.device_type: str = None  # Set when subclassed
+    self.connection: SSHClient = None
+
+  def start_device(self) -> None:
+    """
+    Starts the device and builds a connection.
+    """
+    if self.connection is None:
+      current_ids = self.node.get_device_ids()
+
+      self.connection = self.node.build_ssh_client()
+
+      self.connection.exec_command("{} -c {}".format(
+        path.join(self.node.build_path, self.device_type), 
+        self.config_path), get_pty=True)[0]
+
+      # Delay to allow device to come online (hack solution, need better)
+      time.sleep(0.5)
+
+      next_ids = self.node.get_device_ids()
+
+      if len(current_ids) == len(next_ids):
+        self.connection.close()
+        self.connection = None
+        raise CommandException("Failed to get a device id")
+      else:
+        self.id = list(current_ids.symmetric_difference(next_ids))[0]
+
+  def stop_device(self) -> None:
+    """
+    Stops the device and kills the connection.
+    """
+    if self.connection is not None:
+      self.connection.close()
+      self.connection = None
 
   def run_device_command(self, command: str) -> Union[str, str]:
     """
@@ -86,6 +134,10 @@ class GNB(DeviceInstance):
   """
   Represents a gNodeB instance on the ueransim node.
   """
+
+  def __init__(self, node: UeransimNode, config_path: str) -> None:
+    super().__init__(node, config_path)
+    self.device_type: str = "nr-gnb"
 
   def amf_list(self) -> str:
     """
@@ -127,6 +179,10 @@ class UE(DeviceInstance):
   """
   Represents a UE instance on the ueransim node.
   """
+
+  def __init__(self, node: UeransimNode, config_path: str) -> None:
+    super().__init__(node, config_path)
+    self.device_type: str = "nr-ue"
 
   def timers(self) -> str:
     """
