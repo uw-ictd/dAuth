@@ -1,10 +1,11 @@
 import time
 from os import path
 from typing import List, Set, Union
-from colte_tests.nodes.command_exception import CommandException
-
-from colte_tests.nodes.node import Node
 from paramiko.client import SSHClient
+
+from colte_tests.nodes.command_exception import CommandException
+from colte_tests.nodes.node import Node
+from colte_tests.logger import TestingLogger
 
 
 class UeransimNode(Node):
@@ -66,10 +67,9 @@ class DeviceInstance:
   May be either a GNB or a UE.
   """
 
-  def __init__(self, node: UeransimNode, config_path: str, ip: str) -> None:
+  def __init__(self, node: UeransimNode, config_path: str) -> None:
     self.node: UeransimNode = node
     self.config_path: str = config_path
-    self.ip: str = ip
   
     self.id: str = None
     self.device_type: str = None  # Set when subclassed
@@ -78,11 +78,13 @@ class DeviceInstance:
   def start_device(self) -> None:
     """
     Starts the device and builds a connection.
+    Adds the ip address on the VM.
     """
     if self.connection is None:
       current_ids = self.node.get_device_ids()
-
       self.connection = self.node.build_ssh_client()
+
+      self.startup_tasks()
 
       self.connection.exec_command("{} -c {}".format(
         path.join(self.node.build_path, self.device_type), 
@@ -92,13 +94,18 @@ class DeviceInstance:
       time.sleep(0.5)
 
       next_ids = self.node.get_device_ids()
-
       if len(current_ids) == len(next_ids):
         self.connection.close()
         self.connection = None
         raise CommandException("Failed to get a device id")
       else:
         self.id = list(current_ids.symmetric_difference(next_ids))[0]
+
+  def startup_tasks(self) -> None:
+    """
+    Specific device startup tasks to be run during "start_device".
+    """
+    pass
 
   def stop_device(self) -> None:
     """
@@ -135,9 +142,28 @@ class GNB(DeviceInstance):
   Represents a gNodeB instance on the ueransim node.
   """
 
-  def __init__(self, node: UeransimNode, config_path: str) -> None:
+  def __init__(self, node: UeransimNode, config_path: str, ip: str) -> None:
     super().__init__(node, config_path)
+    self.ip: str = ip
     self.device_type: str = "nr-gnb"
+
+  def startup_tasks(self) -> None:
+    """
+    Specific device startup tasks to be run during "start_device".
+    """
+    command = "sudo ip addr add {} dev enp0s8".format(self.ip)
+    TestingLogger.log_command_streams(command, self.connection.exec_command(command))
+
+    # Note: Using config_path as the base config
+    config_producer = path.join(path.dirname(self.config_path), "config_producer.py")
+    new_config = "".join([self.config_path.replace(".yaml", ""), "-", 
+      self.ip.replace(".", "_"), ".yaml"])
+
+    # Build the new config and set it as the current
+    command = " ".join(["sudo", config_producer, self.config_path, self.ip, new_config])
+    TestingLogger.log_command_streams(command, self.connection.exec_command(command))
+    self.config_path = new_config
+    print(new_config)
 
   def amf_list(self) -> str:
     """

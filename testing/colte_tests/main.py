@@ -17,7 +17,7 @@ def dev_main():
   print()
 
   print("Starting devices")
-  gnb = ueransim.add_gnb("./configs/ueransim/gnb-1.yaml", "192.168.40.200")
+  gnb = ueransim.add_gnb("./configs/ueransim/gnb-1.yaml", "192.168.40.202")
   ue = ueransim.add_ue("./configs/ueransim/ue.yaml")
   
   print("Device IDs test:")

@@ -1,11 +1,11 @@
 import subprocess
 import io
-
-from paramiko import SSHConfig, SSHClient, AutoAddPolicy
 from typing import Union
 
-from colte_tests.nodes.command_exception import CommandException
+from paramiko import SSHConfig, SSHClient, AutoAddPolicy
 from paramiko.channel import ChannelFile, ChannelStderrFile, ChannelStdinFile
+
+from colte_tests.logger import TestingLogger
 
 
 class Node:
@@ -47,8 +47,10 @@ class Node:
     Runs the provided command in in the home dir of the VM.
     Returns a tuple of the resulting stdout and stderr.
     """
-    outputs = self.ssh_client.exec_command(command)
-    return (outputs[1].read().decode(), outputs[2].read().decode())
+    outputs = self.run_input_command(command)
+    stdout, stderr = outputs[1].read().decode(), outputs[2].read().decode()
+    TestingLogger.log_command_execution(command, stdout, stderr)
+    return (stdout, stderr)
 
   def run_input_command(self, command: str) -> Union[ChannelStdinFile, ChannelFile, ChannelStderrFile]:
     """
