@@ -70,12 +70,14 @@
         src: "../../configs/ueransim"
         dest: "/home/vagrant/configs"
         remote_src: no
+        mode: u=rwx,g=rwx,o=rwx
 
     - name: Copy scripts
       copy:
         src: "../../scripts/"
         dest: "/home/vagrant/scripts"
         remote_src: no
+        mode: u=rwx,g=rwx,o=rwx
 
     - name: Copy network config
       copy:

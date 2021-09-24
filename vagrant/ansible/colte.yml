@@ -38,10 +38,25 @@
         src: "../../scripts/"
         dest: "/home/vagrant/scripts"
         remote_src: no
+        mode: u=rwx,g=rwx,o=rwx
     
     - name: Apply network changes
       command: netplan apply
       become: yes
+
+    - name: Configure forwarding and rounting (script)
+      command: /home/vagrant/scripts/configure-fwd
+      become: yes
+
+    - name: Configure open5gs ips
+      command: /home/vagrant/scripts/open5gs-ip-config.py {{ colte_ip }}
+      become: yes
+
+    - name: Restart amf service
+      systemd:
+        name: open5gs-amfd
+        state: restarted
+        enabled: yes
 
     - name: Start smf service
       systemd:
