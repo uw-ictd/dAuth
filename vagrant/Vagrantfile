@@ -42,7 +42,7 @@ Vagrant.configure(2) do |config|
       ansible.playbook = "ansible/colte.yml"
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
-      ansible.extra_arguments = {
+      ansible.extra_vars = {
         colte_ip: "192.168.41.200"
       }
     end
