@@ -1,4 +1,4 @@
-import time
+import yaml
 from os import path
 from typing import List, Set, Union
 from paramiko.client import SSHClient
@@ -81,31 +81,27 @@ class DeviceInstance:
     Adds the ip address on the VM.
     """
     if self.connection is None:
-      current_ids = self.node.get_device_ids()
       self.connection = self.node.build_ssh_client()
 
       self.startup_tasks()
+      self.generate_id()
 
       self.connection.exec_command("{} -c {}".format(
         path.join(self.node.build_path, self.device_type), 
         self.config_path), get_pty=True)[0]
-
-      # Delay to allow device to come online (hack solution, need better)
-      time.sleep(0.5)
-
-      next_ids = self.node.get_device_ids()
-      if len(current_ids) == len(next_ids):
-        self.connection.close()
-        self.connection = None
-        raise CommandException("Failed to get a device id")
-      else:
-        self.id = list(current_ids.symmetric_difference(next_ids))[0]
 
   def startup_tasks(self) -> None:
     """
     Specific device startup tasks to be run during "start_device".
     """
     pass
+
+  def generate_id(self) -> None:
+    """
+    Specific device id generation to be run during "start_device".
+    Sets the id.
+    """
+    self.id = None
 
   def stop_device(self) -> None:
     """
@@ -155,7 +151,7 @@ class GNB(DeviceInstance):
     TestingLogger.log_command_streams(command, self.connection.exec_command(command))
 
     # Note: Using config_path as the base config
-    config_producer = path.join(path.dirname(self.config_path), "config_producer.py")
+    config_producer = path.join(path.dirname(self.config_path), "gnb_config_producer.py")
     new_config = "".join([self.config_path.replace(".yaml", ""), "-", 
       self.ip.replace(".", "_"), ".yaml"])
 
@@ -163,7 +159,15 @@ class GNB(DeviceInstance):
     command = " ".join(["sudo", config_producer, self.config_path, self.ip, new_config])
     TestingLogger.log_command_streams(command, self.connection.exec_command(command))
     self.config_path = new_config
-    print(new_config)
+
+  def generate_id(self) -> None:
+    """
+    Specific device id generation to be run during "start_device".
+    Sets the id.
+    """
+    content = yaml.safe_load(self.node.run_command("cat {}".format(self.config_path))[0])
+    self.id = "UERANSIM-gnb-{}-{}-{}".format(content['mcc'], 
+      content['mnc'], int(content['nci'][2:-1], base=16))
 
   def amf_list(self) -> str:
     """
@@ -209,6 +213,14 @@ class UE(DeviceInstance):
   def __init__(self, node: UeransimNode, config_path: str) -> None:
     super().__init__(node, config_path)
     self.device_type: str = "nr-ue"
+
+  def generate_id(self) -> None:
+    """
+    Specific device id generation to be run during "start_device".
+    Sets the id.
+    """
+    content = yaml.safe_load(self.node.run_command("cat {}".format(self.config_path))[0])
+    self.id = content['supi']
 
   def timers(self) -> str:
     """

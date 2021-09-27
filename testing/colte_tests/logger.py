@@ -4,8 +4,9 @@ from typing import Union
 from paramiko.channel import ChannelFile, ChannelStderrFile, ChannelStdinFile
 
 
+logging.basicConfig()
 logger = logging.getLogger("Colte-UERANSIM")
-logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+logger.setLevel(logging.DEBUG)
 
 
 class TestingLogger:

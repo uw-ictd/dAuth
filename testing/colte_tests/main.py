@@ -9,17 +9,19 @@ def dev_main():
   vagrant_dir = "/home/nick/Documents/Workspace/Research/colte-ueransim/vagrant/"
 
   ueransim = UeransimNode("ueransim", vagrant_dir=vagrant_dir)
-  colte1 = ColteNode("colte1", vagrant_dir=vagrant_dir)
+  # colte1 = ColteNode("colte1", vagrant_dir=vagrant_dir)
 
   print("Hello world test:")
   print(" ueransim -", ueransim.run_command("echo hello world"))
-  print(" colte1 -", colte1.run_command("echo hello world"))
+  # print(" colte1 -", colte1.run_command("echo hello world"))
   print()
 
   print("Starting devices")
   gnb = ueransim.add_gnb("./configs/ueransim/gnb-1.yaml", "192.168.40.202")
-  ue = ueransim.add_ue("./configs/ueransim/ue.yaml")
+  # ue = ueransim.add_ue("./configs/ueransim/ue.yaml")
   
+  return
+
   print("Device IDs test:")
   print(" ueransim -", ueransim.get_device_ids())
   print()
