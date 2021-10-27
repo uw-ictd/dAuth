@@ -72,11 +72,11 @@ Vagrant.configure(2) do |config|
     end
   end
 
-  config.vm.define :authDev do |colte|
+  config.vm.define :dauthDev do |colte|
     colte.vm.box = "ubuntu/focal64"
-    colte.vm.hostname = "authDev"
+    colte.vm.hostname = "dauthDev"
 
-    colte.vm.network "private_network", ip: "192.168.50.200"
+    colte.vm.network "private_network", ip: "192.168.56.200"
 
     colte.vm.synced_folder '.', '/vagrant', disabled: true
 
@@ -89,14 +89,14 @@ Vagrant.configure(2) do |config|
     end
 
     colte.vm.provider "virtualbox" do |vb|
-      vb.customize ["modifyvm", :id, "--memory", "2048"]
+      vb.customize ["modifyvm", :id, "--memory", "4096"]
       vb.customize ["modifyvm", :id, "--cpus", "3"]
     end
 
     colte.vm.provision "ansible" do |ansible|
       ansible.compatibility_mode = "2.0"
       ansible.host_key_checking = false
-      ansible.playbook = "ansible/colte.yml"
+      ansible.playbook = "ansible/dauth_dev.yml"
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
       ansible.extra_vars = {
