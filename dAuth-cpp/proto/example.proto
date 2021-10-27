@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package example_proto;
+
+service ExampleCall {
+    rpc SayHello(HelloReq) returns (HelloResp);
+}
+
+message HelloReq {
+    bytes message = 1;
+}
+
+message HelloResp {
+    bytes response = 1;
+}
+
