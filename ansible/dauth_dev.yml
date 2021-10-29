@@ -41,8 +41,26 @@
           - libcurl4-gnutls-dev
           - libnghttp2-dev
           - libtins-dev
-          - meson
         state: latest
+
+    - name: Install meson dependencies
+      become: yes
+      apt:
+        name:
+          - python3
+          - python3-pip
+          - python3-setuptools
+          - python3-wheel
+          - ninja-build
+        state: latest
+
+    - name: Install newer meson from pip
+      become: yes
+      pip:
+        name: meson
+        executable: pip3
+        version: '0.59.4'
+        state: present
 
     - name: Install open5gs runtime dependencies
       become: yes
@@ -79,6 +97,15 @@
         dest: "/home/vagrant/scripts"
         remote_src: no
         mode: u=rwx,g=rwx,o=rwx
+
+    - name: Install grpc dependencies
+      become: yes
+      apt:
+        name:
+          - libprotobuf-dev
+          - protobuf-compiler
+          - cmake
+        state: latest
 
     # - name: Configure forwarding and rounting (script)
     #   command: /home/vagrant/scripts/configure-fwd
