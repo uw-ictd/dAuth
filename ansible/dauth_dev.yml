@@ -9,6 +9,26 @@
   become: no
 
   tasks:
+
+    - name: Add kitware key
+      become: yes
+      apt_key:
+        url: "https://apt.kitware.com/keys/kitware-archive-latest.asc"
+        state: present
+
+    - name: Add kitware repos
+      become: yes
+      apt_repository:
+        repo: "deb https://apt.kitware.com/ubuntu/ focal main"
+        state: present
+        update_cache: no
+
+    - name: Add open5gs repo
+      become: yes
+      apt_repository:
+        repo: ppa:open5gs/latest
+        update_cache: no
+
     - name: Update apt package cache
       become: yes
       apt:
@@ -59,8 +79,7 @@
       pip:
         name: meson
         executable: pip3
-        version: '0.59.4'
-        state: present
+        state: latest
 
     - name: Install open5gs runtime dependencies
       become: yes
@@ -74,11 +93,6 @@
         name: mongodb
         state: started
         enabled: yes
-
-    - name: Add open5gs repo
-      become: yes
-      apt_repository:
-        repo: ppa:open5gs/latest
 
     - name: Copy network config
       become: yes
@@ -104,7 +118,12 @@
         name:
           - libprotobuf-dev
           - protobuf-compiler
-          - cmake
+        state: latest
+
+    - name: Install cmake
+      become: yes
+      apt:
+        name: cmake
         state: latest
 
     # - name: Configure forwarding and rounting (script)
