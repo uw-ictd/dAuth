@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+
+package example_proto;
+
+service ExampleCall {
+    rpc SayHello(HelloReq) returns (HelloResp);
+}
+
+message HelloReq {
+    bytes message = 1;
+}
+
+message HelloResp {
+    bytes response = 1;
+}
+
