@@ -25,8 +25,49 @@ grpc_proj = cmake.subproject('grpc', options: grpc_options)
 message('CMaket targets:\n - ' + '\n - '.join(grpc_proj.target_list()))
 
 grpc_deps = [
-    grpc_proj.dependency('grpc++'),
-    grpc_proj.dependency('libprotobuf')
+    # Only using the unsecure versions for now to avoid needing to link in heavy
+    # crypto/ssl/tls libraries.
+    grpc_proj.dependency('grpc_unsecure'),
+    grpc_proj.dependency('grpc++_unsecure'),
+    # grpc_proj.dependency('grpc'),
+    # grpc_proj.dependency('grpc++'),
+    grpc_proj.dependency('libprotobuf'),
+    grpc_proj.dependency('libprotobuf-lite'),
+    grpc_proj.dependency('gpr'),
+    grpc_proj.dependency('absl_hash'),
+    grpc_proj.dependency('absl_city'),
+    grpc_proj.dependency('absl_wyhash'),
+    grpc_proj.dependency('absl_raw_hash_set'),
+    grpc_proj.dependency('absl_hashtablez_sampler'),
+    grpc_proj.dependency('absl_synchronization'),
+    grpc_proj.dependency('absl_graphcycles_internal'),
+    grpc_proj.dependency('absl_time'),
+    grpc_proj.dependency('absl_civil_time'),
+    grpc_proj.dependency('absl_time_zone'),
+    grpc_proj.dependency('absl_exponential_biased'),
+    grpc_proj.dependency('absl_statusor'),
+    grpc_proj.dependency('absl_status'),
+    grpc_proj.dependency('absl_str_format_internal'),
+    grpc_proj.dependency('absl_stacktrace'),
+    grpc_proj.dependency('absl_symbolize'),
+    grpc_proj.dependency('absl_malloc_internal'),
+    grpc_proj.dependency('absl_debugging_internal'),
+    grpc_proj.dependency('absl_demangle_internal'),
+    grpc_proj.dependency('absl_cord'),
+    grpc_proj.dependency('absl_bad_optional_access'),
+    grpc_proj.dependency('absl_strings'),
+    grpc_proj.dependency('absl_throw_delegate'),
+    grpc_proj.dependency('absl_strings_internal'),
+    grpc_proj.dependency('absl_base'),
+    grpc_proj.dependency('absl_spinlock_wait'),
+    grpc_proj.dependency('absl_int128'),
+    grpc_proj.dependency('absl_bad_variant_access'),
+    grpc_proj.dependency('absl_raw_logging_internal'),
+    grpc_proj.dependency('absl_log_severity'),
+    grpc_proj.dependency('upb'),
+    grpc_proj.dependency('address_sorting'),
+    grpc_proj.dependency('c-ares'),
+    dependency('zlib')
 ]
 
 protoc_executable = grpc_proj.target('protoc')
