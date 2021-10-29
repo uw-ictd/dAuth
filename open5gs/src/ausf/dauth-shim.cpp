@@ -21,8 +21,15 @@
 
 #include "example.grpc.pb.h"
 
-bool ausf_dauth_shim_request_auth_vector()
-{
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+bool ausf_dauth_shim_request_auth_vector() {
     std::cout << "shim not implemented\n";
     return true;
 }
+
+#ifdef __cplusplus
+}
+#endif
