@@ -23,12 +23,14 @@ grpc_options.add_cmake_defines({'gRPC_INSTALL': 'OFF', 'gRPC_BUILD_TESTS': 'OFF'
 
 grpc_proj = cmake.subproject('grpc', options: grpc_options)
 message('CMaket targets:\n - ' + '\n - '.join(grpc_proj.target_list()))
-grpc_dep = grpc_proj.dependency('grpc++')
-proto_dep = grpc_proj.dependency('libprotobuf')
-grpc_cpp_plugin_dep = grpc_proj.target('grpc_cpp_plugin')
+
+grpc_deps = [
+    grpc_proj.dependency('grpc++'),
+    grpc_proj.dependency('libprotobuf')
+]
 
 protoc_executable = grpc_proj.target('protoc')
-
+grpc_cpp_plugin_dep = grpc_proj.target('grpc_cpp_plugin')
 
 gen = generator(protoc_executable,
   output    : ['@BASENAME@.pb.cc', '@BASENAME@.pb.h', '@BASENAME@.grpc.pb.cc', '@BASENAME@.grpc.pb.h'],
@@ -68,20 +70,21 @@ libausf_sources = files('''
 
 libausf_sources += generated
 
+libausf_deps = [
+    libapp_dep,
+    libcrypt_dep,
+    libsbi_dep]
+
+libausf_deps += grpc_deps
+
 libausf = static_library('ausf',
     sources : libausf_sources,
-    dependencies : [libapp_dep,
-                    libcrypt_dep,
-                    libsbi_dep,
-                    grpc_dep,
-                    proto_dep],
+    dependencies : libausf_deps,
     install : false)
 
 libausf_dep = declare_dependency(
     link_with : libausf,
-    dependencies : [libapp_dep,
-                    libcrypt_dep,
-                    libsbi_dep])
+    dependencies : libausf_deps)
 
 ausf_sources = files('''
     app.c
@@ -92,6 +95,6 @@ executable('open5gs-ausfd',
     sources : ausf_sources,
     c_args : '-DDEFAULT_CONFIG_FILENAME="@0@/ausf.yaml"'.format(open5gs_sysconfdir),
     include_directories : srcinc,
-    dependencies : [libausf_dep, grpc_dep, proto_dep],
+    dependencies : [libausf_dep],
     install_rpath : libdir,
     install : true)
