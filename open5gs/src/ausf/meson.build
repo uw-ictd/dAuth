@@ -43,6 +43,27 @@ libausf = static_library('ausf',
                     libsbi_dep],
     install : false)
 
+# Import the grpc subproject from the external cmake build system
+cmake = import('cmake')
+grpc_options = cmake.subproject_options()
+grpc_options.set_install(false)
+grpc_options.add_cmake_defines({'gRPC_INSTALL': 'OFF', 'gRPC_BUILD_TESTS': 'OFF'})
+
+grpc_proj = cmake.subproject('grpc', options: grpc_options)
+message('CMaket targets:\n - ' + '\n - '.join(grpc_proj.target_list()))
+grpc_dep = grpc_proj.dependency('grpc++')
+proto_dep = grpc_proj.dependency('libprotobuf')
+
+protoc_executable = grpc_proj.target('protoc')
+
+
+gen = generator(protoc_executable,
+  output    : ['@BASENAME@.pb.cc', '@BASENAME@.pb.h'],
+  arguments : ['--proto_path=../../protos', '--cpp_out=@BUILD_DIR@', '@PLAINNAME@'])
+
+generated = gen.process(['../../../protos/example.proto'])
+
+
 libausf_dep = declare_dependency(
     link_with : libausf,
     dependencies : [libapp_dep,
@@ -54,10 +75,12 @@ ausf_sources = files('''
     ../main.c
 '''.split())
 
+ausf_sources += generated
+
 executable('open5gs-ausfd',
     sources : ausf_sources,
     c_args : '-DDEFAULT_CONFIG_FILENAME="@0@/ausf.yaml"'.format(open5gs_sysconfdir),
     include_directories : srcinc,
-    dependencies : libausf_dep,
+    dependencies : [libausf_dep, grpc_dep, proto_dep],
     install_rpath : libdir,
     install : true)
