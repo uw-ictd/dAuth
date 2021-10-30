@@ -7,7 +7,7 @@ Vagrant.configure(2) do |config|
     ueransim.vm.box = "ubuntu/focal64"
     ueransim.vm.hostname = "ueransim"
 
-    ueransim.vm.network "private_network", ip: "192.168.40.200"
+    ueransim.vm.network "private_network", ip: "192.168.60.200"
 
     ueransim.vm.provider "virtualbox" do |vb|
       vb.customize ["modifyvm", :id, "--memory", "2048"]
@@ -29,7 +29,7 @@ Vagrant.configure(2) do |config|
     colte.vm.box = "ubuntu/focal64"
     colte.vm.hostname = "colte1"
 
-    colte.vm.network "private_network", ip: "192.168.41.200"
+    colte.vm.network "private_network", ip: "192.168.61.200"
 
     colte.vm.provider "virtualbox" do |vb|
       vb.customize ["modifyvm", :id, "--memory", "2048"]
@@ -53,7 +53,7 @@ Vagrant.configure(2) do |config|
     colte.vm.box = "ubuntu/focal64"
     colte.vm.hostname = "colte2"
 
-    colte.vm.network "private_network", ip: "192.168.42.200"
+    colte.vm.network "private_network", ip: "192.168.62.200"
 
     colte.vm.provider "virtualbox" do |vb|
       vb.customize ["modifyvm", :id, "--memory", "2048"]
