@@ -17,16 +17,42 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <grpcpp/grpcpp.h>
 #include <iostream>
+#include <memory>
 
 #include "example.grpc.pb.h"
+#include "example.pb.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-bool ausf_dauth_shim_request_auth_vector() {
-    std::cout << "shim not implemented\n";
+bool ausf_dauth_shim_request_auth_vector(void) {
+    // TODO(matt9j) Move to a one-time context instead of re-opening each time and making new stubs
+    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials());
+
+    example_proto::HelloReq request;
+    request.set_message("Fishsticks");
+    example_proto::HelloResp response;
+
+    grpc::ClientContext context;
+
+    std::unique_ptr<example_proto::ExampleCall::Stub> stub = example_proto::ExampleCall::NewStub(channel);
+
+    grpc::Status status = stub->SayHello(&context, request, &response);
+
+    // Handle failure
+    if (!status.ok()) {
+        std::cout << "Failure :.(" <<
+            status.error_code() <<
+            ": " <<
+            status.error_message() <<
+            std::endl;
+        return false;
+    }
+
+    std::cout << "Success!" << response.response();
     return true;
 }
 

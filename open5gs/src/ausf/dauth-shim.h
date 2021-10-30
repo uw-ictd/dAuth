@@ -26,7 +26,7 @@
 extern "C" {
 #endif
 
-bool ausf_dauth_shim_request_auth_vector();
+bool ausf_dauth_shim_request_auth_vector(void);
 
 #ifdef __cplusplus
 }
