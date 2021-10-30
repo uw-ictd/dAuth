@@ -67,21 +67,21 @@
 
     - name: Copy ueransim configs
       copy:
-        src: "../../configs/ueransim"
+        src: "../configs/ueransim"
         dest: "/home/vagrant/configs"
         remote_src: no
         mode: u=rwx,g=rwx,o=rwx
 
     - name: Copy scripts
       copy:
-        src: "../../scripts/"
+        src: "../scripts/"
         dest: "/home/vagrant/scripts"
         remote_src: no
         mode: u=rwx,g=rwx,o=rwx
 
     - name: Copy network config
       copy:
-        src: "../../configs/network/ueransim.yaml"
+        src: "../configs/network/ueransim.yaml"
         dest: "/etc/netplan/60-static-routes.yaml"
         remote_src: no
     
