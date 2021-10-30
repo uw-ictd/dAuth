@@ -47,7 +47,7 @@
 
     - name: Add kitware repos
       apt_repository:
-        repo: "deb https://apt.kitware.com/ubuntu/ bionic main"
+        repo: "deb https://apt.kitware.com/ubuntu/ focal main"
         state: present
         update_cache: yes
 
