@@ -1,5 +1,6 @@
 [workspace]
 
 members= [
-    "local-manager",
+    "dauth-service",
+    "auth-vector",
 ]
