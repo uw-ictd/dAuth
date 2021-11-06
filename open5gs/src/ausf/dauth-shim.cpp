@@ -18,8 +18,9 @@
  */
 
 #include <grpcpp/grpcpp.h>
-#include <iostream>
 #include <memory>
+
+#include "core/ogs-core.h"
 
 #include "example.grpc.pb.h"
 #include "example.pb.h"
@@ -51,8 +52,7 @@ bool ausf_dauth_shim_request_auth_vector(void) {
             std::endl;
         return false;
     }
-
-    std::cout << "Success!" << response.response();
+    ogs_info("RPC Success! %s", response.response().c_str());
     return true;
 }
 
