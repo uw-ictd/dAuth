@@ -2,7 +2,7 @@ syntax = "proto3";
 
 option optimize_for = LITE_RUNTIME;
 
-package dAuth;
+package d_auth;
 
 
 // Authenticates a UE and/or OTT User present in the local network.
