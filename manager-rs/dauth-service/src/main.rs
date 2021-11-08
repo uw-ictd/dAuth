@@ -11,7 +11,8 @@ use std::{
 use crate::data::context::{DauthContext, LocalContext, RemoteContext, RpcContext};
 use crate::rpc::server;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let context = Arc::new(DauthContext {
         local_context: LocalContext {
             database: Mutex::new(Box::new(HashMap::new())),
@@ -22,5 +23,5 @@ fn main() {
         },
     });
 
-    server::start_server(context.clone());
+    server::start_server(context.clone()).await;
 }

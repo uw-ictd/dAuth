@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::data::context::DauthContext;
 use crate::rpc::handler::DauthHandler;
 
-pub fn start_server(context: Arc<DauthContext>) {
+pub async fn start_server(context: Arc<DauthContext>) {
     println!("Starting server");
     // Testing until rpc/proto is ready
     let handler = DauthHandler {
