@@ -24,7 +24,10 @@ impl DauthHandler {
     pub fn auth_vector_get_remote(&self) {
         println!("--- RPC call for remote vector request");
         println!("rpc::DauthHandler::auth_vector_generate_remote");
-        remote::manager::auth_vector_get_remote(self.context.clone(), Rc::new(AuthVectorRequest {}));
+        remote::manager::auth_vector_get_remote(
+            self.context.clone(),
+            Rc::new(AuthVectorRequest {}),
+        );
         println!("--- RPC call complete");
     }
 
@@ -32,9 +35,12 @@ impl DauthHandler {
     pub fn auth_vector_used_remote(&self) {
         println!("--- RPC call for remote vector used");
         println!("rpc::DauthHandler::auth_vector_used_remote");
-        match remote::manager::auth_vector_used_remote(self.context.clone(), Rc::new(AuthVectorResult {})) {
+        match remote::manager::auth_vector_used_remote(
+            self.context.clone(),
+            Rc::new(AuthVectorResult {}),
+        ) {
             Ok(()) => (),
-            Err(e) => println!("Error reporting used vector: {}", e)
+            Err(e) => println!("Error reporting used vector: {}", e),
         };
         println!("--- RPC call complete");
     }

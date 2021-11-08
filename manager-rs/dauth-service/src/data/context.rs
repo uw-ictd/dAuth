@@ -11,13 +11,11 @@ pub struct DauthContext {
 
 #[derive(Debug)]
 pub struct LocalContext {
-    pub database: Mutex<Box<HashMap<String, String>>>
+    pub database: Mutex<Box<HashMap<String, String>>>,
 }
 
 #[derive(Debug)]
-pub struct RemoteContext {
-
-}
+pub struct RemoteContext {}
 
 #[derive(Debug)]
 pub struct RpcContext {
