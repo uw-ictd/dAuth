@@ -23,5 +23,6 @@ pub async fn start_server(context: Arc<DauthContext>) {
     Server::builder()
         .add_service(LocalAuthenticationServer::new(handler))
         .serve(addr)
-        .await.unwrap();
+        .await
+        .unwrap();
 }
