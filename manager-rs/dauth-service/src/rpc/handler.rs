@@ -13,7 +13,7 @@ pub struct DauthHandler {
 }
 
 impl DauthHandler {
-    /// Remote core request for a vector
+    /// Remote request for a vector
     pub fn auth_vector_get_remote(&self) {
         tracing::info!("Request: {:?}", "remote vector get");
         remote::manager::auth_vector_get_remote(
@@ -37,14 +37,14 @@ impl DauthHandler {
             }),
         ) {
             Ok(()) => (),
-            Err(e) => println!("Error reporting used vector: {}", e),
+            Err(e) => tracing::error!("Error reporting used: {}", e),
         };
     }
 }
 
 #[tonic::async_trait]
 impl LocalAuthentication for DauthHandler {
-    /// Local (home) core request for a vector
+    /// Local (home core) request for a vector
     async fn get_auth_vector(
         &self,
         request: tonic::Request<AkaVectorReq>,
