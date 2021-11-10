@@ -1,4 +1,9 @@
-use std::{collections::HashMap, sync::Mutex};
+use std::{
+    collections::{HashMap, VecDeque},
+    sync::Mutex,
+};
+
+use crate::rpc::d_auth::AkaVectorResp;
 
 /// Maintains the context for all components of
 /// the dAuth service. All state exists here.
@@ -11,7 +16,7 @@ pub struct DauthContext {
 
 #[derive(Debug)]
 pub struct LocalContext {
-    pub database: Mutex<Box<HashMap<String, String>>>,
+    pub database: Mutex<Box<HashMap<Vec<u8>, VecDeque<AkaVectorResp>>>>,
 }
 
 #[derive(Debug)]

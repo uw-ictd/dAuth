@@ -21,7 +21,7 @@ pub fn auth_vector_get(
 
     // Check local database
     if let Some(av_result) =
-        local::database::auth_vector_lookup(context.clone(), (&av_request).clone())
+        local::database::auth_vector_next(context.clone(), (&av_request).clone())
     {
         match auth_vector_used(context.clone(), &av_result) {
             Ok(()) => (),
