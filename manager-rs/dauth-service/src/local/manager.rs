@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+// use auth_vector;
+
 use crate::data::context::DauthContext;
 use crate::local;
 use crate::remote;
@@ -15,7 +17,6 @@ pub fn auth_vector_get(
     context: Arc<DauthContext>,
     av_request: &AkaVectorReq,
 ) -> Option<AkaVectorResp> {
-
     tracing::info!("Handling request: {:?}", av_request);
 
     // Check local database
@@ -31,18 +32,18 @@ pub fn auth_vector_get(
             Err(e) => tracing::error!("Failed to report used: {}", e),
         }
         Some(av_result)
-
+    // Generate new
     } else if auth_vector_is_local(context.clone(), av_request) {
         match auth_vector_generate(context.clone(), av_request) {
             Ok(av_result) => Some(av_result),
-            Err(e) => { tracing::error!("Failed to generate new auth vector: {}", e); None }
+            Err(e) => {
+                tracing::error!("Failed to generate new auth vector: {}", e);
+                None
+            }
         }
-    } else if let Some(av_result) =
-        remote::manager::auth_vector_send_request(context.clone(), &av_request)
-    {
-        Some(av_result)
+    // Check remote
     } else {
-        None
+        remote::manager::auth_vector_send_request(context.clone(), &av_request)
     }
 }
 
@@ -56,11 +57,22 @@ pub fn auth_vector_used(
     local::database::auth_vector_delete(context, av_result)
 }
 
+/// Returns whether the auth vector belongs to this core
 fn auth_vector_is_local(context: Arc<DauthContext>, av_request: &AkaVectorReq) -> bool {
+    // TODO(nickfh7) Add logic to determine if local
     true
 }
 
-fn auth_vector_generate(context: Arc<DauthContext>, av_request: &AkaVectorReq) -> Result<AkaVectorResp, &'static str> {
+/// Generates and returns a new auth vector
+/// Will fail if the requested id does not belong to the core
+fn auth_vector_generate(
+    context: Arc<DauthContext>,
+    av_request: &AkaVectorReq,
+) -> Result<AkaVectorResp, &'static str> {
     // TODO(nickfh7) integrate with auth-vector crate
-    Ok(AkaVectorResp {error: 0, auth_vector: None})
+    // auth_vector::generate_vector(k, opc, rand);
+    Ok(AkaVectorResp {
+        error: 0,
+        auth_vector: None,
+    })
 }
