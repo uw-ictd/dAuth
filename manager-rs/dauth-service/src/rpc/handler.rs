@@ -34,6 +34,8 @@ impl DauthHandler {
             &(AkaVectorResp {
                 error: 0,
                 auth_vector: None,
+                user_id: vec![0, 1, 2, 3],
+                user_id_type: 0,
             }),
         ) {
             Ok(()) => (),

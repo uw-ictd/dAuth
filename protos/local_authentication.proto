@@ -49,6 +49,17 @@ message AKAVectorResp {
     ErrorKind error = 1;
 
     AuthVector5G auth_vector = 2;
+
+    // The type of id provided.
+    enum UserIdKind {
+        UNKNOWN = 0;
+        SUPI = 1;
+    }
+    UserIdKind user_id_type = 3;
+
+    // The opaque id of the user requesting authentication.
+    // Added to response message for reuse in other operations.
+    bytes user_id = 4;
 }
 
 // The 5G-AKA authentication vector, explicilty with a hashed xres.

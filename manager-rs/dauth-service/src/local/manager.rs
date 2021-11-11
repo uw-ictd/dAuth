@@ -23,10 +23,6 @@ pub fn auth_vector_get(
     if let Some(av_result) =
         local::database::auth_vector_next(context.clone(), (&av_request).clone())
     {
-        match auth_vector_used(context.clone(), &av_result) {
-            Ok(()) => (),
-            Err(e) => tracing::error!("Failed to remove used: {}", e),
-        }
         match remote::manager::auth_vector_report_used(context.clone(), &av_result) {
             Ok(()) => (),
             Err(e) => tracing::error!("Failed to report used: {}", e),
@@ -74,5 +70,7 @@ fn auth_vector_generate(
     Ok(AkaVectorResp {
         error: 0,
         auth_vector: None,
+        user_id: vec![0, 1, 2, 3],
+        user_id_type: 0,
     })
 }
