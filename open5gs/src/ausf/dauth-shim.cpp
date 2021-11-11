@@ -19,40 +19,90 @@
 
 #include <grpcpp/grpcpp.h>
 #include <memory>
+#include <string.h>
 
 #include "core/ogs-core.h"
+#include "model/authentication_info.h"
+#include "model/authentication_vector.h"
 
-#include "example.grpc.pb.h"
-#include "example.pb.h"
+#include "local_authentication.grpc.pb.h"
+#include "local_authentication.pb.h"
+
+// Utility function to compute the length of a c-style null terminated string
+// with a maximum possible length.
+size_t
+bounded_strlen(const char * const str, size_t max_length) {
+    const char * const end_pointer = static_cast<const char *>(memchr(str, '\0', max_length));
+    if (end_pointer == NULL) {
+        return max_length;
+    }
+    return static_cast<size_t>(end_pointer - str);
+}
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-bool ausf_dauth_shim_request_auth_vector(void) {
+bool
+ausf_dauth_shim_request_auth_vector(
+    char * supi,
+    const OpenAPI_authentication_info_t * authentication_info,
+    OpenAPI_authentication_vector_t * received_vector
+) {
+    if(!supi) {
+        ogs_error("Null supi in auth vector request");
+        return false;
+    }
+    size_t supi_length = bounded_strlen(supi, 128);
+    if((supi_length == 0) || (supi_length == 128)) {
+        ogs_error("Supi string is malformed");
+        return false;
+    }
+    if(!authentication_info) {
+        ogs_error("[%s] No AuthenticationInfo in request", supi);
+        return false;
+    }
+
     // TODO(matt9j) Move to a one-time context instead of re-opening each time and making new stubs
+    ogs_debug("[%s] Creating gRPC LocalAuthentication stub", supi);
     std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials());
+    std::unique_ptr<d_auth::LocalAuthentication::Stub> stub = d_auth::LocalAuthentication::NewStub(channel);
 
-    example_proto::HelloReq request;
-    request.set_message("Fishsticks");
-    example_proto::HelloResp response;
+    // Fill request protobuf
+    ogs_debug("[%s] Filling d_auth::AKAVectorReq request", supi);
+    d_auth::AKAVectorReq request;
+    request.set_user_id(supi, supi_length);
+    request.set_user_id_type(::d_auth::AKAVectorReq_UserIdKind::AKAVectorReq_UserIdKind_SUPI);
 
+    d_auth::AKAResyncInfo resync_info;
+    if(authentication_info->resynchronization_info) {
+        ogs_debug("[%s] Filling d_auth::AKAResyncInfo request", supi);
+        resync_info.set_auts(authentication_info->resynchronization_info->auts);
+        resync_info.set_auts(authentication_info->resynchronization_info->rand);
+        request.set_allocated_resync_info(&resync_info);
+    }
+
+    // Allocate response and context memory on the stack
+    d_auth::AKAVectorResp response;
     grpc::ClientContext context;
 
-    std::unique_ptr<example_proto::ExampleCall::Stub> stub = example_proto::ExampleCall::NewStub(channel);
-
-    grpc::Status status = stub->SayHello(&context, request, &response);
+    ogs_debug("[%s] Sending LocalAuthentication.GetAuthVector request", supi);
+    grpc::Status status = stub->GetAuthVector(&context, request, &response);
 
     // Handle failure
     if (!status.ok()) {
-        std::cout << "Failure :.(" <<
-            status.error_code() <<
-            ": " <<
-            status.error_message() <<
-            std::endl;
+        ogs_error(
+            "[%s] LocalAuthentication.GetAuthVector RPC Failed with status [%d]:%s",
+            supi,
+            status.error_code(),
+            status.error_message().c_str()
+        );
         return false;
     }
-    ogs_info("RPC Success! %s", response.response().c_str());
+    ogs_info("[%s] LocalAuthentication.GetAuthVector RPC Success", supi);
+
+    // TODO(matt9j) Do the forwarding here...
+
     return true;
 }
 

@@ -55,9 +55,11 @@ bool ausf_nausf_auth_handle_authenticate(ausf_ue_t *ausf_ue,
     ausf_ue->serving_network_name = ogs_strdup(serving_network_name);
     ogs_assert(ausf_ue->serving_network_name);
 
-    ogs_assert(true ==
-        ausf_dauth_shim_request_auth_vector()
-    );
+    OpenAPI_authentication_vector_t received_vector;
+    bool vector_request_success =
+        ausf_dauth_shim_request_auth_vector(ausf_ue->supi, AuthenticationInfo, &received_vector);
+
+    ogs_assert(vector_request_success == true);
 
     ogs_assert(true ==
         ausf_sbi_discover_and_send(OpenAPI_nf_type_UDM, ausf_ue, stream,

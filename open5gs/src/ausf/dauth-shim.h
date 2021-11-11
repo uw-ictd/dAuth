@@ -26,7 +26,13 @@
 extern "C" {
 #endif
 
-bool ausf_dauth_shim_request_auth_vector(void);
+bool
+ausf_dauth_shim_request_auth_vector(
+    char * supi,
+    const OpenAPI_authentication_info_t * authentication_info,
+    OpenAPI_authentication_vector_t * received_vector);
+
+bool ausf_dauth_shim_forward_received_auth_vector(void);
 
 #ifdef __cplusplus
 }
