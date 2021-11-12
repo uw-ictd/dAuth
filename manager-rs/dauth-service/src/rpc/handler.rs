@@ -58,13 +58,19 @@ impl LocalAuthentication for DauthHandler {
         tracing::info!("Request: {:?}", &message);
 
         match local::manager::auth_vector_get(self.context.clone(), &message) {
-            Some(av_result) => Ok(tonic::Response::new(av_result)),
-            None => Ok(tonic::Response::new(AkaVectorResp {
-                error: 1, // ErrorKind::NotFound,  Why doesn't this work?
-                auth_vector: None,
-                user_id: message.user_id.clone(),
-                user_id_type: message.user_id_type.clone(),
-            })),
+            Some(av_result) => {
+                tracing::info!("Returning auth vector: {:?}", av_result);
+                Ok(tonic::Response::new(av_result))
+            }
+            None => {
+                tracing::info!("No auth vector found {:?}", message);
+                Ok(tonic::Response::new(AkaVectorResp {
+                    error: 1, // ErrorKind::NotFound,  Why doesn't this work?
+                    auth_vector: None,
+                    user_id: message.user_id.clone(),
+                    user_id_type: message.user_id_type.clone(),
+                }))
+            }
         }
     }
 
