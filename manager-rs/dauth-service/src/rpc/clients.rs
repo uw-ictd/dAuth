@@ -9,12 +9,8 @@ pub fn request_auth_vector_remote(
     av_request: &AkaVectorReq,
 ) -> Option<AkaVectorResp> {
     tracing::info!("Sending remote request: {:?}", av_request);
-    Some(AkaVectorResp {
-        error: 0,
-        auth_vector: None,
-        user_id: vec![0, 1, 2, 3],
-        user_id_type: 0,
-    })
+    // TODO(nickfh7) add client call
+    None
 }
 
 /// Broadcast to all other cores that an auth vector was used.
@@ -23,5 +19,6 @@ pub fn broadcast_auth_vector_used(
     av_result: &AkaVectorResp,
 ) -> Result<(), &'static str> {
     tracing::info!("Broadcasting usage: {:?}", av_result);
+    // TODO(nickfh7) add client call
     Ok(())
 }

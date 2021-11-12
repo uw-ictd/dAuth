@@ -23,5 +23,7 @@ async fn main() {
         },
     });
 
+    // TODO(nickfh7) Add configuring for logging
+
     server::start_server(context.clone()).await;
 }

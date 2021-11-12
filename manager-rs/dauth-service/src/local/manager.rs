@@ -20,14 +20,13 @@ pub fn auth_vector_get(
     tracing::info!("Handling request: {:?}", av_request);
 
     // Check local database
-    if let Some(av_result) =
-        local::database::auth_vector_next(context.clone(), (&av_request).clone())
-    {
+    if let Some(av_result) = local::database::auth_vector_next(context.clone(), av_request) {
         match remote::manager::auth_vector_report_used(context.clone(), &av_result) {
             Ok(()) => (),
             Err(e) => tracing::error!("Failed to report used: {}", e),
         }
         Some(av_result)
+
     // Generate new
     } else if auth_vector_is_local(context.clone(), av_request) {
         match auth_vector_generate(context.clone(), av_request) {
@@ -37,6 +36,7 @@ pub fn auth_vector_get(
                 None
             }
         }
+
     // Check remote
     } else {
         remote::manager::auth_vector_send_request(context.clone(), &av_request)
@@ -56,7 +56,7 @@ pub fn auth_vector_used(
 /// Returns whether the auth vector belongs to this core
 fn auth_vector_is_local(context: Arc<DauthContext>, av_request: &AkaVectorReq) -> bool {
     // TODO(nickfh7) Add logic to determine if local
-    true
+    false
 }
 
 /// Generates and returns a new auth vector
@@ -67,10 +67,5 @@ fn auth_vector_generate(
 ) -> Result<AkaVectorResp, &'static str> {
     // TODO(nickfh7) integrate with auth-vector crate
     // auth_vector::generate_vector(k, opc, rand);
-    Ok(AkaVectorResp {
-        error: 0,
-        auth_vector: None,
-        user_id: vec![0, 1, 2, 3],
-        user_id_type: 0,
-    })
+    Err("Failed to generate auth vector")
 }

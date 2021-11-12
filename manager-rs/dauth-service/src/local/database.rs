@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::data;
 use crate::data::context::DauthContext;
 use crate::rpc::d_auth::{AkaVectorReq, AkaVectorResp};
 
@@ -17,7 +16,7 @@ pub fn auth_vector_next(
             None => {
                 tracing::error!("User not in database (next): {:?}", av_request);
                 None
-            },
+            }
         },
         Err(e) => {
             tracing::error!("Failed getting mutex for database: {}", e);
@@ -34,24 +33,22 @@ pub fn auth_vector_delete(
     tracing::info!("Database delete: {:?}", av_result);
 
     match context.local_context.database.lock() {
-        Ok(mut database) => {
-            match database.get_mut(&av_result.user_id) {
-                Some(queue) => {
-                    let num_elements = queue.len();
-                    queue.retain(|x| *x != *av_result);
-                    match num_elements - queue.len() {
-                        0 => tracing::info!("Nothing deleted"),
-                        1 => (),
-                        x => tracing::warn!("{} deleted", x),
-                    };
-                    Ok(())
-                }
-                None => {
-                    tracing::error!("Use not in database (delete): {:?}", av_result);
-                    Err("Failed to find user")
-                }
+        Ok(mut database) => match database.get_mut(&av_result.user_id) {
+            Some(queue) => {
+                let num_elements = queue.len();
+                queue.retain(|x| *x != *av_result);
+                match num_elements - queue.len() {
+                    0 => tracing::info!("Nothing deleted"),
+                    1 => (),
+                    x => tracing::warn!("{} deleted", x),
+                };
+                Ok(())
             }
-        }
+            None => {
+                tracing::error!("Use not in database (delete): {:?}", av_result);
+                Err("Failed to find user")
+            }
+        },
         Err(e) => {
             tracing::error!("Failed getting mutex for database: {}", e);
             Err("Failed to get mutex")

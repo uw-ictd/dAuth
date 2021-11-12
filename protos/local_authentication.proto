@@ -45,6 +45,7 @@ message AKAVectorResp {
     // Whether the request was successful or not
     enum ErrorKind {
         NO_ERROR = 0;
+        NOT_FOUND = 1;
     }
     ErrorKind error = 1;
 

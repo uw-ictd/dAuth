@@ -1,5 +1,8 @@
 use std::sync::Arc;
 
+use prost::encoding::message;
+
+use crate::rpc::d_auth::aka_vector_resp::ErrorKind;
 use crate::rpc::d_auth::local_authentication_server::LocalAuthentication;
 use crate::rpc::d_auth::{AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp};
 
@@ -52,9 +55,17 @@ impl LocalAuthentication for DauthHandler {
         request: tonic::Request<AkaVectorReq>,
     ) -> Result<tonic::Response<AkaVectorResp>, tonic::Status> {
         let message = request.into_inner();
-        local::manager::auth_vector_get(self.context.clone(), &message);
         tracing::info!("Request: {:?}", &message);
-        unimplemented!()
+
+        match local::manager::auth_vector_get(self.context.clone(), &message) {
+            Some(av_result) => Ok(tonic::Response::new(av_result)),
+            None => Ok(tonic::Response::new(AkaVectorResp {
+                error: 1, // ErrorKind::NotFound,  Why doesn't this work?
+                auth_vector: None,
+                user_id: message.user_id.clone(),
+                user_id_type: message.user_id_type.clone(),
+            })),
+        }
     }
 
     async fn confirm_auth(

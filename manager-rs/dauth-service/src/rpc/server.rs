@@ -15,16 +15,12 @@ pub async fn start_server(context: Arc<DauthContext>) {
         context: context.clone(),
     };
 
-    handler.auth_vector_get_remote();
-    handler.auth_vector_used_remote();
-
-    // TODO(nickfh7) Add configuring for logging
     tracing::info!("Hosting RPC server on {}", context.rpc_context.host_addr);
 
-    let addr = context.rpc_context.host_addr.parse().unwrap();
+    // TODO(nickfh7) add other services
     Server::builder()
         .add_service(LocalAuthenticationServer::new(handler))
-        .serve(addr)
+        .serve(context.rpc_context.host_addr.parse().unwrap())
         .await
         .unwrap();
 }
