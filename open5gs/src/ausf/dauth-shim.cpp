@@ -45,9 +45,9 @@ extern "C" {
 
 bool
 ausf_dauth_shim_request_auth_vector(
-    char * supi,
-    const OpenAPI_authentication_info_t * authentication_info,
-    OpenAPI_authentication_vector_t * received_vector
+    const char * const supi,
+    const OpenAPI_authentication_info_t * const authentication_info,
+    OpenAPI_authentication_vector_t * const received_vector
 ) {
     if(!supi) {
         ogs_error("Null supi in auth vector request");
