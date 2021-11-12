@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use prost::encoding::message;
-
-use crate::rpc::d_auth::aka_vector_resp::ErrorKind;
 use crate::rpc::d_auth::local_authentication_server::LocalAuthentication;
-use crate::rpc::d_auth::{AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp};
+use crate::rpc::d_auth::remote_authentication_server::RemoteAuthentication;
+use crate::rpc::d_auth::{
+    AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp, AkaVectorUsedResp,
+};
 
 use crate::data::context::DauthContext;
 use crate::local;
@@ -15,38 +15,6 @@ pub struct DauthHandler {
     pub context: Arc<DauthContext>,
 }
 
-impl DauthHandler {
-    /// Remote request for a vector
-    pub fn auth_vector_get_remote(&self) {
-        tracing::info!("Request: {:?}", "remote vector get");
-        remote::manager::auth_vector_get_remote(
-            self.context.clone(),
-            &(AkaVectorReq {
-                user_id: vec![0, 1, 2, 3],
-                user_id_type: 0,
-                resync_info: None,
-            }),
-        );
-    }
-
-    /// Remote alert that a vector has been used
-    pub fn auth_vector_used_remote(&self) {
-        tracing::info!("Request: {:?}", "remote vector used");
-        match remote::manager::auth_vector_used_remote(
-            self.context.clone(),
-            &(AkaVectorResp {
-                error: 0,
-                auth_vector: None,
-                user_id: vec![0, 1, 2, 3],
-                user_id_type: 0,
-            }),
-        ) {
-            Ok(()) => (),
-            Err(e) => tracing::error!("Error reporting used: {}", e),
-        };
-    }
-}
-
 #[tonic::async_trait]
 impl LocalAuthentication for DauthHandler {
     /// Local (home core) request for a vector
@@ -54,21 +22,21 @@ impl LocalAuthentication for DauthHandler {
         &self,
         request: tonic::Request<AkaVectorReq>,
     ) -> Result<tonic::Response<AkaVectorResp>, tonic::Status> {
-        let message = request.into_inner();
-        tracing::info!("Request: {:?}", &message);
+        let av_request = request.into_inner();
+        tracing::info!("Request: {:?}", &av_request);
 
-        match local::manager::auth_vector_get(self.context.clone(), &message) {
+        match local::manager::auth_vector_get(self.context.clone(), &av_request) {
             Some(av_result) => {
                 tracing::info!("Returning auth vector: {:?}", av_result);
                 Ok(tonic::Response::new(av_result))
             }
             None => {
-                tracing::info!("No auth vector found {:?}", message);
+                tracing::info!("No auth vector found {:?}", av_request);
                 Ok(tonic::Response::new(AkaVectorResp {
                     error: 1, // ErrorKind::NotFound,  Why doesn't this work?
                     auth_vector: None,
-                    user_id: message.user_id.clone(),
-                    user_id_type: message.user_id_type.clone(),
+                    user_id: av_request.user_id.clone(),
+                    user_id_type: av_request.user_id_type.clone(),
                 }))
             }
         }
@@ -80,5 +48,48 @@ impl LocalAuthentication for DauthHandler {
     ) -> Result<tonic::Response<AkaConfirmResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
         unimplemented!()
+    }
+}
+
+#[tonic::async_trait]
+impl RemoteAuthentication for DauthHandler {
+    /// Remote request for a vector
+    async fn get_auth_vector_remote(
+        &self,
+        request: tonic::Request<AkaVectorReq>,
+    ) -> Result<tonic::Response<AkaVectorResp>, tonic::Status> {
+        let av_request = request.into_inner();
+        tracing::info!("Remote request: {:?}", av_request);
+
+        match remote::manager::auth_vector_get_remote(self.context.clone(), &av_request) {
+            Some(av_result) => {
+                tracing::info!("Returning auth vector: {:?}", av_result);
+                Ok(tonic::Response::new(av_result))
+            }
+            None => {
+                tracing::info!("No auth vector found {:?}", av_request);
+                Ok(tonic::Response::new(AkaVectorResp {
+                    error: 1, // ErrorKind::NotFound,  (nickfh7) Why doesn't this work?
+                    auth_vector: None,
+                    user_id: av_request.user_id.clone(),
+                    user_id_type: av_request.user_id_type.clone(),
+                }))
+            }
+        }
+    }
+
+    /// Remote alert that a vector has been used
+    async fn report_used_auth_vector(
+        &self,
+        request: tonic::Request<AkaVectorResp>,
+    ) -> Result<tonic::Response<AkaVectorUsedResp>, tonic::Status> {
+        let av_result = request.into_inner();
+        tracing::info!("Remote used: {:?}", av_result);
+
+        match remote::manager::auth_vector_used_remote(self.context.clone(), &av_result) {
+            Ok(()) => tracing::info!("Successfuly reported used: {:?}", av_result),
+            Err(e) => tracing::error!("Error reporting used: {}", e),
+        };
+        Ok(tonic::Response::new(AkaVectorUsedResp {}))
     }
 }

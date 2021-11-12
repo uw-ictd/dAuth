@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+
+package d_auth;
+
+message AKAVectorReq {
+    // The type of id provided.
+    enum UserIdKind {
+        UNKNOWN = 0;
+        SUPI = 1;
+    }
+    UserIdKind user_id_type = 1;
+
+    // The opaque id of the user requesting authentication.
+    bytes user_id = 2;
+
+    // Identifiers for high-occurence future fields.
+    reserved 3 to 15;
+
+    // The resynchronization info field is rare, so don't use one of the
+    // precious single-byte field ids.
+    AKAResyncInfo resync_info = 16;
+}
+
+message AKAResyncInfo {
+    bytes rand = 1;
+    bytes auts = 2;
+}
+
+message AKAVectorResp {
+    // Whether the request was successful or not
+    enum ErrorKind {
+        NO_ERROR = 0;
+        NOT_FOUND = 1;
+    }
+    ErrorKind error = 1;
+
+    AuthVector5G auth_vector = 2;
+
+    // The type of id provided.
+    enum UserIdKind {
+        UNKNOWN = 0;
+        SUPI = 1;
+    }
+    UserIdKind user_id_type = 3;
+
+    // The opaque id of the user requesting authentication.
+    // Added to response message for reuse in other operations.
+    bytes user_id = 4;
+}
+
+// The 5G-AKA authentication vector, explicilty with a hashed xres.
+message AuthVector5G {
+    // The random seed defined for this vector
+    bytes rand = 1;
+
+    // The hashed expected response from the UE
+    bytes xresStar = 2;
+
+    // The autn string to pass to the UE, containing the network AUTH and SQN
+    bytes autn = 3;
+
+    // TODO(matt9j) Likely will eliminate this pending final remote protocol
+    // definition early next week
+    bytes kausf = 4;
+}

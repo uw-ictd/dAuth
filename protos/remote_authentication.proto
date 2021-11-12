@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+
+package d_auth;
+
+import "authentication_data.proto";
+
+service RemoteAuthentication {
+    // Request an auth vector from another core
+    rpc GetAuthVectorRemote(AKAVectorReq) returns (AKAVectorResp);
+
+    // Report an auth vector used
+    rpc ReportUsedAuthVector(AKAVectorResp) returns (AKAVectorUsedResp);
+}
+
+message AKAVectorUsedResp {}
