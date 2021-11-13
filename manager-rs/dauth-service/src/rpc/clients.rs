@@ -159,7 +159,7 @@ async fn add_client(context: Arc<DauthContext>, addr: &String) -> Result<(), &'s
     match context.rpc_context.client_stubs.lock() {
         Ok(mut client_stubs) => {
             if !client_stubs.contains_key(addr) {
-                match RemoteAuthenticationClient::connect(addr.clone()).await {
+                match RemoteAuthenticationClient::connect(format!("http://{}", addr)).await {
                     Ok(client) => {
                         client_stubs.insert(addr.clone(), client);
                         tracing::info!("New client created for address: {}", addr);
