@@ -5,8 +5,7 @@ use crate::rpc::d_auth::remote_authentication_client::RemoteAuthenticationClient
 use crate::rpc::d_auth::{AkaVectorReq, AkaVectorResp};
 
 /// Send out request to remote core for new auth vector.
-#[tokio::main]
-pub async fn request_auth_vector_remote(
+pub fn request_auth_vector_remote(
     context: Arc<DauthContext>,
     av_request: &AkaVectorReq,
 ) -> Option<AkaVectorResp> {
@@ -20,18 +19,22 @@ pub async fn request_auth_vector_remote(
     };
 
     // Initialize and add client stub first.
-    match add_client(context.clone(), &addr) {
+    match context.rpc_context.runtime_handle.block_on(add_client(context.clone(), &addr)) {
         Ok(()) => (),
         Err(e) => {
             tracing::error!("Could not add client to list: {}", e);
             return None;
         }
-    }
+    };
 
+    context.rpc_context.runtime_handle.block_on(client_send_request(context.clone(), av_request, &addr))
+}
+
+async fn client_send_request(context: Arc<DauthContext>, av_request: &AkaVectorReq, addr: &String) -> Option<AkaVectorResp> {
     // Make client call.
     match context.rpc_context.client_stubs.lock() {
         Ok(mut client_stubs) => {
-            match client_stubs.get_mut(&addr) {
+            match client_stubs.get_mut(addr) {
                 Some(client) => {
                     match client
                         .get_auth_vector_remote(tonic::Request::new(av_request.clone()))
@@ -74,55 +77,45 @@ pub async fn request_auth_vector_remote(
 }
 
 /// Broadcast to all other cores that an auth vector was used.
-#[tokio::main]
-pub async fn broadcast_auth_vector_used(
-    context: Arc<DauthContext>,
-    av_result: &AkaVectorResp,
-) -> Result<(), &'static str> {
+pub fn broadcast_auth_vector_used(context: Arc<DauthContext>, av_result: &AkaVectorResp) {
     tracing::info!("Broadcasting usage: {:?}", av_result);
+    for addr in &context.remote_context.remote_addrs {
+        // Initialize and add client stub first.
+        match context.rpc_context.runtime_handle.block_on(add_client(context.clone(), addr)) {
+            Ok(()) => (),
+            Err(e) => {
+                tracing::error!("Could not add client to list: {}", e);
+                continue;
+            }
+        };
 
+        match context.rpc_context.runtime_handle.block_on(client_send_usage(context.clone(), av_result, addr)) {
+            Ok(()) => (),
+            Err(e) => tracing::error!("Failed to send usage message to {}: {}", addr, e)
+        }
+    }
+}
+
+async fn client_send_usage(context: Arc<DauthContext>, av_result: &AkaVectorResp, addr: &String) -> Result<(), String> {
     match context.rpc_context.client_stubs.lock() {
         Ok(mut client_stubs) => {
-            for addr in &context.remote_context.remote_addrs {
-                // Make sure client is added first.
-                match add_client(context.clone(), addr) {
-                    Ok(()) => (),
-                    Err(e) => {
-                        tracing::error!("Could not add client to list for {:?}: {}", av_result, e);
+            match client_stubs.get_mut(addr) {
+                Some(client) => {
+                    match client
+                        .report_used_auth_vector(tonic::Request::new(av_result.clone()))
+                        .await
+                    {
+                        Ok(_) => {
+                            tracing::info!("Successfully sent usage message to {}", addr);
+                            Ok(())
+                        },
+                        Err(e) => Err(format!("Failed to send request: {}", e))
                     }
                 }
-
-                // Get client and send usage message.
-                match client_stubs.get_mut(addr) {
-                    Some(client) => {
-                        match client
-                            .report_used_auth_vector(tonic::Request::new(av_result.clone()))
-                            .await
-                        {
-                            Ok(_) => tracing::info!("Successfully sent usage message"),
-                            Err(e) => {
-                                tracing::error!(
-                                    "Failed to send request for {:?}: {}",
-                                    av_result,
-                                    e
-                                );
-                            }
-                        }
-                    }
-                    None => {
-                        tracing::error!(
-                            "Client stub not found for {:?} (should have been added)",
-                            av_result
-                        );
-                    }
-                }
+                None => Err(format!("Client stub not found (should have been added)"))
             }
-            Ok(())
         }
-        Err(e) => {
-            tracing::error!("Failed to get mutex {}", e);
-            Err("Failed to get mutex")
-        }
+        Err(e) => Err(format!("Failed to get mutex {}", e))
     }
 }
 
@@ -141,7 +134,6 @@ fn resolve_request_to_addr(
 
 /// Adds a client to the current context if it doesn't already exist.
 /// Otherwise, does nothing.
-#[tokio::main]
 async fn add_client(context: Arc<DauthContext>, addr: &String) -> Result<(), &'static str> {
     match context.rpc_context.client_stubs.lock() {
         Ok(mut client_stubs) => {
@@ -153,7 +145,7 @@ async fn add_client(context: Arc<DauthContext>, addr: &String) -> Result<(), &'s
                         Ok(())
                     }
                     Err(e) => {
-                        tracing::error!("Failed to connect to server {}", e);
+                        tracing::error!("Failed to connect to server: {}", e);
                         Err("Failed to connect to server, client not created")
                     }
                 }

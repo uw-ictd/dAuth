@@ -3,6 +3,7 @@ use std::{
     sync::Mutex,
 };
 
+use tokio::runtime::Handle;
 use tonic::transport::Channel;
 
 use crate::rpc::d_auth::remote_authentication_client::RemoteAuthenticationClient;
@@ -29,6 +30,7 @@ pub struct RemoteContext {
 
 #[derive(Debug)]
 pub struct RpcContext {
+    pub runtime_handle: Handle,
     pub host_addr: String,
     pub client_stubs: Mutex<HashMap<String, RemoteAuthenticationClient<Channel>>>,
 }

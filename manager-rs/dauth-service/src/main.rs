@@ -7,6 +7,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
+use tokio::runtime::Handle;
 use tracing::Level;
 use tracing_subscriber;
 
@@ -23,6 +24,7 @@ async fn main() {
             remote_addrs: vec![String::from("[::1]:50051")],
         },
         rpc_context: RpcContext {
+            runtime_handle: Handle::current(),
             host_addr: String::from("[::1]:50051"),
             client_stubs: Mutex::new(HashMap::new()),
         },

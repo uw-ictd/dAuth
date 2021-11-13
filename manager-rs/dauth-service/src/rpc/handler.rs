@@ -23,22 +23,25 @@ impl LocalAuthentication for DauthHandler {
     ) -> Result<tonic::Response<AkaVectorResp>, tonic::Status> {
         let av_request = request.into_inner();
         tracing::info!("Request: {:?}", &av_request);
+        let context = self.context.clone();
 
-        match local::manager::auth_vector_get(self.context.clone(), &av_request) {
-            Some(av_result) => {
-                tracing::info!("Returning auth vector: {:?}", av_result);
-                Ok(tonic::Response::new(av_result))
+        self.context.rpc_context.runtime_handle.spawn_blocking(move || {
+            match local::manager::auth_vector_get(context.clone(), &av_request) {
+                Some(av_result) => {
+                    tracing::info!("Returning auth vector: {:?}", av_result);
+                    Ok(tonic::Response::new(av_result))
+                }
+                None => {
+                    tracing::info!("No auth vector found {:?}", av_request);
+                    Ok(tonic::Response::new(AkaVectorResp {
+                        error: 1, // ErrorKind::NotFound,  Why doesn't this work?
+                        auth_vector: None,
+                        user_id: av_request.user_id.clone(),
+                        user_id_type: av_request.user_id_type.clone(),
+                    }))
+                }
             }
-            None => {
-                tracing::info!("No auth vector found {:?}", av_request);
-                Ok(tonic::Response::new(AkaVectorResp {
-                    error: 1, // ErrorKind::NotFound,  Why doesn't this work?
-                    auth_vector: None,
-                    user_id: av_request.user_id.clone(),
-                    user_id_type: av_request.user_id_type.clone(),
-                }))
-            }
-        }
+        }).await.unwrap()
     }
 
     async fn confirm_auth(

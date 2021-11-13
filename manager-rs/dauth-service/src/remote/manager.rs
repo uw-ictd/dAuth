@@ -33,10 +33,7 @@ pub fn auth_vector_send_request(
 }
 
 /// Reports a local use to all other remote cores.
-pub fn auth_vector_report_used(
-    context: Arc<DauthContext>,
-    av_result: &AkaVectorResp,
-) -> Result<(), &'static str> {
+pub fn auth_vector_report_used(context: Arc<DauthContext>, av_result: &AkaVectorResp) {
     tracing::info!("Reporting used {:?}", av_result);
     clients::broadcast_auth_vector_used(context, av_result)
 }

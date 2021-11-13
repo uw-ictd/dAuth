@@ -21,10 +21,7 @@ pub fn auth_vector_get(
 
     // Check local database
     if let Some(av_result) = local::database::auth_vector_next(context.clone(), av_request) {
-        match remote::manager::auth_vector_report_used(context.clone(), &av_result) {
-            Ok(()) => (),
-            Err(e) => tracing::error!("Failed to report used: {}", e),
-        }
+        remote::manager::auth_vector_report_used(context.clone(), &av_result);
         Some(av_result)
 
     // Generate new
