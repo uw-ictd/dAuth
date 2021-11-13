@@ -19,7 +19,11 @@ pub fn request_auth_vector_remote(
     };
 
     // Initialize and add client stub first.
-    match context.rpc_context.runtime_handle.block_on(add_client(context.clone(), &addr)) {
+    match context
+        .rpc_context
+        .runtime_handle
+        .block_on(add_client(context.clone(), &addr))
+    {
         Ok(()) => (),
         Err(e) => {
             tracing::error!("Could not add client to list: {}", e);
@@ -27,10 +31,17 @@ pub fn request_auth_vector_remote(
         }
     };
 
-    context.rpc_context.runtime_handle.block_on(client_send_request(context.clone(), av_request, &addr))
+    context
+        .rpc_context
+        .runtime_handle
+        .block_on(client_send_request(context.clone(), av_request, &addr))
 }
 
-async fn client_send_request(context: Arc<DauthContext>, av_request: &AkaVectorReq, addr: &String) -> Option<AkaVectorResp> {
+async fn client_send_request(
+    context: Arc<DauthContext>,
+    av_request: &AkaVectorReq,
+    addr: &String,
+) -> Option<AkaVectorResp> {
     // Make client call.
     match context.rpc_context.client_stubs.lock() {
         Ok(mut client_stubs) => {
@@ -81,7 +92,11 @@ pub fn broadcast_auth_vector_used(context: Arc<DauthContext>, av_result: &AkaVec
     tracing::info!("Broadcasting usage: {:?}", av_result);
     for addr in &context.remote_context.remote_addrs {
         // Initialize and add client stub first.
-        match context.rpc_context.runtime_handle.block_on(add_client(context.clone(), addr)) {
+        match context
+            .rpc_context
+            .runtime_handle
+            .block_on(add_client(context.clone(), addr))
+        {
             Ok(()) => (),
             Err(e) => {
                 tracing::error!("Could not add client to list: {}", e);
@@ -89,33 +104,39 @@ pub fn broadcast_auth_vector_used(context: Arc<DauthContext>, av_result: &AkaVec
             }
         };
 
-        match context.rpc_context.runtime_handle.block_on(client_send_usage(context.clone(), av_result, addr)) {
+        match context
+            .rpc_context
+            .runtime_handle
+            .block_on(client_send_usage(context.clone(), av_result, addr))
+        {
             Ok(()) => (),
-            Err(e) => tracing::error!("Failed to send usage message to {}: {}", addr, e)
+            Err(e) => tracing::error!("Failed to send usage message to {}: {}", addr, e),
         }
     }
 }
 
-async fn client_send_usage(context: Arc<DauthContext>, av_result: &AkaVectorResp, addr: &String) -> Result<(), String> {
+async fn client_send_usage(
+    context: Arc<DauthContext>,
+    av_result: &AkaVectorResp,
+    addr: &String,
+) -> Result<(), String> {
     match context.rpc_context.client_stubs.lock() {
-        Ok(mut client_stubs) => {
-            match client_stubs.get_mut(addr) {
-                Some(client) => {
-                    match client
-                        .report_used_auth_vector(tonic::Request::new(av_result.clone()))
-                        .await
-                    {
-                        Ok(_) => {
-                            tracing::info!("Successfully sent usage message to {}", addr);
-                            Ok(())
-                        },
-                        Err(e) => Err(format!("Failed to send request: {}", e))
+        Ok(mut client_stubs) => match client_stubs.get_mut(addr) {
+            Some(client) => {
+                match client
+                    .report_used_auth_vector(tonic::Request::new(av_result.clone()))
+                    .await
+                {
+                    Ok(_) => {
+                        tracing::info!("Successfully sent usage message to {}", addr);
+                        Ok(())
                     }
+                    Err(e) => Err(format!("Failed to send request: {}", e)),
                 }
-                None => Err(format!("Client stub not found (should have been added)"))
             }
-        }
-        Err(e) => Err(format!("Failed to get mutex {}", e))
+            None => Err(format!("Client stub not found (should have been added)")),
+        },
+        Err(e) => Err(format!("Failed to get mutex {}", e)),
     }
 }
 
