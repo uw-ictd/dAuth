@@ -5,7 +5,6 @@ use crate::rpc::d_auth::remote_authentication_server::RemoteAuthentication;
 use crate::rpc::d_auth::{
     AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp, AkaVectorUsedResp,
 };
-
 use crate::data::context::DauthContext;
 use crate::local;
 use crate::remote;

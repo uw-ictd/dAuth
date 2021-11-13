@@ -17,11 +17,14 @@ use crate::rpc::server;
 async fn main() {
     let context = Arc::new(DauthContext {
         local_context: LocalContext {
-            database: Mutex::new(Box::new(HashMap::new())),
+            database: Mutex::new(HashMap::new()),
         },
-        remote_context: RemoteContext {},
+        remote_context: RemoteContext {
+            remote_addrs: vec![String::from("[::1]:50051")],
+        },
         rpc_context: RpcContext {
             host_addr: String::from("[::1]:50051"),
+            client_stubs: Mutex::new(HashMap::new()),
         },
     });
 
