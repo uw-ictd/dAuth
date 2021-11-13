@@ -67,22 +67,30 @@ impl RemoteAuthentication for DauthHandler {
     ) -> Result<tonic::Response<AkaVectorResp>, tonic::Status> {
         let av_request = request.into_inner();
         tracing::info!("Remote request: {:?}", av_request);
+        let context = self.context.clone();
 
-        match remote::manager::auth_vector_get_remote(self.context.clone(), &av_request) {
-            Some(av_result) => {
-                tracing::info!("Returning auth vector: {:?}", av_result);
-                Ok(tonic::Response::new(av_result))
-            }
-            None => {
-                tracing::info!("No auth vector found {:?}", av_request);
-                Ok(tonic::Response::new(AkaVectorResp {
-                    error: 1, // ErrorKind::NotFound,  (nickfh7) Why doesn't this work?
-                    auth_vector: None,
-                    user_id: av_request.user_id.clone(),
-                    user_id_type: av_request.user_id_type.clone(),
-                }))
-            }
-        }
+        self.context
+            .rpc_context
+            .runtime_handle
+            .spawn_blocking(move || {
+                match remote::manager::auth_vector_get_remote(context.clone(), &av_request) {
+                    Some(av_result) => {
+                        tracing::info!("Returning auth vector: {:?}", av_result);
+                        Ok(tonic::Response::new(av_result))
+                    }
+                    None => {
+                        tracing::info!("No auth vector found {:?}", av_request);
+                        Ok(tonic::Response::new(AkaVectorResp {
+                            error: 1, // ErrorKind::NotFound,  (nickfh7) Why doesn't this work?
+                            auth_vector: None,
+                            user_id: av_request.user_id.clone(),
+                            user_id_type: av_request.user_id_type.clone(),
+                        }))
+                    }
+                }
+            })
+            .await
+            .unwrap()
     }
 
     /// Remote alert that a vector has been used
@@ -92,11 +100,19 @@ impl RemoteAuthentication for DauthHandler {
     ) -> Result<tonic::Response<AkaVectorUsedResp>, tonic::Status> {
         let av_result = request.into_inner();
         tracing::info!("Remote used: {:?}", av_result);
+        let context = self.context.clone();
 
-        match remote::manager::auth_vector_used_remote(self.context.clone(), &av_result) {
-            Ok(()) => tracing::info!("Successfuly reported used: {:?}", av_result),
-            Err(e) => tracing::error!("Error reporting used: {}", e),
-        };
+        self.context
+            .rpc_context
+            .runtime_handle
+            .spawn_blocking(move || {
+                match remote::manager::auth_vector_used_remote(context.clone(), &av_result) {
+                    Ok(()) => tracing::info!("Successfuly reported used: {:?}", av_result),
+                    Err(e) => tracing::error!("Error reporting used: {}", e),
+                }
+            })
+            .await
+            .unwrap();
         Ok(tonic::Response::new(AkaVectorUsedResp {}))
     }
 }
