@@ -54,7 +54,7 @@ pub fn auth_vector_used(
 }
 
 /// Returns whether the auth vector belongs to this core
-fn auth_vector_is_local(context: Arc<DauthContext>, av_request: &AkaVectorReq) -> bool {
+fn auth_vector_is_local(_context: Arc<DauthContext>, _av_request: &AkaVectorReq) -> bool {
     // TODO(nickfh7) Add logic to determine if local
     false
 }
@@ -62,8 +62,8 @@ fn auth_vector_is_local(context: Arc<DauthContext>, av_request: &AkaVectorReq) -
 /// Generates and returns a new auth vector
 /// Will fail if the requested id does not belong to the core
 fn auth_vector_generate(
-    context: Arc<DauthContext>,
-    av_request: &AkaVectorReq,
+    _context: Arc<DauthContext>,
+    _av_request: &AkaVectorReq,
 ) -> Result<AkaVectorResp, &'static str> {
     // TODO(nickfh7) integrate with auth-vector crate
     // auth_vector::generate_vector(k, opc, rand);

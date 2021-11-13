@@ -41,10 +41,7 @@ pub async fn request_auth_vector_remote(
                             let av_result = resp.into_inner();
                             if av_result.error == 0 {
                                 // Should be ErrorKind
-                                tracing::info!(
-                                    "Vector received from remote: {:?}",
-                                    av_result
-                                );
+                                tracing::info!("Vector received from remote: {:?}", av_result);
                                 Some(av_result)
                             } else {
                                 tracing::info!(
@@ -61,7 +58,10 @@ pub async fn request_auth_vector_remote(
                     }
                 }
                 None => {
-                    tracing::error!("Client stub not found for {:?} (should have been added)", av_request);
+                    tracing::error!(
+                        "Client stub not found for {:?} (should have been added)",
+                        av_request
+                    );
                     None
                 }
             }
@@ -84,7 +84,6 @@ pub async fn broadcast_auth_vector_used(
     match context.rpc_context.client_stubs.lock() {
         Ok(mut client_stubs) => {
             for addr in &context.remote_context.remote_addrs {
-
                 // Make sure client is added first.
                 match add_client(context.clone(), addr) {
                     Ok(()) => (),
@@ -102,12 +101,19 @@ pub async fn broadcast_auth_vector_used(
                         {
                             Ok(_) => tracing::info!("Successfully sent usage message"),
                             Err(e) => {
-                                tracing::error!("Failed to send request for {:?}: {}", av_result, e);
+                                tracing::error!(
+                                    "Failed to send request for {:?}: {}",
+                                    av_result,
+                                    e
+                                );
                             }
                         }
                     }
                     None => {
-                        tracing::error!("Client stub not found for {:?} (should have been added)", av_result);
+                        tracing::error!(
+                            "Client stub not found for {:?} (should have been added)",
+                            av_result
+                        );
                     }
                 }
             }
@@ -121,7 +127,10 @@ pub async fn broadcast_auth_vector_used(
 }
 
 /// Determines address of the home network of the request.
-fn resolve_request_to_addr(context: Arc<DauthContext>, _av_request: &AkaVectorReq) -> Option<String> {
+fn resolve_request_to_addr(
+    context: Arc<DauthContext>,
+    _av_request: &AkaVectorReq,
+) -> Option<String> {
     // TODO(nickfh7) Add logic to resolve to address.
     // This may be a long way down the road.
     match context.remote_context.remote_addrs.get(0) {
