@@ -94,6 +94,7 @@ name = "auth-vector"
 version = "0.1.0"
 dependencies = [
  "milenage",
+ "rand",
 ]
 
 [[package]]
