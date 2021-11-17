@@ -90,6 +90,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "auth-testing"
+version = "0.1.0"
+dependencies = [
+ "auth-vector",
+ "milenage",
+]
+
+[[package]]
 name = "auth-vector"
 version = "0.1.0"
 dependencies = [

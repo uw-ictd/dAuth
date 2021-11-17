@@ -3,4 +3,5 @@
 members= [
     "dauth-service",
     "auth-vector",
+    "auth-testing",
 ]
