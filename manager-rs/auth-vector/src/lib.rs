@@ -7,8 +7,8 @@ pub fn generate_vector(
     k: [u8; 16],
     opc: [u8; 16],
     sqn: [u8; 6],
-) -> ([u8; 8], [u8; 16], [u8; 6], [u8; 8]) {
-    let rand: [u8; 16] = r::random();
+) -> ([u8; 8], [u8; 16], [u8; 16], [u8; 6], [u8; 8]) {
+    let rand: [u8; 16] = r::random();  // Secure?
 
     generate_vector_with_rand(k, opc, rand, sqn, [0x80, 0x00])
 }
@@ -20,10 +20,12 @@ fn generate_vector_with_rand(
     rand: [u8; 16],
     sqn: [u8; 6],
     amf: [u8; 2],
-) -> ([u8; 8], [u8; 16], [u8; 6], [u8; 8]) {
+) -> ([u8; 8], [u8; 16], [u8; 16], [u8; 6], [u8; 8]) {
     let mut m = Milenage::new_with_opc(k, opc);
 
     let (res, _ck, _ik, ak) = m.f2345(&rand);
+
+    let res_star = m.compute_res_star("901", "70", &rand, &res).unwrap();
 
     let sqn_xor_ak: [u8; 6] = [
         sqn[0] ^ ak[0],
@@ -36,7 +38,7 @@ fn generate_vector_with_rand(
 
     let mac_a = m.f1(&rand, &sqn, &amf);
 
-    (res, rand, sqn_xor_ak, mac_a)
+    (res, res_star, rand, sqn_xor_ak, mac_a)
 }
 
 #[cfg(test)]
@@ -60,7 +62,7 @@ mod tests {
         let sqn: [u8; 6] = decode_hex("000000000021").unwrap()[..].try_into().unwrap();
         let amf: [u8; 2] = decode_hex("8000").unwrap()[..].try_into().unwrap();
 
-        let (xres, rand, sqn_xor_ak, mac_a) = generate_vector_with_rand(k, opc, rand, sqn, amf);
+        let (xres, _res_star, rand, sqn_xor_ak, mac_a) = generate_vector_with_rand(k, opc, rand, sqn, amf);
 
         assert_eq!("fc9b23591b391885", encode_hex(&xres)); // needs to be checked
         assert_eq!("562d716dbd058b475cfecdbb48ed038f", encode_hex(&rand));

@@ -63,5 +63,5 @@ message AuthVector5G {
 
     // TODO(matt9j) Likely will eliminate this pending final remote protocol
     // definition early next week
-    bytes kausf = 4;
+    bytes kseaf = 4;
 }
