@@ -3,7 +3,11 @@ use rand as r;
 
 /// Uses provided k, opc, and rand with milenage.
 /// Returns tuple of auth vector data (xres, rand, sqn_xor_ak, mac_a)
-pub fn generate_vector(k: [u8; 16], opc: [u8; 16], sqn: [u8; 6]) -> ([u8; 8], [u8; 16], [u8; 6], [u8; 8]) {
+pub fn generate_vector(
+    k: [u8; 16],
+    opc: [u8; 16],
+    sqn: [u8; 6],
+) -> ([u8; 8], [u8; 16], [u8; 6], [u8; 8]) {
     let rand: [u8; 16] = r::random();
 
     generate_vector_with_rand(k, opc, rand, sqn, [0x80, 0x00])
@@ -62,7 +66,6 @@ mod tests {
         assert_eq!("562d716dbd058b475cfecdbb48ed038f", encode_hex(&rand));
         assert_eq!("67c325a93c68", encode_hex(&sqn_xor_ak));
         assert_eq!("6ed9f592d86b709c", encode_hex(&mac_a));
-
     }
 
     /// INFORMATIONAL TESTS
@@ -79,7 +82,7 @@ mod tests {
         let rand: [u8; 16] = decode_hex("562d716dbd058b475cfecdbb48ed038f").unwrap()[..]
             .try_into()
             .unwrap();
-            
+
         let sqn_xor_ak: [u8; 6] = decode_hex("67c325a93c68").unwrap()[..].try_into().unwrap();
         let amf: [u8; 2] = decode_hex("8000").unwrap()[..].try_into().unwrap();
 

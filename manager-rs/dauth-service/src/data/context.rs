@@ -6,6 +6,7 @@ use std::{
 use tokio::runtime::Handle;
 use tonic::transport::Channel;
 
+use crate::data::user_info::UserInfo;
 use crate::rpc::d_auth::remote_authentication_client::RemoteAuthenticationClient;
 use crate::rpc::d_auth::AkaVectorResp;
 
@@ -21,6 +22,7 @@ pub struct DauthContext {
 #[derive(Debug)]
 pub struct LocalContext {
     pub database: Mutex<HashMap<Vec<u8>, VecDeque<AkaVectorResp>>>,
+    pub user_info_database: Mutex<HashMap<Vec<u8>, UserInfo>>,
 }
 
 #[derive(Debug)]

@@ -24,15 +24,9 @@ fn test_sqn_from_ak(k_str: &str, opc_str: &str, rand_str: &str, sqn_xor_str: &st
     println!("amf:   {}", amf_str);
 
     // Used from successful ueransim 5G attach
-    let k: [u8; 16] = decode_hex(k_str).unwrap()[..]
-        .try_into()
-        .unwrap();
-    let opc: [u8; 16] = decode_hex(opc_str).unwrap()[..]
-        .try_into()
-        .unwrap();
-    let rand: [u8; 16] = decode_hex(rand_str).unwrap()[..]
-        .try_into()
-        .unwrap();
+    let k: [u8; 16] = decode_hex(k_str).unwrap()[..].try_into().unwrap();
+    let opc: [u8; 16] = decode_hex(opc_str).unwrap()[..].try_into().unwrap();
+    let rand: [u8; 16] = decode_hex(rand_str).unwrap()[..].try_into().unwrap();
     let sqn_xor_ak: [u8; 6] = decode_hex(sqn_xor_str).unwrap()[..].try_into().unwrap();
     let amf: [u8; 2] = decode_hex(amf_str).unwrap()[..].try_into().unwrap();
 

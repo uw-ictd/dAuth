@@ -12,6 +12,7 @@ tokio = { version = "^1.13.0", features = ["macros", "rt-multi-thread"]}
 tracing = "0.1.29"
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.2.0"
+hex = "0.4.3"
 auth-vector = { path = "../auth-vector" }
 
 [build-dependencies]
