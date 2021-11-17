@@ -23,30 +23,17 @@ impl LocalAuthentication for DauthHandler {
     ) -> Result<tonic::Response<AkaVectorResp>, tonic::Status> {
         let av_request = request.into_inner();
         tracing::info!("Request: {:?}", &av_request);
-        let context = self.context.clone();
 
-        self.context
-            .rpc_context
-            .runtime_handle
-            .spawn_blocking(move || {
-                match local::manager::auth_vector_get(context.clone(), &av_request) {
-                    Some(av_result) => {
-                        tracing::info!("Returning auth vector: {:?}", av_result);
-                        Ok(tonic::Response::new(av_result))
-                    }
-                    None => {
-                        tracing::info!("No auth vector found {:?}", av_request);
-                        Ok(tonic::Response::new(AkaVectorResp {
-                            error: 1, // ErrorKind::NotFound,  Why doesn't this work?
-                            auth_vector: None,
-                            user_id: av_request.user_id.clone(),
-                            user_id_type: av_request.user_id_type.clone(),
-                        }))
-                    }
-                }
-            })
-            .await
-            .unwrap()
+        match local::manager::auth_vector_get(self.context.clone(), &av_request).await {
+            Ok(av_result) => {
+                tracing::info!("Returning result: {:?}", av_result);
+                Ok(tonic::Response::new(av_result))
+            }
+            Err(e) => {
+                tracing::error!("Error while handling request for {:?}: {}", av_request, e);
+                Err(tonic::Status::new(tonic::Code::Aborted, e))
+            }
+        }
     }
 
     async fn confirm_auth(
@@ -67,30 +54,17 @@ impl RemoteAuthentication for DauthHandler {
     ) -> Result<tonic::Response<AkaVectorResp>, tonic::Status> {
         let av_request = request.into_inner();
         tracing::info!("Remote request: {:?}", av_request);
-        let context = self.context.clone();
 
-        self.context
-            .rpc_context
-            .runtime_handle
-            .spawn_blocking(move || {
-                match remote::manager::auth_vector_get_remote(context.clone(), &av_request) {
-                    Some(av_result) => {
-                        tracing::info!("Returning auth vector: {:?}", av_result);
-                        Ok(tonic::Response::new(av_result))
-                    }
-                    None => {
-                        tracing::info!("No auth vector found {:?}", av_request);
-                        Ok(tonic::Response::new(AkaVectorResp {
-                            error: 1, // ErrorKind::NotFound,  (nickfh7) Why doesn't this work?
-                            auth_vector: None,
-                            user_id: av_request.user_id.clone(),
-                            user_id_type: av_request.user_id_type.clone(),
-                        }))
-                    }
-                }
-            })
-            .await
-            .unwrap()
+        match remote::manager::auth_vector_get_remote(self.context.clone(), &av_request).await {
+            Ok(av_result) => {
+                tracing::info!("Returning result: {:?}", av_result);
+                Ok(tonic::Response::new(av_result))
+            }
+            Err(e) => {
+                tracing::error!("Error while handling request for {:?}: {}", av_request, e);
+                Err(tonic::Status::new(tonic::Code::Aborted, e))
+            }
+        }
     }
 
     /// Remote alert that a vector has been used
@@ -102,17 +76,15 @@ impl RemoteAuthentication for DauthHandler {
         tracing::info!("Remote used: {:?}", av_result);
         let context = self.context.clone();
 
-        self.context
-            .rpc_context
-            .runtime_handle
-            .spawn_blocking(move || {
-                match remote::manager::auth_vector_used_remote(context.clone(), &av_result) {
-                    Ok(()) => tracing::info!("Successfuly reported used: {:?}", av_result),
-                    Err(e) => tracing::error!("Error reporting used: {}", e),
-                }
-            })
-            .await
-            .unwrap();
-        Ok(tonic::Response::new(AkaVectorUsedResp {}))
+        match remote::manager::auth_vector_used_remote(context.clone(), &av_result).await {
+            Ok(()) => {
+                tracing::info!("Successfuly reported used: {:?}", av_result);
+                Ok(tonic::Response::new(AkaVectorUsedResp {}))
+            },
+            Err(e) => {
+                tracing::error!("Error reporting used: {}", e);
+                Err(tonic::Status::new(tonic::Code::Aborted, e))
+            },
+        }
     }
 }

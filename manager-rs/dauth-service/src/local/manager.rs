@@ -13,36 +13,30 @@ use crate::rpc::d_auth::{AkaVectorReq, AkaVectorResp, AuthVector5G};
 /// 2. Generate if belongs to home network.
 /// 3. Query remote if nothing can be done locally.
 /// If all checks fail, returns None.
-pub fn auth_vector_get(
+pub async fn auth_vector_get(
     context: Arc<DauthContext>,
     av_request: &AkaVectorReq,
-) -> Option<AkaVectorResp> {
+) -> Result<AkaVectorResp, &'static str> {
     tracing::info!("Handling request: {:?}", av_request);
 
     // Check local database
     if let Some(av_result) = local::database::auth_vector_next(context.clone(), av_request) {
-        remote::manager::auth_vector_report_used(context.clone(), &av_result);
-        Some(av_result)
+        remote::manager::auth_vector_report_used(context.clone(), &av_result).await;
+        Ok(av_result)
 
     // Generate new
     } else if auth_vector_is_local(context.clone(), av_request) {
-        match auth_vector_generate(context.clone(), av_request) {
-            Ok(av_result) => Some(av_result),
-            Err(e) => {
-                tracing::error!("Failed to generate new auth vector: {}", e);
-                None
-            }
-        }
+        auth_vector_generate(context.clone(), av_request)
 
     // Check remote
     } else {
-        remote::manager::auth_vector_send_request(context.clone(), &av_request)
+        remote::manager::auth_vector_send_request(context.clone(), &av_request).await
     }
 }
 
 /// Local handler for used vectors.
 /// Called for both local and remote use.
-pub fn auth_vector_used(
+pub async fn auth_vector_used(
     context: Arc<DauthContext>,
     av_result: &AkaVectorResp,
 ) -> Result<(), &'static str> {
@@ -73,7 +67,7 @@ fn auth_vector_generate(
     {
         Some(user_info) => {
             tracing::info!("User found: {:?}", user_info);
-            let (xres, rand, sqn_xor_ak, mac_a) =
+            let (xres, _res_star, rand, sqn_xor_ak, mac_a) =
                 auth_vector::generate_vector(user_info.k, user_info.opc, user_info.sqn_max);
             user_info.increment_sqn(0x21);
             Ok(AkaVectorResp {
@@ -83,7 +77,7 @@ fn auth_vector_generate(
                     xres_star: Vec::from(xres),
                     // WRONG FIELDS
                     autn: Vec::from(sqn_xor_ak),
-                    kausf: Vec::from(mac_a),
+                    kseaf: Vec::from(mac_a),
                 }),
                 user_id: av_request.user_id.clone(),
                 user_id_type: av_request.user_id_type,

@@ -5,63 +5,46 @@ use crate::rpc::d_auth::remote_authentication_client::RemoteAuthenticationClient
 use crate::rpc::d_auth::{AkaVectorReq, AkaVectorResp};
 
 /// Send out request to remote core for new auth vector.
-pub fn request_auth_vector_remote(
+pub async fn request_auth_vector_remote(
     context: Arc<DauthContext>,
     av_request: &AkaVectorReq,
-) -> Option<AkaVectorResp> {
+) -> Result<AkaVectorResp, &'static str> {
     tracing::info!("Sending remote request: {:?}", av_request);
 
     // Find the addr corresponding to the home network.
     let addr;
     match resolve_request_to_addr(context.clone(), av_request) {
         Some(res) => addr = res,
-        None => return None,
+        None => return Err("Could not find valid address for request"),
     };
 
     // Initialize and add client stub first.
-    match context
-        .rpc_context
-        .runtime_handle
-        .block_on(add_client(context.clone(), &addr))
-    {
+    match add_client(context.clone(), &addr).await {
         Ok(()) => (),
         Err(e) => {
             tracing::error!("Could not add client to list: {}", e);
-            return None;
+            return Err("Could not create client stub to send request");
         }
     };
 
-    context
-        .rpc_context
-        .runtime_handle
-        .block_on(client_send_request(context.clone(), av_request, &addr))
+    client_send_request(context.clone(), av_request, &addr).await
 }
 
 async fn client_send_request(
     context: Arc<DauthContext>,
     av_request: &AkaVectorReq,
     addr: &String,
-) -> Option<AkaVectorResp> {
+) -> Result<AkaVectorResp, &'static str> {
     match context.rpc_context.client_stubs.lock().await.get_mut(addr) {
         Some(client) => {
             match client
                 .get_auth_vector_remote(tonic::Request::new(av_request.clone()))
                 .await
             {
-                Ok(resp) => {
-                    let av_result = resp.into_inner();
-                    if av_result.error == 0 {
-                        // Should be ErrorKind
-                        tracing::info!("Vector received from remote: {:?}", av_result);
-                        Some(av_result)
-                    } else {
-                        tracing::info!("Remote failed to make auth vector: {:?}", av_result);
-                        None
-                    }
-                }
+                Ok(resp) => Ok(resp.into_inner()),
                 Err(e) => {
                     tracing::error!("Failed to send request for {:?}: {}", av_request, e);
-                    None
+                    Err("Failed to send request")
                 }
             }
         }
@@ -70,21 +53,17 @@ async fn client_send_request(
                 "Client stub not found for {:?} (should have been added)",
                 av_request
             );
-            None
+            Err("Failed to get client stub")
         }
     }
 }
 
 /// Broadcast to all other cores that an auth vector was used.
-pub fn broadcast_auth_vector_used(context: Arc<DauthContext>, av_result: &AkaVectorResp) {
+pub async fn broadcast_auth_vector_used(context: Arc<DauthContext>, av_result: &AkaVectorResp) {
     tracing::info!("Broadcasting usage: {:?}", av_result);
     for addr in &context.remote_context.remote_addrs {
         // Initialize and add client stub first.
-        match context
-            .rpc_context
-            .runtime_handle
-            .block_on(add_client(context.clone(), addr))
-        {
+        match add_client(context.clone(), addr).await {
             Ok(()) => (),
             Err(e) => {
                 tracing::error!("Could not add client to list: {}", e);
@@ -92,15 +71,11 @@ pub fn broadcast_auth_vector_used(context: Arc<DauthContext>, av_result: &AkaVec
             }
         };
 
-        match context
-            .rpc_context
-            .runtime_handle
-            .block_on(client_send_usage(context.clone(), av_result, addr))
-        {
+        match client_send_usage(context.clone(), av_result, addr).await {
             Ok(()) => (),
             Err(e) => tracing::error!("Failed to send usage message to {}: {}", addr, e),
         }
-    }
+    };
 }
 
 async fn client_send_usage(
