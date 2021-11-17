@@ -68,6 +68,7 @@ fn auth_vector_generate(
         Ok(mut user_db) => {
             match user_db.get_mut(&av_request.user_id) {
                 Some(user_info) => {
+                    tracing::info!("User found: {:?}", user_info);
                     let (xres, rand, sqn_xor_ak, mac_a) =
                         auth_vector::generate_vector(user_info.k, user_info.opc, user_info.sqn_max);
                     user_info.increment_sqn(0x21);
