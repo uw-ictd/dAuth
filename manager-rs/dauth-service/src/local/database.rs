@@ -10,16 +10,16 @@ pub fn auth_vector_next(
 ) -> Option<AkaVectorResp> {
     tracing::info!("Database next: {:?}", av_request);
 
-    match context.local_context.database.lock() {
-        Ok(mut database) => match database.get_mut(&av_request.user_id) {
-            Some(queue) => queue.pop_front(),
-            None => {
-                tracing::error!("User not in database (next): {:?}", av_request);
-                None
-            }
-        },
-        Err(e) => {
-            tracing::error!("Failed getting mutex for database: {}", e);
+    match context
+        .local_context
+        .database
+        .lock()
+        .unwrap()
+        .get_mut(&av_request.user_id)
+    {
+        Some(queue) => queue.pop_front(),
+        None => {
+            tracing::error!("User not in database (next): {:?}", av_request);
             None
         }
     }
@@ -32,26 +32,26 @@ pub fn auth_vector_delete(
 ) -> Result<(), &'static str> {
     tracing::info!("Database delete: {:?}", av_result);
 
-    match context.local_context.database.lock() {
-        Ok(mut database) => match database.get_mut(&av_result.user_id) {
-            Some(queue) => {
-                let num_elements = queue.len();
-                queue.retain(|x| *x != *av_result);
-                match num_elements - queue.len() {
-                    0 => tracing::info!("Nothing deleted"),
-                    1 => (),
-                    x => tracing::warn!("{} deleted", x),
-                };
-                Ok(())
-            }
-            None => {
-                tracing::error!("Use not in database (delete): {:?}", av_result);
-                Err("Failed to find user")
-            }
-        },
-        Err(e) => {
-            tracing::error!("Failed getting mutex for database: {}", e);
-            Err("Failed to get mutex")
+    match context
+        .local_context
+        .database
+        .lock()
+        .unwrap()
+        .get_mut(&av_result.user_id)
+    {
+        Some(queue) => {
+            let num_elements = queue.len();
+            queue.retain(|x| *x != *av_result);
+            match num_elements - queue.len() {
+                0 => tracing::info!("Nothing deleted"),
+                1 => (),
+                x => tracing::warn!("{} deleted", x),
+            };
+            Ok(())
+        }
+        None => {
+            tracing::error!("Use not in database (delete): {:?}", av_result);
+            Err("Failed to find user")
         }
     }
 }

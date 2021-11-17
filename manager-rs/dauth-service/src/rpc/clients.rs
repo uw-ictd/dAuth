@@ -42,46 +42,34 @@ async fn client_send_request(
     av_request: &AkaVectorReq,
     addr: &String,
 ) -> Option<AkaVectorResp> {
-    // Make client call.
-    match context.rpc_context.client_stubs.lock() {
-        Ok(mut client_stubs) => {
-            match client_stubs.get_mut(addr) {
-                Some(client) => {
-                    match client
-                        .get_auth_vector_remote(tonic::Request::new(av_request.clone()))
-                        .await
-                    {
-                        Ok(resp) => {
-                            let av_result = resp.into_inner();
-                            if av_result.error == 0 {
-                                // Should be ErrorKind
-                                tracing::info!("Vector received from remote: {:?}", av_result);
-                                Some(av_result)
-                            } else {
-                                tracing::info!(
-                                    "Remote failed to make auth vector: {:?}",
-                                    av_result
-                                );
-                                None
-                            }
-                        }
-                        Err(e) => {
-                            tracing::error!("Failed to send request for {:?}: {}", av_request, e);
-                            None
-                        }
+    match context.rpc_context.client_stubs.lock().await.get_mut(addr) {
+        Some(client) => {
+            match client
+                .get_auth_vector_remote(tonic::Request::new(av_request.clone()))
+                .await
+            {
+                Ok(resp) => {
+                    let av_result = resp.into_inner();
+                    if av_result.error == 0 {
+                        // Should be ErrorKind
+                        tracing::info!("Vector received from remote: {:?}", av_result);
+                        Some(av_result)
+                    } else {
+                        tracing::info!("Remote failed to make auth vector: {:?}", av_result);
+                        None
                     }
                 }
-                None => {
-                    tracing::error!(
-                        "Client stub not found for {:?} (should have been added)",
-                        av_request
-                    );
+                Err(e) => {
+                    tracing::error!("Failed to send request for {:?}: {}", av_request, e);
                     None
                 }
             }
         }
-        Err(e) => {
-            tracing::error!("Failed to get mutex {}", e);
+        None => {
+            tracing::error!(
+                "Client stub not found for {:?} (should have been added)",
+                av_request
+            );
             None
         }
     }
@@ -120,23 +108,20 @@ async fn client_send_usage(
     av_result: &AkaVectorResp,
     addr: &String,
 ) -> Result<(), String> {
-    match context.rpc_context.client_stubs.lock() {
-        Ok(mut client_stubs) => match client_stubs.get_mut(addr) {
-            Some(client) => {
-                match client
-                    .report_used_auth_vector(tonic::Request::new(av_result.clone()))
-                    .await
-                {
-                    Ok(_) => {
-                        tracing::info!("Successfully sent usage message to {}", addr);
-                        Ok(())
-                    }
-                    Err(e) => Err(format!("Failed to send request: {}", e)),
+    match context.rpc_context.client_stubs.lock().await.get_mut(addr) {
+        Some(client) => {
+            match client
+                .report_used_auth_vector(tonic::Request::new(av_result.clone()))
+                .await
+            {
+                Ok(_) => {
+                    tracing::info!("Successfully sent usage message to {}", addr);
+                    Ok(())
                 }
+                Err(e) => Err(format!("Failed to send request: {}", e)),
             }
-            None => Err(format!("Client stub not found (should have been added)")),
-        },
-        Err(e) => Err(format!("Failed to get mutex {}", e)),
+        }
+        None => Err(format!("Client stub not found (should have been added)")),
     }
 }
 
@@ -156,27 +141,21 @@ fn resolve_request_to_addr(
 /// Adds a client to the current context if it doesn't already exist.
 /// Otherwise, does nothing.
 async fn add_client(context: Arc<DauthContext>, addr: &String) -> Result<(), &'static str> {
-    match context.rpc_context.client_stubs.lock() {
-        Ok(mut client_stubs) => {
-            if !client_stubs.contains_key(addr) {
-                match RemoteAuthenticationClient::connect(format!("http://{}", addr)).await {
-                    Ok(client) => {
-                        client_stubs.insert(addr.clone(), client);
-                        tracing::info!("New client created for address: {}", addr);
-                        Ok(())
-                    }
-                    Err(e) => {
-                        tracing::error!("Failed to connect to server: {}", e);
-                        Err("Failed to connect to server, client not created")
-                    }
-                }
-            } else {
+    let mut client_stubs = context.rpc_context.client_stubs.lock().await;
+
+    if !client_stubs.contains_key(addr) {
+        match RemoteAuthenticationClient::connect(format!("http://{}", addr)).await {
+            Ok(client) => {
+                client_stubs.insert(addr.clone(), client);
+                tracing::info!("New client created for address: {}", addr);
                 Ok(())
             }
+            Err(e) => {
+                tracing::error!("Failed to connect to server: {}", e);
+                Err("Failed to connect to server, client not created")
+            }
         }
-        Err(e) => {
-            tracing::error!("Failed to get mutex {}", e);
-            Err("Failed to get mutex")
-        }
+    } else {
+        Ok(())
     }
 }

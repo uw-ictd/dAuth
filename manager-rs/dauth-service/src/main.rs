@@ -45,7 +45,7 @@ async fn main() {
         rpc_context: RpcContext {
             runtime_handle: Handle::current(),
             host_addr: String::from("[::1]:50051"),
-            client_stubs: Mutex::new(HashMap::new()),
+            client_stubs: tokio::sync::Mutex::new(HashMap::new()),
         },
     });
 

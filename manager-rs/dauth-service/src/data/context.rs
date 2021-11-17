@@ -34,5 +34,5 @@ pub struct RemoteContext {
 pub struct RpcContext {
     pub runtime_handle: Handle,
     pub host_addr: String,
-    pub client_stubs: Mutex<HashMap<String, RemoteAuthenticationClient<Channel>>>,
+    pub client_stubs: tokio::sync::Mutex<HashMap<String, RemoteAuthenticationClient<Channel>>>,
 }
