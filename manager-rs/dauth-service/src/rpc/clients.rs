@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::data::context::DauthContext;
+use crate::data::{context::DauthContext, error::DauthError};
 use crate::rpc::d_auth::remote_authentication_client::RemoteAuthenticationClient;
 use crate::rpc::d_auth::{AkaVectorReq, AkaVectorResp};
 
@@ -8,14 +8,18 @@ use crate::rpc::d_auth::{AkaVectorReq, AkaVectorResp};
 pub async fn request_auth_vector_remote(
     context: Arc<DauthContext>,
     av_request: &AkaVectorReq,
-) -> Result<AkaVectorResp, &'static str> {
+) -> Result<AkaVectorResp, DauthError> {
     tracing::info!("Sending remote request: {:?}", av_request);
 
     // Find the addr corresponding to the home network.
     let addr;
     match resolve_request_to_addr(context.clone(), av_request) {
         Some(res) => addr = res,
-        None => return Err("Could not find valid address for request"),
+        None => {
+            return Err(DauthError::ClientFailure(format!(
+                "Could not find valid address for request"
+            )))
+        }
     };
 
     // Initialize and add client stub first.
@@ -23,7 +27,9 @@ pub async fn request_auth_vector_remote(
         Ok(()) => (),
         Err(e) => {
             tracing::error!("Could not add client to list: {}", e);
-            return Err("Could not create client stub to send request");
+            return Err(DauthError::ClientFailure(format!(
+                "Could not create client stub to send request"
+            )));
         }
     };
 
@@ -34,7 +40,7 @@ async fn client_send_request(
     context: Arc<DauthContext>,
     av_request: &AkaVectorReq,
     addr: &String,
-) -> Result<AkaVectorResp, &'static str> {
+) -> Result<AkaVectorResp, DauthError> {
     match context.rpc_context.client_stubs.lock().await.get_mut(addr) {
         Some(client) => {
             match client
@@ -44,7 +50,10 @@ async fn client_send_request(
                 Ok(resp) => Ok(resp.into_inner()),
                 Err(e) => {
                     tracing::error!("Failed to send request for {:?}: {}", av_request, e);
-                    Err("Failed to send request")
+                    Err(DauthError::ClientFailure(format!(
+                        "Failed to send request: {}",
+                        e
+                    )))
                 }
             }
         }
@@ -53,7 +62,9 @@ async fn client_send_request(
                 "Client stub not found for {:?} (should have been added)",
                 av_request
             );
-            Err("Failed to get client stub")
+            Err(DauthError::ClientFailure(format!(
+                "Client stub not found (should have been added)"
+            )))
         }
     }
 }
@@ -66,7 +77,7 @@ pub async fn broadcast_auth_vector_used(context: Arc<DauthContext>, av_result: &
         match add_client(context.clone(), addr).await {
             Ok(()) => (),
             Err(e) => {
-                tracing::error!("Could not add client to list: {}", e);
+                tracing::error!("Could not added client to list: {}", e);
                 continue;
             }
         };
@@ -75,14 +86,14 @@ pub async fn broadcast_auth_vector_used(context: Arc<DauthContext>, av_result: &
             Ok(()) => (),
             Err(e) => tracing::error!("Failed to send usage message to {}: {}", addr, e),
         }
-    };
+    }
 }
 
 async fn client_send_usage(
     context: Arc<DauthContext>,
     av_result: &AkaVectorResp,
     addr: &String,
-) -> Result<(), String> {
+) -> Result<(), DauthError> {
     match context.rpc_context.client_stubs.lock().await.get_mut(addr) {
         Some(client) => {
             match client
@@ -93,10 +104,18 @@ async fn client_send_usage(
                     tracing::info!("Successfully sent usage message to {}", addr);
                     Ok(())
                 }
-                Err(e) => Err(format!("Failed to send request: {}", e)),
+                Err(e) => {
+                    tracing::error!("Failed to send request: {}", e);
+                    Err(DauthError::ClientFailure(format!(
+                        "Failed to send request: {}",
+                        e
+                    )))
+                }
             }
         }
-        None => Err(format!("Client stub not found (should have been added)")),
+        None => Err(DauthError::ClientFailure(format!(
+            "Client stub not found (should have been added)"
+        ))),
     }
 }
 
@@ -115,7 +134,7 @@ fn resolve_request_to_addr(
 
 /// Adds a client to the current context if it doesn't already exist.
 /// Otherwise, does nothing.
-async fn add_client(context: Arc<DauthContext>, addr: &String) -> Result<(), &'static str> {
+async fn add_client(context: Arc<DauthContext>, addr: &String) -> Result<(), DauthError> {
     let mut client_stubs = context.rpc_context.client_stubs.lock().await;
 
     if !client_stubs.contains_key(addr) {
@@ -127,7 +146,10 @@ async fn add_client(context: Arc<DauthContext>, addr: &String) -> Result<(), &'s
             }
             Err(e) => {
                 tracing::error!("Failed to connect to server: {}", e);
-                Err("Failed to connect to server, client not created")
+                Err(DauthError::ClientFailure(format!(
+                    "Failed to connect to server: {}",
+                    e
+                )))
             }
         }
     } else {

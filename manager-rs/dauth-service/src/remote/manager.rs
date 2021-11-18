@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::data::context::DauthContext;
+use crate::data::{context::DauthContext, error::DauthError};
 use crate::local;
 use crate::rpc::clients;
 use crate::rpc::d_auth::{AkaVectorReq, AkaVectorResp};
@@ -9,7 +9,7 @@ use crate::rpc::d_auth::{AkaVectorReq, AkaVectorResp};
 pub async fn auth_vector_get_remote(
     context: Arc<DauthContext>,
     av_request: &AkaVectorReq,
-) -> Result<AkaVectorResp, &'static str> {
+) -> Result<AkaVectorResp, DauthError> {
     tracing::info!("Handling remote request {:?}", av_request);
     local::manager::auth_vector_get(context, av_request).await
 }
@@ -18,7 +18,7 @@ pub async fn auth_vector_get_remote(
 pub async fn auth_vector_used_remote(
     context: Arc<DauthContext>,
     av_result: &AkaVectorResp,
-) -> Result<(), &'static str> {
+) -> Result<(), DauthError> {
     tracing::info!("Handling remote used {:?}", av_result);
     local::manager::auth_vector_used(context, av_result).await
 }
@@ -27,7 +27,7 @@ pub async fn auth_vector_used_remote(
 pub async fn auth_vector_send_request(
     context: Arc<DauthContext>,
     av_request: &AkaVectorReq,
-) -> Result<AkaVectorResp, &'static str> {
+) -> Result<AkaVectorResp, DauthError> {
     tracing::info!("Requesting from remote {:?}", av_request);
     clients::request_auth_vector_remote(context, av_request).await
 }

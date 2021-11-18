@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use auth_vector;
 
-use crate::data::context::DauthContext;
+use crate::data::{context::DauthContext, error::DauthError};
 use crate::local;
 use crate::remote;
 use crate::rpc::d_auth::{AkaVectorReq, AkaVectorResp, AuthVector5G};
@@ -16,21 +16,24 @@ use crate::rpc::d_auth::{AkaVectorReq, AkaVectorResp, AuthVector5G};
 pub async fn auth_vector_get(
     context: Arc<DauthContext>,
     av_request: &AkaVectorReq,
-) -> Result<AkaVectorResp, &'static str> {
+) -> Result<AkaVectorResp, DauthError> {
     tracing::info!("Handling request: {:?}", av_request);
 
-    // Check local database
-    if let Some(av_result) = local::database::auth_vector_next(context.clone(), av_request) {
-        remote::manager::auth_vector_report_used(context.clone(), &av_result).await;
-        Ok(av_result)
+    match local::database::auth_vector_next(context.clone(), av_request) {
+        Ok (av_result) => {
+            remote::manager::auth_vector_report_used(context.clone(), &av_result).await;
+            Ok(av_result)
+        },
+        Err(e) => {
+            tracing::info!("No auth vector found: {}", e);
 
-    // Generate new
-    } else if auth_vector_is_local(context.clone(), av_request) {
-        auth_vector_generate(context.clone(), av_request)
-
-    // Check remote
-    } else {
-        remote::manager::auth_vector_send_request(context.clone(), &av_request).await
+            if auth_vector_is_local(context.clone(), av_request) {
+                auth_vector_generate(context.clone(), av_request)
+        
+            } else {
+                remote::manager::auth_vector_send_request(context.clone(), &av_request).await
+            }
+        }
     }
 }
 
@@ -39,7 +42,7 @@ pub async fn auth_vector_get(
 pub async fn auth_vector_used(
     context: Arc<DauthContext>,
     av_result: &AkaVectorResp,
-) -> Result<(), &'static str> {
+) -> Result<(), DauthError> {
     tracing::info!("Handling used: {:?}", av_result);
     local::database::auth_vector_delete(context, av_result)
 }
@@ -55,7 +58,7 @@ fn auth_vector_is_local(_context: Arc<DauthContext>, _av_request: &AkaVectorReq)
 fn auth_vector_generate(
     context: Arc<DauthContext>,
     av_request: &AkaVectorReq,
-) -> Result<AkaVectorResp, &'static str> {
+) -> Result<AkaVectorResp, DauthError> {
     tracing::info!("Attempting to generate for {:?}", av_request.user_id);
 
     match context
@@ -67,10 +70,12 @@ fn auth_vector_generate(
     {
         Some(user_info) => {
             tracing::info!("User found: {:?}", user_info);
+
             let (xres, _res_star, rand, sqn_xor_ak, mac_a) =
                 auth_vector::generate_vector(user_info.k, user_info.opc, user_info.sqn_max);
             user_info.increment_sqn(0x21);
-            Ok(AkaVectorResp {
+
+            let av_response = AkaVectorResp {
                 error: 0,
                 auth_vector: Some(AuthVector5G {
                     rand: Vec::from(rand),
@@ -81,8 +86,15 @@ fn auth_vector_generate(
                 }),
                 user_id: av_request.user_id.clone(),
                 user_id_type: av_request.user_id_type,
-            })
+            };
+
+            tracing::info!("Auth vector generated: {:?}", av_response);
+
+            Ok(av_response)
         }
-        None => Err("No user info exists"),
+        None => {
+            tracing::error!("No user info exists for {:?}", av_request);
+            Err(DauthError::NotFound(format!("No user info exists")))
+        }
     }
 }

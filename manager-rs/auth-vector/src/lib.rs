@@ -8,7 +8,7 @@ pub fn generate_vector(
     opc: [u8; 16],
     sqn: [u8; 6],
 ) -> ([u8; 8], [u8; 16], [u8; 16], [u8; 6], [u8; 8]) {
-    let rand: [u8; 16] = r::random();  // Secure?
+    let rand: [u8; 16] = r::random();
 
     generate_vector_with_rand(k, opc, rand, sqn, [0x80, 0x00])
 }
@@ -62,7 +62,8 @@ mod tests {
         let sqn: [u8; 6] = decode_hex("000000000021").unwrap()[..].try_into().unwrap();
         let amf: [u8; 2] = decode_hex("8000").unwrap()[..].try_into().unwrap();
 
-        let (xres, _res_star, rand, sqn_xor_ak, mac_a) = generate_vector_with_rand(k, opc, rand, sqn, amf);
+        let (xres, _res_star, rand, sqn_xor_ak, mac_a) =
+            generate_vector_with_rand(k, opc, rand, sqn, amf);
 
         assert_eq!("fc9b23591b391885", encode_hex(&xres)); // needs to be checked
         assert_eq!("562d716dbd058b475cfecdbb48ed038f", encode_hex(&rand));

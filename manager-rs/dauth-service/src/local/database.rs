@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use crate::data::context::DauthContext;
+use crate::data::{context::DauthContext, error::DauthError};
 use crate::rpc::d_auth::{AkaVectorReq, AkaVectorResp};
 
 /// Removes and returns vector if at least one exists.
 pub fn auth_vector_next(
     context: Arc<DauthContext>,
     av_request: &AkaVectorReq,
-) -> Option<AkaVectorResp> {
+) -> Result<AkaVectorResp, DauthError> {
     tracing::info!("Database next: {:?}", av_request);
 
     match context
@@ -17,10 +17,19 @@ pub fn auth_vector_next(
         .unwrap()
         .get_mut(&av_request.user_id)
     {
-        Some(queue) => queue.pop_front(),
+        Some(queue) => match queue.pop_front() {
+            Some(av_result) => {
+                tracing::info!("Auth vector found: {:?}", av_result);
+                Ok(av_result)
+            }
+            None => {
+                tracing::info!("No vector found: {:?}", av_request);
+                Err(DauthError::NotFound(format!("No vector found")))
+            }
+        },
         None => {
-            tracing::error!("User not in database (next): {:?}", av_request);
-            None
+            tracing::error!("User not in database: {:?}", av_request);
+            Err(DauthError::NotFound(format!("User not in database")))
         }
     }
 }
@@ -29,7 +38,7 @@ pub fn auth_vector_next(
 pub fn auth_vector_delete(
     context: Arc<DauthContext>,
     av_result: &AkaVectorResp,
-) -> Result<(), &'static str> {
+) -> Result<(), DauthError> {
     tracing::info!("Database delete: {:?}", av_result);
 
     match context
@@ -50,8 +59,8 @@ pub fn auth_vector_delete(
             Ok(())
         }
         None => {
-            tracing::error!("Use not in database (delete): {:?}", av_result);
-            Err("Failed to find user")
+            tracing::error!("User not in database: {:?}", av_result);
+            Err(DauthError::NotFound(format!("User not in database")))
         }
     }
 }

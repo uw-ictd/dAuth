@@ -31,7 +31,7 @@ impl LocalAuthentication for DauthHandler {
             }
             Err(e) => {
                 tracing::error!("Error while handling request for {:?}: {}", av_request, e);
-                Err(tonic::Status::new(tonic::Code::Aborted, e))
+                Err(tonic::Status::new(tonic::Code::Aborted, e.to_string()))
             }
         }
     }
@@ -62,7 +62,7 @@ impl RemoteAuthentication for DauthHandler {
             }
             Err(e) => {
                 tracing::error!("Error while handling request for {:?}: {}", av_request, e);
-                Err(tonic::Status::new(tonic::Code::Aborted, e))
+                Err(tonic::Status::new(tonic::Code::Aborted, e.to_string()))
             }
         }
     }
@@ -80,11 +80,11 @@ impl RemoteAuthentication for DauthHandler {
             Ok(()) => {
                 tracing::info!("Successfuly reported used: {:?}", av_result);
                 Ok(tonic::Response::new(AkaVectorUsedResp {}))
-            },
+            }
             Err(e) => {
                 tracing::error!("Error reporting used: {}", e);
-                Err(tonic::Status::new(tonic::Code::Aborted, e))
-            },
+                Err(tonic::Status::new(tonic::Code::Aborted, e.to_string()))
+            }
         }
     }
 }
