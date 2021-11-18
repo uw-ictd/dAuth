@@ -24,12 +24,12 @@ pub fn auth_vector_next(
             }
             None => {
                 tracing::info!("No vector found: {:?}", av_request);
-                Err(DauthError::NotFound(format!("No vector found")))
+                Err(DauthError::NotFoundError(format!("No vector found")))
             }
         },
         None => {
             tracing::error!("User not in database: {:?}", av_request);
-            Err(DauthError::NotFound(format!("User not in database")))
+            Err(DauthError::NotFoundError(format!("User not in database")))
         }
     }
 }
@@ -60,7 +60,7 @@ pub fn auth_vector_delete(
         }
         None => {
             tracing::error!("User not in database: {:?}", av_result);
-            Err(DauthError::NotFound(format!("User not in database")))
+            Err(DauthError::NotFoundError(format!("User not in database")))
         }
     }
 }

@@ -16,7 +16,7 @@ pub async fn request_auth_vector_remote(
     match resolve_request_to_addr(context.clone(), av_request) {
         Some(res) => addr = res,
         None => {
-            return Err(DauthError::ClientFailure(format!(
+            return Err(DauthError::ClientError(format!(
                 "Could not find valid address for request"
             )))
         }
@@ -27,7 +27,7 @@ pub async fn request_auth_vector_remote(
         Ok(()) => (),
         Err(e) => {
             tracing::error!("Could not add client to list: {}", e);
-            return Err(DauthError::ClientFailure(format!(
+            return Err(DauthError::ClientError(format!(
                 "Could not create client stub to send request"
             )));
         }
@@ -50,7 +50,7 @@ async fn client_send_request(
                 Ok(resp) => Ok(resp.into_inner()),
                 Err(e) => {
                     tracing::error!("Failed to send request for {:?}: {}", av_request, e);
-                    Err(DauthError::ClientFailure(format!(
+                    Err(DauthError::ClientError(format!(
                         "Failed to send request: {}",
                         e
                     )))
@@ -62,7 +62,7 @@ async fn client_send_request(
                 "Client stub not found for {:?} (should have been added)",
                 av_request
             );
-            Err(DauthError::ClientFailure(format!(
+            Err(DauthError::ClientError(format!(
                 "Client stub not found (should have been added)"
             )))
         }
@@ -106,14 +106,14 @@ async fn client_send_usage(
                 }
                 Err(e) => {
                     tracing::error!("Failed to send request: {}", e);
-                    Err(DauthError::ClientFailure(format!(
+                    Err(DauthError::ClientError(format!(
                         "Failed to send request: {}",
                         e
                     )))
                 }
             }
         }
-        None => Err(DauthError::ClientFailure(format!(
+        None => Err(DauthError::ClientError(format!(
             "Client stub not found (should have been added)"
         ))),
     }
@@ -146,7 +146,7 @@ async fn add_client(context: Arc<DauthContext>, addr: &String) -> Result<(), Dau
             }
             Err(e) => {
                 tracing::error!("Failed to connect to server: {}", e);
-                Err(DauthError::ClientFailure(format!(
+                Err(DauthError::ClientError(format!(
                     "Failed to connect to server: {}",
                     e
                 )))

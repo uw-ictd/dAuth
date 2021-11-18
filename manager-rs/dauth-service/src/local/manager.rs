@@ -25,7 +25,7 @@ pub async fn auth_vector_get(
             Ok(av_result)
         },
         Err(e) => {
-            tracing::info!("No auth vector found: {}", e);
+            tracing::info!("No auth vector found in database: {}", e);
 
             if auth_vector_is_local(context.clone(), av_request) {
                 auth_vector_generate(context.clone(), av_request)
@@ -94,7 +94,7 @@ fn auth_vector_generate(
         }
         None => {
             tracing::error!("No user info exists for {:?}", av_request);
-            Err(DauthError::NotFound(format!("No user info exists")))
+            Err(DauthError::NotFoundError(format!("No user info exists")))
         }
     }
 }
