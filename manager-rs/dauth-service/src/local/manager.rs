@@ -20,16 +20,15 @@ pub async fn auth_vector_get(
     tracing::info!("Handling request: {:?}", av_request);
 
     match local::database::auth_vector_next(context.clone(), av_request) {
-        Ok (av_result) => {
+        Ok(av_result) => {
             remote::manager::auth_vector_report_used(context.clone(), &av_result).await;
             Ok(av_result)
-        },
+        }
         Err(e) => {
             tracing::info!("No auth vector found in database: {}", e);
 
             if auth_vector_is_local(context.clone(), av_request) {
                 auth_vector_generate(context.clone(), av_request)
-        
             } else {
                 remote::manager::auth_vector_send_request(context.clone(), &av_request).await
             }
