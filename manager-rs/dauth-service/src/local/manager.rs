@@ -71,18 +71,18 @@ fn auth_vector_generate(
         Some(user_info) => {
             tracing::info!("User found: {:?}", user_info);
 
-            let (xres, _res_star, rand, sqn_xor_ak, mac_a) =
+            let auth_vector_data =
                 auth_vector::generate_vector(user_info.k, user_info.opc, user_info.sqn_max);
             user_info.increment_sqn(0x21);
 
             let av_response = AkaVectorResp {
                 error: 0,
                 auth_vector: Some(AuthVector5G {
-                    rand: Vec::from(rand),
-                    xres_star: Vec::from(xres),
+                    rand: auth_vector_data.rand,
+                    xres_star: auth_vector_data.res,
                     // WRONG FIELDS
-                    autn: Vec::from(sqn_xor_ak),
-                    kseaf: Vec::from(mac_a),
+                    autn: auth_vector_data.sqn_xor_ak,
+                    kseaf: auth_vector_data.mac_a,
                 }),
                 user_id: av_request.user_id.clone(),
                 user_id_type: av_request.user_id_type,
