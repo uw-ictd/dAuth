@@ -1,5 +1,7 @@
 mod data;
 
+use std::array::TryFromSliceError;
+
 use milenage::Milenage;
 use rand as r;
 
@@ -7,19 +9,28 @@ use crate::data::AuthVectorData;
 
 /// Uses provided k, opc, and rand with milenage.
 /// Returns tuple of auth vector data (xres, rand, sqn_xor_ak, mac_a)
-pub fn generate_vector(k: [u8; 16], opc: [u8; 16], sqn: [u8; 6]) -> AuthVectorData {
+pub fn generate_vector(
+    k: &Vec<u8>,
+    opc: &Vec<u8>,
+    sqn: &Vec<u8>,
+) -> Result<AuthVectorData, TryFromSliceError> {
     let rand: [u8; 16] = r::random();
 
-    let (res, res_star, rand, sqn_xor_ak, mac_a) =
-        generate_vector_with_rand(k, opc, rand, sqn, [0x80, 0x00]);
+    let (res, res_star, rand, sqn_xor_ak, mac_a) = generate_vector_with_rand(
+        k[..].try_into()?,
+        opc[..].try_into()?,
+        rand,
+        sqn[..].try_into()?,
+        [0x80, 0x00],
+    );
 
-    AuthVectorData {
+    Ok(AuthVectorData {
         res: Vec::from(res),
         res_star: Vec::from(res_star),
         rand: Vec::from(rand),
         sqn_xor_ak: Vec::from(sqn_xor_ak),
         mac_a: Vec::from(mac_a),
-    }
+    })
 }
 
 /// Generate auth vector data with a provided rand

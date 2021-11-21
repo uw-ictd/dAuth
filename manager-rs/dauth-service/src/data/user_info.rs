@@ -1,9 +1,9 @@
 /// Holds sensitive user info needed for auth vector generation
 #[derive(Debug)]
 pub struct UserInfo {
-    pub k: [u8; 16],
-    pub opc: [u8; 16],
-    pub sqn_max: [u8; 6],
+    pub k: Vec<u8>,
+    pub opc: Vec<u8>,
+    pub sqn_max: Vec<u8>,
 }
 
 impl UserInfo {

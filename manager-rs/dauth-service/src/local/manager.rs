@@ -70,26 +70,32 @@ fn auth_vector_generate(
         Some(user_info) => {
             tracing::info!("User found: {:?}", user_info);
 
-            let auth_vector_data =
-                auth_vector::generate_vector(user_info.k, user_info.opc, user_info.sqn_max);
-            user_info.increment_sqn(0x21);
+            match auth_vector::generate_vector(&user_info.k, &user_info.opc, &user_info.sqn_max) {
+                Ok(auth_vector_data) => {
+                    user_info.increment_sqn(0x21);
 
-            let av_response = AkaVectorResp {
-                error: 0,
-                auth_vector: Some(AuthVector5G {
-                    rand: auth_vector_data.rand,
-                    xres_star: auth_vector_data.res,
-                    // WRONG FIELDS
-                    autn: auth_vector_data.sqn_xor_ak,
-                    kseaf: auth_vector_data.mac_a,
-                }),
-                user_id: av_request.user_id.clone(),
-                user_id_type: av_request.user_id_type,
-            };
+                    let av_response = AkaVectorResp {
+                        error: 0,
+                        auth_vector: Some(AuthVector5G {
+                            rand: auth_vector_data.rand,
+                            xres_star: auth_vector_data.res,
+                            // WRONG FIELDS
+                            autn: auth_vector_data.sqn_xor_ak,
+                            kseaf: auth_vector_data.mac_a,
+                        }),
+                        user_id: av_request.user_id.clone(),
+                        user_id_type: av_request.user_id_type,
+                    };
 
-            tracing::info!("Auth vector generated: {:?}", av_response);
+                    tracing::info!("Auth vector generated: {:?}", av_response);
 
-            Ok(av_response)
+                    Ok(av_response)
+                }
+                Err(e) => Err(DauthError::DataError(format!(
+                    "User data is invalid: {:?}, resulting in {}",
+                    user_info, e
+                ))),
+            }
         }
         None => {
             tracing::error!("No user info exists for {:?}", av_request);
