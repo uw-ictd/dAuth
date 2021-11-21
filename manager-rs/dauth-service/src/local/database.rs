@@ -22,13 +22,10 @@ pub fn auth_vector_next(
                 tracing::info!("Auth vector found: {:?}", av_result);
                 Ok(av_result)
             }
-            None => {
-                tracing::info!("No vector found: {:?}", av_request);
-                Err(DauthError::NotFoundError(format!("No vector found")))
-            }
+            None => Err(DauthError::NotFoundError(format!("No vectors found"))),
         },
         None => {
-            tracing::error!("User not in database: {:?}", av_request);
+            tracing::warn!("User not in database: {:?}", av_request);
             Err(DauthError::NotFoundError(format!("User not in database")))
         }
     }
@@ -54,12 +51,12 @@ pub fn auth_vector_delete(
             match num_elements - queue.len() {
                 0 => tracing::info!("Nothing deleted"),
                 1 => (),
-                x => tracing::warn!("{} deleted", x),
+                x => tracing::warn!("{} vectors deleted", x),
             };
             Ok(())
         }
         None => {
-            tracing::error!("User not in database: {:?}", av_result);
+            tracing::warn!("User not in database: {:?}", av_result);
             Err(DauthError::NotFoundError(format!("User not in database")))
         }
     }

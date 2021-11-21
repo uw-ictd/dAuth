@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use auth_vector;
 
-use crate::data::{context::DauthContext, error::DauthError};
+use crate::data::{context::DauthContext, error::DauthError, utilities};
 use crate::local;
 use crate::remote;
 use crate::rpc::d_auth::{AkaVectorReq, AkaVectorResp, AuthVector5G};
@@ -27,7 +27,8 @@ pub async fn auth_vector_get(
         Err(e) => {
             tracing::info!("No auth vector found in database: {}", e);
 
-            if auth_vector_is_local(context.clone(), av_request) {
+            // Assumed if this check returns an error, there is something wrong with data
+            if auth_vector_is_local(context.clone(), av_request)? {
                 auth_vector_generate(context.clone(), av_request)
             } else {
                 remote::manager::auth_vector_send_request(context.clone(), &av_request).await
@@ -47,9 +48,17 @@ pub async fn auth_vector_used(
 }
 
 /// Returns whether the auth vector belongs to this core
-fn auth_vector_is_local(_context: Arc<DauthContext>, _av_request: &AkaVectorReq) -> bool {
-    // TODO(nickfh7) Add logic to determine if local
-    true
+fn auth_vector_is_local(
+    context: Arc<DauthContext>,
+    av_request: &AkaVectorReq,
+) -> Result<bool, DauthError> {
+    Ok(utilities::byte_vec_less_or_equal(
+        &av_request.user_id,
+        &context.local_context.local_user_id_max,
+    )? && utilities::byte_vec_less_or_equal(
+        &context.local_context.local_user_id_min,
+        &av_request.user_id,
+    )?)
 }
 
 /// Generates and returns a new auth vector

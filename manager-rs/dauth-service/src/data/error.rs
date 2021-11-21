@@ -16,9 +16,7 @@ impl fmt::Display for DauthError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             DauthError::NotFoundError(content) => write!(f, "Not found error -- {}", content),
-            DauthError::ClientError(content) => {
-                write!(f, "Client error -- {}", content)
-            }
+            DauthError::ClientError(content) => write!(f, "Client error -- {}", content),
             DauthError::_DatabaseError(content) => write!(f, "Database error -- {}", content),
             DauthError::ConfigError(content) => write!(f, "Config error -- {}", content),
             DauthError::DataError(content) => write!(f, "Data error -- {}", content),

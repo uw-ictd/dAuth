@@ -17,9 +17,9 @@ use tracing_subscriber;
 use crate::data::{
     config::DauthConfig,
     context::{DauthContext, LocalContext, RemoteContext, RpcContext},
-    conversion,
     error::DauthError,
     opt::DauthOpt,
+    utilities,
 };
 use crate::rpc::server;
 
@@ -29,9 +29,7 @@ async fn main() {
     let context = build_context(dauth_opt).expect("Failed to generate context");
 
     // TODO(nickfh7) Add configuring for logging
-    tracing_subscriber::fmt()
-        .with_max_level(Level::DEBUG)
-        .init();
+    tracing_subscriber::fmt().with_max_level(Level::INFO).init();
 
     server::start_server(context.clone()).await;
 }
@@ -43,7 +41,7 @@ fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
     // TODO (nickfh7) sanity check the data
     for (id, user_info_config) in config.users {
         user_map.insert(
-            conversion::convert_string_to_byte_vec(&id)?,
+            utilities::convert_string_to_byte_vec(&id)?,
             user_info_config.to_user_info()?,
         );
     }
@@ -52,6 +50,8 @@ fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
         local_context: LocalContext {
             database: Mutex::new(HashMap::new()),
             user_info_database: Mutex::new(user_map),
+            local_user_id_min: utilities::convert_string_to_byte_vec(&config.local_user_id_min)?,
+            local_user_id_max: utilities::convert_string_to_byte_vec(&config.local_user_id_max)?,
         },
         remote_context: RemoteContext {
             remote_addrs: config.remote_addrs,

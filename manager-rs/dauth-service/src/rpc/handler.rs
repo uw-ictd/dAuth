@@ -22,7 +22,7 @@ impl LocalAuthentication for DauthHandler {
         request: tonic::Request<AkaVectorReq>,
     ) -> Result<tonic::Response<AkaVectorResp>, tonic::Status> {
         let av_request = request.into_inner();
-        tracing::info!("Request: {:?}", &av_request);
+        tracing::info!("Local request: {:?}", &av_request);
 
         match local::manager::auth_vector_get(self.context.clone(), &av_request).await {
             Ok(av_result) => {
