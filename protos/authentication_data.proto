@@ -50,18 +50,16 @@ message AKAVectorResp {
     bytes user_id = 4;
 }
 
-// The 5G-AKA authentication vector, explicilty with a hashed xres.
+// The 5G-AKA authentication vector, explicitly with a hashed xres.
 message AuthVector5G {
     // The random seed defined for this vector
     bytes rand = 1;
 
-    // The hashed expected response from the UE
-    bytes xresStar = 2;
+    // The sha256 hashed expected response from the UE
+    //
+    // TS33.501 Annex A.5
+    bytes xres_star_hash = 2;
 
-    // The autn string to pass to the UE, containing the network AUTH and SQN
+    // The autn value to pass to the UE, containing the network AUTH and SQN
     bytes autn = 3;
-
-    // TODO(matt9j) Likely will eliminate this pending final remote protocol
-    // definition early next week
-    bytes kseaf = 4;
 }

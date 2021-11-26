@@ -10,21 +10,64 @@ import "authentication_data.proto";
 // Authenticates a UE and/or OTT User present in the local network.
 //
 // Currently supports 3GPP-style mutual Authentication and Key Agreement (AKA)
-// TODO(matt9j) Add ed25519 asymmetric user auth as well
 service LocalAuthentication {
-    // Request a new 3GPP AKA authorization vector for a particular UE
+    // Request a new 3GPP AKA authorization vector for a particular UE.
+    //
+    // Closely based on 3GPP nausf-auth/ue-authentications to support
+    // integration with an AUSF/SEAF or HSS.
     rpc GetAuthVector(AKAVectorReq) returns (AKAVectorResp);
 
-    // TODO(matt9j) Work in progress
+    // Report the UE provided response to confirm its authenticity and receive a
+    // key if valid.
+    //
+    // Closely based on 3GPP
+    // nausf-auth/ue-authentications/{authCtxId}/5g-aka-confirmation to support
+    // integration with an AUSF/SEAF or HSS.
     rpc ConfirmAuth(AKAConfirmReq) returns (AKAConfirmResp);
 }
 
-// TODO(matt9j) Work in progress
+// Reports the confirmation of authentication of a UE present in the local
+// network.
+// TODO(matt9j) What is the expected outcome if the UE is actually invalid?
 message AKAConfirmReq {
-    bytes confirmation = 1;
+    // The type of id provided.
+    enum UserIdKind {
+        UNKNOWN = 0;
+        SUPI = 1;
+    }
+    UserIdKind user_id_type = 1;
+
+    // The opaque id of the user requesting authentication.
+    bytes user_id = 2;
+
+    // The UE-provided response, which may or may not be a preimage of the
+    // provided hash.
+    bytes res_star = 3;
+
+    // Identifiers for high-occurence future fields.
+    reserved 4 to 15;
 }
 
-// TODO(matt9j) Work in progress
+// Response with key material for a successful auth confirmation, or errors.
 message AKAConfirmResp {
-    bytes response = 1;
+    // Whether the confirmation request was successful or not
+    enum ErrorKind {
+        // No error, the request was successful and the key material is included.
+        NO_ERROR = 0;
+
+        // The request failed due to lost connectivity with the relevant remote
+        // network(s) providing key material.
+        REMOTE_CONNECTION_FAILED = 1;
+
+        // The request failed due to the UE providing an invalid res.
+        RES_INVALID = 2;
+    }
+    ErrorKind error = 1;
+
+    // The K_seaf to be used for further communication with the UE, only
+    // provided if the error_kind is NO_ERROR.
+    bytes kseaf = 2;
+
+    // Identifiers for high-occurence future fields.
+    reserved 3 to 15;
 }
