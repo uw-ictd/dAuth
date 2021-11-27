@@ -4,9 +4,12 @@ use crate::data::context::DauthContext;
 use crate::local;
 use crate::remote;
 use crate::rpc::dauth::common::local_authentication_server::LocalAuthentication;
-use crate::rpc::dauth::common::remote_authentication_server::RemoteAuthentication;
+use crate::rpc::dauth::common::home_network_server::HomeNetwork;
 use crate::rpc::dauth::common::{
-    AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp, AkaVectorUsedResp,
+    GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq, GetHomeConfirmKeyResp
+};
+use crate::rpc::dauth::common::{
+    AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp,
 };
 
 /// Handles all RPC calls to the dAuth service.
@@ -46,45 +49,48 @@ impl LocalAuthentication for DauthHandler {
 }
 
 #[tonic::async_trait]
-impl RemoteAuthentication for DauthHandler {
+impl HomeNetwork for DauthHandler {
     /// Remote request for a vector
-    async fn get_auth_vector_remote(
+    async fn get_auth_vector(
         &self,
-        request: tonic::Request<AkaVectorReq>,
-    ) -> Result<tonic::Response<AkaVectorResp>, tonic::Status> {
+        request: tonic::Request<GetHomeAuthVectorReq>,
+    ) -> Result<tonic::Response<GetHomeAuthVectorResp>, tonic::Status> {
         let av_request = request.into_inner();
         tracing::info!("Remote request: {:?}", av_request);
+        todo!();
 
-        match remote::manager::auth_vector_get_remote(self.context.clone(), &av_request).await {
-            Ok(av_result) => {
-                tracing::info!("Returning result: {:?}", av_result);
-                Ok(tonic::Response::new(av_result))
-            }
-            Err(e) => {
-                tracing::error!("Error while handling request for {:?}: {}", av_request, e);
-                Err(tonic::Status::new(tonic::Code::Aborted, e.to_string()))
-            }
-        }
+        // match remote::manager::auth_vector_get_remote(self.context.clone(), &av_request).await {
+        //     Ok(av_result) => {
+        //         tracing::info!("Returning result: {:?}", av_result);
+        //         Ok(tonic::Response::new(av_result))
+        //     }
+        //     Err(e) => {
+        //         tracing::error!("Error while handling request for {:?}: {}", av_request, e);
+        //         Err(tonic::Status::new(tonic::Code::Aborted, e.to_string()))
+        //     }
+        // }
     }
 
     /// Remote alert that a vector has been used
-    async fn report_used_auth_vector(
+    async fn get_confirm_key(
         &self,
-        request: tonic::Request<AkaVectorResp>,
-    ) -> Result<tonic::Response<AkaVectorUsedResp>, tonic::Status> {
+        request: tonic::Request<GetHomeConfirmKeyReq>,
+    ) -> Result<tonic::Response<GetHomeConfirmKeyResp>, tonic::Status> {
         let av_result = request.into_inner();
         tracing::info!("Remote used: {:?}", av_result);
         let context = self.context.clone();
 
-        match remote::manager::auth_vector_used_remote(context.clone(), &av_result).await {
-            Ok(()) => {
-                tracing::info!("Successfuly reported used: {:?}", av_result);
-                Ok(tonic::Response::new(AkaVectorUsedResp {}))
-            }
-            Err(e) => {
-                tracing::error!("Error reporting used: {}", e);
-                Err(tonic::Status::new(tonic::Code::Aborted, e.to_string()))
-            }
-        }
+        todo!();
+
+        // match remote::manager::auth_vector_used_remote(context.clone(), &av_result).await {
+        //     Ok(()) => {
+        //         tracing::info!("Successfuly reported used: {:?}", av_result);
+        //         Ok(tonic::Response::new(AkaVectorUsedResp {}))
+        //     }
+        //     Err(e) => {
+        //         tracing::error!("Error reporting used: {}", e);
+        //         Err(tonic::Status::new(tonic::Code::Aborted, e.to_string()))
+        //     }
+        // }
     }
 }

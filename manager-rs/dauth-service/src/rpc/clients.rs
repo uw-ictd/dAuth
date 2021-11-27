@@ -1,14 +1,15 @@
 use std::sync::Arc;
 
 use crate::data::{context::DauthContext, error::DauthError};
-use crate::rpc::dauth::common::remote_authentication_client::RemoteAuthenticationClient;
+use crate::rpc::dauth::common::home_network_client::HomeNetworkClient;
+use crate::rpc::dauth::common::{GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq, GetHomeConfirmKeyResp};
 use crate::rpc::dauth::common::{AkaVectorReq, AkaVectorResp};
 
 /// Send out request to remote core for new auth vector.
 pub async fn request_auth_vector_remote(
     context: Arc<DauthContext>,
-    av_request: &AkaVectorReq,
-) -> Result<AkaVectorResp, DauthError> {
+    av_request: &GetHomeAuthVectorReq,
+) -> Result<GetHomeAuthVectorResp, DauthError> {
     tracing::info!("Sending remote request: {:?}", av_request);
 
     // Find the addr corresponding to the home network.
@@ -38,13 +39,13 @@ pub async fn request_auth_vector_remote(
 
 async fn client_send_request(
     context: Arc<DauthContext>,
-    av_request: &AkaVectorReq,
+    av_request: &GetHomeAuthVectorReq,
     addr: &String,
-) -> Result<AkaVectorResp, DauthError> {
+) -> Result<GetHomeAuthVectorResp, DauthError> {
     match context.rpc_context.client_stubs.lock().await.get_mut(addr) {
         Some(client) => {
             match client
-                .get_auth_vector_remote(tonic::Request::new(av_request.clone()))
+                .get_auth_vector(tonic::Request::new(av_request.clone()))
                 .await
             {
                 Ok(resp) => Ok(resp.into_inner()),
@@ -97,7 +98,15 @@ async fn client_send_usage(
     match context.rpc_context.client_stubs.lock().await.get_mut(addr) {
         Some(client) => {
             match client
-                .report_used_auth_vector(tonic::Request::new(av_result.clone()))
+                .get_confirm_key(tonic::Request::new(GetHomeConfirmKeyReq{
+                    payload: Some(crate::rpc::dauth::common::get_home_confirm_key_req::Payload {
+                        kind: crate::rpc::dauth::common::SignedMessageKind::GetHomeConfirmKeyReq as i32,
+                        serving_network_id: "Test".to_string(),
+                        res_star: vec![0],
+                        hash_xres_star: vec![0],
+                    }),
+                    serving_network_signature: vec![0],
+                }))
                 .await
             {
                 Ok(_) => {
@@ -122,7 +131,7 @@ async fn client_send_usage(
 /// Determines address of the home network of the request.
 fn resolve_request_to_addr(
     context: Arc<DauthContext>,
-    _av_request: &AkaVectorReq,
+    _av_request: &GetHomeAuthVectorReq,
 ) -> Option<String> {
     // TODO(nickfh7) Add logic to resolve to address.
     // This may be a long way down the road.
@@ -138,7 +147,7 @@ async fn add_client(context: Arc<DauthContext>, addr: &String) -> Result<(), Dau
     let mut client_stubs = context.rpc_context.client_stubs.lock().await;
 
     if !client_stubs.contains_key(addr) {
-        match RemoteAuthenticationClient::connect(format!("http://{}", addr)).await {
+        match HomeNetworkClient::connect(format!("http://{}", addr)).await {
             Ok(client) => {
                 client_stubs.insert(addr.clone(), client);
                 tracing::info!("New client created for address: {}", addr);

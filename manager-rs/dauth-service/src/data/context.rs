@@ -7,7 +7,7 @@ use tokio::runtime::Handle;
 use tonic::transport::Channel;
 
 use crate::data::user_info::UserInfo;
-use crate::rpc::dauth::common::remote_authentication_client::RemoteAuthenticationClient;
+use crate::rpc::dauth::common::home_network_client::HomeNetworkClient;
 use crate::rpc::dauth::common::AkaVectorResp;
 
 /// Maintains the context for all components of
@@ -36,5 +36,5 @@ pub struct RemoteContext {
 pub struct RpcContext {
     pub runtime_handle: Handle,
     pub host_addr: String,
-    pub client_stubs: tokio::sync::Mutex<HashMap<String, RemoteAuthenticationClient<Channel>>>,
+    pub client_stubs: tokio::sync::Mutex<HashMap<String, HomeNetworkClient<Channel>>>,
 }

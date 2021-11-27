@@ -29,7 +29,8 @@ pub async fn auth_vector_send_request(
     av_request: &AkaVectorReq,
 ) -> Result<AkaVectorResp, DauthError> {
     tracing::info!("Requesting from remote {:?}", av_request);
-    clients::request_auth_vector_remote(context, av_request).await
+    todo!()
+    //clients::request_auth_vector_remote(context, av_request).await
 }
 
 /// Reports a local use to all other remote cores.

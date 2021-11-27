@@ -5,14 +5,330 @@ option optimize_for = LITE_RUNTIME;
 package d_auth;
 
 import "authentication_data.proto";
-import "local_authentication.proto";
 
-service RemoteAuthentication {
-    // Request an auth vector from another core
-    rpc GetAuthVectorRemote(AKAVectorReq) returns (AKAVectorResp);
-
-    // Report an auth vector used
-    rpc ReportUsedAuthVector(AKAVectorResp) returns (AKAVectorUsedResp);
+enum SignedMessageKind {
+    INVALID = 0;
+    ENROLL_BACKUP_PREPARE_REQ = 1;
+    GET_BACKUP_AUTH_VECTOR_REQ = 2;
+    GET_KEY_SHARE_REQ = 3;
+    WITHDRAW_BACKUP_REQ = 4;
+    WITHDRAW_SHARES_REQ = 5;
+    FLOOD_VECTOR_REQ = 6;
+    GET_HOME_AUTH_VECTOR_REQ = 7;
+    GET_HOME_CONFIRM_KEY_REQ = 8;
 }
 
-message AKAVectorUsedResp {}
+message DelegatedAuthVector5G {
+    d_auth.AuthVector5G v = 1;
+    bytes home_network_signature = 2;
+}
+
+// Represents an m of n share of the key response to a valid authentication
+// confirmation.
+message DelegatedConfirmationShare {
+    message Payload {
+        // The hashed xres_star corresponding to this confirmation. It is used as a
+        // statistical index for selecting the correct confirmation share.
+        // Collisions are possible but unlikely.
+        bytes xres_star_hash = 1;
+
+        // A threshold share of the k_seaf needed to communicate with the UE.
+        bytes confirmation_share = 2;
+    }
+
+    Payload payload = 1;
+    bytes home_network_signature = 2;
+}
+
+service HomeNetwork {
+    // Provides an auth vector requested from a different serving network if the
+    // network is of sufficient reputation.
+    rpc GetAuthVector(GetHomeAuthVectorReq) returns (GetHomeAuthVectorResp);
+
+    // Report an auth vector used
+    rpc GetConfirmKey(GetHomeConfirmKeyReq) returns (GetHomeConfirmKeyResp);
+}
+
+message GetHomeAuthVectorReq {
+    message Payload {
+        // The kind of signed message, must be set or considered invalid.
+        SignedMessageKind kind = 1;
+
+        string serving_network_id = 2;
+        // The type of id provided.
+        d_auth.UserIdKind user_id_type = 3;
+
+        // The opaque id of the user requesting authentication.
+        //
+        // TODO(matt9j) Probably don't want to actually sign over the user id so
+        // the message can be revealed later without revealing the id to build
+        // reputation.
+        bytes user_id = 4;
+    }
+    Payload payload = 1;
+    bytes serving_network_signature = 2;
+}
+
+message GetHomeAuthVectorResp {
+    // Provide a signed auth vector to allow the serving network to later prove
+    // a valid authentication to build positive reputation. Otherwise signing
+    // would not be strictly necessary in this case since the auth vector is
+    // provided directly from the home network.
+    DelegatedAuthVector5G vector = 1;
+}
+
+
+message GetHomeConfirmKeyReq {
+    message Payload {
+        // The kind of signed message, must be set or considered invalid.
+        SignedMessageKind kind = 1;
+
+        // The network id requesting the key share. Once a key share is claimed
+        // by a network is should never be sent to a different network.
+        string serving_network_id = 2;
+
+        // The received res_star that is a valid preimage of hash_xres_star.
+        bytes res_star = 3;
+
+        // The hash_xres_star corresponding to the key share this network is
+        // claiming.
+        bytes hash_xres_star = 4;
+    }
+
+    Payload payload = 1;
+    bytes serving_network_signature = 2;
+}
+
+message GetHomeConfirmKeyResp {
+    // The authentication key for the user's connection.
+    bytes kseaf = 1;
+}
+
+
+service BackupNetwork {
+    // Get this network's permission to use them as a backup.
+    //
+    // Called by a home network.
+    rpc EnrollBackupPrepare(EnrollBackupPrepareReq) returns (EnrollBackupPrepareResp);
+
+    // Once a backup network agrees and returns the co-signed response to
+    // EnrollBackupPrepare, the home network can safely provide it the
+    // authentication vectors and commit shares delegated to it.
+    //
+    // Called by a home network.
+    rpc EnrollBackupCommit(EnrollBackupCommitReq) returns (EnrollBackupCommitResp);
+
+    // Request an auth vector from a backup network when the home network is not
+    // accessable.
+    //
+    // Called from a serving network with an authenticating UE.
+    rpc GetAuthVector(GetBackupAuthVectorReq) returns (GetBackupAuthVectorResp);
+
+    // Request a key share provided the valid res_star for a given
+    // hash(xres_star)
+    //
+    // Called from a serving network after authenticating the UE to begin
+    // communication.
+    rpc GetKeyShare(GetKeyShareReq) returns (GetKeyShareResp);
+
+    // Courtesy notification that this network should no longer backup a given
+    // UE.
+    //
+    // Called from a home network.
+    rpc WithdrawBackup(WithdrawBackupReq) returns (WithdrawBackupResp);
+
+    // Request to remove and no longer service particular key shares.
+    rpc WithdrawShares(WithdrawSharesReq) returns (WithdrawSharesResp);
+
+    // Authenticate with the provided vector at the next opportunity.
+    //
+    // Called by the home network, and should cause all backup networks to
+    // prefer to use this vector over their own vector subslice. Once a
+    // confirmation is received for this vector the flood request can be
+    // considered cleared.
+    rpc FloodVector(FloodVectorReq) returns (FloodVectorResp);
+}
+
+message EnrollBackupPrepareReq {
+    message Payload {
+        // The kind of signed message, must be set or considered invalid.
+        SignedMessageKind kind = 1;
+
+        // The home network requesting this network's participation in backup.
+        string home_network_id = 2;
+        // The backup network being requested to participate.
+        string backup_network_id =3;
+
+        // The user for which this network is requested to backup.
+        //
+        // TODO(matt9j) Probably don't want to actually sign over the user id so
+        // the message can be revealed later without revealing the id?
+        d_auth.UserIdKind user_id_kind = 4;
+        bytes user_id = 5;
+
+        // TODO(matt9j) Validity window min and max.
+
+        // TODO(matt9j) Think through if we want to require the set of other
+        // backup networks to be known and agreed upon or not. I don't think
+        // it's strictly necessary to do so, but does have implications for what
+        // an attack on the reputation system might look like.
+    }
+
+    Payload payload = 1;
+
+    // The home network's ed25519 signature over the message payload.
+    bytes home_network_signature = 2;
+}
+
+message EnrollBackupPrepareResp {
+    EnrollBackupPrepareReq payload = 1;
+
+    // The backup network's ed25519 signature over the message payload.
+    bytes backup_network_signature = 2;
+}
+
+
+message EnrollBackupCommitReq {
+    // The set of origin auth vectors provided to this network for initiating
+    // auth.
+    repeated DelegatedAuthVector5G vectors = 1;
+
+    // The set of confirmation shares provided to this network for confirming
+    // auth in collaboration with other backup networks.
+    repeated DelegatedConfirmationShare shares = 2;
+
+    // The user for which this network is requested to backup.
+    d_auth.UserIdKind user_id_kind = 3;
+    bytes user_id = 4;
+}
+
+message EnrollBackupCommitResp {
+    // The response has no fields for now, but is reserved for future use.
+    reserved 1 to 15;
+}
+
+
+message GetBackupAuthVectorReq {
+    message Payload {
+        // The kind of signed message, must be set or considered invalid.
+        SignedMessageKind kind = 1;
+
+        string serving_network_id = 2;
+        // The type of id provided.
+        d_auth.UserIdKind user_id_type = 3;
+
+        // The opaque id of the user requesting authentication.
+        //
+        // TODO(matt9j) Probably don't want to actually sign over the user id so
+        // the message can be revealed later without revealing the id?
+        bytes user_id = 4;
+    }
+    Payload payload = 1;
+    bytes serving_network_signature = 2;
+}
+
+message GetBackupAuthVectorResp {
+    DelegatedAuthVector5G vector = 1;
+}
+
+
+message GetKeyShareReq {
+    message Payload {
+        // The kind of signed message, must be set or considered invalid.
+        SignedMessageKind kind = 1;
+
+        // The network id requesting the key share. Once a key share is claimed
+        // by a network is should never be sent to a different network.
+        string serving_network_id = 2;
+
+        // The received res_star that is a valid preimage of hash_xres_star.
+        bytes res_star = 3;
+
+        // The hash_xres_star corresponding to the key share this network is
+        // claiming.
+        bytes hash_xres_star = 4;
+    }
+
+    Payload payload = 1;
+    bytes serving_network_signature = 2;
+}
+
+message GetKeyShareResp {
+    // A threshold share of the k_seaf provided after confirmed authentication.
+    DelegatedConfirmationShare share = 1;
+}
+
+
+message WithdrawBackupReq {
+    message Payload {
+        // The kind of signed message, must be set or considered invalid.
+        SignedMessageKind kind = 1;
+
+        // The home network revoking this network's participation in backup.
+        string home_network_id = 2;
+        // The backup network being revoked.
+        string backup_network_id =3;
+
+        // The user for which this network was requested to backup.
+        //
+        // TODO(matt9j) Probably don't want to actually sign over the user id so
+        // the message can be revealed later without revealing the id?
+        d_auth.UserIdKind user_id_kind = 4;
+        bytes user_id = 5;
+
+        // TODO(matt9j) Time effective.
+    }
+
+    Payload payload = 1;
+
+    // The home network's ed25519 signature over the message payload.
+    bytes home_network_signature = 2;
+}
+
+message WithdrawBackupResp {
+    // The response has no fields for now, but is reserved for future use.
+    reserved 1 to 15;
+}
+
+message WithdrawSharesReq {
+    message Payload {
+        // The kind of signed message, must be set or considered invalid.
+        SignedMessageKind kind = 1;
+
+        // The ID of the home network requesting this withdraw.
+        string home_network_id = 2;
+
+        // The hash ids of the shares to withdraw.
+        repeated bytes xres_star_hash = 3;
+    }
+
+    Payload payload = 1;
+    bytes home_network_signature = 2;
+}
+
+message WithdrawSharesResp {
+    // The response has no fields for now, but is reserved for future use.
+    reserved 1 to 15;
+}
+
+
+message FloodVectorReq {
+    message Payload {
+        // The kind of signed message, must be set or considered invalid.
+        SignedMessageKind kind = 1;
+
+        // The home network requesting this vector be flood.
+        string home_network_id = 2;
+
+        // The vector to be flooded and used next.
+        DelegatedAuthVector5G vector = 3;
+    }
+
+    Payload payload = 1;
+    bytes home_network_signature = 2;
+}
+
+message FloodVectorResp {
+    // The response has no fields for now, but is reserved for future use.
+    reserved 1 to 15;
+}
