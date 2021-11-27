@@ -3,9 +3,9 @@ use std::sync::Arc;
 use crate::data::context::DauthContext;
 use crate::local;
 use crate::remote;
-use crate::rpc::d_auth::local_authentication_server::LocalAuthentication;
-use crate::rpc::d_auth::remote_authentication_server::RemoteAuthentication;
-use crate::rpc::d_auth::{
+use crate::rpc::dauth::common::local_authentication_server::LocalAuthentication;
+use crate::rpc::dauth::common::remote_authentication_server::RemoteAuthentication;
+use crate::rpc::dauth::common::{
     AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp, AkaVectorUsedResp,
 };
 

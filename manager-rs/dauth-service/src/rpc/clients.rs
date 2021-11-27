@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::data::{context::DauthContext, error::DauthError};
-use crate::rpc::d_auth::remote_authentication_client::RemoteAuthenticationClient;
-use crate::rpc::d_auth::{AkaVectorReq, AkaVectorResp};
+use crate::rpc::dauth::common::remote_authentication_client::RemoteAuthenticationClient;
+use crate::rpc::dauth::common::{AkaVectorReq, AkaVectorResp};
 
 /// Send out request to remote core for new auth vector.
 pub async fn request_auth_vector_remote(
