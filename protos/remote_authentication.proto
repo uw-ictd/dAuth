@@ -2,7 +2,7 @@ syntax = "proto3";
 
 option optimize_for = LITE_RUNTIME;
 
-package d_auth;
+package dauth_remote;
 
 import "authentication_data.proto";
 

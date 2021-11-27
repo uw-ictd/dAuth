@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use crate::data::{context::DauthContext, error::DauthError};
-use crate::rpc::dauth::common::home_network_client::HomeNetworkClient;
-use crate::rpc::dauth::common::{GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq, GetHomeConfirmKeyResp};
-use crate::rpc::dauth::common::{AkaVectorReq, AkaVectorResp};
+use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
+use crate::rpc::dauth::remote::{GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq, GetHomeConfirmKeyResp};
+use crate::rpc::dauth::local::{AkaVectorReq, AkaVectorResp};
 
 /// Send out request to remote core for new auth vector.
 pub async fn request_auth_vector_remote(
@@ -99,8 +99,8 @@ async fn client_send_usage(
         Some(client) => {
             match client
                 .get_confirm_key(tonic::Request::new(GetHomeConfirmKeyReq{
-                    payload: Some(crate::rpc::dauth::common::get_home_confirm_key_req::Payload {
-                        kind: crate::rpc::dauth::common::SignedMessageKind::GetHomeConfirmKeyReq as i32,
+                    payload: Some(crate::rpc::dauth::remote::get_home_confirm_key_req::Payload {
+                        kind: crate::rpc::dauth::remote::SignedMessageKind::GetHomeConfirmKeyReq as i32,
                         serving_network_id: "Test".to_string(),
                         res_star: vec![0],
                         hash_xres_star: vec![0],

@@ -5,8 +5,8 @@ use tonic::transport::Server;
 use crate::data::context::DauthContext;
 use crate::rpc::handler::DauthHandler;
 
-use crate::rpc::dauth::common::local_authentication_server::LocalAuthenticationServer;
-use crate::rpc::dauth::common::home_network_server::HomeNetworkServer;
+use crate::rpc::dauth::local::local_authentication_server::LocalAuthenticationServer;
+use crate::rpc::dauth::remote::home_network_server::HomeNetworkServer;
 
 // TODO(matt9j) Probably should return a result in case server start fails
 #[tracing::instrument]

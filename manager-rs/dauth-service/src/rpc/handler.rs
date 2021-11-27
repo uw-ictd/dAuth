@@ -3,12 +3,12 @@ use std::sync::Arc;
 use crate::data::context::DauthContext;
 use crate::local;
 use crate::remote;
-use crate::rpc::dauth::common::local_authentication_server::LocalAuthentication;
-use crate::rpc::dauth::common::home_network_server::HomeNetwork;
-use crate::rpc::dauth::common::{
+use crate::rpc::dauth::local::local_authentication_server::LocalAuthentication;
+use crate::rpc::dauth::remote::home_network_server::HomeNetwork;
+use crate::rpc::dauth::remote::{
     GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq, GetHomeConfirmKeyResp
 };
-use crate::rpc::dauth::common::{
+use crate::rpc::dauth::local::{
     AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp,
 };
 

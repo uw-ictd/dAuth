@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::data::{context::DauthContext, error::DauthError};
-use crate::rpc::dauth::common::{AkaVectorReq, AkaVectorResp};
+use crate::rpc::dauth::local::{AkaVectorReq, AkaVectorResp};
 
 /// Removes and returns vector if at least one exists.
 pub fn auth_vector_next(

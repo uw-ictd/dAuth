@@ -9,4 +9,11 @@ pub mod dauth {
     pub mod common {
         tonic::include_proto!("d_auth");
     }
+    pub mod local {
+        tonic::include_proto!("dauth_local");
+    }
+    pub mod remote {
+        tonic::include_proto!("dauth_remote");
+    }
+
 }

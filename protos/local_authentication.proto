@@ -2,7 +2,7 @@ syntax = "proto3";
 
 option optimize_for = LITE_RUNTIME;
 
-package d_auth;
+package dauth_local;
 
 import "authentication_data.proto";
 
@@ -38,7 +38,7 @@ message AKAVectorReq {
 
     // The resynchronization info field is rare, so don't use one of the
     // precious single-byte field ids.
-    AKAResyncInfo resync_info = 16;
+    d_auth.AKAResyncInfo resync_info = 16;
 }
 
 message AKAVectorResp {
