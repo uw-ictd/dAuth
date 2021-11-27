@@ -26,16 +26,49 @@ service LocalAuthentication {
     rpc ConfirmAuth(AKAConfirmReq) returns (AKAConfirmResp);
 }
 
-// Reports the confirmation of authentication of a UE present in the local
-// network.
-// TODO(matt9j) What is the expected outcome if the UE is actually invalid?
-message AKAConfirmReq {
+message AKAVectorReq {
+    // The type of id provided.
+    d_auth.UserIdKind user_id_type = 1;
+
+    // The opaque id of the user requesting authentication.
+    bytes user_id = 2;
+
+    // Identifiers for high-occurence future fields.
+    reserved 3 to 15;
+
+    // The resynchronization info field is rare, so don't use one of the
+    // precious single-byte field ids.
+    AKAResyncInfo resync_info = 16;
+}
+
+message AKAVectorResp {
+    // Whether the request was successful or not
+    enum ErrorKind {
+        NO_ERROR = 0;
+        NOT_FOUND = 1;
+    }
+    ErrorKind error = 1;
+
+    d_auth.AuthVector5G auth_vector = 2;
+
     // The type of id provided.
     enum UserIdKind {
         UNKNOWN = 0;
         SUPI = 1;
     }
-    UserIdKind user_id_type = 1;
+    UserIdKind user_id_type = 3;
+
+    // The opaque id of the user requesting authentication.
+    // Added to response message for reuse in other operations.
+    bytes user_id = 4;
+}
+
+// Reports the confirmation of authentication of a UE present in the local
+// network.
+// TODO(matt9j) What is the expected outcome if the UE is actually invalid?
+message AKAConfirmReq {
+    // The type of id provided.
+    d_auth.UserIdKind user_id_type = 1;
 
     // The opaque id of the user requesting authentication.
     bytes user_id = 2;
