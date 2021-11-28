@@ -7,8 +7,8 @@ use tokio::runtime::Handle;
 use tonic::transport::Channel;
 
 use crate::data::user_info::UserInfo;
-use crate::rpc::d_auth::remote_authentication_client::RemoteAuthenticationClient;
-use crate::rpc::d_auth::AkaVectorResp;
+use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
+use crate::rpc::dauth::local::AkaVectorResp;
 
 /// Maintains the context for all components of
 /// the dAuth service. All state exists here.
@@ -36,5 +36,5 @@ pub struct RemoteContext {
 pub struct RpcContext {
     pub runtime_handle: Handle,
     pub host_addr: String,
-    pub client_stubs: tokio::sync::Mutex<HashMap<String, RemoteAuthenticationClient<Channel>>>,
+    pub client_stubs: tokio::sync::Mutex<HashMap<String, HomeNetworkClient<Channel>>>,
 }

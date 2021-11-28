@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-option optimize_for = LITE_RUNTIME;
-
-package d_auth;
-
-import "local_authentication.proto";
-import "remote_authentication.proto";

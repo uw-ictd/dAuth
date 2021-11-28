@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::data::{context::DauthContext, error::DauthError};
 use crate::local;
 use crate::rpc::clients;
-use crate::rpc::d_auth::{AkaVectorReq, AkaVectorResp};
+use crate::rpc::dauth::local::{AkaVectorReq, AkaVectorResp};
 
 /// Handles a request from a remote core.
 pub async fn auth_vector_get_remote(
@@ -29,7 +29,8 @@ pub async fn auth_vector_send_request(
     av_request: &AkaVectorReq,
 ) -> Result<AkaVectorResp, DauthError> {
     tracing::info!("Requesting from remote {:?}", av_request);
-    clients::request_auth_vector_remote(context, av_request).await
+    todo!()
+    //clients::request_auth_vector_remote(context, av_request).await
 }
 
 /// Reports a local use to all other remote cores.

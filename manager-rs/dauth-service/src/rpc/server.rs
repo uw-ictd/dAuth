@@ -5,8 +5,8 @@ use tonic::transport::Server;
 use crate::data::context::DauthContext;
 use crate::rpc::handler::DauthHandler;
 
-use crate::rpc::d_auth::local_authentication_server::LocalAuthenticationServer;
-use crate::rpc::d_auth::remote_authentication_server::RemoteAuthenticationServer;
+use crate::rpc::dauth::local::local_authentication_server::LocalAuthenticationServer;
+use crate::rpc::dauth::remote::home_network_server::HomeNetworkServer;
 
 // TODO(matt9j) Probably should return a result in case server start fails
 #[tracing::instrument]
@@ -17,7 +17,7 @@ pub async fn start_server(context: Arc<DauthContext>) {
         .add_service(LocalAuthenticationServer::new(DauthHandler {
             context: context.clone(),
         }))
-        .add_service(RemoteAuthenticationServer::new(DauthHandler {
+        .add_service(HomeNetworkServer::new(DauthHandler {
             context: context.clone(),
         }))
         .serve(context.rpc_context.host_addr.parse().unwrap())

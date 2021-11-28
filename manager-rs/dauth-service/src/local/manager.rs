@@ -5,7 +5,8 @@ use auth_vector;
 use crate::data::{context::DauthContext, error::DauthError, utilities};
 use crate::local;
 use crate::remote;
-use crate::rpc::d_auth::{AkaVectorReq, AkaVectorResp, AuthVector5G};
+use crate::rpc::dauth::local::{AkaVectorReq, AkaVectorResp};
+use crate::rpc::dauth::common::AuthVector5G;
 
 /// Attempts to find or possibly generate a new auth vector.
 /// Order of checks:
@@ -87,10 +88,10 @@ fn auth_vector_generate(
                         error: 0,
                         auth_vector: Some(AuthVector5G {
                             rand: auth_vector_data.rand,
-                            xres_star: auth_vector_data.res,
-                            // WRONG FIELDS
+                            // TODO WRONG FIELDS
+                            xres_star_hash: auth_vector_data.res,
+                            // TODO WRONG FIELDS
                             autn: auth_vector_data.sqn_xor_ak,
-                            kseaf: auth_vector_data.mac_a,
                         }),
                         user_id: av_request.user_id.clone(),
                         user_id_type: av_request.user_id_type,
