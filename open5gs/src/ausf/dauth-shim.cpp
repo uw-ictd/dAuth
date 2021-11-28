@@ -21,12 +21,15 @@
 #include <memory>
 #include <string.h>
 
+#include "authentication_data.pb.h"
 #include "core/ogs-core.h"
 #include "model/authentication_info.h"
 #include "model/authentication_vector.h"
 
 #include "local_authentication.grpc.pb.h"
 #include "local_authentication.pb.h"
+
+using namespace dauth_local;
 
 // Utility function to compute the length of a c-style null terminated string
 // with a maximum possible length.
@@ -66,13 +69,13 @@ ausf_dauth_shim_request_auth_vector(
     // TODO(matt9j) Move to a one-time context instead of re-opening each time and making new stubs
     ogs_debug("[%s] Creating gRPC LocalAuthentication stub", supi);
     std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials());
-    std::unique_ptr<d_auth::LocalAuthentication::Stub> stub = d_auth::LocalAuthentication::NewStub(channel);
+    std::unique_ptr<LocalAuthentication::Stub> stub = LocalAuthentication::NewStub(channel);
 
     // Fill request protobuf
     ogs_debug("[%s] Filling d_auth::AKAVectorReq request", supi);
-    d_auth::AKAVectorReq request;
+    AKAVectorReq request;
     request.set_user_id(supi, supi_length);
-    request.set_user_id_type(::d_auth::AKAVectorReq_UserIdKind::AKAVectorReq_UserIdKind_SUPI);
+    request.set_user_id_type(::d_auth::UserIdKind::SUPI);
 
     d_auth::AKAResyncInfo resync_info;
     if(authentication_info->resynchronization_info) {
@@ -83,7 +86,7 @@ ausf_dauth_shim_request_auth_vector(
     }
 
     // Allocate response and context memory on the stack
-    d_auth::AKAVectorResp response;
+    AKAVectorResp response;
     grpc::ClientContext context;
 
     ogs_debug("[%s] Sending LocalAuthentication.GetAuthVector request", supi);
