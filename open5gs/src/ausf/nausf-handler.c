@@ -107,6 +107,9 @@ bool ausf_nausf_auth_handle_authenticate_confirmation(ausf_ue_t *ausf_ue,
     ogs_ascii_to_hex(res_star_string, strlen(res_star_string),
             res_star, sizeof(res_star));
 
+    // TODO(matt9j) Intercept confirmation here
+    ogs_assert(true == ausf_dauth_shim_request_confirm_auth(ausf_ue, res_star));
+
     if (memcmp(res_star, ausf_ue->xres_star, OGS_MAX_RES_LEN) != 0) {
         ogs_log_hexdump(OGS_LOG_WARN, res_star, OGS_MAX_RES_LEN);
         ogs_log_hexdump(OGS_LOG_WARN, ausf_ue->xres_star, OGS_MAX_RES_LEN);

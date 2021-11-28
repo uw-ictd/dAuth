@@ -130,6 +130,7 @@ ausf_dauth_shim_request_auth_vector(
     return true;
 }
 
+// Moved and slightly tweaked from nudm_handler::ausf_nudm_ueau_handle_get
 bool
 ausf_dauth_shim_forward_received_auth_vector(
     ausf_ue_t * const ausf_ue,
@@ -315,6 +316,118 @@ ausf_dauth_shim_forward_received_auth_vector(
 
     ogs_free(LinksValueSchemeValue.href);
     ogs_free(sendmsg.http.location);
+
+    return true;
+}
+
+bool
+ausf_dauth_shim_request_confirm_auth(
+    ausf_ue_t * const ausf_ue,
+    const uint8_t * const res_star
+) {
+    if(!ausf_ue) {
+        ogs_error("Null UE in auth confirm request");
+        return false;
+    }
+
+    const char* const supi = ausf_ue->supi;
+    if(!supi) {
+        ogs_error("Null supi in auth confirm request");
+        return false;
+    }
+
+    size_t supi_length = bounded_strlen(supi, 128);
+    if((supi_length == 0) || (supi_length == 128)) {
+        ogs_error("Supi string is malformed");
+        return false;
+    }
+    if(!res_star) {
+        ogs_error("[%s] No res_star in confirm auth request", supi);
+        return false;
+    }
+
+    // TODO(matt9j) Move to a one-time context instead of re-opening each time and making new stubs
+    ogs_debug("[%s] Creating gRPC LocalAuthentication stub", supi);
+    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials());
+    std::unique_ptr<LocalAuthentication::Stub> stub = LocalAuthentication::NewStub(channel);
+
+    // Fill request protobuf
+    ogs_debug("[%s] Filling d_auth::AKAConfirmReq request", supi);
+    AKAConfirmReq request;
+    request.set_user_id(supi, supi_length);
+    request.set_user_id_type(::d_auth::UserIdKind::SUPI);
+    request.set_res_star(res_star, OGS_MAX_RES_LEN);
+
+    // Allocate response and context memory on the stack
+    AKAConfirmResp response;
+    grpc::ClientContext context;
+
+    ogs_debug("[%s] Sending LocalAuthentication.ConfirmAuth request", supi);
+    grpc::Status status = stub->ConfirmAuth(&context, request, &response);
+
+    // Handle failure
+    if (!status.ok()) {
+        ogs_error(
+            "[%s] LocalAuthentication.GetAuthVector RPC Failed with status [%d]:%s",
+            supi,
+            status.error_code(),
+            status.error_message().c_str()
+        );
+        return false;
+    }
+    ogs_info("[%s] LocalAuthentication.GetAuthVector RPC Success", supi);
+
+    // TODO(matt9j) check if the res actually matches the hashed xres, and set
+    // the auth result accordingly.
+    // if (AuthEvent->success == true)
+    //     ausf_ue->auth_result = OpenAPI_auth_result_AUTHENTICATION_SUCCESS;
+    // else
+    //     ausf_ue->auth_result = OpenAPI_auth_result_AUTHENTICATION_FAILURE;
+
+    // Store the supplied kseaf in the local ue context
+    ogs_assert(response.kseaf().length() == 32);
+    memcpy(ausf_ue->kseaf, response.kseaf().c_str(), response.kseaf().length());
+    ausf_ue->auth_result = OpenAPI_auth_result_AUTHENTICATION_SUCCESS;
+
+    return true;
+}
+
+// Moved and slightly tweaked from nudm_handler::ausf_nudm_ueau_handle_result_confirmation_inform
+bool
+ausf_dauth_shim_forward_confirmed_key(
+    ausf_ue_t * const ausf_ue,
+    ogs_sbi_stream_t *stream
+) {
+    ogs_sbi_message_t sendmsg;
+    ogs_sbi_response_t *response = NULL;
+
+    char kseaf_string[OGS_KEYSTRLEN(OGS_SHA256_DIGEST_SIZE)];
+
+    OpenAPI_confirmation_data_response_t ConfirmationDataResponse;
+
+    ogs_assert(ausf_ue);
+    ogs_assert(stream);
+
+    memset(&ConfirmationDataResponse, 0, sizeof(ConfirmationDataResponse));
+
+    ConfirmationDataResponse.auth_result = ausf_ue->auth_result;
+    ConfirmationDataResponse.supi = ausf_ue->supi;
+
+    // TODO(matt9j) Double check kseaf derivation on the rust side of the world.
+
+    // ogs_kdf_kseaf(ausf_ue->serving_network_name,
+    //         ausf_ue->kausf, ausf_ue->kseaf);
+    ogs_hex_to_ascii(ausf_ue->kseaf, sizeof(ausf_ue->kseaf),
+            kseaf_string, sizeof(kseaf_string));
+    ConfirmationDataResponse.kseaf = kseaf_string;
+
+    memset(&sendmsg, 0, sizeof(sendmsg));
+
+    sendmsg.ConfirmationDataResponse = &ConfirmationDataResponse;
+
+    response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_OK);
+    ogs_assert(response);
+    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
 
     return true;
 }
