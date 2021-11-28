@@ -21,18 +21,30 @@
 #define AUSF_DAUTH_SHIM_H
 
 #include "context.h"
+#include "ogs-crypt.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+typedef struct dauth_shim_vector {
+    uint8_t rand[OGS_RAND_LEN];
+    uint8_t xres_star_hash[OGS_MAX_RES_LEN];
+    uint8_t autn[OGS_AUTN_LEN];
+} dauth_shim_vector_t;
+
 bool
 ausf_dauth_shim_request_auth_vector(
     const char * const supi,
     const OpenAPI_authentication_info_t * const authentication_info,
-    OpenAPI_authentication_vector_t * const received_vector);
+    dauth_shim_vector_t * const received_vector);
 
-bool ausf_dauth_shim_forward_received_auth_vector(void);
+bool ausf_dauth_shim_forward_received_auth_vector(
+    ausf_ue_t * const ausf_ue,
+    ogs_sbi_stream_t *stream,
+    const OpenAPI_authentication_info_t * const authentication_info,
+    dauth_shim_vector_t * const received_vector
+);
 
 #ifdef __cplusplus
 }
