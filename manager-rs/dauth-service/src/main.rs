@@ -3,6 +3,7 @@ mod local;
 mod remote;
 mod rpc;
 
+use data::constants;
 use serde_yaml;
 use std::{
     collections::HashMap,
@@ -41,7 +42,10 @@ fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
     // TODO (nickfh7) sanity check the data
     for (id, user_info_config) in config.users {
         user_map.insert(
-            utilities::convert_string_to_byte_vec(&id)?,
+            utilities::convert_int_string_to_byte_vec_with_length(
+                &id,
+                constants::vector_data::ID_LENGTH,
+            )?,
             user_info_config.to_user_info()?,
         );
     }
@@ -50,8 +54,14 @@ fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
         local_context: LocalContext {
             database: Mutex::new(HashMap::new()),
             user_info_database: Mutex::new(user_map),
-            local_user_id_min: utilities::convert_string_to_byte_vec(&config.local_user_id_min)?,
-            local_user_id_max: utilities::convert_string_to_byte_vec(&config.local_user_id_max)?,
+            local_user_id_min: utilities::convert_int_string_to_byte_vec_with_length(
+                &config.local_user_id_min,
+                constants::vector_data::ID_LENGTH,
+            )?,
+            local_user_id_max: utilities::convert_int_string_to_byte_vec_with_length(
+                &config.local_user_id_max,
+                constants::vector_data::ID_LENGTH,
+            )?,
         },
         remote_context: RemoteContext {
             remote_addrs: config.remote_addrs,

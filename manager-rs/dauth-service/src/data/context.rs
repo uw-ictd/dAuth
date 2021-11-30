@@ -7,8 +7,8 @@ use tokio::runtime::Handle;
 use tonic::transport::Channel;
 
 use crate::data::user_info::UserInfo;
-use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
 use crate::rpc::dauth::local::AkaVectorResp;
+use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
 
 /// Maintains the context for all components of
 /// the dAuth service. All state exists here.

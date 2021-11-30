@@ -5,8 +5,8 @@ use auth_vector;
 use crate::data::{context::DauthContext, error::DauthError, utilities};
 use crate::local;
 use crate::remote;
-use crate::rpc::dauth::local::{AkaVectorReq, AkaVectorResp};
 use crate::rpc::dauth::common::AuthVector5G;
+use crate::rpc::dauth::local::{AkaVectorReq, AkaVectorResp};
 
 /// Attempts to find or possibly generate a new auth vector.
 /// Order of checks:

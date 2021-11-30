@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::data::{error::DauthError, user_info::UserInfo, utilities};
+use crate::data::{constants, error::DauthError, user_info::UserInfo, utilities};
 
 /// Holds all configuration data from a corresponding YAML file
 #[derive(Serialize, Deserialize, Debug)]
@@ -26,9 +26,18 @@ pub struct UserInfoConfig {
 impl UserInfoConfig {
     /// Generates a user info object with byte arrays
     pub fn to_user_info(&self) -> Result<UserInfo, DauthError> {
-        let k = utilities::convert_string_to_byte_vec(&self.k)?;
-        let opc = utilities::convert_string_to_byte_vec(&self.opc)?;
-        let sqn_max = utilities::convert_string_to_byte_vec(&self.sqn_max)?;
+        let k = utilities::convert_hex_string_to_byte_vec_with_length(
+            &self.k,
+            constants::vector_data::K_LENGTH,
+        )?;
+        let opc = utilities::convert_hex_string_to_byte_vec_with_length(
+            &self.opc,
+            constants::vector_data::OPC_LENGTH,
+        )?;
+        let sqn_max = utilities::convert_int_string_to_byte_vec_with_length(
+            &self.sqn_max,
+            constants::vector_data::SQN_LENGTH,
+        )?;
         Ok(UserInfo { k, opc, sqn_max })
     }
 }

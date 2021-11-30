@@ -4,12 +4,10 @@ use crate::data::context::DauthContext;
 use crate::local;
 use crate::remote;
 use crate::rpc::dauth::local::local_authentication_server::LocalAuthentication;
+use crate::rpc::dauth::local::{AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp};
 use crate::rpc::dauth::remote::home_network_server::HomeNetwork;
 use crate::rpc::dauth::remote::{
-    GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq, GetHomeConfirmKeyResp
-};
-use crate::rpc::dauth::local::{
-    AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp,
+    GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq, GetHomeConfirmKeyResp,
 };
 
 /// Handles all RPC calls to the dAuth service.

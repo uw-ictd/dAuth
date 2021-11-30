@@ -21,5 +21,4 @@ pub mod dauth {
     pub mod remote {
         tonic::include_proto!("dauth_remote");
     }
-
 }
