@@ -83,5 +83,6 @@ pub fn kseaf_get(context: Arc<DauthContext>, uuid: &Vec<u8>) -> Result<Vec<u8>, 
 
 /// Adds a kseaf value with the given uuid
 pub fn kseaf_put(context: Arc<DauthContext>, uuid: &Vec<u8>, kseaf: &Vec<u8>) {
+    tracing::info!("Kseaf put: {:?} - {:?}", uuid, kseaf);
     context.local_context.kseaf_map.lock().unwrap().insert(uuid.clone(), kseaf.clone());
 }
