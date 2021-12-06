@@ -89,8 +89,7 @@ fn auth_vector_generate(
                         auth_vector: Some(AuthVector5G {
                             rand: auth_vector_data.rand,
                             autn: auth_vector_data.autn,
-                            // TODO WRONG FIELDS
-                            xres_star_hash: auth_vector_data.res_star,
+                            xres_star_hash: auth_vector_data.xres_star_hash,
                         }),
                         user_id: av_request.user_id.clone(),
                         user_id_type: av_request.user_id_type,

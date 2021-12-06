@@ -4,7 +4,7 @@ mod data;
 use std::array::TryFromSliceError;
 
 use hmac::{Hmac, Mac, NewMac};
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 
 use milenage::Milenage;
 use rand as r;
@@ -37,11 +37,13 @@ fn generate_vector_with_rand(
 
     let mut m = Milenage::new_with_opc(k_a, opc_a);
 
-    let (res, ck, ik, ak) = m.f2345(&rand_a);
+    let (xres, ck, ik, ak) = m.f2345(&rand_a);
 
-    let res_star = m
-        .compute_res_star(constants::MCC, constants::MNC, &rand_a, &res)
+    let xres_star = m
+        .compute_res_star(constants::MCC, constants::MNC, &rand_a, &xres)
         .unwrap();
+
+    let xres_star_hash = gen_xres_star_hash(rand, &Vec::from(xres_star));
 
     let sqn_xor_ak: [u8; 6] = [
         sqn[0] ^ ak[0],
@@ -62,11 +64,10 @@ fn generate_vector_with_rand(
     let kseaf = gen_kseaf(&kausf);
 
     Ok(AuthVectorData {
-        res: Vec::from(res),
-        res_star: Vec::from(res_star),
-        autn: Vec::from(autn),
+        xres_star_hash,
+        autn,
         rand: rand.clone(),
-        kseaf: kseaf,
+        kseaf,
     })
 }
 
@@ -94,6 +95,17 @@ fn gen_kseaf(kausf: &Vec<u8>) -> Vec<u8> {
     mac.update(&data);
 
     Vec::from(&mac.finalize().into_bytes()[..32])
+}
+
+fn gen_xres_star_hash(rand: &Vec<u8>, xres_star: &Vec<u8>) -> Vec<u8> {
+    let mut data = Vec::new();
+    data.extend(rand);
+    data.extend(xres_star);
+
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+
+    Vec::from(&hasher.finalize()[16..32])
 }
 
 fn get_snn() -> String {
@@ -131,17 +143,16 @@ mod tests {
 
         let result = generate_vector_with_rand(&k, &opc, &rand, &sqn).unwrap();
 
-        assert_eq!("fc9b23591b391885", hex::encode(result.res));
-        assert_eq!(
-            "60607d1246f9ab32569edf4c3cc18566",
-            hex::encode(result.res_star)
-        );
         assert_eq!("562d716dbd058b475cfecdbb48ed038f", hex::encode(result.rand));
         assert_eq!("67c325a93c6880006ed9f592d86b709c", hex::encode(result.autn));
-        // assert_eq!(
-        //     "0c25a657fc10c3a4c5cde321dd785032ef105d7392e5c9078412550af028cca9",
-        //     hex::encode(result.kseaf)
-        // ); // Need to confirm
+        assert_eq!(
+            "4cc63b268aa5ff97516cc3ee0c5fad53",
+            hex::encode(result.xres_star_hash)
+        ); // Need to confirm
+        assert_eq!(
+            "110c22efde7f2855bfb7dcf246b542ba2fe631d802e9e98b6c4dfad0d185750e",
+            hex::encode(result.kseaf)
+        ); // Need to confirm
     }
 
     /// INFORMATIONAL TESTS
