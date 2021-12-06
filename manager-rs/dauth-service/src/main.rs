@@ -53,6 +53,7 @@ fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
     Ok(Arc::new(DauthContext {
         local_context: LocalContext {
             database: Mutex::new(HashMap::new()),
+            kseaf_map: Mutex::new(HashMap::new()),
             user_info_database: Mutex::new(user_map),
             local_user_id_min: utilities::convert_int_string_to_byte_vec_with_length(
                 &config.local_user_id_min,

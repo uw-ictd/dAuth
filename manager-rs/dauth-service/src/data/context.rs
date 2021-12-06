@@ -22,6 +22,7 @@ pub struct DauthContext {
 #[derive(Debug)]
 pub struct LocalContext {
     pub database: Mutex<HashMap<Vec<u8>, VecDeque<AkaVectorResp>>>,
+    pub kseaf_map: Mutex<HashMap<Vec<u8>, Vec<u8>>>,
     pub user_info_database: Mutex<HashMap<Vec<u8>, UserInfo>>,
     pub local_user_id_min: Vec<u8>,
     pub local_user_id_max: Vec<u8>,

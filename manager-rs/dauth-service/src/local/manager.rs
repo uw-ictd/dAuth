@@ -1,8 +1,9 @@
 use std::sync::Arc;
+use rand;
 
 use auth_vector;
 
-use crate::data::{context::DauthContext, error::DauthError, utilities};
+use crate::data::{context::DauthContext, error::DauthError, utilities, constants};
 use crate::local;
 use crate::remote;
 use crate::rpc::dauth::common::AuthVector5G;
@@ -84,6 +85,8 @@ fn auth_vector_generate(
                 Ok(auth_vector_data) => {
                     user_info.increment_sqn(0x21);
 
+                    let uuid = Vec::from(rand::random::<[u8; constants::vector_data::UUID_LENGTH]>());
+
                     let av_response = AkaVectorResp {
                         error: 0,
                         auth_vector: Some(AuthVector5G {
@@ -93,7 +96,10 @@ fn auth_vector_generate(
                         }),
                         user_id: av_request.user_id.clone(),
                         user_id_type: av_request.user_id_type,
+                        uuid: uuid.clone(),
                     };
+
+                    local::database::kseaf_put(context.clone(), &uuid, &auth_vector_data.kseaf);
 
                     tracing::info!("Auth vector generated: {:?}", av_response);
 

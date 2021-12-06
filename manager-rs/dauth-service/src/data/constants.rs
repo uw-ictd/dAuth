@@ -4,4 +4,5 @@ pub mod vector_data {
     pub const K_LENGTH: usize = 16;
     pub const OPC_LENGTH: usize = 16;
     pub const SQN_LENGTH: usize = 6;
+    pub const UUID_LENGTH: usize = 16;
 }
