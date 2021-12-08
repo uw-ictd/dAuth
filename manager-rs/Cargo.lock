@@ -243,7 +243,6 @@ dependencies = [
  "auth-vector",
  "hex",
  "prost",
- "rand",
  "serde",
  "serde_yaml",
  "structopt",

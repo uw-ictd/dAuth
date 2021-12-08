@@ -63,26 +63,26 @@ pub fn auth_vector_delete(
 }
 
 /// Removes and returns a kseaf value
-pub fn kseaf_get(context: Arc<DauthContext>, uuid: &Vec<u8>) -> Result<Vec<u8>, DauthError> {
-    tracing::info!("Kseaf get: {:?}", uuid);
+pub fn kseaf_get(context: Arc<DauthContext>, xres_star_hash: &Vec<u8>) -> Result<Vec<u8>, DauthError> {
+    tracing::info!("Kseaf get: {:?}", xres_star_hash);
 
     let mut map = context.local_context.kseaf_map.lock().unwrap();
 
-    match map.get(uuid) {
+    match map.get(xres_star_hash) {
         Some(kseaf) => {
             let kseaf = kseaf.clone();
-            map.remove(uuid);
+            map.remove(xres_star_hash);
             Ok(kseaf)
         }
         None => {
-            tracing::error!("KSEAF not found with UUID: {:?}", uuid);
-            Err(DauthError::NotFoundError(format!("KSEAF not found with UUID: {:?}", uuid)))
+            tracing::error!("KSEAF not found with UUID: {:?}", xres_star_hash);
+            Err(DauthError::NotFoundError(format!("KSEAF not found with UUID: {:?}", xres_star_hash)))
         }
     }
 }
 
-/// Adds a kseaf value with the given uuid
-pub fn kseaf_put(context: Arc<DauthContext>, uuid: &Vec<u8>, kseaf: &Vec<u8>) {
-    tracing::info!("Kseaf put: {:?} - {:?}", uuid, kseaf);
-    context.local_context.kseaf_map.lock().unwrap().insert(uuid.clone(), kseaf.clone());
+/// Adds a kseaf value with the given xres_star_hash
+pub fn kseaf_put(context: Arc<DauthContext>, xres_star_hash: &Vec<u8>, kseaf: &Vec<u8>) {
+    tracing::info!("Kseaf put: {:?} - {:?}", xres_star_hash, kseaf);
+    context.local_context.kseaf_map.lock().unwrap().insert(xres_star_hash.clone(), kseaf.clone());
 }
