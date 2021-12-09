@@ -1,7 +1,6 @@
 mod constants;
 mod data;
-
-use std::array::TryFromSliceError;
+mod types;
 
 use hmac::{Hmac, Mac, NewMac};
 use sha2::{Digest, Sha256};
@@ -13,66 +12,65 @@ use crate::data::AuthVectorData;
 
 /// Uses provided k, opc, and rand with milenage.
 /// Returns tuple of auth vector data (xres, rand, sqn_xor_ak, mac_a)
-pub fn generate_vector(
-    k: &Vec<u8>,
-    opc: &Vec<u8>,
-    sqn: &Vec<u8>,
-) -> Result<AuthVectorData, TryFromSliceError> {
-    let rand: [u8; constants::RAND_LENGTH] = r::random();
+pub fn generate_vector(k: &types::K, opc: &types::Opc, sqn: &types::Sqn) -> AuthVectorData {
+    let rand: types::Rand = r::random();
 
-    generate_vector_with_rand(k, opc, &Vec::from(rand), sqn)
+    generate_vector_with_rand(k, opc, &rand, sqn)
 }
 
 /// Generate auth vector data with a provided rand
 fn generate_vector_with_rand(
-    k: &Vec<u8>,
-    opc: &Vec<u8>,
-    rand: &Vec<u8>,
-    sqn: &Vec<u8>,
-) -> Result<AuthVectorData, TryFromSliceError> {
-    let k_a: [u8; constants::K_LENGTH] = k[..].try_into()?;
-    let opc_a: [u8; constants::OPC_LENGTH] = opc[..].try_into()?;
-    let rand_a: [u8; constants::RAND_LENGTH] = rand[..].try_into()?;
-    let sqn_a: [u8; constants::SQN_LENGTH] = sqn[..].try_into()?;
+    k: &types::K,
+    opc: &types::Opc,
+    rand: &types::Rand,
+    sqn: &types::Sqn,
+) -> AuthVectorData {
+    let mut m = Milenage::new_with_opc(k.clone(), opc.clone());
 
-    let mut m = Milenage::new_with_opc(k_a, opc_a);
-
-    let (xres, ck, ik, ak) = m.f2345(&rand_a);
+    let (xres, ck, ik, ak) = m.f2345(&rand);
 
     let xres_star = m
-        .compute_res_star(constants::MCC, constants::MNC, &rand_a, &xres)
+        .compute_res_star(constants::MCC, constants::MNC, &rand, &xres)
         .unwrap();
 
-    let xres_star_hash = gen_xres_star_hash(rand, &Vec::from(xres_star));
+    let xres_star_hash = gen_xres_star_hash(rand, &xres_star);
 
-    let sqn_xor_ak: [u8; 6] = [
-        sqn[0] ^ ak[0],
-        sqn[1] ^ ak[1],
-        sqn[2] ^ ak[2],
-        sqn[3] ^ ak[3],
-        sqn[4] ^ ak[4],
-        sqn[5] ^ ak[5],
-    ];
+    let sqn_xor_ak: types::Sqn = sqn
+        .iter()
+        .zip(ak.iter())
+        .map(|(a, b)| a ^ b)
+        .collect::<Vec<u8>>()[..]
+        .try_into()
+        .expect("All data should have correct size");
 
-    let mac_a = m.f1(&rand_a, &sqn_a, &constants::AMF);
+    let mac: types::Mac = m.f1(&rand, &sqn, &constants::AMF);
 
-    let autn_a: [u8; constants::AUTN_LENGTH] =
-        [&sqn_xor_ak[..], &constants::AMF[..], &mac_a[..]].concat()[..].try_into()?;
-    let autn = Vec::from(autn_a);
+    let autn = build_autn(&sqn_xor_ak, &mac);
 
-    let kausf = gen_kausf(&Vec::from(ck), &Vec::from(ik), &autn);
-    let kseaf = gen_kseaf(&kausf);
+    let kseaf = gen_kseaf(&gen_kausf(&ck, &ik, &autn));
 
-    Ok(AuthVectorData {
+    AuthVectorData {
         xres_star_hash,
         autn,
         rand: rand.clone(),
         kseaf,
-    })
+    }
 }
 
-fn gen_kausf(ck: &Vec<u8>, ik: &Vec<u8>, autn: &Vec<u8>) -> Vec<u8> {
-    let mut key = ck.clone();
+fn build_autn(sqn_xor_ak: &types::Sqn, mac: &types::Mac) -> types::Autn {
+    let mut autn: types::Autn = [0; constants::AUTN_LENGTH];
+
+    autn[..constants::SQN_LENGTH].copy_from_slice(sqn_xor_ak);
+    autn[constants::SQN_LENGTH..(constants::SQN_LENGTH + constants::AMF_LENGTH)]
+        .copy_from_slice(&constants::AMF[..]);
+    autn[(constants::SQN_LENGTH + constants::AMF_LENGTH)..].copy_from_slice(mac);
+
+    autn
+}
+
+fn gen_kausf(ck: &types::Ck, ik: &types::Ik, autn: &types::Autn) -> types::Kausf {
+    let mut key = Vec::new();
+    key.extend(ck);
     key.extend(ik);
 
     let mut data = vec![constants::FC_KAUSF];
@@ -83,21 +81,25 @@ fn gen_kausf(ck: &Vec<u8>, ik: &Vec<u8>, autn: &Vec<u8>) -> Vec<u8> {
     let mut mac = HmacSha256::new_from_slice(&key).expect("HMAC can take key of any size");
     mac.update(&data);
 
-    Vec::from(&mac.finalize().into_bytes()[..32])
+    mac.finalize().into_bytes()[..constants::KAUSF_LENGTH]
+        .try_into()
+        .expect("All data should have correct size")
 }
 
-fn gen_kseaf(kausf: &Vec<u8>) -> Vec<u8> {
+fn gen_kseaf(kausf: &types::Kausf) -> types::Kseaf {
     let mut data = vec![constants::FC_KSEAF];
     data.extend(get_snn().as_bytes());
 
     type HmacSha256 = Hmac<Sha256>;
-    let mut mac = HmacSha256::new_from_slice(&kausf).expect("HMAC can take key of any size");
+    let mut mac = HmacSha256::new_from_slice(kausf).expect("HMAC can take key of any size");
     mac.update(&data);
 
-    Vec::from(&mac.finalize().into_bytes()[..32])
+    mac.finalize().into_bytes()[..32]
+        .try_into()
+        .expect("All data should have correct size")
 }
 
-fn gen_xres_star_hash(rand: &Vec<u8>, xres_star: &Vec<u8>) -> Vec<u8> {
+fn gen_xres_star_hash(rand: &types::Rand, xres_star: &types::ResStar) -> types::HresStar {
     let mut data = Vec::new();
     data.extend(rand);
     data.extend(xres_star);
@@ -105,7 +107,9 @@ fn gen_xres_star_hash(rand: &Vec<u8>, xres_star: &Vec<u8>) -> Vec<u8> {
     let mut hasher = Sha256::new();
     hasher.update(data);
 
-    Vec::from(&hasher.finalize()[16..32])
+    hasher.finalize()[16..32]
+        .try_into()
+        .expect("All data should have correct size")
 }
 
 fn get_snn() -> String {
@@ -132,16 +136,26 @@ mod tests {
     use milenage::Milenage;
 
     use crate::generate_vector_with_rand;
+    use crate::types;
 
     #[test]
     fn test_generation() {
         // Used from successful ueransim 5G attach
-        let k = hex::decode("465B5CE8B199B49FAA5F0A2EE238A6BC").unwrap();
-        let opc = hex::decode("E8ED289DEBA952E4283B54E88E6183CA").unwrap();
-        let rand = hex::decode("562d716dbd058b475cfecdbb48ed038f").unwrap();
-        let sqn = hex::decode("000000000021").unwrap();
+        let k: types::K = hex::decode("465B5CE8B199B49FAA5F0A2EE238A6BC")
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let opc: types::Opc = hex::decode("E8ED289DEBA952E4283B54E88E6183CA")
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let rand: types::Rand = hex::decode("562d716dbd058b475cfecdbb48ed038f")
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let sqn: types::Sqn = hex::decode("000000000021").unwrap().try_into().unwrap();
 
-        let result = generate_vector_with_rand(&k, &opc, &rand, &sqn).unwrap();
+        let result = generate_vector_with_rand(&k, &opc, &rand, &sqn);
 
         assert_eq!("562d716dbd058b475cfecdbb48ed038f", hex::encode(result.rand));
         assert_eq!("67c325a93c6880006ed9f592d86b709c", hex::encode(result.autn));
