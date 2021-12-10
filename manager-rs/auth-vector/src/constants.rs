@@ -4,6 +4,7 @@ pub const MNC: &str = "70";
 pub const FC_KAUSF: u8 = 0x6A;
 pub const FC_KSEAF: u8 = 0x6C;
 
+pub const ID_LENGTH: usize = 7;
 pub const K_LENGTH: usize = 16;
 pub const OPC_LENGTH: usize = 16;
 pub const RAND_LENGTH: usize = 16;

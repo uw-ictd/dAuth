@@ -61,9 +61,6 @@ message AKAVectorResp {
     // The opaque id of the user requesting authentication.
     // Added to response message for reuse in other operations.
     bytes user_id = 4;
-
-    // The unique identifier of the auth vector transaction/generation
-    bytes uuid = 5;
 }
 
 // Reports the confirmation of authentication of a UE present in the local
@@ -80,11 +77,8 @@ message AKAConfirmReq {
     // provided hash.
     bytes res_star = 3;
 
-    // The unique identifier of the auth vector transaction/generation
-    bytes uuid = 4;
-
     // Identifiers for high-occurence future fields.
-    reserved 5 to 15;
+    reserved 4 to 15;
 }
 
 // Response with key material for a successful auth confirmation, or errors.

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::data::context::DauthContext;
+use crate::data::vector::AuthVectorReq;
 use crate::local;
-use crate::remote;
 use crate::rpc::dauth::local::local_authentication_server::LocalAuthentication;
 use crate::rpc::dauth::local::{AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp};
 use crate::rpc::dauth::remote::home_network_server::HomeNetwork;
@@ -22,13 +22,19 @@ impl LocalAuthentication for DauthHandler {
         &self,
         request: tonic::Request<AkaVectorReq>,
     ) -> Result<tonic::Response<AkaVectorResp>, tonic::Status> {
-        let av_request = request.into_inner();
-        tracing::info!("Local request: {:?}", &av_request);
+        let req = request.into_inner();
+        tracing::info!("Local request: {:?}", &req);
+
+        let av_request: AuthVectorReq;
+        match AuthVectorReq::from_req(req) {
+            Ok(req) => av_request = req,
+            Err(e) => return Err(tonic::Status::new(tonic::Code::Aborted, e.to_string())),
+        }
 
         match local::manager::auth_vector_get(self.context.clone(), &av_request).await {
             Ok(av_result) => {
                 tracing::info!("Returning result: {:?}", av_result);
-                Ok(tonic::Response::new(av_result))
+                Ok(tonic::Response::new(av_result.to_resp()))
             }
             Err(e) => {
                 tracing::error!("Error while handling request for {:?}: {}", av_request, e);
@@ -76,7 +82,6 @@ impl HomeNetwork for DauthHandler {
     ) -> Result<tonic::Response<GetHomeConfirmKeyResp>, tonic::Status> {
         let av_result = request.into_inner();
         tracing::info!("Remote used: {:?}", av_result);
-        let context = self.context.clone();
 
         todo!();
 

@@ -1,6 +1,8 @@
+use auth_vector::types::Id;
+
 use crate::data::error::DauthError;
 
-/// Converts hex string to array of bytes
+/// Converts hex string to byte vec
 pub fn convert_hex_string_to_byte_vec(s: &str) -> Result<Vec<u8>, DauthError> {
     let mut ns = String::from(s);
     if ns.len() % 2 == 1 {
@@ -21,7 +23,7 @@ pub fn convert_hex_string_to_byte_vec(s: &str) -> Result<Vec<u8>, DauthError> {
     }
 }
 
-/// Converts decimal string to integer
+/// Converts decimal string to byte vec
 /// NOTE: DOES NOT ALLOW DECIMAL REPRESENATIONS LARGER THAN 128 BITS!
 pub fn convert_int_string_to_byte_vec(s: &str) -> Result<Vec<u8>, DauthError> {
     match s.parse::<u128>() {
@@ -74,51 +76,30 @@ pub fn convert_int_string_to_byte_vec_with_length(
     zero_pad(convert_int_string_to_byte_vec(s)?, length)
 }
 
-/// Compares two *equal sized* byte vectors
-/// Returns v1 < v2
-pub fn byte_vec_less_than(v1: &Vec<u8>, v2: &Vec<u8>) -> Result<bool, DauthError> {
-    if v1.len() != v2.len() {
-        return Err(DauthError::DataError(format!(
-            "Cannot compare two vecs of different length: {:?} < {:?}",
-            v1, v2
-        )));
-    }
-
-    for (a, b) in v1.iter().zip(v2) {
+/// Compares two ids as unsigned integers
+/// Returns id1 < id2
+pub fn id_less_than(id1: &Id, id2: &Id) -> bool {
+    for (a, b) in id1.iter().zip(id2) {
         if a < b {
-            return Ok(true);
+            return true;
         } else if a > b {
-            return Ok(false);
+            return false;
         }
     }
 
-    Ok(false) // At lease one element must be less
+    false // At lease one element must be less
 }
 
-/// Compares two *equal sized* byte vectors
-/// Returns v1 == v2
-pub fn byte_vec_equal(v1: &Vec<u8>, v2: &Vec<u8>) -> Result<bool, DauthError> {
-    if v1.len() != v2.len() {
-        return Err(DauthError::DataError(format!(
-            "Cannot compare two vecs of different length: {:?} < {:?}",
-            v1, v2
-        )));
-    }
-
-    Ok(v1.iter().zip(v2).filter(|&(a, b)| a != b).count() == 0)
+/// Compares two ids as unsigned integers
+/// Returns id1 == id2
+pub fn id_equal(id1: &Id, id2: &Id) -> bool {
+    id1.iter().zip(id2).filter(|&(a, b)| a != b).count() == 0
 }
 
-/// Compares two *equal sized* byte vectors
-/// Returns v1 <= v2
-pub fn byte_vec_less_or_equal(v1: &Vec<u8>, v2: &Vec<u8>) -> Result<bool, DauthError> {
-    if v1.len() != v2.len() {
-        return Err(DauthError::DataError(format!(
-            "Cannot compare two vecs of different length: {:?} < {:?}",
-            v1, v2
-        )));
-    }
-
-    Ok(byte_vec_less_than(v1, v2)? || byte_vec_equal(v1, v2)?)
+/// Compares two ids as unsigned integers
+/// Returns id1 <= id2
+pub fn id_less_or_equal(id1: &Id, id2: &Id) -> bool {
+    id_less_than(id1, id2) || id_equal(id1, id2)
 }
 
 #[cfg(test)]
@@ -245,38 +226,61 @@ mod tests {
 
     #[test]
     fn test_less_than() {
-        assert!(utilities::byte_vec_less_than(&vec![1, 2, 2], &vec![1, 2, 3]).unwrap());
-        assert!(utilities::byte_vec_less_than(&vec![1, 2, 3], &vec![2, 1, 0]).unwrap());
-        assert!(!utilities::byte_vec_less_than(&vec![1, 2, 3], &vec![1, 2, 3]).unwrap());
-        assert!(!utilities::byte_vec_less_than(&vec![2, 2, 3], &vec![1, 2, 3]).unwrap());
-        assert!(!utilities::byte_vec_less_than(&vec![], &vec![]).unwrap());
+        assert!(utilities::id_less_than(
+            &[0, 0, 0, 0, 1, 2, 2],
+            &[0, 0, 0, 0, 1, 2, 3]
+        ));
+        assert!(utilities::id_less_than(
+            &[0, 0, 0, 0, 1, 2, 3],
+            &[0, 0, 0, 0, 2, 1, 0]
+        ));
+        assert!(!utilities::id_less_than(
+            &[0, 0, 0, 0, 1, 2, 3],
+            &[0, 0, 0, 0, 1, 2, 3]
+        ));
+        assert!(!utilities::id_less_than(
+            &[0, 0, 0, 0, 2, 2, 3],
+            &[0, 0, 0, 0, 1, 2, 3]
+        ));
     }
 
     #[test]
     fn test_equal() {
-        assert!(utilities::byte_vec_equal(&vec![1, 1, 1], &vec![1, 1, 1]).unwrap());
-        assert!(utilities::byte_vec_equal(&vec![], &vec![]).unwrap());
-        assert!(!utilities::byte_vec_equal(&vec![1, 2, 3], &vec![1, 2, 4]).unwrap());
-        assert!(!utilities::byte_vec_equal(&vec![2, 2, 3], &vec![1, 2, 3]).unwrap());
+        assert!(utilities::id_equal(
+            &[0, 0, 0, 0, 1, 1, 1],
+            &[0, 0, 0, 0, 1, 1, 1]
+        ));
+        assert!(!utilities::id_equal(
+            &[0, 0, 0, 0, 1, 2, 3],
+            &[0, 0, 0, 0, 1, 2, 4]
+        ));
+        assert!(!utilities::id_equal(
+            &[0, 0, 0, 0, 2, 2, 3],
+            &[0, 0, 0, 0, 1, 2, 3]
+        ));
     }
 
     #[test]
     fn test_less_or_equal() {
-        assert!(utilities::byte_vec_less_or_equal(&vec![1, 2, 2], &vec![1, 2, 3]).unwrap());
-        assert!(utilities::byte_vec_less_or_equal(&vec![1, 2, 3], &vec![2, 1, 0]).unwrap());
-        assert!(utilities::byte_vec_less_or_equal(&vec![1, 1, 1], &vec![1, 1, 1]).unwrap());
-        assert!(utilities::byte_vec_less_or_equal(&vec![], &vec![]).unwrap());
-        assert!(!utilities::byte_vec_less_or_equal(&vec![1, 2, 4], &vec![1, 2, 3]).unwrap());
-        assert!(!utilities::byte_vec_less_or_equal(&vec![2, 2, 3], &vec![1, 2, 3]).unwrap());
-    }
-
-    #[test]
-    fn test_bad_vec() {
-        assert!(utilities::byte_vec_less_than(&vec![1, 1, 1], &vec![1, 1]).is_err());
-        assert!(utilities::byte_vec_less_than(&vec![1, 1, 1], &vec![]).is_err());
-        assert!(utilities::byte_vec_equal(&vec![1, 1, 1], &vec![1, 1]).is_err());
-        assert!(utilities::byte_vec_equal(&vec![1, 1, 1], &vec![]).is_err());
-        assert!(utilities::byte_vec_less_or_equal(&vec![1, 1, 1], &vec![1, 1]).is_err());
-        assert!(utilities::byte_vec_less_or_equal(&vec![1, 1, 1], &vec![]).is_err());
+        assert!(utilities::id_less_or_equal(
+            &[0, 0, 0, 0, 1, 2, 2],
+            &[0, 0, 0, 0, 1, 2, 3]
+        ));
+        assert!(utilities::id_less_or_equal(
+            &[0, 0, 0, 0, 1, 2, 3],
+            &[0, 0, 0, 0, 2, 1, 0]
+        ));
+        assert!(utilities::id_less_or_equal(
+            &[0, 0, 0, 0, 1, 1, 1],
+            &[0, 0, 0, 0, 1, 1, 1]
+        ));
+        assert!(!utilities::id_less_or_equal(
+            &[0, 0, 0, 0, 1, 2, 4],
+            &[0, 0, 0, 0, 1, 2, 3]
+        ));
+        assert!(!utilities::id_less_or_equal(
+            &[0, 0, 0, 0, 2, 2, 3],
+            &[0, 0, 0, 0, 1, 2, 3]
+        ));
     }
 }

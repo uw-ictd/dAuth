@@ -1,9 +1,8 @@
 mod data;
 mod local;
-mod remote;
 mod rpc;
 
-use data::constants;
+use data::user_info::UserInfo;
 use serde_yaml;
 use std::{
     collections::HashMap,
@@ -14,6 +13,8 @@ use structopt::StructOpt;
 use tokio::runtime::Handle;
 use tracing::Level;
 use tracing_subscriber;
+
+use auth_vector::{constants::ID_LENGTH, types::Id};
 
 use crate::data::{
     config::DauthConfig,
@@ -37,15 +38,12 @@ async fn main() {
 
 fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
     let config = build_config(dauth_opt.config_path)?;
-    let mut user_map = HashMap::new();
+    let mut user_map: HashMap<Id, UserInfo> = HashMap::new();
 
-    // TODO (nickfh7) sanity check the data
     for (id, user_info_config) in config.users {
         user_map.insert(
-            utilities::convert_int_string_to_byte_vec_with_length(
-                &id,
-                constants::vector_data::ID_LENGTH,
-            )?,
+            utilities::convert_int_string_to_byte_vec_with_length(&id, ID_LENGTH)?[..]
+                .try_into()?,
             user_info_config.to_user_info()?,
         );
     }
@@ -57,12 +55,14 @@ fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
             user_info_database: Mutex::new(user_map),
             local_user_id_min: utilities::convert_int_string_to_byte_vec_with_length(
                 &config.local_user_id_min,
-                constants::vector_data::ID_LENGTH,
-            )?,
+                ID_LENGTH,
+            )?[..]
+                .try_into()?,
             local_user_id_max: utilities::convert_int_string_to_byte_vec_with_length(
                 &config.local_user_id_max,
-                constants::vector_data::ID_LENGTH,
-            )?,
+                ID_LENGTH,
+            )?[..]
+                .try_into()?,
         },
         remote_context: RemoteContext {
             remote_addrs: config.remote_addrs,

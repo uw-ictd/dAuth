@@ -1,6 +1,6 @@
-mod constants;
-mod data;
-mod types;
+pub mod constants;
+pub mod data;
+pub mod types;
 
 use hmac::{Hmac, Mac, NewMac};
 use sha2::{Digest, Sha256};

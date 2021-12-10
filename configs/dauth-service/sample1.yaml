@@ -6,13 +6,13 @@ remote_addrs:
 host_addr: "[::1]:50051"
 
 # User sensitive data for generating auth vectors
-# Key is imsi/supi (in hex) to k/opc/sqn_max
+# Key is imsi/supi
 users:
-  0334176431A801:
+  "901700000000001":
     k: 465B5CE8B199B49FAA5F0A2EE238A6BC
     opc: E8ED289DEBA952E4283B54E88E6183CA
-    sqn_max: "000000000021"
+    sqn_max: "32"
 
 # min and max values for user id (imsi/supi) to be considered local
-local_user_id_min: 0334176431A801
-local_user_id_max: 0334176431A801
+local_user_id_min: "901700000000001"
+local_user_id_max: "901700000000001"

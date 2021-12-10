@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use crate::data::{context::DauthContext, error::DauthError};
-use crate::rpc::dauth::local::{AkaVectorReq, AkaVectorResp};
+use crate::data::{context::DauthContext, error::DauthError, vector::AuthVectorRes};
+use crate::rpc::dauth::local::AkaVectorResp;
 use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
 use crate::rpc::dauth::remote::{
-    GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq, GetHomeConfirmKeyResp,
+    GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq,
 };
 
 /// Send out request to remote core for new auth vector.
@@ -73,7 +73,7 @@ async fn client_send_request(
 }
 
 /// Broadcast to all other cores that an auth vector was used.
-pub async fn broadcast_auth_vector_used(context: Arc<DauthContext>, av_result: &AkaVectorResp) {
+pub async fn broadcast_auth_vector_used(context: Arc<DauthContext>, av_result: &AuthVectorRes) {
     tracing::info!("Broadcasting usage: {:?}", av_result);
     for addr in &context.remote_context.remote_addrs {
         // Initialize and add client stub first.
@@ -85,7 +85,7 @@ pub async fn broadcast_auth_vector_used(context: Arc<DauthContext>, av_result: &
             }
         };
 
-        match client_send_usage(context.clone(), av_result, addr).await {
+        match client_send_usage(context.clone(), &av_result.to_resp(), addr).await {
             Ok(()) => (),
             Err(e) => tracing::error!("Failed to send usage message to {}: {}", addr, e),
         }
@@ -94,7 +94,7 @@ pub async fn broadcast_auth_vector_used(context: Arc<DauthContext>, av_result: &
 
 async fn client_send_usage(
     context: Arc<DauthContext>,
-    av_result: &AkaVectorResp,
+    _av_result: &AkaVectorResp,
     addr: &String,
 ) -> Result<(), DauthError> {
     match context.rpc_context.client_stubs.lock().await.get_mut(addr) {

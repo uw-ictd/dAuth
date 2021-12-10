@@ -1,9 +1,11 @@
+use auth_vector::types::{Opc, Sqn, K};
+
 /// Holds sensitive user info needed for auth vector generation
 #[derive(Debug)]
 pub struct UserInfo {
-    pub k: Vec<u8>,
-    pub opc: Vec<u8>,
-    pub sqn_max: Vec<u8>,
+    pub k: K,
+    pub opc: Opc,
+    pub sqn_max: Sqn,
 }
 
 impl UserInfo {
@@ -29,29 +31,61 @@ mod tests {
 
     #[test]
     fn test_increment() {
-        assert!(check_increment_result(vec![0, 0, 0], vec![0, 0, 0], 0));
-        assert!(check_increment_result(vec![0, 0, 0], vec![0, 0, 1], 1));
-        assert!(check_increment_result(vec![0, 0, 0], vec![0, 0, 2], 2));
-        assert!(check_increment_result(vec![0, 0, 0], vec![0, 0, 255], 255));
-        assert!(check_increment_result(vec![0, 0, 0], vec![0, 1, 0], 256));
         assert!(check_increment_result(
-            vec![0, 0, 0],
-            vec![1, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            0
+        ));
+        assert!(check_increment_result(
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 1],
+            1
+        ));
+        assert!(check_increment_result(
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 2],
+            2
+        ));
+        assert!(check_increment_result(
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 255],
+            255
+        ));
+        assert!(check_increment_result(
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0],
+            256
+        ));
+        assert!(check_increment_result(
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0],
             256 * 256
         ));
-        assert!(check_increment_result(vec![0, 1, 0], vec![0, 1, 1], 1));
-        assert!(check_increment_result(vec![0, 1, 0], vec![0, 2, 0], 256));
         assert!(check_increment_result(
-            vec![0, 0, 0],
-            vec![0, 0, 0],
-            256 * 256 * 256
+            [0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 1, 1],
+            1
+        ));
+        assert!(check_increment_result(
+            [0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 2, 0],
+            256
+        ));
+        assert!(check_increment_result(
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            256 * 256 * 256 * 256 * 256 * 256
         ));
     }
 
-    fn check_increment_result(v1: Vec<u8>, v2: Vec<u8>, amount: u64) -> bool {
+    fn check_increment_result(
+        v1: auth_vector::types::Sqn,
+        v2: auth_vector::types::Sqn,
+        amount: u64,
+    ) -> bool {
         let mut ui = UserInfo {
-            k: vec![],
-            opc: vec![],
+            k: [0; auth_vector::constants::K_LENGTH],
+            opc: [0; auth_vector::constants::OPC_LENGTH],
             sqn_max: v1,
         };
 
