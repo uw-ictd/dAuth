@@ -18,6 +18,15 @@ enum SignedMessageKind {
     GET_HOME_CONFIRM_KEY_REQ = 8;
 }
 
+message SignedMessage {
+    message Container {
+        SignedMessageKind kind = 1;
+        bytes payload = 2;
+    }
+    bytes container = 1;
+    bytes signature = 2;
+}
+
 message DelegatedAuthVector5G {
     d_auth.AuthVector5G v = 1;
     bytes home_network_signature = 2;
@@ -51,22 +60,18 @@ service HomeNetwork {
 
 message GetHomeAuthVectorReq {
     message Payload {
-        // The kind of signed message, must be set or considered invalid.
-        SignedMessageKind kind = 1;
-
-        string serving_network_id = 2;
+        string serving_network_id = 1;
         // The type of id provided.
-        d_auth.UserIdKind user_id_type = 3;
+        d_auth.UserIdKind user_id_type = 2;
 
         // The opaque id of the user requesting authentication.
         //
         // TODO(matt9j) Probably don't want to actually sign over the user id so
         // the message can be revealed later without revealing the id to build
         // reputation.
-        bytes user_id = 4;
+        bytes user_id = 3;
     }
-    Payload payload = 1;
-    bytes serving_network_signature = 2;
+    SignedMessage message = 1;
 }
 
 message GetHomeAuthVectorResp {
@@ -80,23 +85,19 @@ message GetHomeAuthVectorResp {
 
 message GetHomeConfirmKeyReq {
     message Payload {
-        // The kind of signed message, must be set or considered invalid.
-        SignedMessageKind kind = 1;
-
         // The network id requesting the key share. Once a key share is claimed
         // by a network is should never be sent to a different network.
-        string serving_network_id = 2;
+        string serving_network_id = 1;
 
         // The received res_star that is a valid preimage of hash_xres_star.
-        bytes res_star = 3;
+        bytes res_star = 2;
 
         // The hash_xres_star corresponding to the key share this network is
         // claiming.
-        bytes hash_xres_star = 4;
+        bytes hash_xres_star = 3;
     }
 
-    Payload payload = 1;
-    bytes serving_network_signature = 2;
+    SignedMessage message = 1;
 }
 
 message GetHomeConfirmKeyResp {
@@ -151,20 +152,17 @@ service BackupNetwork {
 
 message EnrollBackupPrepareReq {
     message Payload {
-        // The kind of signed message, must be set or considered invalid.
-        SignedMessageKind kind = 1;
-
         // The home network requesting this network's participation in backup.
-        string home_network_id = 2;
+        string home_network_id = 1;
         // The backup network being requested to participate.
-        string backup_network_id =3;
+        string backup_network_id =2;
 
         // The user for which this network is requested to backup.
         //
         // TODO(matt9j) Probably don't want to actually sign over the user id so
         // the message can be revealed later without revealing the id?
-        d_auth.UserIdKind user_id_kind = 4;
-        bytes user_id = 5;
+        d_auth.UserIdKind user_id_kind = 3;
+        bytes user_id = 4;
 
         // TODO(matt9j) Validity window min and max.
 
@@ -173,18 +171,12 @@ message EnrollBackupPrepareReq {
         // it's strictly necessary to do so, but does have implications for what
         // an attack on the reputation system might look like.
     }
-
-    Payload payload = 1;
-
-    // The home network's ed25519 signature over the message payload.
-    bytes home_network_signature = 2;
+    SignedMessage message = 1;
 }
 
 message EnrollBackupPrepareResp {
-    EnrollBackupPrepareReq payload = 1;
-
-    // The backup network's ed25519 signature over the message payload.
-    bytes backup_network_signature = 2;
+    // The message payload is the entire EnrollBackupPrepareReq message
+    SignedMessage message = 1;
 }
 
 
@@ -210,21 +202,17 @@ message EnrollBackupCommitResp {
 
 message GetBackupAuthVectorReq {
     message Payload {
-        // The kind of signed message, must be set or considered invalid.
-        SignedMessageKind kind = 1;
-
-        string serving_network_id = 2;
+        string serving_network_id = 1;
         // The type of id provided.
-        d_auth.UserIdKind user_id_type = 3;
+        d_auth.UserIdKind user_id_type = 2;
 
         // The opaque id of the user requesting authentication.
         //
         // TODO(matt9j) Probably don't want to actually sign over the user id so
         // the message can be revealed later without revealing the id?
-        bytes user_id = 4;
+        bytes user_id = 3;
     }
-    Payload payload = 1;
-    bytes serving_network_signature = 2;
+    SignedMessage message = 1;
 }
 
 message GetBackupAuthVectorResp {
@@ -234,23 +222,19 @@ message GetBackupAuthVectorResp {
 
 message GetKeyShareReq {
     message Payload {
-        // The kind of signed message, must be set or considered invalid.
-        SignedMessageKind kind = 1;
-
         // The network id requesting the key share. Once a key share is claimed
         // by a network is should never be sent to a different network.
-        string serving_network_id = 2;
+        string serving_network_id = 1;
 
         // The received res_star that is a valid preimage of hash_xres_star.
-        bytes res_star = 3;
+        bytes res_star = 2;
 
         // The hash_xres_star corresponding to the key share this network is
         // claiming.
-        bytes hash_xres_star = 4;
+        bytes hash_xres_star = 3;
     }
 
-    Payload payload = 1;
-    bytes serving_network_signature = 2;
+    SignedMessage message = 1;
 }
 
 message GetKeyShareResp {
@@ -261,28 +245,22 @@ message GetKeyShareResp {
 
 message WithdrawBackupReq {
     message Payload {
-        // The kind of signed message, must be set or considered invalid.
-        SignedMessageKind kind = 1;
-
         // The home network revoking this network's participation in backup.
-        string home_network_id = 2;
+        string home_network_id = 1;
         // The backup network being revoked.
-        string backup_network_id =3;
+        string backup_network_id =2;
 
         // The user for which this network was requested to backup.
         //
         // TODO(matt9j) Probably don't want to actually sign over the user id so
         // the message can be revealed later without revealing the id?
-        d_auth.UserIdKind user_id_kind = 4;
-        bytes user_id = 5;
+        d_auth.UserIdKind user_id_kind = 3;
+        bytes user_id = 4;
 
         // TODO(matt9j) Time effective.
     }
 
-    Payload payload = 1;
-
-    // The home network's ed25519 signature over the message payload.
-    bytes home_network_signature = 2;
+    SignedMessage message = 1;
 }
 
 message WithdrawBackupResp {
@@ -292,18 +270,14 @@ message WithdrawBackupResp {
 
 message WithdrawSharesReq {
     message Payload {
-        // The kind of signed message, must be set or considered invalid.
-        SignedMessageKind kind = 1;
-
         // The ID of the home network requesting this withdraw.
-        string home_network_id = 2;
+        string home_network_id = 1;
 
         // The hash ids of the shares to withdraw.
-        repeated bytes xres_star_hash = 3;
+        repeated bytes xres_star_hash = 2;
     }
 
-    Payload payload = 1;
-    bytes home_network_signature = 2;
+    SignedMessage message = 1;
 }
 
 message WithdrawSharesResp {
@@ -314,18 +288,14 @@ message WithdrawSharesResp {
 
 message FloodVectorReq {
     message Payload {
-        // The kind of signed message, must be set or considered invalid.
-        SignedMessageKind kind = 1;
-
         // The home network requesting this vector be flood.
-        string home_network_id = 2;
+        string home_network_id = 1;
 
         // The vector to be flooded and used next.
-        DelegatedAuthVector5G vector = 3;
+        DelegatedAuthVector5G vector = 2;
     }
 
-    Payload payload = 1;
-    bytes home_network_signature = 2;
+    SignedMessage message = 1;
 }
 
 message FloodVectorResp {
