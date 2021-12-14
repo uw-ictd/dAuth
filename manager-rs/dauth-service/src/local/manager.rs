@@ -44,12 +44,24 @@ pub async fn auth_vector_get(
 
 /// Local handler for used vectors.
 /// Called for both local and remote use.
-pub async fn auth_vector_used(
+pub async fn confirm_auth_vector_used(
     context: Arc<DauthContext>,
-    av_result: &AuthVectorRes,
-) -> Result<(), DauthError> {
-    tracing::info!("Handling used: {:?}", av_result);
-    local::database::auth_vector_delete(context, av_result)
+    res_star: auth_vector::types::ResStar,
+) -> Result<auth_vector::types::Kseaf, DauthError> {
+    tracing::info!("Handling confirm: {:?}", res_star);
+
+    match local::database::kseaf_get(context.clone(), &res_star) {
+        Ok(key) => {
+            // TODO(matt9j) Remove confirmed vectors from cache?
+            //local::database::auth_vector_delete(context, res_star);
+            Ok(key)
+        }
+        Err(e) => {
+            tracing::info!("Confirm failed!: {}", e);
+            Err(DauthError::NotFoundError("Key not available".to_string()))
+        }
+    }
+
 }
 
 /// Returns whether the auth vector belongs to this core
