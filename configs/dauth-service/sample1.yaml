@@ -6,7 +6,7 @@ remote_addrs:
 host_addr: "[::1]:50051"
 
 # User sensitive data for generating auth vectors
-# Key is imsi/supi, mapped to k/opc/sqn_max
+# Key is imsi/supi
 users:
   "901700000000001":
     k: "465B5CE8B199B49FAA5F0A2EE238A6BC"

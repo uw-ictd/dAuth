@@ -1,12 +1,12 @@
 # Addrs of remote cores that can be contacted
 remote_addrs:
-  - "[::1]:50051"
+  - "[::1]:50052"
 
 # Address to host the RPC server
-host_addr: "[::1]:50052"
+host_addr: "[::1]:50051"
 
 # User sensitive data for generating auth vectors
-# Key is imsi/supi, mapped to k/opc/sqn_max
+# Key is imsi/supi
 users:
   "901700000000002":
     k: "465B5CE8B199B49FAA5F0A2EE238A6BC"
