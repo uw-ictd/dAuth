@@ -287,7 +287,7 @@ ausf_dauth_shim_request_confirm_auth(
         );
         return false;
     }
-    ogs_info("[%s] LocalAuthentication.GetAuthVector RPC Success", supi);
+    ogs_info("[%s] LocalAuthentication.ConfirmAuth RPC Success", supi);
 
     // TODO(matt9j) check if the res actually matches the hashed xres, and set
     // the auth result accordingly.
