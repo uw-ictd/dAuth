@@ -118,6 +118,7 @@ ausf_dauth_shim_request_auth_vector(
     ogs_assert(response.auth_vector().rand().length() == OGS_RAND_LEN);
     ogs_assert(response.auth_vector().xres_star_hash().length() == OGS_MAX_RES_LEN);
     ogs_assert(response.auth_vector().autn().length() == OGS_AUTN_LEN);
+    ogs_info("[%s] LocalAuthentication.GetAuthVector autn length %d", supi, response.auth_vector().autn().length());
     // Unpack the received vector
     memcpy(received_vector->rand, response.auth_vector().rand().c_str(), response.auth_vector().rand().length());
     memcpy(received_vector->autn, response.auth_vector().autn().c_str(), response.auth_vector().autn().length());
@@ -145,6 +146,8 @@ ausf_dauth_shim_forward_received_auth_vector(
     ogs_sbi_response_t *response = NULL;
 
     char hxres_star_string[OGS_KEYSTRLEN(OGS_MAX_RES_LEN)];
+    char rand_string[OGS_KEYSTRLEN(OGS_RAND_LEN)];
+    char autn_string[OGS_KEYSTRLEN(OGS_AUTN_LEN)];
 
     OpenAPI_ue_authentication_ctx_t UeAuthenticationCtx;
     OpenAPI_av5g_aka_t AV5G_AKA;
@@ -261,12 +264,16 @@ ausf_dauth_shim_forward_received_auth_vector(
 
     UeAuthenticationCtx.auth_type = ausf_ue->auth_type;
 
+    // Convert received binary crypto values to ascii strings of hex values as
+    // needed for the SBI interface.
     memset(&AV5G_AKA, 0, sizeof(AV5G_AKA));
-    AV5G_AKA.rand = reinterpret_cast<char*>(received_vector->rand);
-    AV5G_AKA.autn = reinterpret_cast<char*>(received_vector->autn);
+    ogs_hex_to_ascii(received_vector->rand, sizeof(received_vector->rand),
+            rand_string, sizeof(rand_string));
+    AV5G_AKA.rand = rand_string;
 
-    // ogs_kdf_hxres_star(ausf_ue->rand, ausf_ue->xres_star,
-    //         ausf_ue->hxres_star);
+    ogs_hex_to_ascii(received_vector->autn, sizeof(received_vector->autn),
+            autn_string, sizeof(autn_string));
+    AV5G_AKA.autn = autn_string;
 
     ogs_hex_to_ascii(ausf_ue->hxres_star, sizeof(ausf_ue->hxres_star),
             hxres_star_string, sizeof(hxres_star_string));
