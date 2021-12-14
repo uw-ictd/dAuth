@@ -54,13 +54,8 @@ pub async fn auth_vector_used(
 
 /// Returns whether the auth vector belongs to this core
 fn auth_vector_is_local(context: Arc<DauthContext>, av_request: &AuthVectorReq) -> bool {
-    utilities::id_less_or_equal(
-        &av_request.user_id,
-        &context.local_context.local_user_id_max,
-    ) && utilities::id_less_or_equal(
-        &context.local_context.local_user_id_min,
-        &av_request.user_id,
-    )
+    (av_request.user_id <= context.local_context.local_user_id_max) &&
+    (av_request.user_id >= context.local_context.local_user_id_min)
 }
 
 /// Generates and returns a new auth vector
@@ -86,7 +81,7 @@ fn auth_vector_generate(
             user_info.increment_sqn(0x21);
 
             let av_response = AuthVectorRes {
-                user_id: av_request.user_id,
+                user_id: av_request.user_id.clone(),
                 rand: auth_vector_data.rand,
                 autn: auth_vector_data.autn,
                 xres_star_hash: auth_vector_data.xres_star_hash,

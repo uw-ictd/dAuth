@@ -41,9 +41,9 @@ fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
     let mut user_map: HashMap<Id, UserInfo> = HashMap::new();
 
     for (id, user_info_config) in config.users {
+        tracing::info!("inserting ID {:?}", id);
         user_map.insert(
-            utilities::convert_int_string_to_byte_vec_with_length(&id, ID_LENGTH)?[..]
-                .try_into()?,
+            id.clone(),
             user_info_config.to_user_info()?,
         );
     }
@@ -53,16 +53,8 @@ fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
             database: Mutex::new(HashMap::new()),
             kseaf_map: Mutex::new(HashMap::new()),
             user_info_database: Mutex::new(user_map),
-            local_user_id_min: utilities::convert_int_string_to_byte_vec_with_length(
-                &config.local_user_id_min,
-                ID_LENGTH,
-            )?[..]
-                .try_into()?,
-            local_user_id_max: utilities::convert_int_string_to_byte_vec_with_length(
-                &config.local_user_id_max,
-                ID_LENGTH,
-            )?[..]
-                .try_into()?,
+            local_user_id_min: config.local_user_id_min,
+            local_user_id_max: config.local_user_id_max,
         },
         remote_context: RemoteContext {
             remote_addrs: config.remote_addrs,

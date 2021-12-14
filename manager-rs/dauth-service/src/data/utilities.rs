@@ -76,31 +76,6 @@ pub fn convert_int_string_to_byte_vec_with_length(
     zero_pad(convert_int_string_to_byte_vec(s)?, length)
 }
 
-/// Compares two ids as unsigned integers
-/// Returns id1 < id2
-pub fn id_less_than(id1: &Id, id2: &Id) -> bool {
-    for (a, b) in id1.iter().zip(id2) {
-        if a < b {
-            return true;
-        } else if a > b {
-            return false;
-        }
-    }
-
-    false // At lease one element must be less
-}
-
-/// Compares two ids as unsigned integers
-/// Returns id1 == id2
-pub fn id_equal(id1: &Id, id2: &Id) -> bool {
-    id1.iter().zip(id2).filter(|&(a, b)| a != b).count() == 0
-}
-
-/// Compares two ids as unsigned integers
-/// Returns id1 <= id2
-pub fn id_less_or_equal(id1: &Id, id2: &Id) -> bool {
-    id_less_than(id1, id2) || id_equal(id1, id2)
-}
 
 #[cfg(test)]
 mod tests {
@@ -222,65 +197,5 @@ mod tests {
             utilities::convert_int_string_to_byte_vec_with_length("256", 3).unwrap(),
             vec![0x00, 0x01, 0x00]
         );
-    }
-
-    #[test]
-    fn test_less_than() {
-        assert!(utilities::id_less_than(
-            &[0, 0, 0, 0, 1, 2, 2],
-            &[0, 0, 0, 0, 1, 2, 3]
-        ));
-        assert!(utilities::id_less_than(
-            &[0, 0, 0, 0, 1, 2, 3],
-            &[0, 0, 0, 0, 2, 1, 0]
-        ));
-        assert!(!utilities::id_less_than(
-            &[0, 0, 0, 0, 1, 2, 3],
-            &[0, 0, 0, 0, 1, 2, 3]
-        ));
-        assert!(!utilities::id_less_than(
-            &[0, 0, 0, 0, 2, 2, 3],
-            &[0, 0, 0, 0, 1, 2, 3]
-        ));
-    }
-
-    #[test]
-    fn test_equal() {
-        assert!(utilities::id_equal(
-            &[0, 0, 0, 0, 1, 1, 1],
-            &[0, 0, 0, 0, 1, 1, 1]
-        ));
-        assert!(!utilities::id_equal(
-            &[0, 0, 0, 0, 1, 2, 3],
-            &[0, 0, 0, 0, 1, 2, 4]
-        ));
-        assert!(!utilities::id_equal(
-            &[0, 0, 0, 0, 2, 2, 3],
-            &[0, 0, 0, 0, 1, 2, 3]
-        ));
-    }
-
-    #[test]
-    fn test_less_or_equal() {
-        assert!(utilities::id_less_or_equal(
-            &[0, 0, 0, 0, 1, 2, 2],
-            &[0, 0, 0, 0, 1, 2, 3]
-        ));
-        assert!(utilities::id_less_or_equal(
-            &[0, 0, 0, 0, 1, 2, 3],
-            &[0, 0, 0, 0, 2, 1, 0]
-        ));
-        assert!(utilities::id_less_or_equal(
-            &[0, 0, 0, 0, 1, 1, 1],
-            &[0, 0, 0, 0, 1, 1, 1]
-        ));
-        assert!(!utilities::id_less_or_equal(
-            &[0, 0, 0, 0, 1, 2, 4],
-            &[0, 0, 0, 0, 1, 2, 3]
-        ));
-        assert!(!utilities::id_less_or_equal(
-            &[0, 0, 0, 0, 2, 2, 3],
-            &[0, 0, 0, 0, 1, 2, 3]
-        ));
     }
 }

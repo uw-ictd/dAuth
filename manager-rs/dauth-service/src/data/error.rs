@@ -19,4 +19,10 @@ pub enum DauthError {
 
     #[error("Conversion error -- {0}")]
     ConversionError(#[from] TryFromSliceError),
+
+    #[error("Invalid message error -- {0}")]
+    InvalidMessageError(String),
+
+    #[error("Invalid UTF8 error -- {0}")]
+    InvalidUtf8Error(#[from] std::str::Utf8Error),
 }

@@ -1,6 +1,6 @@
 use crate::constants;
 
-pub type Id = [u8; constants::ID_LENGTH];
+pub type Id = String;
 pub type K = [u8; constants::K_LENGTH];
 pub type Opc = [u8; constants::OPC_LENGTH];
 pub type Sqn = [u8; constants::SQN_LENGTH];

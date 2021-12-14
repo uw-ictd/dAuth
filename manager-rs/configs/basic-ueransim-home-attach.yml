@@ -2,7 +2,7 @@ remote_addrs:
   - "192.168.56.200"
 
 users: {
-  "0000000001": {
+  "imsi-901700000000001": {
     "k": "465B5CE8B199B49FAA5F0A2EE238A6BC",
     "opc": "E8ED289DEBA952E4283B54E88E6183CA",
     "sqn_max": "32",
@@ -10,5 +10,5 @@ users: {
 }
 
 host_addr: "127.0.0.1:50051"
-local_user_id_min: "0000000001"
-local_user_id_max: "0000000001"
+local_user_id_min: "imsi-901700000000000"
+local_user_id_max: "imsi-901700000000002"

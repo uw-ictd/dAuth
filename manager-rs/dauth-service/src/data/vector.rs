@@ -19,16 +19,26 @@ pub struct AuthVectorRes {
 
 impl AuthVectorReq {
     pub fn from_req(req: AkaVectorReq) -> Result<AuthVectorReq, DauthError> {
-        Ok(AuthVectorReq {
-            user_id: req.user_id[..].try_into()?,
-        })
+        tracing::info!("Converting id");
+        match req.user_id_type() {
+            crate::rpc::dauth::common::UserIdKind::Supi => {
+                let id_string = std::str::from_utf8(req.user_id.as_slice())?;
+                tracing::debug!("Converted id {:?}", id_string);
+                Ok(AuthVectorReq {
+                    user_id: id_string.to_string(),
+                })
+            },
+            crate::rpc::dauth::common::UserIdKind::Unknown => {
+                Err(DauthError::InvalidMessageError("user_id_kind is unknown".to_owned()))
+            }
+        }
     }
 }
 
 impl AuthVectorRes {
     pub fn to_resp(&self) -> AkaVectorResp {
         AkaVectorResp {
-            user_id: self.user_id.to_vec(),
+            user_id: self.user_id.clone().into_bytes(),
             user_id_type: 1,
             error: 0,
             auth_vector: Some(AuthVector5G {
