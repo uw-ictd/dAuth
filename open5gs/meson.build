@@ -20,7 +20,8 @@ project('open5gs', 'c', 'cpp',
     license : 'AGPL-3.0-or-later',
     meson_version : '>= 0.55.0',
     default_options : [
-        'c_std=gnu89',
+        'c_std=gnu17',
+        'cpp_std=c++20',
     ],
 )
 

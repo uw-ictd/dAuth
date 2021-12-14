@@ -83,7 +83,9 @@ gen = generator(protoc_executable,
     '--plugin=protoc-gen-grpc=subprojects/grpc/grpc_cpp_plugin',
     '@PLAINNAME@'])
 
-generated = gen.process(['../../../protos/example.proto'])
+generated = gen.process([
+    '../../../protos/local_authentication.proto',
+    '../../../protos/authentication_data.proto'])
 
 
 libausf_sources = files('''

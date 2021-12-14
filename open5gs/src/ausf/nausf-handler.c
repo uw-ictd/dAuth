@@ -55,14 +55,22 @@ bool ausf_nausf_auth_handle_authenticate(ausf_ue_t *ausf_ue,
     ausf_ue->serving_network_name = ogs_strdup(serving_network_name);
     ogs_assert(ausf_ue->serving_network_name);
 
-    ogs_assert(true ==
-        ausf_dauth_shim_request_auth_vector()
-    );
+    dauth_shim_vector_t received_vector;
+    bool vector_request_success =
+        ausf_dauth_shim_request_auth_vector(ausf_ue->supi, AuthenticationInfo, &received_vector);
 
-    ogs_assert(true ==
-        ausf_sbi_discover_and_send(OpenAPI_nf_type_UDM, ausf_ue, stream,
-            AuthenticationInfo->resynchronization_info,
-            ausf_nudm_ueau_build_get));
+    ogs_assert(vector_request_success == true);
+
+    // TODO(matt9j) Do the forwarding here...
+    bool send_response_success =
+        ausf_dauth_shim_forward_received_auth_vector(ausf_ue, stream, AuthenticationInfo, &received_vector);
+
+    ogs_assert(send_response_success == true);
+
+    // ogs_assert(true ==
+    //     ausf_sbi_discover_and_send(OpenAPI_nf_type_UDM, ausf_ue, stream,
+    //         AuthenticationInfo->resynchronization_info,
+    //         ausf_nudm_ueau_build_get));
 
     return true;
 }
@@ -98,6 +106,9 @@ bool ausf_nausf_auth_handle_authenticate_confirmation(ausf_ue_t *ausf_ue,
 
     ogs_ascii_to_hex(res_star_string, strlen(res_star_string),
             res_star, sizeof(res_star));
+
+    // TODO(matt9j) Intercept confirmation here
+    ogs_assert(true == ausf_dauth_shim_request_confirm_auth(ausf_ue, res_star));
 
     if (memcmp(res_star, ausf_ue->xres_star, OGS_MAX_RES_LEN) != 0) {
         ogs_log_hexdump(OGS_LOG_WARN, res_star, OGS_MAX_RES_LEN);
