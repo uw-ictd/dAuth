@@ -159,106 +159,11 @@ ausf_dauth_shim_forward_received_auth_vector(
     server = ogs_sbi_server_from_stream(stream);
     ogs_assert(server);
 
-    // ogs_assert(recvmsg);
-
-    // AuthenticationInfoResult = recvmsg->AuthenticationInfoResult;
-    // if (!AuthenticationInfoResult) {
-    //     ogs_error("[%s] No AuthenticationInfoResult", ausf_ue->suci);
-    //     ogs_assert(true ==
-    //         ogs_sbi_server_send_error(stream,
-    //             OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
-    //             recvmsg, "No AuthenticationInfoResult", ausf_ue->suci));
-    //     return false;
-    // }
-
-    /* See TS29.509 6.1.7.3 Application Errors */
-    // if (AuthenticationInfoResult->auth_type !=
-    //         OpenAPI_auth_type_5G_AKA) {
-    //     ogs_error("[%s] Not supported Auth Method [%d]",
-    //         ausf_ue->suci, AuthenticationInfoResult->auth_type);
-    //     ogs_assert(true ==
-    //         ogs_sbi_server_send_error(stream,
-    //             OGS_SBI_HTTP_STATUS_NOT_IMPLEMENTED,
-    //             recvmsg, "Not supported Auth Method", ausf_ue->suci));
-    //     return false;
-    // }
-
-    // AuthenticationVector =
-    //     AuthenticationInfoResult->authentication_vector;
-    // if (!AuthenticationVector) {
-    //     ogs_error("[%s] No AuthenticationVector", ausf_ue->suci);
-    //     ogs_assert(true ==
-    //         ogs_sbi_server_send_error(stream,
-    //             OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
-    //             recvmsg, "No AuthenticationVector", ausf_ue->suci));
-    //     return false;
-    // }
-
-    // if (AuthenticationVector->av_type != OpenAPI_av_type_5G_HE_AKA) {
-    //     ogs_error("[%s] Not supported Auth Method [%d]",
-    //         ausf_ue->suci, AuthenticationVector->av_type);
-    //     ogs_assert(true ==
-    //         ogs_sbi_server_send_error(stream,
-    //             OGS_SBI_HTTP_STATUS_FORBIDDEN,
-    //             recvmsg, "Not supported Auth Method", ausf_ue->suci));
-    //     return false;
-    // }
-
-    // if (!AuthenticationVector->rand) {
-    //     ogs_error("[%s] No AuthenticationVector.rand", ausf_ue->suci);
-    //     ogs_assert(true ==
-    //         ogs_sbi_server_send_error(stream,
-    //             OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
-    //             recvmsg, "No AuthenticationVector.rand", ausf_ue->suci));
-    //     return false;
-    // }
-
-    // if (!AuthenticationVector->xres_star) {
-    //     ogs_error("[%s] No AuthenticationVector.xresStar",
-    //             ausf_ue->suci);
-    //     ogs_assert(true ==
-    //         ogs_sbi_server_send_error(stream,
-    //             OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
-    //             recvmsg, "No AuthenticationVector.xresStar", ausf_ue->suci));
-    //     return false;
-    // }
-
-    // if (!AuthenticationVector->autn) {
-    //     ogs_error("[%s] No AuthenticationVector.autn", ausf_ue->suci);
-    //     ogs_assert(true ==
-    //         ogs_sbi_server_send_error(stream,
-    //             OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
-    //             recvmsg, "No AuthenticationVector.autn", ausf_ue->suci));
-    //     return false;
-    // }
-
-    // if (!AuthenticationVector->kausf) {
-    //     ogs_error("[%s] No AuthenticationVector.kausf", ausf_ue->suci);
-    //     ogs_assert(true ==
-    //         ogs_sbi_server_send_error(stream,
-    //             OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
-    //             recvmsg, "No AuthenticationVector.kausf", ausf_ue->suci));
-    //     return false;
-    // }
-
     ausf_ue->auth_type = OpenAPI_auth_type_5G_AKA;
 
     memcpy(ausf_ue->rand, received_vector->rand, sizeof(ausf_ue->rand));
     memcpy(ausf_ue->hxres_star, received_vector->xres_star_hash, sizeof(ausf_ue->hxres_star));
     // NOTE: Missing kausf, which open5gs has received from the UDM at this point
-
-    // ogs_ascii_to_hex(
-    //     AuthenticationVector->rand,
-    //     strlen(AuthenticationVector->rand),
-    //     ausf_ue->rand, sizeof(ausf_ue->rand));
-    // ogs_ascii_to_hex(
-    //     AuthenticationVector->xres_star,
-    //     strlen(AuthenticationVector->xres_star),
-    //     ausf_ue->xres_star, sizeof(ausf_ue->xres_star));
-    // ogs_ascii_to_hex(
-    //     AuthenticationVector->kausf,
-    //     strlen(AuthenticationVector->kausf),
-    //     ausf_ue->kausf, sizeof(ausf_ue->kausf));
 
     memset(&UeAuthenticationCtx, 0, sizeof(UeAuthenticationCtx));
 
