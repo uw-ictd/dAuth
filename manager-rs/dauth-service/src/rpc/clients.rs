@@ -97,40 +97,41 @@ async fn client_send_usage(
     _av_result: &AkaVectorResp,
     addr: &String,
 ) -> Result<(), DauthError> {
-    match context.rpc_context.client_stubs.lock().await.get_mut(addr) {
-        Some(client) => {
-            match client
-                .get_confirm_key(tonic::Request::new(GetHomeConfirmKeyReq {
-                    payload: Some(
-                        crate::rpc::dauth::remote::get_home_confirm_key_req::Payload {
-                            kind: crate::rpc::dauth::remote::SignedMessageKind::GetHomeConfirmKeyReq
-                                as i32,
-                            serving_network_id: "Test".to_string(),
-                            res_star: vec![0],
-                            hash_xres_star: vec![0],
-                        },
-                    ),
-                    serving_network_signature: vec![0],
-                }))
-                .await
-            {
-                Ok(_) => {
-                    tracing::info!("Successfully sent usage message to {}", addr);
-                    Ok(())
-                }
-                Err(e) => {
-                    tracing::error!("Failed to send request: {}", e);
-                    Err(DauthError::ClientError(format!(
-                        "Failed to send request: {}",
-                        e
-                    )))
-                }
-            }
-        }
-        None => Err(DauthError::ClientError(format!(
-            "Client stub not found (should have been added)"
-        ))),
-    }
+    unimplemented!();
+    // match context.rpc_context.client_stubs.lock().await.get_mut(addr) {
+    //     Some(client) => {
+    //         match client
+    //             .get_confirm_key(tonic::Request::new(GetHomeConfirmKeyReq {
+    //                 payload: Some(
+    //                     crate::rpc::dauth::remote::get_home_confirm_key_req::Payload {
+    //                         kind: crate::rpc::dauth::remote::SignedMessageKind::GetHomeConfirmKeyReq
+    //                             as i32,
+    //                         serving_network_id: "Test".to_string(),
+    //                         res_star: vec![0],
+    //                         hash_xres_star: vec![0],
+    //                     },
+    //                 ),
+    //                 serving_network_signature: vec![0],
+    //             }))
+    //             .await
+    //         {
+    //             Ok(_) => {
+    //                 tracing::info!("Successfully sent usage message to {}", addr);
+    //                 Ok(())
+    //             }
+    //             Err(e) => {
+    //                 tracing::error!("Failed to send request: {}", e);
+    //                 Err(DauthError::ClientError(format!(
+    //                     "Failed to send request: {}",
+    //                     e
+    //                 )))
+    //             }
+    //         }
+    //     }
+    //     None => Err(DauthError::ClientError(format!(
+    //         "Client stub not found (should have been added)"
+    //     ))),
+    // }
 }
 
 /// Determines address of the home network of the request.
