@@ -51,6 +51,7 @@ fn generate_vector_with_rand(
 
     AuthVectorData {
         xres_star_hash,
+        xres_star,
         autn,
         rand: rand.clone(),
         kseaf,

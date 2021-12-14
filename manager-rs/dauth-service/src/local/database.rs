@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use auth_vector::types::{HresStar, Kseaf};
+use auth_vector::types::{ResStar, Kseaf};
 
 use crate::data::{
     context::DauthContext,
@@ -48,7 +48,7 @@ pub fn auth_vector_delete(
 /// Removes and returns a kseaf value
 pub fn kseaf_get(
     context: Arc<DauthContext>,
-    xres_star_hash: &HresStar,
+    xres_star_hash: &ResStar,
 ) -> Result<Kseaf, DauthError> {
     tracing::info!("Kseaf get: {:?}", xres_star_hash);
 
@@ -71,12 +71,12 @@ pub fn kseaf_get(
 }
 
 /// Adds a kseaf value with the given xres_star_hash
-pub fn kseaf_put(context: Arc<DauthContext>, xres_star_hash: &HresStar, kseaf: &Kseaf) {
-    tracing::info!("Kseaf put: {:?} - {:?}", xres_star_hash, kseaf);
+pub fn kseaf_put(context: Arc<DauthContext>, xres_star: &ResStar, kseaf: &Kseaf) {
+    tracing::info!("Kseaf put: {:?} - {:?}", xres_star, kseaf);
     context
         .local_context
         .kseaf_map
         .lock()
         .unwrap()
-        .insert(xres_star_hash.clone(), kseaf.clone());
+        .insert(xres_star.clone(), kseaf.clone());
 }

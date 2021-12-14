@@ -94,7 +94,7 @@ fn auth_vector_generate(
 
             local::database::kseaf_put(
                 context.clone(),
-                &auth_vector_data.xres_star_hash,
+                &auth_vector_data.xres_star,
                 &auth_vector_data.kseaf,
             );
 
