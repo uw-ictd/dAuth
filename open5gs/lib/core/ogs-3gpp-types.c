@@ -229,6 +229,9 @@ char *ogs_supi_from_suci(char *suci)
             break;
         END
         break;
+    CASE("imsi")
+        supi = ogs_msprintf("%s", suci);
+        break;
     DEFAULT
         ogs_error("Not implemented [%s]", array[0]);
         break;
