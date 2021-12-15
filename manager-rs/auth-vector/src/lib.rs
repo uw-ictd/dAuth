@@ -75,8 +75,17 @@ fn gen_kausf(ck: &types::Ck, ik: &types::Ik, autn: &types::Autn) -> types::Kausf
     key.extend(ik);
 
     let mut data = vec![constants::FC_KAUSF];
+
     data.extend(get_snn().as_bytes());
-    data.extend(autn);
+    let snn_len = get_snn().as_bytes().len() as u16;
+    let snn_len = snn_len.to_be_bytes();
+    data.extend(snn_len);
+
+    let sqn_xor_ak = &autn[..6];
+    data.extend(sqn_xor_ak);
+    let autn_len = sqn_xor_ak.len() as u16;
+    let autn_len = autn_len.to_be_bytes();
+    data.extend(autn_len);
 
     type HmacSha256 = Hmac<Sha256>;
     let mut mac = HmacSha256::new_from_slice(&key).expect("HMAC can take key of any size");
@@ -90,6 +99,9 @@ fn gen_kausf(ck: &types::Ck, ik: &types::Ik, autn: &types::Autn) -> types::Kausf
 fn gen_kseaf(kausf: &types::Kausf) -> types::Kseaf {
     let mut data = vec![constants::FC_KSEAF];
     data.extend(get_snn().as_bytes());
+    let snn_len = get_snn().as_bytes().len() as u16;
+    let snn_len = snn_len.to_be_bytes();
+    data.extend(snn_len);
 
     type HmacSha256 = Hmac<Sha256>;
     let mut mac = HmacSha256::new_from_slice(kausf).expect("HMAC can take key of any size");
