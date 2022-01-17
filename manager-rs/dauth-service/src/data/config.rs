@@ -17,6 +17,7 @@ pub struct DauthConfig {
     pub host_addr: String,
     pub local_user_id_min: String,
     pub local_user_id_max: String,
+    pub ed25519_keyfile_path: String,
 }
 
 /// For ease of inputting content in the yaml file

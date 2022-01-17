@@ -16,3 +16,7 @@ users:
 # min and max values for user id (imsi/supi) to be considered local
 local_user_id_min: "901700000000002"
 local_user_id_max: "901700000000002"
+
+# keyfile for ed25519 keys used in signing remote messages
+ed25519_keyfile_path: "~/dauth_service/ed25519_keys"
+

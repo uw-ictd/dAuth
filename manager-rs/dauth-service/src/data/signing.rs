@@ -1,5 +1,9 @@
+use std::sync::Arc;
+
+use ed25519_dalek::Signer;
 use prost::Message;
 
+use crate::data::context::DauthContext;
 use crate::rpc::dauth::remote;
 
 /// All payload types that expect to be signed
@@ -13,8 +17,8 @@ pub enum SignPayloadType {
     FloodVectorReq(remote::flood_vector_req::Payload),
 }
 
-pub fn sign_message(payload: SignPayloadType) -> remote::SignedMessage {
-    let (bytes, signed_type) = match payload {
+pub fn sign_message(context: Arc<DauthContext>, payload: SignPayloadType) -> remote::SignedMessage {
+    let (payload_bytes, payload_kind) = match payload {
         SignPayloadType::GetHomeConfirmKeyReq(payload_message) => (
             payload_message.encode_to_vec(),
             remote::SignedMessageKind::GetHomeConfirmKeyReq,
@@ -44,5 +48,23 @@ pub fn sign_message(payload: SignPayloadType) -> remote::SignedMessage {
             remote::SignedMessageKind::FloodVectorReq,
         ),
     };
-    // TODO (nickfh7) Add signing logic, i.e. via dalek
+
+    let container = remote::signed_message::Container {
+        kind: payload_kind as i32,
+        payload: payload_bytes,
+    }
+    .encode_to_vec();
+
+    let signature = Vec::from(
+        context
+            .local_context
+            .signing_keys
+            .sign(&container)
+            .to_bytes(),
+    );
+
+    remote::SignedMessage {
+        container,
+        signature,
+    }
 }
