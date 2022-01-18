@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use ed25519_dalek::Signer;
+use ed25519_dalek::{PublicKey, Signature, Signer, Verifier};
 use prost::Message;
 
 use crate::data::context::DauthContext;
@@ -66,5 +66,29 @@ pub fn sign_message(context: Arc<DauthContext>, payload: SignPayloadType) -> rem
     remote::SignedMessage {
         container,
         signature,
+    }
+}
+
+pub fn verify_message(
+    _context: Arc<DauthContext>,
+    public_key: PublicKey,
+    message: remote::SignedMessage,
+) -> bool {
+    match Signature::from_bytes(&message.signature) {
+        Ok(signature) => match public_key.verify(&message.container, &signature) {
+            Ok(()) => true,
+            Err(e) => {
+                tracing::warn!("Failed to verify message: {} -- {:?}", e, message);
+                false
+            }
+        },
+        Err(e) => {
+            tracing::warn!(
+                "Failed to create signature from bytes: {} -- {:?}",
+                e,
+                message
+            );
+            false
+        }
     }
 }
