@@ -77,10 +77,7 @@ fn generate_keys(keyfile_path: &String) -> Keypair {
                 tracing::info!("Existing keyfile found");
                 keypair
             }
-            Err(e) => {
-                tracing::warn!("Failed to parse existing key bytes, rebuilding -- {}", e);
-                build_keyfile(keyfile_path)
-            }
+            Err(e) => panic!("Failed to parse existing key bytes in keyfile -- {}", e),
         },
         Err(e) => {
             tracing::warn!("Failed to read content from '{}' -- {}", keyfile_path, e);
