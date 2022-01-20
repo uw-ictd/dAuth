@@ -25,4 +25,10 @@ pub enum DauthError {
 
     #[error("Invalid UTF8 error -- {0}")]
     InvalidUtf8Error(#[from] std::str::Utf8Error),
+
+    #[error("Error while verifying message -- {0}")]
+    SigningError(#[from] ed25519_dalek::SignatureError),
+
+    #[error("Error while decoding message -- {0}")]
+    DecodeError(#[from] prost::DecodeError),
 }

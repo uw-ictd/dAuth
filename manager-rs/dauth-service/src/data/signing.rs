@@ -4,6 +4,7 @@ use ed25519_dalek::{PublicKey, Signature, Signer, Verifier};
 use prost::Message;
 
 use crate::data::context::DauthContext;
+use crate::data::error::DauthError;
 use crate::rpc::dauth::remote;
 
 /// All payload types that expect to be signed
@@ -73,22 +74,44 @@ pub fn verify_message(
     _context: Arc<DauthContext>,
     public_key: PublicKey,
     message: remote::SignedMessage,
-) -> bool {
-    match Signature::from_bytes(&message.signature) {
-        Ok(signature) => match public_key.verify(&message.container, &signature) {
-            Ok(()) => true,
-            Err(e) => {
-                tracing::warn!("Failed to verify message: {} -- {:?}", e, message);
-                false
-            }
-        },
-        Err(e) => {
-            tracing::warn!(
-                "Failed to create signature from bytes: {} -- {:?}",
-                e,
-                message
-            );
-            false
+) -> Result<SignPayloadType, DauthError> {
+    public_key.verify(
+        &message.container,
+        &Signature::from_bytes(&message.signature)?,
+    )?;
+    let container = remote::signed_message::Container::decode(message.container.as_slice())?;
+
+    match container.kind() {
+        remote::SignedMessageKind::GetHomeConfirmKeyReq => {
+            Ok(SignPayloadType::GetHomeConfirmKeyReq(
+                remote::get_home_confirm_key_req::Payload::decode(container.payload.as_slice())?,
+            ))
         }
+        remote::SignedMessageKind::EnrollBackupPrepareReq => {
+            Ok(SignPayloadType::EnrollBackupPrepareReq(
+                remote::enroll_backup_prepare_req::Payload::decode(container.payload.as_slice())?,
+            ))
+        }
+        remote::SignedMessageKind::GetBackupAuthVectorReq => {
+            Ok(SignPayloadType::GetBackupAuthVectorReq(
+                remote::get_backup_auth_vector_req::Payload::decode(container.payload.as_slice())?,
+            ))
+        }
+        remote::SignedMessageKind::GetKeyShareReq => Ok(SignPayloadType::GetKeyShareReq(
+            remote::get_key_share_req::Payload::decode(container.payload.as_slice())?,
+        )),
+        remote::SignedMessageKind::WithdrawBackupReq => Ok(SignPayloadType::WithdrawBackupReq(
+            remote::withdraw_backup_req::Payload::decode(container.payload.as_slice())?,
+        )),
+        remote::SignedMessageKind::WithdrawSharesReq => Ok(SignPayloadType::WithdrawSharesReq(
+            remote::withdraw_shares_req::Payload::decode(container.payload.as_slice())?,
+        )),
+        remote::SignedMessageKind::FloodVectorReq => Ok(SignPayloadType::FloodVectorReq(
+            remote::flood_vector_req::Payload::decode(container.payload.as_slice())?,
+        )),
+        _ => Err(DauthError::InvalidMessageError(format!(
+            "Unsupported type: {:?}",
+            container.kind()
+        ))),
     }
 }
