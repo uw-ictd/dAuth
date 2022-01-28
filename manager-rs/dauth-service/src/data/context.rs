@@ -3,6 +3,7 @@ use std::{
     sync::Mutex,
 };
 
+use ed25519_dalek::Keypair;
 use tokio::runtime::Handle;
 use tonic::transport::Channel;
 
@@ -27,6 +28,7 @@ pub struct LocalContext {
     pub user_info_database: Mutex<HashMap<Id, UserInfo>>,
     pub local_user_id_min: Id,
     pub local_user_id_max: Id,
+    pub signing_keys: Keypair,
 }
 
 #[derive(Debug)]

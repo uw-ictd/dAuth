@@ -76,7 +76,6 @@ pub fn convert_int_string_to_byte_vec_with_length(
     zero_pad(convert_int_string_to_byte_vec(s)?, length)
 }
 
-
 #[cfg(test)]
 mod tests {
     use crate::data::utilities;

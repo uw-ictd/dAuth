@@ -27,10 +27,10 @@ impl AuthVectorReq {
                 Ok(AuthVectorReq {
                     user_id: id_string.to_string(),
                 })
-            },
-            crate::rpc::dauth::common::UserIdKind::Unknown => {
-                Err(DauthError::InvalidMessageError("user_id_kind is unknown".to_owned()))
             }
+            crate::rpc::dauth::common::UserIdKind::Unknown => Err(DauthError::InvalidMessageError(
+                "user_id_kind is unknown".to_owned(),
+            )),
         }
     }
 }
