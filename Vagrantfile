@@ -43,7 +43,7 @@ Vagrant.configure(2) do |config|
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
       ansible.extra_vars = {
-        colte_ip: "192.168.41.200"
+        colte_ip: "192.168.61.200"
       }
     end
 
@@ -67,7 +67,7 @@ Vagrant.configure(2) do |config|
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
       ansible.extra_vars = {
-        colte_ip: "192.168.42.200"
+        colte_ip: "192.168.62.200"
       }
     end
   end
@@ -104,7 +104,7 @@ Vagrant.configure(2) do |config|
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
       ansible.extra_vars = {
-        colte_ip: "192.168.42.200"
+        colte_ip: "192.168.56.200"
       }
     end
   end
