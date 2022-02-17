@@ -126,6 +126,11 @@
         name: cmake
         state: latest
 
+    - name: Install nfpm
+      become: yes
+      apt:
+        deb: https://github.com/goreleaser/nfpm/releases/download/v2.13.0/nfpm_amd64.deb
+
     # - name: Configure forwarding and rounting (script)
     #   command: /home/vagrant/scripts/configure-fwd
     #   become: yes
