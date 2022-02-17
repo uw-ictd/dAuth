@@ -144,6 +144,23 @@
         dest: "/etc/chrony/chrony.conf"
         remote_src: no
 
+    - name: Download Rustup
+      get_url:
+        url: "https://sh.rustup.rs"
+        dest: "/home/vagrant/rustup.sh"
+        mode: "0755"
+        owner: "vagrant"
+      register: rustup
+
+    - name: Run rustup
+      ansible.builtin.shell:
+        cmd: "/home/vagrant/rustup.sh -y"
+      when: rustup.changed
+
+    - name: Install or update rust stable
+      ansible.builtin.shell:
+        cmd: "/home/vagrant/.cargo/bin/rustup update stable"
+
     # - name: Configure forwarding and rounting (script)
     #   command: /home/vagrant/scripts/configure-fwd
     #   become: yes
