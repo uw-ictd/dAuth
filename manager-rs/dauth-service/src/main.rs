@@ -21,11 +21,12 @@ use auth_vector::types::Id;
 
 use crate::data::{
     config::DauthConfig,
-    context::{DauthContext, LocalContext, RemoteContext, RpcContext},
+    context::{DatabaseContext, DauthContext, LocalContext, RemoteContext, RpcContext},
     error::DauthError,
     opt::DauthOpt,
     user_info::UserInfo,
 };
+use crate::local::database;
 use crate::rpc::server;
 
 #[tokio::main]
@@ -34,12 +35,14 @@ async fn main() {
     tracing_subscriber::fmt().with_max_level(Level::INFO).init();
 
     let dauth_opt = DauthOpt::from_args();
-    let context = build_context(dauth_opt).expect("Failed to generate context");
+    let context = build_context(dauth_opt)
+        .await
+        .expect("Failed to generate context");
 
     server::start_server(context.clone()).await;
 }
 
-fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
+async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
     let config = build_config(dauth_opt.config_path)?;
     let mut user_map: HashMap<Id, UserInfo> = HashMap::new();
 
@@ -49,6 +52,8 @@ fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
     }
 
     let keys = generate_keys(&config.ed25519_keyfile_path);
+
+    let pool = database::database_init(&config.database_path).await?;
 
     Ok(Arc::new(DauthContext {
         local_context: LocalContext {
@@ -66,6 +71,10 @@ fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
             runtime_handle: Handle::current(),
             host_addr: config.host_addr,
             client_stubs: tokio::sync::Mutex::new(HashMap::new()),
+        },
+        database_context: DatabaseContext {
+            database_path: config.database_path,
+            pool: pool,
         },
     }))
 }

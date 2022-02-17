@@ -23,7 +23,7 @@ pub async fn auth_vector_get(
 ) -> Result<AuthVectorRes, DauthError> {
     tracing::info!("Handling request: {:?}", av_request);
 
-    match local::database::auth_vector_next(context.clone(), av_request) {
+    match local::database::auth_vector_next(context.clone(), av_request).await {
         Ok(av_result) => {
             tracing::info!("Reporting used {:?}", av_result);
             clients::broadcast_auth_vector_used(context, &av_result).await;
@@ -61,13 +61,12 @@ pub async fn confirm_auth_vector_used(
             Err(DauthError::NotFoundError("Key not available".to_string()))
         }
     }
-
 }
 
 /// Returns whether the auth vector belongs to this core
 fn auth_vector_is_local(context: Arc<DauthContext>, av_request: &AuthVectorReq) -> bool {
-    (av_request.user_id <= context.local_context.local_user_id_max) &&
-    (av_request.user_id >= context.local_context.local_user_id_min)
+    (av_request.user_id <= context.local_context.local_user_id_max)
+        && (av_request.user_id >= context.local_context.local_user_id_min)
 }
 
 /// Generates and returns a new auth vector

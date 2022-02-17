@@ -3,9 +3,9 @@ use std::sync::Arc;
 use crate::data::context::DauthContext;
 use crate::data::vector::AuthVectorReq;
 use crate::local;
+use crate::rpc::dauth::local::aka_confirm_resp;
 use crate::rpc::dauth::local::local_authentication_server::LocalAuthentication;
 use crate::rpc::dauth::local::{AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp};
-use crate::rpc::dauth::local::aka_confirm_resp;
 use crate::rpc::dauth::remote::home_network_server::HomeNetwork;
 use crate::rpc::dauth::remote::{
     GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq, GetHomeConfirmKeyResp,
@@ -51,11 +51,16 @@ impl LocalAuthentication for DauthHandler {
         tracing::info!("Request: {:?}", request);
 
         let res_star = request.into_inner().res_star;
-        let res_star : auth_vector::types::ResStar = res_star.try_into().or_else(|e: Vec<u8>| Err(tonic::Status::new(tonic::Code::OutOfRange, "Unable to parse res_star")) )?;
-
-        let kseaf = local::manager::confirm_auth_vector_used(self.context.clone(), res_star).await.or_else(|e| {
-            Err(tonic::Status::new(tonic::Code::NotFound, e.to_string()))
+        let res_star: auth_vector::types::ResStar = res_star.try_into().or_else(|e: Vec<u8>| {
+            Err(tonic::Status::new(
+                tonic::Code::OutOfRange,
+                "Unable to parse res_star",
+            ))
         })?;
+
+        let kseaf = local::manager::confirm_auth_vector_used(self.context.clone(), res_star)
+            .await
+            .or_else(|e| Err(tonic::Status::new(tonic::Code::NotFound, e.to_string())))?;
 
         let response_payload = AkaConfirmResp {
             error: aka_confirm_resp::ErrorKind::NoError as i32,
