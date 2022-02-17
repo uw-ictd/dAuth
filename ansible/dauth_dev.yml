@@ -131,6 +131,19 @@
       apt:
         deb: https://github.com/goreleaser/nfpm/releases/download/v2.13.0/nfpm_amd64.deb
 
+    - name: Install chrony
+      become: yes
+      apt:
+        name: chrony
+        state: latest
+
+    - name: Install chrony local time sync config
+      become: yes
+      copy:
+        src: "files/chrony.conf"
+        dest: "/etc/chrony/chrony.conf"
+        remote_src: no
+
     # - name: Configure forwarding and rounting (script)
     #   command: /home/vagrant/scripts/configure-fwd
     #   become: yes
