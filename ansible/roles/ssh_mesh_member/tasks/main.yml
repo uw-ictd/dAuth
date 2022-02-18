@@ -13,3 +13,9 @@
     user: "vagrant"
     state: "present"
     key: "{{ lookup('file', '{{playbook_dir}}/../infra/keys/dev_id_ed25519_dauth.pub') }}"
+
+- name: Install avahi
+  become: yes
+  apt:
+    name: "avahi-daemon"
+    state: "present"
