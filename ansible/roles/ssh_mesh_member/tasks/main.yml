@@ -1,0 +1,21 @@
+- name: Create ssh key if not exists
+  openssh_keypair:
+    path: "{{role_path}}/../../../infra/keys/dev_id_ed25519_dauth"
+    type: "ed25519"
+    size: 4096
+    state: present
+    force: no
+  delegate_to: "localhost"
+  become: no
+
+- name: Add key to vm
+  ansible.posix.authorized_key:
+    user: "vagrant"
+    state: "present"
+    key: "{{ lookup('file', '{{playbook_dir}}/../infra/keys/dev_id_ed25519_dauth.pub') }}"
+
+- name: Install avahi
+  become: yes
+  apt:
+    name: "avahi-daemon"
+    state: "present"

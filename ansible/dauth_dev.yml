@@ -7,8 +7,26 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
   become: no
+  roles:
+    - "ssh_mesh_member"
 
   tasks:
+
+    - name: Create ~/.ssh folder
+      file:
+        path: ~/.ssh
+        state: directory
+        mode: 0700
+        owner: vagrant
+        group: vagrant
+
+    - name: Upload SSH key
+      copy:
+        src: ../infra/keys/dev_id_ed25519_dauth
+        dest: ~/.ssh/id_ed25519
+        owner: vagrant
+        group: vagrant
+        mode: 0700
 
     - name: Add kitware key
       become: yes
@@ -125,6 +143,41 @@
       apt:
         name: cmake
         state: latest
+
+    - name: Install nfpm
+      become: yes
+      apt:
+        deb: https://github.com/goreleaser/nfpm/releases/download/v2.13.0/nfpm_amd64.deb
+
+    - name: Install chrony
+      become: yes
+      apt:
+        name: chrony
+        state: latest
+
+    - name: Install chrony local time sync config
+      become: yes
+      copy:
+        src: "files/chrony.conf"
+        dest: "/etc/chrony/chrony.conf"
+        remote_src: no
+
+    - name: Download Rustup
+      get_url:
+        url: "https://sh.rustup.rs"
+        dest: "/home/vagrant/rustup.sh"
+        mode: "0755"
+        owner: "vagrant"
+      register: rustup
+
+    - name: Run rustup
+      ansible.builtin.shell:
+        cmd: "/home/vagrant/rustup.sh -y"
+      when: rustup.changed
+
+    - name: Install or update rust stable
+      ansible.builtin.shell:
+        cmd: "/home/vagrant/.cargo/bin/rustup update stable"
 
     # - name: Configure forwarding and rounting (script)
     #   command: /home/vagrant/scripts/configure-fwd
