@@ -7,8 +7,26 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
   become: no
+  roles:
+    - "ssh_mesh_member"
 
   tasks:
+
+    - name: Create ~/.ssh folder
+      file:
+        path: ~/.ssh
+        state: directory
+        mode: 0700
+        owner: vagrant
+        group: vagrant
+
+    - name: Upload SSH key
+      copy:
+        src: ../infra/keys/dev_id_ed25519_dauth
+        dest: ~/.ssh/id_ed25519
+        owner: vagrant
+        group: vagrant
+        mode: 0700
 
     - name: Add kitware key
       become: yes
