@@ -81,11 +81,13 @@ Vagrant.configure(2) do |config|
     colte.vm.synced_folder '.', '/vagrant', disabled: true
 
     if Vagrant::Util::Platform.windows? then
+      colte.vm.synced_folder "./infra/" , "/home/vagrant/infra", type: "virtualbox"
       colte.vm.synced_folder "./manager-rs/" , "/home/vagrant/manager-rs", type: "virtualbox"
       colte.vm.synced_folder "./open5gs/" , "/home/vagrant/open5gs", type: "virtualbox"
       colte.vm.synced_folder "./protos/" , "/home/vagrant/protos", type: "virtualbox"
       colte.vm.synced_folder "./ueransim/" , "/home/vagrant/ueransim", type: "virtualbox"
     else
+      colte.vm.synced_folder "./infra/" , "/home/vagrant/infra", type: "nfs", nfs_version: 4
       colte.vm.synced_folder "./manager-rs/" , "/home/vagrant/manager-rs", type: "nfs", nfs_version: 4
       colte.vm.synced_folder "./open5gs/" , "/home/vagrant/open5gs", type: "nfs", nfs_version: 4
       colte.vm.synced_folder "./protos/" , "/home/vagrant/protos", type: "nfs", nfs_version: 4
