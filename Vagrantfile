@@ -29,7 +29,8 @@ Vagrant.configure(2) do |config|
     colte.vm.box = "ubuntu/focal64"
     colte.vm.hostname = "colte1"
 
-    colte.vm.network "private_network", ip: "192.168.61.200"
+    machine_ip = "192.168.56.101"
+    colte.vm.network "private_network", ip: machine_ip
 
     colte.vm.provider "virtualbox" do |vb|
       vb.customize ["modifyvm", :id, "--memory", "2048"]
@@ -43,7 +44,7 @@ Vagrant.configure(2) do |config|
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
       ansible.extra_vars = {
-        colte_ip: "192.168.61.200"
+        colte_ip: machine_ip
       }
     end
 
@@ -53,7 +54,8 @@ Vagrant.configure(2) do |config|
     colte.vm.box = "ubuntu/focal64"
     colte.vm.hostname = "colte2"
 
-    colte.vm.network "private_network", ip: "192.168.62.200"
+    machine_ip = "192.168.56.102"
+    colte.vm.network "private_network", ip: machine_ip
 
     colte.vm.provider "virtualbox" do |vb|
       vb.customize ["modifyvm", :id, "--memory", "2048"]
@@ -67,7 +69,7 @@ Vagrant.configure(2) do |config|
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
       ansible.extra_vars = {
-        colte_ip: "192.168.62.200"
+        colte_ip: machine_ip
       }
     end
   end
@@ -76,7 +78,8 @@ Vagrant.configure(2) do |config|
     colte.vm.box = "ubuntu/focal64"
     colte.vm.hostname = "dauthDev"
 
-    colte.vm.network "private_network", ip: "192.168.56.200"
+    machine_ip = "192.168.56.2"
+    colte.vm.network "private_network", ip: machine_ip
 
     colte.vm.synced_folder '.', '/vagrant', disabled: true
 
@@ -106,7 +109,7 @@ Vagrant.configure(2) do |config|
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
       ansible.extra_vars = {
-        colte_ip: "192.168.56.200"
+        colte_ip: machine_ip
       }
     end
   end
