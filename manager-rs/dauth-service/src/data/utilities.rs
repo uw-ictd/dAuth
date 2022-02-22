@@ -1,4 +1,4 @@
-use auth_vector::types::Id;
+use auth_vector::types::Sqn;
 
 use crate::data::error::DauthError;
 
@@ -76,9 +76,17 @@ pub fn convert_int_string_to_byte_vec_with_length(
     zero_pad(convert_int_string_to_byte_vec(s)?, length)
 }
 
+/// Converts sqn_bytes to seqnum int
+pub fn convert_sqn_bytes_to_int(sqn_bytes: &Sqn) -> Result<i64, DauthError> {
+    Ok(i64::from_be_bytes(
+        zero_pad(sqn_bytes.to_vec(), 8)?[..].try_into()?,
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use crate::data::utilities;
+    use auth_vector::constants::SQN_LENGTH;
 
     #[test]
     fn test_string_hex_to_byte_vec() {
@@ -195,6 +203,14 @@ mod tests {
         assert_eq!(
             utilities::convert_int_string_to_byte_vec_with_length("256", 3).unwrap(),
             vec![0x00, 0x01, 0x00]
+        );
+    }
+
+    #[test]
+    fn test_sqn_bytes_into_int() {
+        assert_eq!(
+            utilities::convert_sqn_bytes_to_int(&utilities::convert_int_string_to_byte_vec_with_length("1", SQN_LENGTH).unwrap()[..].try_into().unwrap()).unwrap(),
+            1
         );
     }
 }

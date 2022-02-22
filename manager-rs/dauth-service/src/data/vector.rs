@@ -12,6 +12,7 @@ pub struct AuthVectorReq {
 #[derive(Debug)]
 pub struct AuthVectorRes {
     pub user_id: Id,
+    pub seqnum: i64,
     pub xres_star_hash: HresStar,
     pub autn: Autn,
     pub rand: Rand,
@@ -45,6 +46,7 @@ impl AuthVectorRes {
                 rand: self.rand.to_vec(),
                 xres_star_hash: self.xres_star_hash.to_vec(),
                 autn: self.autn.to_vec(),
+                seqnum: self.seqnum,
             }),
         }
     }

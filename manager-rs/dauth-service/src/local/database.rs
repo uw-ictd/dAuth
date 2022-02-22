@@ -12,6 +12,8 @@ use crate::data::{
     vector::{AuthVectorReq, AuthVectorRes},
 };
 
+use crate::local::queries;
+
 /// Builds the database connection pool.
 /// Creates the database and tables if they don't exist.
 pub async fn database_init(database_path: &str) -> Result<SqlitePool, DauthError> {
@@ -24,28 +26,8 @@ pub async fn database_init(database_path: &str) -> Result<SqlitePool, DauthError
         )
         .await?;
 
-    // TODO (nickfh7) add ranking, i.e. by seqnum
-    sqlx::query(&format!(
-        "CREATE TABLE IF NOT EXISTS {} (
-            {} TEXT NOT NULL,
-            {} BLOB NOT NULL,
-            {} BLOB NOT NULL,
-            {} BLOB NOT NULL
-        );",
-        AV_TABLE_NAME, AV_ID_FIELD, AV_XRES_FIELD, AV_AUTN_FIELD, AV_RAND_FIELD
-    ))
-    .execute(&pool)
-    .await?;
-
-    sqlx::query(&format!(
-        "CREATE TABLE IF NOT EXISTS {} (
-            {} INT PRIMARY KEY,
-            {} BLOB NOT NULL
-        );",
-        KSEAF_TABLE_NAME, KSEAF_ID_FIELD, KSEAF_DATA_FIELD
-    ))
-    .execute(&pool)
-    .await?;
+    queries::init_vector(&pool).await?;
+    queries::init_kseaf(&pool).await?;
 
     Ok(pool)
 }
@@ -59,30 +41,19 @@ pub async fn auth_vector_next(
 
     let mut transaction = context.database_context.pool.begin().await?;
 
-    let row = sqlx::query(&format!(
-        "SELECT rowid, * 
-        FROM {}
-        WHERE {}=$1 
-        LIMIT 1;",
-        AV_TABLE_NAME, AV_ID_FIELD
-    ))
-    .bind(&av_request.user_id)
-    .fetch_one(&mut transaction)
-    .await?;
-
-    sqlx::query(&format!(
-        "DELETE FROM {}
-        WHERE rowid=$2",
-        AV_TABLE_NAME
-    ))
-    .bind(row.try_get::<i64, &str>("rowid")?)
-    .execute(&mut transaction)
+    let row = queries::get_first_vector(&mut transaction, &av_request.user_id).await?;
+    queries::remove_vector(
+        &mut transaction,
+        row.try_get::<&str, &str>(AV_ID_FIELD)?,
+        row.try_get::<i64, &str>(AV_RANK_FIELD)?,
+    )
     .await?;
 
     transaction.commit().await?;
 
     Ok(AuthVectorRes {
         user_id: String::from(row.try_get::<&str, &str>(AV_ID_FIELD)?),
+        seqnum: row.try_get::<i64, &str>(AV_RANK_FIELD)?,
         xres_star_hash: row.try_get::<&[u8], &str>(AV_XRES_FIELD)?.try_into()?,
         autn: row.try_get::<&[u8], &str>(AV_AUTN_FIELD)?.try_into()?,
         rand: row.try_get::<&[u8], &str>(AV_RAND_FIELD)?.try_into()?,
@@ -90,12 +61,19 @@ pub async fn auth_vector_next(
 }
 
 /// Deletes a vector if found.
-pub fn auth_vector_delete(
-    _context: Arc<DauthContext>,
+pub async fn auth_vector_delete(
+    context: Arc<DauthContext>,
     av_result: &AuthVectorRes,
 ) -> Result<(), DauthError> {
     tracing::info!("Database delete: {:?}", av_result);
-    todo!()
+
+    let mut transaction = context.database_context.pool.begin().await?;
+
+    queries::remove_vector(&mut transaction, &av_result.user_id, av_result.seqnum).await?;
+
+    transaction.commit().await?;
+
+    Ok(())
 }
 
 /// Removes and returns a kseaf value

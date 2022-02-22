@@ -91,8 +91,11 @@ fn auth_vector_generate(
                 auth_vector::generate_vector(&user_info.k, &user_info.opc, &user_info.sqn_max);
             user_info.increment_sqn(0x21);
 
+            let seqnum = utilities::convert_sqn_bytes_to_int(&user_info.sqn_max)?;
+
             let av_response = AuthVectorRes {
                 user_id: av_request.user_id.clone(),
+                seqnum,
                 rand: auth_vector_data.rand,
                 autn: auth_vector_data.autn,
                 xres_star_hash: auth_vector_data.xres_star_hash,
