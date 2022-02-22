@@ -22,6 +22,9 @@ message AuthVector5G {
 
     // The autn value to pass to the UE, containing the network AUTH and SQN
     bytes autn = 3;
+
+    // The integer vaule of the sequence number
+    int64 seqnum = 4;
 }
 
 // The type of id provided.
