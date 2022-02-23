@@ -106,12 +106,13 @@ pub async fn remove_vector(
 mod av_tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
-    use sqlx::SqlitePool;
+    use sqlx::{SqlitePool, Row};
     use tempfile::tempdir;
 
     use auth_vector::constants::{AUTN_LENGTH, RAND_LENGTH, RES_STAR_HASH_LENGTH};
 
     use crate::local::queries;
+    use crate::data::database::*;
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -196,7 +197,64 @@ mod av_tests {
 
         transaction.commit().await.unwrap();
     }
+
+        /// Test that db can delete after inserts
+        #[tokio::test]
+        async fn test_db_get_first() {
+            let pool = init().await;
     
+            let mut transaction = pool.begin().await.unwrap();
+
+            queries::insert_vector(
+                &mut transaction,
+                "test_id_1",
+                2,
+                &[0_u8; RES_STAR_HASH_LENGTH],
+                &[0_u8; AUTN_LENGTH],
+                &[0_u8; RAND_LENGTH],
+            )
+            .await
+            .unwrap();
+
+            queries::insert_vector(
+                &mut transaction,
+                "test_id_1",
+                0,
+                &[0_u8; RES_STAR_HASH_LENGTH],
+                &[0_u8; AUTN_LENGTH],
+                &[0_u8; RAND_LENGTH],
+            )
+            .await
+            .unwrap();
+
+            queries::insert_vector(
+                &mut transaction,
+                "test_id_1",
+                1,
+                &[0_u8; RES_STAR_HASH_LENGTH],
+                &[0_u8; AUTN_LENGTH],
+                &[0_u8; RAND_LENGTH],
+            )
+            .await
+            .unwrap();
+    
+            transaction.commit().await.unwrap();
+
+            let mut transaction = pool.begin().await.unwrap();
+    
+            let res = queries::get_first_vector(
+                &mut transaction,
+                "test_id_1",
+            )
+            .await
+            .unwrap();
+    
+            assert_eq!("test_id_1", res.get_unchecked::<&str, &str>(AV_ID_FIELD));
+            assert_eq!(0, res.get_unchecked::<i64, &str>(AV_RANK_FIELD));
+    
+            transaction.commit().await.unwrap();
+        }
+
     /// Test that db can delete after inserts
     #[tokio::test]
     async fn test_db_delete() {
@@ -238,6 +296,63 @@ mod av_tests {
                 )
                 .await
                 .unwrap();
+            }
+        }
+
+        transaction.commit().await.unwrap();
+    }
+
+    /// Test that db can delete after inserts
+    #[tokio::test]
+    async fn test_db_get_first_with_delete() {
+        let pool = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let num_rows = 10;
+        let num_sections = 10;
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                queries::insert_vector(
+                    &mut transaction,
+                    &format!("test_id_{}", section),
+                    row,
+                    &[0_u8; RES_STAR_HASH_LENGTH],
+                    &[0_u8; AUTN_LENGTH],
+                    &[0_u8; RAND_LENGTH],
+                )
+                .await
+                .unwrap();
+            }
+        }
+
+        transaction.commit().await.unwrap();
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let num_rows = 10;
+        let num_sections = 10;
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                let res = queries::get_first_vector(
+                    &mut transaction,
+                    &format!("test_id_{}", section)
+                )
+                .await
+                .unwrap();
+
+                queries::remove_vector(
+                    &mut transaction,
+                    &format!("test_id_{}", section),
+                    row,
+                )
+                .await
+                .unwrap();
+
+                assert_eq!(&format!("test_id_{}", section), res.get_unchecked::<&str, &str>(AV_ID_FIELD));
+                assert_eq!(row, res.get_unchecked::<i64, &str>(AV_RANK_FIELD));
             }
         }
 
