@@ -17,17 +17,10 @@ use crate::local::queries;
 /// Builds the database connection pool.
 /// Creates the database and tables if they don't exist.
 pub async fn database_init(database_path: &str) -> Result<SqlitePool, DauthError> {
-    let pool: SqlitePool = SqlitePoolOptions::new()
-        .max_connections(10)
-        .connect_with(
-            SqliteConnectOptions::new()
-                .create_if_missing(true)
-                .filename(database_path),
-        )
-        .await?;
+    let pool: SqlitePool = queries::build_pool(database_path).await?;
 
-    queries::init_vector(&pool).await?;
-    queries::init_kseaf(&pool).await?;
+    queries::init_auth_vector_table(&pool).await?;
+    queries::init_kseaf_table(&pool).await?;
 
     Ok(pool)
 }
