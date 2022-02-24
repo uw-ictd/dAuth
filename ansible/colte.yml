@@ -9,10 +9,9 @@
     - "ssh_mesh_member"
 
   tasks:
-    - name: Update and upgrade apt packages
+    - name: Update apt package cache
       become: yes
       apt:
-        upgrade: yes
         update_cache: yes
 
     - name: Install dependencies - software-properties-common
