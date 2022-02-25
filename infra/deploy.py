@@ -76,6 +76,28 @@ def build_open5gs_packages():
     for deb in Path("../").glob("open5gs*.deb"):
         deb.replace(Path("../open5gs-debs") / deb.name)
 
+def deploy_open5gs_5gc_packages(open5gs_package_directory, host):
+    """ Deploys all open5gs packages to the indicated host
+    """
+
+    # Build the package list programatically to more easily update
+    components = ["amf", "ausf", "bsf", "nrf", "nssf", "pcf", "smf", "udm", "udr", "upf"]
+    version = "2.3.6"
+    architecture = "amd64"
+
+    # Explicitly include the common package, although it is not a core network component.
+    packages = ["open5gs-dauth-common_{}_{}.deb".format(version, architecture)]
+
+    for component in components:
+        packages.append("open5gs-dauth-{}_{}_{}.deb".format(component, version, architecture))
+
+    connection = Connection(host)
+    for package in packages:
+        deb_path = Path(open5gs_package_directory, package).absolute()
+        log.info("Deploying deb: %s to host %s", deb_path, host)
+        connection.put(deb_path, remote="/tmp/", preserve_mode=False)
+        connection.sudo("dpkg --force-confnew --force-overwrite -i /tmp/{}".format(deb_path.name))
+
 
 if __name__ == "__main__":
     try:
@@ -104,3 +126,5 @@ if __name__ == "__main__":
     deploy_package(dauth_package_path, "colte1.local")
 
     build_open5gs_packages()
+
+    deploy_open5gs_5gc_packages(Path("../open5gs-debs"), "colte1.local")
