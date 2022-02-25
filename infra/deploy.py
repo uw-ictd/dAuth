@@ -73,8 +73,8 @@ def build_open5gs_packages():
     Path("../open5gs_2.3.6.tar.xz").unlink(missing_ok=True)
 
     Path("../open5gs-debs").mkdir(exist_ok=True, parents=True)
-    for debug_deb in Path("../").glob("open5gs*.deb"):
-        debug_deb.replace(Path("../open5gs-debs") / debug_deb.name)
+    for deb in Path("../").glob("open5gs*.deb"):
+        deb.replace(Path("../open5gs-debs") / deb.name)
 
 
 if __name__ == "__main__":
