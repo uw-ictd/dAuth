@@ -3,6 +3,7 @@ use sqlx::{Sqlite, Transaction};
 
 use crate::data::{database::*, error::DauthError};
 
+/// Constructs the sqlite pool for running queries.
 pub async fn build_pool(database_path: &str) -> Result<SqlitePool, DauthError> {
     Ok(SqlitePoolOptions::new()
         .max_connections(10)
@@ -14,6 +15,7 @@ pub async fn build_pool(database_path: &str) -> Result<SqlitePool, DauthError> {
         .await?)
 }
 
+/// Creates the auth vector table if it does not exist already.
 pub async fn init_auth_vector_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(&format!(
         "CREATE TABLE IF NOT EXISTS {0} (
@@ -31,6 +33,7 @@ pub async fn init_auth_vector_table(pool: &SqlitePool) -> Result<(), DauthError>
     Ok(())
 }
 
+/// Creates the kseaf table if it does not exist already.
 pub async fn init_kseaf_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(&format!(
         "CREATE TABLE IF NOT EXISTS {} (
@@ -44,6 +47,7 @@ pub async fn init_kseaf_table(pool: &SqlitePool) -> Result<(), DauthError> {
     Ok(())
 }
 
+/// Returns the first for a given id, sorted by rank (seqnum).
 pub async fn get_first_vector(
     transaction: &mut Transaction<'_, Sqlite>,
     id: &str,
@@ -61,6 +65,8 @@ pub async fn get_first_vector(
     .await?)
 }
 
+/// Inserts a vector with the given data.
+/// Returns an error if (id, seqnum) is not unique.
 pub async fn insert_vector(
     transaction: &mut Transaction<'_, Sqlite>,
     id: &str,
@@ -69,7 +75,7 @@ pub async fn insert_vector(
     autn: &[u8],
     rand: &[u8],
 ) -> Result<(), DauthError> {
-    let res = sqlx::query(&format!(
+    sqlx::query(&format!(
         "INSERT INTO {0}
         VALUES ($1,$2,$3,$4,$5)",
         AV_TABLE_NAME
@@ -85,6 +91,7 @@ pub async fn insert_vector(
     Ok(())
 }
 
+/// Removes the vector with the (id, seqnum) pair.
 pub async fn remove_vector(
     transaction: &mut Transaction<'_, Sqlite>,
     id: &str,
@@ -102,17 +109,19 @@ pub async fn remove_vector(
     Ok(())
 }
 
+/* Testing */
+
 #[cfg(test)]
 mod av_tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
-    use sqlx::{SqlitePool, Row};
+    use sqlx::{Row, SqlitePool};
     use tempfile::tempdir;
 
     use auth_vector::constants::{AUTN_LENGTH, RAND_LENGTH, RES_STAR_HASH_LENGTH};
 
-    use crate::local::queries;
     use crate::data::database::*;
+    use crate::local::queries;
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -183,7 +192,7 @@ mod av_tests {
         )
         .await
         .unwrap();
-        
+
         queries::insert_vector(
             &mut transaction,
             "test_id_1",
@@ -198,62 +207,59 @@ mod av_tests {
         transaction.commit().await.unwrap();
     }
 
-        /// Test that db can delete after inserts
-        #[tokio::test]
-        async fn test_db_get_first() {
-            let pool = init().await;
-    
-            let mut transaction = pool.begin().await.unwrap();
+    /// Test that db can delete after inserts
+    #[tokio::test]
+    async fn test_db_get_first() {
+        let pool = init().await;
 
-            queries::insert_vector(
-                &mut transaction,
-                "test_id_1",
-                2,
-                &[0_u8; RES_STAR_HASH_LENGTH],
-                &[0_u8; AUTN_LENGTH],
-                &[0_u8; RAND_LENGTH],
-            )
+        let mut transaction = pool.begin().await.unwrap();
+
+        queries::insert_vector(
+            &mut transaction,
+            "test_id_1",
+            2,
+            &[0_u8; RES_STAR_HASH_LENGTH],
+            &[0_u8; AUTN_LENGTH],
+            &[0_u8; RAND_LENGTH],
+        )
+        .await
+        .unwrap();
+
+        queries::insert_vector(
+            &mut transaction,
+            "test_id_1",
+            0,
+            &[0_u8; RES_STAR_HASH_LENGTH],
+            &[0_u8; AUTN_LENGTH],
+            &[0_u8; RAND_LENGTH],
+        )
+        .await
+        .unwrap();
+
+        queries::insert_vector(
+            &mut transaction,
+            "test_id_1",
+            1,
+            &[0_u8; RES_STAR_HASH_LENGTH],
+            &[0_u8; AUTN_LENGTH],
+            &[0_u8; RAND_LENGTH],
+        )
+        .await
+        .unwrap();
+
+        transaction.commit().await.unwrap();
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let res = queries::get_first_vector(&mut transaction, "test_id_1")
             .await
             .unwrap();
 
-            queries::insert_vector(
-                &mut transaction,
-                "test_id_1",
-                0,
-                &[0_u8; RES_STAR_HASH_LENGTH],
-                &[0_u8; AUTN_LENGTH],
-                &[0_u8; RAND_LENGTH],
-            )
-            .await
-            .unwrap();
+        assert_eq!("test_id_1", res.get_unchecked::<&str, &str>(AV_ID_FIELD));
+        assert_eq!(0, res.get_unchecked::<i64, &str>(AV_RANK_FIELD));
 
-            queries::insert_vector(
-                &mut transaction,
-                "test_id_1",
-                1,
-                &[0_u8; RES_STAR_HASH_LENGTH],
-                &[0_u8; AUTN_LENGTH],
-                &[0_u8; RAND_LENGTH],
-            )
-            .await
-            .unwrap();
-    
-            transaction.commit().await.unwrap();
-
-            let mut transaction = pool.begin().await.unwrap();
-    
-            let res = queries::get_first_vector(
-                &mut transaction,
-                "test_id_1",
-            )
-            .await
-            .unwrap();
-    
-            assert_eq!("test_id_1", res.get_unchecked::<&str, &str>(AV_ID_FIELD));
-            assert_eq!(0, res.get_unchecked::<i64, &str>(AV_RANK_FIELD));
-    
-            transaction.commit().await.unwrap();
-        }
+        transaction.commit().await.unwrap();
+    }
 
     /// Test that db can delete after inserts
     #[tokio::test]
@@ -289,13 +295,9 @@ mod av_tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                queries::remove_vector(
-                    &mut transaction,
-                    &format!("test_id_{}", section),
-                    row,
-                )
-                .await
-                .unwrap();
+                queries::remove_vector(&mut transaction, &format!("test_id_{}", section), row)
+                    .await
+                    .unwrap();
             }
         }
 
@@ -336,22 +338,19 @@ mod av_tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                let res = queries::get_first_vector(
-                    &mut transaction,
-                    &format!("test_id_{}", section)
-                )
-                .await
-                .unwrap();
+                let res =
+                    queries::get_first_vector(&mut transaction, &format!("test_id_{}", section))
+                        .await
+                        .unwrap();
 
-                queries::remove_vector(
-                    &mut transaction,
+                queries::remove_vector(&mut transaction, &format!("test_id_{}", section), row)
+                    .await
+                    .unwrap();
+
+                assert_eq!(
                     &format!("test_id_{}", section),
-                    row,
-                )
-                .await
-                .unwrap();
-
-                assert_eq!(&format!("test_id_{}", section), res.get_unchecked::<&str, &str>(AV_ID_FIELD));
+                    res.get_unchecked::<&str, &str>(AV_ID_FIELD)
+                );
                 assert_eq!(row, res.get_unchecked::<i64, &str>(AV_RANK_FIELD));
             }
         }

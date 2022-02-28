@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
+use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
 
 use auth_vector::types::{Kseaf, ResStar};
@@ -61,15 +61,13 @@ pub async fn auth_vector_delete(
     tracing::info!("Database delete: {:?}", av_result);
 
     let mut transaction = context.database_context.pool.begin().await?;
-
     queries::remove_vector(&mut transaction, &av_result.user_id, av_result.seqnum).await?;
-
     transaction.commit().await?;
 
     Ok(())
 }
 
-/// Removes and returns a kseaf value
+/// Removes and returns a kseaf value.
 pub fn kseaf_get(
     context: Arc<DauthContext>,
     xres_star_hash: &ResStar,
@@ -94,7 +92,7 @@ pub fn kseaf_get(
     }
 }
 
-/// Adds a kseaf value with the given xres_star_hash
+/// Adds a kseaf value with the given xres_star_hash.
 pub fn kseaf_put(context: Arc<DauthContext>, xres_star: &ResStar, kseaf: &Kseaf) {
     tracing::info!("Kseaf put: {:?} - {:?}", xres_star, kseaf);
     context
