@@ -1,6 +1,8 @@
+use auth_vector::types::{Id, Sqn};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteRow};
 use sqlx::{Sqlite, Transaction};
 
+use crate::data::user_info::UserInfo;
 use crate::data::{database::*, error::DauthError};
 
 /// Constructs the sqlite pool for running queries.
@@ -41,6 +43,23 @@ pub async fn init_kseaf_table(pool: &SqlitePool) -> Result<(), DauthError> {
             {2} BLOB NOT NULL
         );",
         KSEAF_TABLE_NAME, KSEAF_ID_FIELD, KSEAF_DATA_FIELD
+    ))
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+
+/// Creates the auth vector table if it does not exist already.
+pub async fn init_user_info_vector_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    sqlx::query(&format!(
+        "CREATE TABLE IF NOT EXISTS {0} (
+            {1} TEXT PRIMARY KEY,
+            {2} BLOB NOT NULL,
+            {3} BLOB NOT NULL,
+            {4} BLOB NOT NULL,
+        );",
+        USER_INFO_TABLE_NAME, USER_INFO_ID_FIELD, USER_INFO_K_FIELD, USER_INFO_OPC_FIELD, USER_INFO_SQN_FIELD,
     ))
     .execute(pool)
     .await?;
@@ -161,6 +180,59 @@ pub async fn get_kseaf(
     .await?)
 }
 
+pub async fn user_info_add(
+    transaction: &mut Transaction<'_, Sqlite>,
+    user_id: Id,
+    k: &[u8],
+    opc: &[u8],
+    sqn_max: &[u8],
+) -> Result<(), DauthError> {
+    sqlx::query(&format!(
+        "INSERT INTO {0}
+        VALUES ($1,$2,$3,$4)",
+        USER_INFO_TABLE_NAME,
+    ))
+    .bind(user_id)
+    .bind(k)
+    .bind(opc)
+    .bind(sqn_max)
+    .execute(transaction)
+    .await?;
+
+    Ok(())
+}
+
+pub async fn user_info_get(
+    transaction: &mut Transaction<'_, Sqlite>,
+    user_id: Id,
+) -> Result<SqliteRow, DauthError> {
+    Ok(sqlx::query(&format!(
+        "SELECT * 
+        FROM {0}
+        WHERE {1}=$1;",
+        USER_INFO_TABLE_NAME, USER_INFO_ID_FIELD,
+    ))
+    .bind(user_id)
+    .fetch_one(transaction)
+    .await?)
+}
+
+pub async fn user_info_remove(
+    transaction: &mut Transaction<'_, Sqlite>,
+    user_id: Id,
+) -> Result<(), DauthError> {
+    sqlx::query(&format!(
+        "DELETE FROM {0}
+        WHERE {1}=$1",
+        USER_INFO_TABLE_NAME, USER_INFO_ID_FIELD,
+    ))
+    .bind(user_id)
+    .execute(transaction)
+    .await?;
+
+    Ok(())
+}
+
 /* Testing */
 
 #[cfg(test)]
@@ -189,6 +261,7 @@ mod tests {
         let pool = queries::build_pool(&path).await.unwrap();
         queries::init_auth_vector_table(&pool).await.unwrap();
         queries::init_kseaf_table(&pool).await.unwrap();
+        queries::init_user_info_vector_table(&pool).await.unwrap();
 
         pool
     }

@@ -3,13 +3,13 @@ use std::sync::Arc;
 use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
 
-use auth_vector::types::{Kseaf, ResStar};
+use auth_vector::types::{Kseaf, ResStar, Id, Sqn, K};
 
 use crate::data::{
     context::DauthContext,
     database::*,
     error::DauthError,
-    vector::{AuthVectorReq, AuthVectorRes},
+    vector::{AuthVectorReq, AuthVectorRes}, user_info::UserInfo,
 };
 
 use crate::local::queries;
@@ -88,6 +88,52 @@ pub async fn kseaf_put(context: Arc<DauthContext>, xres_star: &ResStar, kseaf: &
 
     let mut transaction = context.database_context.pool.begin().await?;
     queries::insert_kseaf(&mut transaction, xres_star, kseaf).await?;
+    transaction.commit().await?;
+
+    Ok(())
+}
+
+
+pub async fn user_info_add(
+    context: Arc<DauthContext>,
+    user_id: Id,
+    user_info: UserInfo,
+) -> Result<(), DauthError> {
+    tracing::info!("User info add: {:?} - {:?}", user_id, user_info);
+
+    let mut transaction = context.database_context.pool.begin().await?;
+    queries::user_info_add(&mut transaction, user_id, &user_info.k, &user_info.opc, &user_info.sqn_max).await?;
+    transaction.commit().await?;
+
+
+    Ok(())
+}
+
+pub async fn user_info_get(
+    context: Arc<DauthContext>,
+    user_id: Id,
+) -> Result<UserInfo, DauthError> {
+    tracing::info!("User info get: {:?}", user_id);
+
+    let mut transaction = context.database_context.pool.begin().await?;
+    let row = queries::user_info_get(&mut transaction, user_id).await?;
+    transaction.commit().await?;
+
+    Ok(UserInfo {
+        k: row.try_get::<&[u8], &str>(USER_INFO_K_FIELD)?.try_into()?,
+        opc: row.try_get::<&[u8], &str>(USER_INFO_OPC_FIELD)?.try_into()?,
+        sqn_max: row.try_get::<&[u8], &str>(USER_INFO_SQN_FIELD)?.try_into()?,
+    })
+}
+
+pub async fn user_info_remove(
+    context: Arc<DauthContext>,
+    user_id: Id,
+) -> Result<(), DauthError> {
+    tracing::info!("User info remove: {:?}", user_id);
+
+    let mut transaction = context.database_context.pool.begin().await?;
+    queries::user_info_remove(&mut transaction, user_id).await?;
     transaction.commit().await?;
 
     Ok(())

@@ -4,7 +4,7 @@ use crate::data::{context::DauthContext, error::DauthError, vector::AuthVectorRe
 use crate::rpc::dauth::local::AkaVectorResp;
 use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
 use crate::rpc::dauth::remote::{
-    GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq,
+    GetHomeAuthVectorReq, GetHomeAuthVectorResp,
 };
 
 /// Send out request to remote core for new auth vector.

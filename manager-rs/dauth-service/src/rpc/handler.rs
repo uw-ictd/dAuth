@@ -51,7 +51,7 @@ impl LocalAuthentication for DauthHandler {
         tracing::info!("Request: {:?}", request);
 
         let res_star = request.into_inner().res_star;
-        let res_star: auth_vector::types::ResStar = res_star.try_into().or_else(|e: Vec<u8>| {
+        let res_star: auth_vector::types::ResStar = res_star.try_into().or_else(|_e: Vec<u8>| {
             Err(tonic::Status::new(
                 tonic::Code::OutOfRange,
                 "Unable to parse res_star",

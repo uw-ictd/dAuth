@@ -105,7 +105,7 @@ async fn auth_vector_generate(
                 context.clone(),
                 &auth_vector_data.xres_star,
                 &auth_vector_data.kseaf,
-            ).await;
+            ).await?;
 
             tracing::info!("Auth vector generated: {:?}", av_response);
 

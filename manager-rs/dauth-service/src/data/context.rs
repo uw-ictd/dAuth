@@ -1,16 +1,12 @@
-use std::{
-    collections::{HashMap, VecDeque},
-    sync::Mutex,
-};
-
+use std::collections::HashMap;
 use ed25519_dalek::Keypair;
 use sqlx::SqlitePool;
 use tokio::runtime::Handle;
 use tonic::transport::Channel;
 
-use auth_vector::types::{HresStar, Id, Kseaf};
+use auth_vector::types::Id;
 
-use crate::data::{user_info::UserInfo, vector::AuthVectorRes};
+use crate::data::user_info::UserInfo;
 use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
 
 /// Maintains the context for all components of
