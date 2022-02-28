@@ -33,7 +33,7 @@ pub async fn auth_vector_get(
             tracing::info!("No auth vector found in database: {}", e);
 
             if auth_vector_is_local(context.clone(), av_request) {
-                auth_vector_generate(context.clone(), av_request)
+                auth_vector_generate(context.clone(), av_request).await
             } else {
                 // clients::request_auth_vector_remote(context, av_request).await
                 todo!()
@@ -50,7 +50,7 @@ pub async fn confirm_auth_vector_used(
 ) -> Result<auth_vector::types::Kseaf, DauthError> {
     tracing::info!("Handling confirm: {:?}", res_star);
 
-    match local::database::kseaf_get(context.clone(), &res_star) {
+    match local::database::kseaf_get(context.clone(), &res_star).await {
         Ok(key) => {
             // TODO(matt9j) Remove confirmed vectors from cache?
             //local::database::auth_vector_delete(context, res_star);
@@ -71,7 +71,7 @@ fn auth_vector_is_local(context: Arc<DauthContext>, av_request: &AuthVectorReq) 
 
 /// Generates and returns a new auth vector
 /// Will fail if the requested id does not belong to the core
-fn auth_vector_generate(
+async fn auth_vector_generate(
     context: Arc<DauthContext>,
     av_request: &AuthVectorReq,
 ) -> Result<AuthVectorRes, DauthError> {
@@ -81,7 +81,7 @@ fn auth_vector_generate(
         .local_context
         .user_info_database
         .lock()
-        .unwrap()
+        .await
         .get_mut(&av_request.user_id)
     {
         Some(user_info) => {
@@ -105,7 +105,7 @@ fn auth_vector_generate(
                 context.clone(),
                 &auth_vector_data.xres_star,
                 &auth_vector_data.kseaf,
-            );
+            ).await;
 
             tracing::info!("Auth vector generated: {:?}", av_response);
 

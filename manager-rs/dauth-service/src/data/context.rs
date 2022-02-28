@@ -25,9 +25,7 @@ pub struct DauthContext {
 
 #[derive(Debug)]
 pub struct LocalContext {
-    pub database: Mutex<HashMap<Id, VecDeque<AuthVectorRes>>>,
-    pub kseaf_map: Mutex<HashMap<HresStar, Kseaf>>,
-    pub user_info_database: Mutex<HashMap<Id, UserInfo>>,
+    pub user_info_database: tokio::sync::Mutex<HashMap<Id, UserInfo>>,
     pub local_user_id_min: Id,
     pub local_user_id_max: Id,
     pub signing_keys: Keypair,

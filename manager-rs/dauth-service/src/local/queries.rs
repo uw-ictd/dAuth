@@ -36,9 +36,9 @@ pub async fn init_auth_vector_table(pool: &SqlitePool) -> Result<(), DauthError>
 /// Creates the kseaf table if it does not exist already.
 pub async fn init_kseaf_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(&format!(
-        "CREATE TABLE IF NOT EXISTS {} (
-            {} INT PRIMARY KEY,
-            {} BLOB NOT NULL
+        "CREATE TABLE IF NOT EXISTS {0} (
+            {1} BLOB PRIMARY KEY,
+            {2} BLOB NOT NULL
         );",
         KSEAF_TABLE_NAME, KSEAF_ID_FIELD, KSEAF_DATA_FIELD
     ))
@@ -98,8 +98,8 @@ pub async fn remove_vector(
     seqnum: i64,
 ) -> Result<(), DauthError> {
     sqlx::query(&format!(
-        "DELETE FROM {}
-        WHERE ({},{})=($1,$2)",
+        "DELETE FROM {0}
+        WHERE ({1},{2})=($1,$2)",
         AV_TABLE_NAME, AV_ID_FIELD, AV_RANK_FIELD,
     ))
     .bind(id)
@@ -109,16 +109,68 @@ pub async fn remove_vector(
     Ok(())
 }
 
+/// Inserts a kseaf with a given uuid and value.
+pub async fn insert_kseaf(
+    transaction: &mut Transaction<'_, Sqlite>,
+    uuid: &[u8],
+    value: &[u8],
+) -> Result<(), DauthError> {
+    sqlx::query(&format!(
+        "INSERT INTO {0}
+        VALUES ($1,$2)",
+        KSEAF_TABLE_NAME,
+    ))
+    .bind(uuid)
+    .bind(value)
+    .execute(transaction)
+    .await?;
+
+    Ok(())
+}
+
+/// Deletes a kseaf vaule if found.
+pub async fn delete_kseaf(
+    transaction: &mut Transaction<'_, Sqlite>,
+    uuid: &[u8],
+) -> Result<(), DauthError> {
+    sqlx::query(&format!(
+        "DELETE FROM {0}
+        WHERE {1}=$1",
+        KSEAF_TABLE_NAME, KSEAF_ID_FIELD,
+    ))
+    .bind(uuid)
+    .execute(transaction)
+    .await?;
+
+    Ok(())
+}
+
+/// Returns a kseaf value if found.
+pub async fn get_kseaf(
+    transaction: &mut Transaction<'_, Sqlite>,
+    uuid: &[u8],
+) -> Result<SqliteRow, DauthError> {
+    Ok(sqlx::query(&format!(
+        "SELECT * 
+        FROM {0}
+        WHERE {1}=$1;",
+        KSEAF_TABLE_NAME, KSEAF_ID_FIELD,
+    ))
+    .bind(uuid)
+    .fetch_one(transaction)
+    .await?)
+}
+
 /* Testing */
 
 #[cfg(test)]
-mod av_tests {
+mod tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
     use sqlx::{Row, SqlitePool};
     use tempfile::tempdir;
 
-    use auth_vector::constants::{AUTN_LENGTH, RAND_LENGTH, RES_STAR_HASH_LENGTH};
+    use auth_vector::constants::{AUTN_LENGTH, KSEAF_LENGTH, RAND_LENGTH, RES_STAR_HASH_LENGTH, RES_STAR_LENGTH};
 
     use crate::data::database::*;
     use crate::local::queries;
@@ -149,7 +201,7 @@ mod av_tests {
 
     /// Test that db can insert
     #[tokio::test]
-    async fn test_db_insert() {
+    async fn test_av_insert() {
         let pool = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
@@ -178,7 +230,7 @@ mod av_tests {
     /// Test that duplicate inserts cause an error
     #[tokio::test]
     #[should_panic]
-    async fn test_db_insert_dupicate_fail() {
+    async fn test_av_insert_dupicate_fail() {
         let pool = init().await;
         let mut transaction = pool.begin().await.unwrap();
 
@@ -209,7 +261,7 @@ mod av_tests {
 
     /// Test that db can delete after inserts
     #[tokio::test]
-    async fn test_db_get_first() {
+    async fn test_av_get_first() {
         let pool = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
@@ -263,7 +315,7 @@ mod av_tests {
 
     /// Test that db can delete after inserts
     #[tokio::test]
-    async fn test_db_delete() {
+    async fn test_av_delete() {
         let pool = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
@@ -306,7 +358,7 @@ mod av_tests {
 
     /// Test that db can delete after inserts
     #[tokio::test]
-    async fn test_db_get_first_with_delete() {
+    async fn test_av_get_first_with_delete() {
         let pool = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
@@ -354,6 +406,217 @@ mod av_tests {
                 assert_eq!(row, res.get_unchecked::<i64, &str>(AV_RANK_FIELD));
             }
         }
+
+        transaction.commit().await.unwrap();
+    }
+
+    /// Test that insert works
+    #[tokio::test]
+    async fn test_kseaf_insert() {
+        let pool = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let num_rows = 10;
+        let num_sections = 10;
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                queries::insert_kseaf(
+                    &mut transaction,
+                    &[section * num_rows + row; RES_STAR_LENGTH],
+                    &[section * num_rows + row; KSEAF_LENGTH],
+                )
+                .await
+                .unwrap();
+            }
+        }
+        transaction.commit().await.unwrap();
+    }
+
+    /// Tests that get works
+    #[tokio::test]
+    async fn test_kseaf_get() {
+        let pool = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let num_rows = 10;
+        let num_sections = 10;
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                queries::insert_kseaf(
+                    &mut transaction,
+                    &[section * num_rows + row; RES_STAR_LENGTH],
+                    &[section * num_rows + row; KSEAF_LENGTH],
+                )
+                .await
+                .unwrap();
+            }
+        }
+
+        transaction.commit().await.unwrap();
+        let mut transaction = pool.begin().await.unwrap();
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                let res = queries::get_kseaf(
+                    &mut transaction,
+                    &[section * num_rows + row; RES_STAR_LENGTH],
+                )
+                .await
+                .unwrap();
+
+                assert_eq!(
+                    &[section * num_rows + row; KSEAF_LENGTH],
+                    res.get_unchecked::<&[u8], &str>(KSEAF_DATA_FIELD)
+                );
+            }
+        }
+        transaction.commit().await.unwrap();
+    }
+
+    /// Test that deletes work
+    #[tokio::test]
+    async fn test_kseaf_delete() {
+        let pool = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let num_rows = 10;
+        let num_sections = 10;
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                queries::insert_kseaf(
+                    &mut transaction,
+                    &[section * num_rows + row; RES_STAR_LENGTH],
+                    &[section * num_rows + row; KSEAF_LENGTH],
+                )
+                .await
+                .unwrap();
+            }
+        }
+
+        transaction.commit().await.unwrap();
+        let mut transaction = pool.begin().await.unwrap();
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                queries::delete_kseaf(
+                    &mut transaction,
+                    &[section * num_rows + row; RES_STAR_LENGTH],
+                )
+                .await
+                .unwrap();
+            }
+        }
+
+        transaction.commit().await.unwrap();
+        let mut transaction = pool.begin().await.unwrap();
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                // should have been deleted
+                assert!(queries::get_kseaf(
+                    &mut transaction,
+                    &[section * num_rows + row; RES_STAR_LENGTH],
+                )
+                .await
+                .is_err());
+            }
+        }
+        transaction.commit().await.unwrap();
+    }
+
+    /// Test that gets work before a delete
+    #[tokio::test]
+    async fn test_kseaf_get_with_delete() {
+        let pool = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let num_rows = 10;
+        let num_sections = 10;
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                queries::insert_kseaf(
+                    &mut transaction,
+                    &[section * num_rows + row; RES_STAR_LENGTH],
+                    &[section * num_rows + row; KSEAF_LENGTH],
+                )
+                .await
+                .unwrap();
+            }
+        }
+
+        transaction.commit().await.unwrap();
+        let mut transaction = pool.begin().await.unwrap();
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                let res = queries::get_kseaf(
+                    &mut transaction,
+                    &[section * num_rows + row; RES_STAR_LENGTH],
+                )
+                .await
+                .unwrap();
+
+                assert_eq!(
+                    &[section * num_rows + row; KSEAF_LENGTH],
+                    res.get_unchecked::<&[u8], &str>(KSEAF_DATA_FIELD)
+                );
+
+                queries::delete_kseaf(
+                    &mut transaction,
+                    res.get_unchecked::<&[u8], &str>(KSEAF_ID_FIELD),
+                )
+                .await
+                .unwrap();
+            }
+        }
+
+        transaction.commit().await.unwrap();
+        let mut transaction = pool.begin().await.unwrap();
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                // should have been deleted
+                assert!(queries::get_kseaf(
+                    &mut transaction,
+                    &[section * num_rows + row; RES_STAR_LENGTH],
+                )
+                .await
+                .is_err());
+            }
+        }
+        transaction.commit().await.unwrap();
+    }
+
+    /// Test that duplicate inserts cause an error
+    #[tokio::test]
+    #[should_panic]
+    async fn test_kseaf_insert_dupicate_fail() {
+        let pool = init().await;
+        let mut transaction = pool.begin().await.unwrap();
+
+        queries::insert_kseaf(
+            &mut transaction,
+            &[0_u8; RES_STAR_LENGTH],
+            &[1_u8; KSEAF_LENGTH],
+        )
+        .await
+        .unwrap();
+
+        queries::insert_kseaf(
+            &mut transaction,
+            &[0_u8; RES_STAR_LENGTH],
+            &[1_u8; KSEAF_LENGTH],
+        )
+        .await
+        .unwrap();
 
         transaction.commit().await.unwrap();
     }

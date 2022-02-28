@@ -6,7 +6,7 @@ use std::{
     collections::HashMap,
     fs,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 
 use ed25519_dalek::Keypair;
@@ -57,9 +57,7 @@ async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthEr
 
     Ok(Arc::new(DauthContext {
         local_context: LocalContext {
-            database: Mutex::new(HashMap::new()),
-            kseaf_map: Mutex::new(HashMap::new()),
-            user_info_database: Mutex::new(user_map),
+            user_info_database: tokio::sync::Mutex::new(user_map),
             local_user_id_min: config.local_user_id_min,
             local_user_id_max: config.local_user_id_max,
             signing_keys: keys,
