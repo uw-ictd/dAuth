@@ -1,8 +1,7 @@
-use auth_vector::types::{Id, Sqn};
+use auth_vector::types::Id;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteRow};
 use sqlx::{Sqlite, Transaction};
 
-use crate::data::user_info::UserInfo;
 use crate::data::{database::*, error::DauthError};
 
 /// Constructs the sqlite pool for running queries.
