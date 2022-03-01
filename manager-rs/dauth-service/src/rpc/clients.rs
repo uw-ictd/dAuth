@@ -3,9 +3,7 @@ use std::sync::Arc;
 use crate::data::{context::DauthContext, error::DauthError, vector::AuthVectorRes};
 use crate::rpc::dauth::local::AkaVectorResp;
 use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
-use crate::rpc::dauth::remote::{
-    GetHomeAuthVectorReq, GetHomeAuthVectorResp,
-};
+use crate::rpc::dauth::remote::{GetHomeAuthVectorReq, GetHomeAuthVectorResp};
 
 /// Send out request to remote core for new auth vector.
 pub async fn request_auth_vector_remote(

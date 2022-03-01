@@ -3,13 +3,14 @@ use std::sync::Arc;
 use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
 
-use auth_vector::types::{Kseaf, ResStar, Id, Sqn, K};
+use auth_vector::types::{Id, Kseaf, ResStar, Sqn, K};
 
 use crate::data::{
     context::DauthContext,
     database::*,
     error::DauthError,
-    vector::{AuthVectorReq, AuthVectorRes}, user_info::UserInfo,
+    user_info::UserInfo,
+    vector::{AuthVectorReq, AuthVectorRes},
 };
 
 use crate::local::queries;
@@ -83,7 +84,11 @@ pub async fn kseaf_get(
 }
 
 /// Adds a kseaf value with the given xres_star_hash.
-pub async fn kseaf_put(context: Arc<DauthContext>, xres_star: &ResStar, kseaf: &Kseaf) -> Result<(), DauthError> {
+pub async fn kseaf_put(
+    context: Arc<DauthContext>,
+    xres_star: &ResStar,
+    kseaf: &Kseaf,
+) -> Result<(), DauthError> {
     tracing::info!("Kseaf put: {:?} - {:?}", xres_star, kseaf);
 
     let mut transaction = context.database_context.pool.begin().await?;
@@ -93,7 +98,6 @@ pub async fn kseaf_put(context: Arc<DauthContext>, xres_star: &ResStar, kseaf: &
     Ok(())
 }
 
-
 pub async fn user_info_add(
     context: Arc<DauthContext>,
     user_id: Id,
@@ -102,9 +106,15 @@ pub async fn user_info_add(
     tracing::info!("User info add: {:?} - {:?}", user_id, user_info);
 
     let mut transaction = context.database_context.pool.begin().await?;
-    queries::user_info_add(&mut transaction, user_id, &user_info.k, &user_info.opc, &user_info.sqn_max).await?;
+    queries::user_info_add(
+        &mut transaction,
+        user_id,
+        &user_info.k,
+        &user_info.opc,
+        &user_info.sqn_max,
+    )
+    .await?;
     transaction.commit().await?;
-
 
     Ok(())
 }
@@ -121,15 +131,16 @@ pub async fn user_info_get(
 
     Ok(UserInfo {
         k: row.try_get::<&[u8], &str>(USER_INFO_K_FIELD)?.try_into()?,
-        opc: row.try_get::<&[u8], &str>(USER_INFO_OPC_FIELD)?.try_into()?,
-        sqn_max: row.try_get::<&[u8], &str>(USER_INFO_SQN_FIELD)?.try_into()?,
+        opc: row
+            .try_get::<&[u8], &str>(USER_INFO_OPC_FIELD)?
+            .try_into()?,
+        sqn_max: row
+            .try_get::<&[u8], &str>(USER_INFO_SQN_FIELD)?
+            .try_into()?,
     })
 }
 
-pub async fn user_info_remove(
-    context: Arc<DauthContext>,
-    user_id: Id,
-) -> Result<(), DauthError> {
+pub async fn user_info_remove(context: Arc<DauthContext>, user_id: Id) -> Result<(), DauthError> {
     tracing::info!("User info remove: {:?}", user_id);
 
     let mut transaction = context.database_context.pool.begin().await?;

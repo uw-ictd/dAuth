@@ -51,12 +51,13 @@ impl LocalAuthentication for DauthHandler {
         tracing::info!("Request: {:?}", request);
 
         let res_star = request.into_inner().res_star;
-        let res_star: auth_vector::types::ResStar = res_star.try_into().or_else(|_e: Vec<u8>| {
-            Err(tonic::Status::new(
-                tonic::Code::OutOfRange,
-                "Unable to parse res_star",
-            ))
-        })?;
+        let res_star: auth_vector::types::ResStar =
+            res_star.try_into().or_else(|_e: Vec<u8>| {
+                Err(tonic::Status::new(
+                    tonic::Code::OutOfRange,
+                    "Unable to parse res_star",
+                ))
+            })?;
 
         let kseaf = local::manager::confirm_auth_vector_used(self.context.clone(), res_star)
             .await

@@ -49,17 +49,20 @@ pub async fn init_kseaf_table(pool: &SqlitePool) -> Result<(), DauthError> {
     Ok(())
 }
 
-
 /// Creates the auth vector table if it does not exist already.
 pub async fn init_user_info_vector_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(&format!(
         "CREATE TABLE IF NOT EXISTS {0} (
-            {1} TEXT PRIMARY KEY,
+            {1} TEST PRIMARY KEY,
             {2} BLOB NOT NULL,
             {3} BLOB NOT NULL,
-            {4} BLOB NOT NULL,
+            {4} BLOB NOT NULL
         );",
-        USER_INFO_TABLE_NAME, USER_INFO_ID_FIELD, USER_INFO_K_FIELD, USER_INFO_OPC_FIELD, USER_INFO_SQN_FIELD,
+        USER_INFO_TABLE_NAME,
+        USER_INFO_ID_FIELD,
+        USER_INFO_K_FIELD,
+        USER_INFO_OPC_FIELD,
+        USER_INFO_SQN_FIELD,
     ))
     .execute(pool)
     .await?;
@@ -180,6 +183,7 @@ pub async fn get_kseaf(
     .await?)
 }
 
+/// Insert user info and replace if exists.
 pub async fn user_info_add(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: Id,
@@ -188,8 +192,8 @@ pub async fn user_info_add(
     sqn_max: &[u8],
 ) -> Result<(), DauthError> {
     sqlx::query(&format!(
-        "INSERT INTO {0}
-        VALUES ($1,$2,$3,$4)",
+        "REPLACE INTO {0}
+        VALUES ($1,$2,$3,$4);",
         USER_INFO_TABLE_NAME,
     ))
     .bind(user_id)
@@ -202,6 +206,7 @@ pub async fn user_info_add(
     Ok(())
 }
 
+/// Get user info if exists.
 pub async fn user_info_get(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: Id,
@@ -217,6 +222,7 @@ pub async fn user_info_get(
     .await?)
 }
 
+/// Remove user info if exists.
 pub async fn user_info_remove(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: Id,
@@ -242,7 +248,10 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::tempdir;
 
-    use auth_vector::constants::{AUTN_LENGTH, KSEAF_LENGTH, RAND_LENGTH, RES_STAR_HASH_LENGTH, RES_STAR_LENGTH};
+    use auth_vector::constants::{
+        AUTN_LENGTH, KSEAF_LENGTH, K_LENGTH, OPC_LENGTH, RAND_LENGTH, RES_STAR_HASH_LENGTH,
+        RES_STAR_LENGTH, SQN_LENGTH,
+    };
 
     use crate::data::database::*;
     use crate::local::queries;
@@ -691,6 +700,257 @@ mod tests {
         .await
         .unwrap();
 
+        transaction.commit().await.unwrap();
+    }
+
+    /// Test that insert works
+    #[tokio::test]
+    async fn test_user_info_insert() {
+        let pool = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let num_rows = 10;
+        let num_sections = 10;
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                queries::user_info_add(
+                    &mut transaction,
+                    format!("user_info_{}", section * num_rows + row),
+                    &[section * num_rows + row; K_LENGTH],
+                    &[section * num_rows + row; OPC_LENGTH],
+                    &[section * num_rows + row; SQN_LENGTH],
+                )
+                .await
+                .unwrap();
+            }
+        }
+        transaction.commit().await.unwrap();
+    }
+
+    /// Test that insert works
+    #[tokio::test]
+    async fn test_user_info_get() {
+        let pool = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let num_rows = 10;
+        let num_sections = 10;
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                queries::user_info_add(
+                    &mut transaction,
+                    format!("user_info_{}", section * num_rows + row),
+                    &[section * num_rows + row; K_LENGTH],
+                    &[section * num_rows + row; OPC_LENGTH],
+                    &[section * num_rows + row; SQN_LENGTH],
+                )
+                .await
+                .unwrap();
+            }
+        }
+        transaction.commit().await.unwrap();
+        let mut transaction = pool.begin().await.unwrap();
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                let res = queries::user_info_get(
+                    &mut transaction,
+                    format!("user_info_{}", section * num_rows + row),
+                )
+                .await
+                .unwrap();
+
+                assert_eq!(
+                    format!("user_info_{}", section * num_rows + row),
+                    res.get_unchecked::<&str, &str>(USER_INFO_ID_FIELD)
+                );
+                assert_eq!(
+                    &[section * num_rows + row; K_LENGTH],
+                    res.get_unchecked::<&[u8], &str>(USER_INFO_K_FIELD)
+                );
+                assert_eq!(
+                    &[section * num_rows + row; OPC_LENGTH],
+                    res.get_unchecked::<&[u8], &str>(USER_INFO_OPC_FIELD)
+                );
+                assert_eq!(
+                    &[section * num_rows + row; SQN_LENGTH],
+                    res.get_unchecked::<&[u8], &str>(USER_INFO_SQN_FIELD)
+                );
+            }
+        }
+        transaction.commit().await.unwrap();
+    }
+
+    /// Test that delete works
+    #[tokio::test]
+    async fn test_user_info_remove() {
+        let pool = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let num_rows = 10;
+        let num_sections = 10;
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                queries::user_info_add(
+                    &mut transaction,
+                    format!("user_info_{}", section * num_rows + row),
+                    &[section * num_rows + row; K_LENGTH],
+                    &[section * num_rows + row; OPC_LENGTH],
+                    &[section * num_rows + row; SQN_LENGTH],
+                )
+                .await
+                .unwrap();
+            }
+        }
+        transaction.commit().await.unwrap();
+        let mut transaction = pool.begin().await.unwrap();
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                queries::user_info_remove(
+                    &mut transaction,
+                    format!("user_info_{}", section * num_rows + row),
+                )
+                .await
+                .unwrap();
+            }
+        }
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                assert!(queries::user_info_get(
+                    &mut transaction,
+                    format!("user_info_{}", section * num_rows + row),
+                )
+                .await
+                .is_err());
+            }
+        }
+
+        transaction.commit().await.unwrap();
+    }
+
+    /// Test that updates works
+    #[tokio::test]
+    async fn test_user_info_update() {
+        let pool = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let num_rows = 10;
+        let num_sections = 10;
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                queries::user_info_add(
+                    &mut transaction,
+                    format!("user_info_{}", section * num_rows + row),
+                    &[section * num_rows + row; K_LENGTH],
+                    &[section * num_rows + row; OPC_LENGTH],
+                    &[section * num_rows + row; SQN_LENGTH],
+                )
+                .await
+                .unwrap();
+            }
+        }
+        transaction.commit().await.unwrap();
+        let mut transaction = pool.begin().await.unwrap();
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                let res = queries::user_info_get(
+                    &mut transaction,
+                    format!("user_info_{}", section * num_rows + row),
+                )
+                .await
+                .unwrap();
+
+                assert_eq!(
+                    format!("user_info_{}", section * num_rows + row),
+                    res.get_unchecked::<&str, &str>(USER_INFO_ID_FIELD)
+                );
+                assert_eq!(
+                    &[section * num_rows + row; K_LENGTH],
+                    res.get_unchecked::<&[u8], &str>(USER_INFO_K_FIELD)
+                );
+                assert_eq!(
+                    &[section * num_rows + row; OPC_LENGTH],
+                    res.get_unchecked::<&[u8], &str>(USER_INFO_OPC_FIELD)
+                );
+                assert_eq!(
+                    &[section * num_rows + row; SQN_LENGTH],
+                    res.get_unchecked::<&[u8], &str>(USER_INFO_SQN_FIELD)
+                );
+            }
+        }
+        transaction.commit().await.unwrap();
+        let mut transaction = pool.begin().await.unwrap();
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                queries::user_info_add(
+                    &mut transaction,
+                    format!("user_info_{}", section * num_rows + row),
+                    &[section * num_rows + row + 1; K_LENGTH],
+                    &[section * num_rows + row + 2; OPC_LENGTH],
+                    &[section * num_rows + row + 3; SQN_LENGTH],
+                )
+                .await
+                .unwrap();
+            }
+        }
+        transaction.commit().await.unwrap();
+        let mut transaction = pool.begin().await.unwrap();
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                let res = queries::user_info_get(
+                    &mut transaction,
+                    format!("user_info_{}", section * num_rows + row),
+                )
+                .await
+                .unwrap();
+
+                assert_eq!(
+                    format!("user_info_{}", section * num_rows + row),
+                    res.get_unchecked::<&str, &str>(USER_INFO_ID_FIELD)
+                );
+
+                // old values
+                assert_ne!(
+                    &[section * num_rows + row; K_LENGTH],
+                    res.get_unchecked::<&[u8], &str>(USER_INFO_K_FIELD)
+                );
+                assert_ne!(
+                    &[section * num_rows + row; OPC_LENGTH],
+                    res.get_unchecked::<&[u8], &str>(USER_INFO_OPC_FIELD)
+                );
+                assert_ne!(
+                    &[section * num_rows + row; SQN_LENGTH],
+                    res.get_unchecked::<&[u8], &str>(USER_INFO_SQN_FIELD)
+                );
+
+                // new values
+                assert_eq!(
+                    &[section * num_rows + row + 1; K_LENGTH],
+                    res.get_unchecked::<&[u8], &str>(USER_INFO_K_FIELD)
+                );
+                assert_eq!(
+                    &[section * num_rows + row + 2; OPC_LENGTH],
+                    res.get_unchecked::<&[u8], &str>(USER_INFO_OPC_FIELD)
+                );
+                assert_eq!(
+                    &[section * num_rows + row + 3; SQN_LENGTH],
+                    res.get_unchecked::<&[u8], &str>(USER_INFO_SQN_FIELD)
+                );
+            }
+        }
         transaction.commit().await.unwrap();
     }
 }

@@ -2,12 +2,7 @@ mod data;
 mod local;
 mod rpc;
 
-use std::{
-    collections::HashMap,
-    fs,
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 
 use ed25519_dalek::Keypair;
 use rand::rngs::OsRng;
