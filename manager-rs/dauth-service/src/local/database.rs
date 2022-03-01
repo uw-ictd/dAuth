@@ -3,7 +3,7 @@ use std::sync::Arc;
 use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
 
-use auth_vector::types::{Id, Kseaf, ResStar, Sqn, K};
+use auth_vector::types::{Id, Kseaf, ResStar};
 
 use crate::data::{
     context::DauthContext,
@@ -33,7 +33,7 @@ pub async fn auth_vector_next(
 ) -> Result<AuthVectorRes, DauthError> {
     tracing::info!("Database next: {:?}", av_request);
 
-    let mut transaction = context.database_context.pool.begin().await?;
+    let mut transaction = context.local_context.database_pool.begin().await?;
 
     let row = queries::get_first_vector(&mut transaction, &av_request.user_id).await?;
     queries::remove_vector(
@@ -61,7 +61,7 @@ pub async fn auth_vector_delete(
 ) -> Result<(), DauthError> {
     tracing::info!("Database delete: {:?}", av_result);
 
-    let mut transaction = context.database_context.pool.begin().await?;
+    let mut transaction = context.local_context.database_pool.begin().await?;
     queries::remove_vector(&mut transaction, &av_result.user_id, av_result.seqnum).await?;
     transaction.commit().await?;
 
@@ -75,7 +75,7 @@ pub async fn kseaf_get(
 ) -> Result<Kseaf, DauthError> {
     tracing::info!("Kseaf get: {:?}", xres_star);
 
-    let mut transaction = context.database_context.pool.begin().await?;
+    let mut transaction = context.local_context.database_pool.begin().await?;
     let row = queries::get_kseaf(&mut transaction, xres_star).await?;
     queries::delete_kseaf(&mut transaction, xres_star).await?;
     transaction.commit().await?;
@@ -91,7 +91,7 @@ pub async fn kseaf_put(
 ) -> Result<(), DauthError> {
     tracing::info!("Kseaf put: {:?} - {:?}", xres_star, kseaf);
 
-    let mut transaction = context.database_context.pool.begin().await?;
+    let mut transaction = context.local_context.database_pool.begin().await?;
     queries::insert_kseaf(&mut transaction, xres_star, kseaf).await?;
     transaction.commit().await?;
 
@@ -100,12 +100,12 @@ pub async fn kseaf_put(
 
 pub async fn user_info_add(
     context: Arc<DauthContext>,
-    user_id: Id,
-    user_info: UserInfo,
+    user_id: &Id,
+    user_info: &UserInfo,
 ) -> Result<(), DauthError> {
     tracing::info!("User info add: {:?} - {:?}", user_id, user_info);
 
-    let mut transaction = context.database_context.pool.begin().await?;
+    let mut transaction = context.local_context.database_pool.begin().await?;
     queries::user_info_add(
         &mut transaction,
         user_id,
@@ -121,11 +121,11 @@ pub async fn user_info_add(
 
 pub async fn user_info_get(
     context: Arc<DauthContext>,
-    user_id: Id,
+    user_id: &Id,
 ) -> Result<UserInfo, DauthError> {
     tracing::info!("User info get: {:?}", user_id);
 
-    let mut transaction = context.database_context.pool.begin().await?;
+    let mut transaction = context.local_context.database_pool.begin().await?;
     let row = queries::user_info_get(&mut transaction, user_id).await?;
     transaction.commit().await?;
 
@@ -140,10 +140,10 @@ pub async fn user_info_get(
     })
 }
 
-pub async fn user_info_remove(context: Arc<DauthContext>, user_id: Id) -> Result<(), DauthError> {
+pub async fn user_info_remove(context: Arc<DauthContext>, user_id: &Id) -> Result<(), DauthError> {
     tracing::info!("User info remove: {:?}", user_id);
 
-    let mut transaction = context.database_context.pool.begin().await?;
+    let mut transaction = context.local_context.database_pool.begin().await?;
     queries::user_info_remove(&mut transaction, user_id).await?;
     transaction.commit().await?;
 

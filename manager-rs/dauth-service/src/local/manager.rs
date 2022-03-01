@@ -75,46 +75,36 @@ async fn auth_vector_generate(
     context: Arc<DauthContext>,
     av_request: &AuthVectorReq,
 ) -> Result<AuthVectorRes, DauthError> {
-    tracing::info!("Attempting to generate for {:?}", av_request.user_id);
+    tracing::info!("Generating new vector for {:?}", av_request.user_id);
 
-    match context
-        .local_context
-        .user_info_database
-        .lock()
-        .await
-        .get_mut(&av_request.user_id)
-    {
-        Some(user_info) => {
-            tracing::info!("User found: {:?}", user_info);
+    let mut user_info = local::database::user_info_get(context.clone(), &av_request.user_id).await?;
 
-            let auth_vector_data =
-                auth_vector::generate_vector(&user_info.k, &user_info.opc, &user_info.sqn_max);
-            user_info.increment_sqn(0x21);
+    tracing::info!("User found: {:?}", user_info);
 
-            let seqnum = utilities::convert_sqn_bytes_to_int(&user_info.sqn_max)?;
+    // generate vector, then store new sqn max in the database
+    let auth_vector_data =
+        auth_vector::generate_vector(&user_info.k, &user_info.opc, &user_info.sqn_max);
+    user_info.increment_sqn(0x21);
+    local::database::user_info_add(context.clone(), &av_request.user_id, &user_info).await?;
 
-            let av_response = AuthVectorRes {
-                user_id: av_request.user_id.clone(),
-                seqnum,
-                rand: auth_vector_data.rand,
-                autn: auth_vector_data.autn,
-                xres_star_hash: auth_vector_data.xres_star_hash,
-            };
+    let seqnum = utilities::convert_sqn_bytes_to_int(&user_info.sqn_max)?;
 
-            local::database::kseaf_put(
-                context.clone(),
-                &auth_vector_data.xres_star,
-                &auth_vector_data.kseaf,
-            )
-            .await?;
+    let av_response = AuthVectorRes {
+        user_id: av_request.user_id.clone(),
+        seqnum,
+        rand: auth_vector_data.rand,
+        autn: auth_vector_data.autn,
+        xres_star_hash: auth_vector_data.xres_star_hash,
+    };
 
-            tracing::info!("Auth vector generated: {:?}", av_response);
+    local::database::kseaf_put(
+        context.clone(),
+        &auth_vector_data.xres_star,
+        &auth_vector_data.kseaf,
+    )
+    .await?;
 
-            Ok(av_response)
-        }
-        None => {
-            tracing::error!("No user info exists for {:?}", av_request);
-            Err(DauthError::NotFoundError(format!("No user info exists")))
-        }
-    }
+    tracing::info!("Auth vector generated: {:?}", av_response);
+
+    Ok(av_response)
 }

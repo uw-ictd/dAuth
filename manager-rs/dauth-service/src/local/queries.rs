@@ -185,7 +185,7 @@ pub async fn get_kseaf(
 /// Insert user info and replace if exists.
 pub async fn user_info_add(
     transaction: &mut Transaction<'_, Sqlite>,
-    user_id: Id,
+    user_id: &Id,
     k: &[u8],
     opc: &[u8],
     sqn_max: &[u8],
@@ -208,7 +208,7 @@ pub async fn user_info_add(
 /// Get user info if exists.
 pub async fn user_info_get(
     transaction: &mut Transaction<'_, Sqlite>,
-    user_id: Id,
+    user_id: &Id,
 ) -> Result<SqliteRow, DauthError> {
     Ok(sqlx::query(&format!(
         "SELECT * 
@@ -224,7 +224,7 @@ pub async fn user_info_get(
 /// Remove user info if exists.
 pub async fn user_info_remove(
     transaction: &mut Transaction<'_, Sqlite>,
-    user_id: Id,
+    user_id: &Id,
 ) -> Result<(), DauthError> {
     sqlx::query(&format!(
         "DELETE FROM {0}
@@ -716,7 +716,7 @@ mod tests {
             for row in 0..num_rows {
                 queries::user_info_add(
                     &mut transaction,
-                    format!("user_info_{}", section * num_rows + row),
+                    &format!("user_info_{}", section * num_rows + row),
                     &[section * num_rows + row; K_LENGTH],
                     &[section * num_rows + row; OPC_LENGTH],
                     &[section * num_rows + row; SQN_LENGTH],
@@ -742,7 +742,7 @@ mod tests {
             for row in 0..num_rows {
                 queries::user_info_add(
                     &mut transaction,
-                    format!("user_info_{}", section * num_rows + row),
+                    &format!("user_info_{}", section * num_rows + row),
                     &[section * num_rows + row; K_LENGTH],
                     &[section * num_rows + row; OPC_LENGTH],
                     &[section * num_rows + row; SQN_LENGTH],
@@ -758,7 +758,7 @@ mod tests {
             for row in 0..num_rows {
                 let res = queries::user_info_get(
                     &mut transaction,
-                    format!("user_info_{}", section * num_rows + row),
+                    &format!("user_info_{}", section * num_rows + row),
                 )
                 .await
                 .unwrap();
@@ -798,7 +798,7 @@ mod tests {
             for row in 0..num_rows {
                 queries::user_info_add(
                     &mut transaction,
-                    format!("user_info_{}", section * num_rows + row),
+                    &format!("user_info_{}", section * num_rows + row),
                     &[section * num_rows + row; K_LENGTH],
                     &[section * num_rows + row; OPC_LENGTH],
                     &[section * num_rows + row; SQN_LENGTH],
@@ -814,7 +814,7 @@ mod tests {
             for row in 0..num_rows {
                 queries::user_info_remove(
                     &mut transaction,
-                    format!("user_info_{}", section * num_rows + row),
+                    &format!("user_info_{}", section * num_rows + row),
                 )
                 .await
                 .unwrap();
@@ -825,7 +825,7 @@ mod tests {
             for row in 0..num_rows {
                 assert!(queries::user_info_get(
                     &mut transaction,
-                    format!("user_info_{}", section * num_rows + row),
+                    &format!("user_info_{}", section * num_rows + row),
                 )
                 .await
                 .is_err());
@@ -849,7 +849,7 @@ mod tests {
             for row in 0..num_rows {
                 queries::user_info_add(
                     &mut transaction,
-                    format!("user_info_{}", section * num_rows + row),
+                    &format!("user_info_{}", section * num_rows + row),
                     &[section * num_rows + row; K_LENGTH],
                     &[section * num_rows + row; OPC_LENGTH],
                     &[section * num_rows + row; SQN_LENGTH],
@@ -865,7 +865,7 @@ mod tests {
             for row in 0..num_rows {
                 let res = queries::user_info_get(
                     &mut transaction,
-                    format!("user_info_{}", section * num_rows + row),
+                    &format!("user_info_{}", section * num_rows + row),
                 )
                 .await
                 .unwrap();
@@ -895,7 +895,7 @@ mod tests {
             for row in 0..num_rows {
                 queries::user_info_add(
                     &mut transaction,
-                    format!("user_info_{}", section * num_rows + row),
+                    &format!("user_info_{}", section * num_rows + row),
                     &[section * num_rows + row + 1; K_LENGTH],
                     &[section * num_rows + row + 2; OPC_LENGTH],
                     &[section * num_rows + row + 3; SQN_LENGTH],
@@ -911,7 +911,7 @@ mod tests {
             for row in 0..num_rows {
                 let res = queries::user_info_get(
                     &mut transaction,
-                    format!("user_info_{}", section * num_rows + row),
+                    &format!("user_info_{}", section * num_rows + row),
                 )
                 .await
                 .unwrap();
