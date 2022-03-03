@@ -201,3 +201,4 @@ if __name__ == "__main__":
             log.error("Specified deploy but no deploy destinations provided")
         for host in args.dest_host:
             deploy_open5gs_5gc_packages(Path("../open5gs-debs"), host)
+            Connection(host).sudo("/home/vagrant/scripts/open5gs-ip-config.py")
