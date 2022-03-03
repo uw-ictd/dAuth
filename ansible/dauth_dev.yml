@@ -101,6 +101,13 @@
         executable: pip3
         state: latest
 
+    - name: Install poetry from pip
+      become: yes
+      pip:
+        name: poetry
+        executable: pip3
+        state: latest
+
     - name: Install open5gs runtime dependencies
       become: yes
       apt:
