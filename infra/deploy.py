@@ -1,3 +1,4 @@
+import argparse
 import logging
 import subprocess
 
@@ -100,31 +101,103 @@ def deploy_open5gs_5gc_packages(open5gs_package_directory, host):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="deploy dauth in a test environment"
+    )
+    parser.add_argument(
+        "-b",
+        "--build-dauth",
+        action="store_true",
+        help="Build dauth from source",
+    )
+    parser.add_argument(
+        "--build-open5gs",
+        action="store_true",
+        help="Build open5gs from source",
+    )
+
+    parser.add_argument(
+        "-d",
+        "--deploy-dauth",
+        action="store_true",
+        help="Build open5gs from source",
+    )
+    parser.add_argument(
+        "--deploy-open5gs",
+        action="store_true",
+        help="Build open5gs from source",
+    )
+
+    parser.add_argument(
+        "-o",
+        "--dest-host",
+        action="append",
+        default=[],
+        help="Specify a hostname to deploy onto",
+    )
+
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output",
+    )
+
+    args = parser.parse_args()
+
     try:
         import colorlog
 
         handler = colorlog.StreamHandler()
         handler.setFormatter(
             colorlog.ColoredFormatter(
-                "%(log_color)s%(levelname)s(%(name)s): %(message)s"
+                "%(log_color)s%(levelname)s(%(name)s)%(reset)s: %(message)s"
             )
         )
         log = colorlog.getLogger(__name__)
-        log.setLevel(logging.INFO)
+        if args.verbose:
+            log.setLevel(logging.DEBUG)
+        else:
+            log.setLevel(logging.INFO)
         log.addHandler(handler)
     except Exception as e:
-        logging.basicConfig(level=logging.INFO)
+        if args.verbose:
+            logging.basicConfig(level=logging.DEBUG)
+        else:
+            logging.basicConfig(level=logging.INFO)
+
         log = logging.getLogger(__name__)
         log.info(
             "System does not support colored logging due to exception:", exc_info=True
         )
         log.info("Continuing operation with standard logging")
 
-    build_dauth_manager(target="release")
-    dauth_package_path = package_dauth_manager(target="release")
+    log.debug("Proceeding with args: %s", args)
 
-    deploy_package(dauth_package_path, "colte1.local")
+    if not (args.build_dauth or args.build_open5gs or args.deploy_dauth or args.deploy_open5gs):
+        log.error("No action specified!")
 
-    build_open5gs_packages()
+    if args.build_dauth:
+        log.info("Building dauth")
+        build_dauth_manager(target="release")
 
-    deploy_open5gs_5gc_packages(Path("../open5gs-debs"), "colte1.local")
+    if args.build_open5gs:
+        log.info("Building open5gs")
+        log.warning("Building and packaging open5gs may take a while : /")
+        build_open5gs_packages()
+
+    if args.deploy_dauth:
+        log.info("Building dauth package")
+        dauth_package_path = package_dauth_manager(target="release")
+        log.info("Deploying dauth package")
+        if len(args.dest_host) == 0:
+            log.error("Specified deploy but no deploy destinations provided")
+        for host in args.dest_host:
+            deploy_package(dauth_package_path, host)
+
+    if args.deploy_open5gs:
+        log.info("Deploying open5gs packages")
+        if len(args.dest_host) == 0:
+            log.error("Specified deploy but no deploy destinations provided")
+        for host in args.dest_host:
+            deploy_open5gs_5gc_packages(Path("../open5gs-debs"), host)
