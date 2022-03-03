@@ -24,6 +24,7 @@
           - libmongoc-1.0-0
           - libsctp1
           - libtins4.0
+          - mongodb
         state: present
 
     - name: Copy network config
