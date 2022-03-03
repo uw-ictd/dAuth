@@ -47,6 +47,16 @@
       command: /home/vagrant/scripts/configure-fwd
       become: yes
 
+    - name: Create dauth config directory if it doesn't already exist
+      file:
+        path: /etc/dauth
+        state: directory
+
+    - name: Write host data to a long-lived config file
+      ansible.builtin.template:
+        src: "templates/dauth-host-config.yml.j2"
+        dest: "/etc/dauth/host-config.yml"
+
     # - name: Configure open5gs ips
     #   command: /home/vagrant/scripts/open5gs-ip-config.py {{ colte_ip }}
     #   become: yes
