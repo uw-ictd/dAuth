@@ -7,7 +7,6 @@ use auth_vector::types::{Id, Kseaf, ResStar};
 
 use crate::data::{
     context::DauthContext,
-    database::*,
     error::DauthError,
     user_info::UserInfo,
     vector::{AuthVectorReq, AuthVectorRes},
@@ -38,19 +37,19 @@ pub async fn auth_vector_next(
     let row = queries::get_first_vector(&mut transaction, &av_request.user_id).await?;
     queries::remove_vector(
         &mut transaction,
-        row.try_get::<&str, &str>(AV_ID_FIELD)?,
-        row.try_get::<i64, &str>(AV_RANK_FIELD)?,
+        row.try_get::<&str, &str>("user_id")?,
+        row.try_get::<i64, &str>("seqnum")?,
     )
     .await?;
 
     transaction.commit().await?;
 
     Ok(AuthVectorRes {
-        user_id: String::from(row.try_get::<&str, &str>(AV_ID_FIELD)?),
-        seqnum: row.try_get::<i64, &str>(AV_RANK_FIELD)?,
-        xres_star_hash: row.try_get::<&[u8], &str>(AV_XRES_FIELD)?.try_into()?,
-        autn: row.try_get::<&[u8], &str>(AV_AUTN_FIELD)?.try_into()?,
-        rand: row.try_get::<&[u8], &str>(AV_RAND_FIELD)?.try_into()?,
+        user_id: String::from(row.try_get::<&str, &str>("user_id")?),
+        seqnum: row.try_get::<i64, &str>("seqnum")?,
+        xres_star_hash: row.try_get::<&[u8], &str>("xres_star_hash")?.try_into()?,
+        autn: row.try_get::<&[u8], &str>("autn")?.try_into()?,
+        rand: row.try_get::<&[u8], &str>("rand")?.try_into()?,
     })
 }
 
@@ -80,7 +79,7 @@ pub async fn kseaf_get(
     queries::delete_kseaf(&mut transaction, xres_star).await?;
     transaction.commit().await?;
 
-    Ok(row.try_get::<&[u8], &str>(KSEAF_DATA_FIELD)?.try_into()?)
+    Ok(row.try_get::<&[u8], &str>("kseaf_data")?.try_into()?)
 }
 
 /// Adds a kseaf value with the given xres_star_hash.
@@ -106,7 +105,7 @@ pub async fn user_info_add(
     tracing::info!("User info add: {:?} - {:?}", user_id, user_info);
 
     let mut transaction = context.local_context.database_pool.begin().await?;
-    queries::user_info_add(
+    queries::user_info_upsert(
         &mut transaction,
         user_id,
         &user_info.k,
@@ -130,12 +129,10 @@ pub async fn user_info_get(
     transaction.commit().await?;
 
     Ok(UserInfo {
-        k: row.try_get::<&[u8], &str>(USER_INFO_K_FIELD)?.try_into()?,
-        opc: row
-            .try_get::<&[u8], &str>(USER_INFO_OPC_FIELD)?
-            .try_into()?,
+        k: row.try_get::<&[u8], &str>("user_info_k")?.try_into()?,
+        opc: row.try_get::<&[u8], &str>("user_info_opc")?.try_into()?,
         sqn_max: row
-            .try_get::<&[u8], &str>(USER_INFO_SQN_FIELD)?
+            .try_get::<&[u8], &str>("user_info_sqn_max")?
             .try_into()?,
     })
 }

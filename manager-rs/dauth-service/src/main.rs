@@ -42,7 +42,6 @@ async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthEr
 
     let context = Arc::new(DauthContext {
         local_context: LocalContext {
-            database_path: config.database_path,
             database_pool: pool,
             local_user_id_min: config.local_user_id_min,
             local_user_id_max: config.local_user_id_max,

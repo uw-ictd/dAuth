@@ -6,7 +6,6 @@ use tonic::transport::Channel;
 
 use auth_vector::types::Id;
 
-use crate::data::user_info::UserInfo;
 use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
 
 /// Maintains the context for all components of
@@ -20,7 +19,6 @@ pub struct DauthContext {
 
 #[derive(Debug)]
 pub struct LocalContext {
-    pub database_path: String,
     pub database_pool: SqlitePool,
     pub local_user_id_min: Id,
     pub local_user_id_max: Id,

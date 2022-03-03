@@ -77,7 +77,8 @@ async fn auth_vector_generate(
 ) -> Result<AuthVectorRes, DauthError> {
     tracing::info!("Generating new vector for {:?}", av_request.user_id);
 
-    let mut user_info = local::database::user_info_get(context.clone(), &av_request.user_id).await?;
+    let mut user_info =
+        local::database::user_info_get(context.clone(), &av_request.user_id).await?;
 
     tracing::info!("User found: {:?}", user_info);
 

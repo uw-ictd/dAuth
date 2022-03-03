@@ -2,7 +2,7 @@ use auth_vector::types::Id;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteRow};
 use sqlx::{Sqlite, Transaction};
 
-use crate::data::{database::*, error::DauthError};
+use crate::data::error::DauthError;
 
 /// Constructs the sqlite pool for running queries.
 pub async fn build_pool(database_path: &str) -> Result<SqlitePool, DauthError> {
@@ -18,17 +18,16 @@ pub async fn build_pool(database_path: &str) -> Result<SqlitePool, DauthError> {
 
 /// Creates the auth vector table if it does not exist already.
 pub async fn init_auth_vector_table(pool: &SqlitePool) -> Result<(), DauthError> {
-    sqlx::query(&format!(
-        "CREATE TABLE IF NOT EXISTS {0} (
-            {1} TEXT NOT NULL,
-            {2} INT NOT NULL,
-            {3} BLOB NOT NULL,
-            {4} BLOB NOT NULL,
-            {5} BLOB NOT NULL,
-            PRIMARY KEY ({1}, {2})
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS auth_vector_table (
+            user_id TEXT NOT NULL,
+            seqnum INT NOT NULL,
+            xres_star_hash BLOB NOT NULL,
+            autn BLOB NOT NULL,
+            rand BLOB NOT NULL,
+            PRIMARY KEY (user_id, seqnum)
         );",
-        AV_TABLE_NAME, AV_ID_FIELD, AV_RANK_FIELD, AV_XRES_FIELD, AV_AUTN_FIELD, AV_RAND_FIELD
-    ))
+    )
     .execute(pool)
     .await?;
     Ok(())
@@ -36,13 +35,12 @@ pub async fn init_auth_vector_table(pool: &SqlitePool) -> Result<(), DauthError>
 
 /// Creates the kseaf table if it does not exist already.
 pub async fn init_kseaf_table(pool: &SqlitePool) -> Result<(), DauthError> {
-    sqlx::query(&format!(
-        "CREATE TABLE IF NOT EXISTS {0} (
-            {1} BLOB PRIMARY KEY,
-            {2} BLOB NOT NULL
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS kseaf_table (
+            kseaf_uuid BLOB PRIMARY KEY,
+            kseaf_data BLOB NOT NULL
         );",
-        KSEAF_TABLE_NAME, KSEAF_ID_FIELD, KSEAF_DATA_FIELD
-    ))
+    )
     .execute(pool)
     .await?;
     Ok(())
@@ -50,19 +48,14 @@ pub async fn init_kseaf_table(pool: &SqlitePool) -> Result<(), DauthError> {
 
 /// Creates the auth vector table if it does not exist already.
 pub async fn init_user_info_vector_table(pool: &SqlitePool) -> Result<(), DauthError> {
-    sqlx::query(&format!(
-        "CREATE TABLE IF NOT EXISTS {0} (
-            {1} TEST PRIMARY KEY,
-            {2} BLOB NOT NULL,
-            {3} BLOB NOT NULL,
-            {4} BLOB NOT NULL
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS user_info_table (
+            user_info_id TEST PRIMARY KEY,
+            user_info_k BLOB NOT NULL,
+            user_info_opc BLOB NOT NULL,
+            user_info_sqn_max BLOB NOT NULL
         );",
-        USER_INFO_TABLE_NAME,
-        USER_INFO_ID_FIELD,
-        USER_INFO_K_FIELD,
-        USER_INFO_OPC_FIELD,
-        USER_INFO_SQN_FIELD,
-    ))
+    )
     .execute(pool)
     .await?;
     Ok(())
@@ -73,14 +66,12 @@ pub async fn get_first_vector(
     transaction: &mut Transaction<'_, Sqlite>,
     id: &str,
 ) -> Result<SqliteRow, DauthError> {
-    Ok(sqlx::query(&format!(
-        "SELECT * 
-        FROM {0}
-        WHERE {1}=$1
-        ORDER BY {2}
+    Ok(sqlx::query(
+        "SELECT * FROM auth_vector_table
+        WHERE user_id=$1
+        ORDER BY seqnum
         LIMIT 1;",
-        AV_TABLE_NAME, AV_ID_FIELD, AV_RANK_FIELD,
-    ))
+    )
     .bind(id)
     .fetch_one(transaction)
     .await?)
@@ -96,11 +87,10 @@ pub async fn insert_vector(
     autn: &[u8],
     rand: &[u8],
 ) -> Result<(), DauthError> {
-    sqlx::query(&format!(
-        "INSERT INTO {0}
+    sqlx::query(
+        "INSERT INTO auth_vector_table
         VALUES ($1,$2,$3,$4,$5)",
-        AV_TABLE_NAME
-    ))
+    )
     .bind(id)
     .bind(seqnum)
     .bind(xres)
@@ -118,11 +108,10 @@ pub async fn remove_vector(
     id: &str,
     seqnum: i64,
 ) -> Result<(), DauthError> {
-    sqlx::query(&format!(
-        "DELETE FROM {0}
-        WHERE ({1},{2})=($1,$2)",
-        AV_TABLE_NAME, AV_ID_FIELD, AV_RANK_FIELD,
-    ))
+    sqlx::query(
+        "DELETE FROM auth_vector_table
+        WHERE (user_id,seqnum)=($1,$2)",
+    )
     .bind(id)
     .bind(seqnum)
     .execute(transaction)
@@ -136,11 +125,10 @@ pub async fn insert_kseaf(
     uuid: &[u8],
     value: &[u8],
 ) -> Result<(), DauthError> {
-    sqlx::query(&format!(
-        "INSERT INTO {0}
+    sqlx::query(
+        "INSERT INTO kseaf_table
         VALUES ($1,$2)",
-        KSEAF_TABLE_NAME,
-    ))
+    )
     .bind(uuid)
     .bind(value)
     .execute(transaction)
@@ -154,11 +142,10 @@ pub async fn delete_kseaf(
     transaction: &mut Transaction<'_, Sqlite>,
     uuid: &[u8],
 ) -> Result<(), DauthError> {
-    sqlx::query(&format!(
-        "DELETE FROM {0}
-        WHERE {1}=$1",
-        KSEAF_TABLE_NAME, KSEAF_ID_FIELD,
-    ))
+    sqlx::query(
+        "DELETE FROM kseaf_table
+        WHERE kseaf_uuid=$1",
+    )
     .bind(uuid)
     .execute(transaction)
     .await?;
@@ -171,30 +158,27 @@ pub async fn get_kseaf(
     transaction: &mut Transaction<'_, Sqlite>,
     uuid: &[u8],
 ) -> Result<SqliteRow, DauthError> {
-    Ok(sqlx::query(&format!(
-        "SELECT * 
-        FROM {0}
-        WHERE {1}=$1;",
-        KSEAF_TABLE_NAME, KSEAF_ID_FIELD,
-    ))
+    Ok(sqlx::query(
+        "SELECT * FROM kseaf_table
+        WHERE kseaf_uuid=$1;",
+    )
     .bind(uuid)
     .fetch_one(transaction)
     .await?)
 }
 
 /// Insert user info and replace if exists.
-pub async fn user_info_add(
+pub async fn user_info_upsert(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &Id,
     k: &[u8],
     opc: &[u8],
     sqn_max: &[u8],
 ) -> Result<(), DauthError> {
-    sqlx::query(&format!(
-        "REPLACE INTO {0}
+    sqlx::query(
+        "REPLACE INTO user_info_table
         VALUES ($1,$2,$3,$4);",
-        USER_INFO_TABLE_NAME,
-    ))
+    )
     .bind(user_id)
     .bind(k)
     .bind(opc)
@@ -210,12 +194,10 @@ pub async fn user_info_get(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &Id,
 ) -> Result<SqliteRow, DauthError> {
-    Ok(sqlx::query(&format!(
-        "SELECT * 
-        FROM {0}
-        WHERE {1}=$1;",
-        USER_INFO_TABLE_NAME, USER_INFO_ID_FIELD,
-    ))
+    Ok(sqlx::query(
+        "SELECT * FROM user_info_table
+        WHERE user_info_id=$1;",
+    )
     .bind(user_id)
     .fetch_one(transaction)
     .await?)
@@ -226,11 +208,10 @@ pub async fn user_info_remove(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &Id,
 ) -> Result<(), DauthError> {
-    sqlx::query(&format!(
-        "DELETE FROM {0}
-        WHERE {1}=$1",
-        USER_INFO_TABLE_NAME, USER_INFO_ID_FIELD,
-    ))
+    sqlx::query(
+        "DELETE FROM user_info_table
+        WHERE user_info_id=$1",
+    )
     .bind(user_id)
     .execute(transaction)
     .await?;
@@ -252,7 +233,6 @@ mod tests {
         RES_STAR_LENGTH, SQN_LENGTH,
     };
 
-    use crate::data::database::*;
     use crate::local::queries;
 
     fn gen_name() -> String {
@@ -388,8 +368,8 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!("test_id_1", res.get_unchecked::<&str, &str>(AV_ID_FIELD));
-        assert_eq!(0, res.get_unchecked::<i64, &str>(AV_RANK_FIELD));
+        assert_eq!("test_id_1", res.get_unchecked::<&str, &str>("user_id"));
+        assert_eq!(0, res.get_unchecked::<i64, &str>("seqnum"));
 
         transaction.commit().await.unwrap();
     }
@@ -482,9 +462,9 @@ mod tests {
 
                 assert_eq!(
                     &format!("test_id_{}", section),
-                    res.get_unchecked::<&str, &str>(AV_ID_FIELD)
+                    res.get_unchecked::<&str, &str>("user_id")
                 );
-                assert_eq!(row, res.get_unchecked::<i64, &str>(AV_RANK_FIELD));
+                assert_eq!(row, res.get_unchecked::<i64, &str>("seqnum"));
             }
         }
 
@@ -551,7 +531,7 @@ mod tests {
 
                 assert_eq!(
                     &[section * num_rows + row; KSEAF_LENGTH],
-                    res.get_unchecked::<&[u8], &str>(KSEAF_DATA_FIELD)
+                    res.get_unchecked::<&[u8], &str>("kseaf_data")
                 );
             }
         }
@@ -647,12 +627,12 @@ mod tests {
 
                 assert_eq!(
                     &[section * num_rows + row; KSEAF_LENGTH],
-                    res.get_unchecked::<&[u8], &str>(KSEAF_DATA_FIELD)
+                    res.get_unchecked::<&[u8], &str>("kseaf_data")
                 );
 
                 queries::delete_kseaf(
                     &mut transaction,
-                    res.get_unchecked::<&[u8], &str>(KSEAF_ID_FIELD),
+                    res.get_unchecked::<&[u8], &str>("kseaf_uuid"),
                 )
                 .await
                 .unwrap();
@@ -714,7 +694,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                queries::user_info_add(
+                queries::user_info_upsert(
                     &mut transaction,
                     &format!("user_info_{}", section * num_rows + row),
                     &[section * num_rows + row; K_LENGTH],
@@ -740,7 +720,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                queries::user_info_add(
+                queries::user_info_upsert(
                     &mut transaction,
                     &format!("user_info_{}", section * num_rows + row),
                     &[section * num_rows + row; K_LENGTH],
@@ -765,19 +745,19 @@ mod tests {
 
                 assert_eq!(
                     format!("user_info_{}", section * num_rows + row),
-                    res.get_unchecked::<&str, &str>(USER_INFO_ID_FIELD)
+                    res.get_unchecked::<&str, &str>("user_info_id")
                 );
                 assert_eq!(
                     &[section * num_rows + row; K_LENGTH],
-                    res.get_unchecked::<&[u8], &str>(USER_INFO_K_FIELD)
+                    res.get_unchecked::<&[u8], &str>("user_info_k")
                 );
                 assert_eq!(
                     &[section * num_rows + row; OPC_LENGTH],
-                    res.get_unchecked::<&[u8], &str>(USER_INFO_OPC_FIELD)
+                    res.get_unchecked::<&[u8], &str>("user_info_opc")
                 );
                 assert_eq!(
                     &[section * num_rows + row; SQN_LENGTH],
-                    res.get_unchecked::<&[u8], &str>(USER_INFO_SQN_FIELD)
+                    res.get_unchecked::<&[u8], &str>("user_info_sqn_max")
                 );
             }
         }
@@ -796,7 +776,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                queries::user_info_add(
+                queries::user_info_upsert(
                     &mut transaction,
                     &format!("user_info_{}", section * num_rows + row),
                     &[section * num_rows + row; K_LENGTH],
@@ -847,7 +827,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                queries::user_info_add(
+                queries::user_info_upsert(
                     &mut transaction,
                     &format!("user_info_{}", section * num_rows + row),
                     &[section * num_rows + row; K_LENGTH],
@@ -872,19 +852,19 @@ mod tests {
 
                 assert_eq!(
                     format!("user_info_{}", section * num_rows + row),
-                    res.get_unchecked::<&str, &str>(USER_INFO_ID_FIELD)
+                    res.get_unchecked::<&str, &str>("user_info_id")
                 );
                 assert_eq!(
                     &[section * num_rows + row; K_LENGTH],
-                    res.get_unchecked::<&[u8], &str>(USER_INFO_K_FIELD)
+                    res.get_unchecked::<&[u8], &str>("user_info_k")
                 );
                 assert_eq!(
                     &[section * num_rows + row; OPC_LENGTH],
-                    res.get_unchecked::<&[u8], &str>(USER_INFO_OPC_FIELD)
+                    res.get_unchecked::<&[u8], &str>("user_info_opc")
                 );
                 assert_eq!(
                     &[section * num_rows + row; SQN_LENGTH],
-                    res.get_unchecked::<&[u8], &str>(USER_INFO_SQN_FIELD)
+                    res.get_unchecked::<&[u8], &str>("user_info_sqn_max")
                 );
             }
         }
@@ -893,7 +873,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                queries::user_info_add(
+                queries::user_info_upsert(
                     &mut transaction,
                     &format!("user_info_{}", section * num_rows + row),
                     &[section * num_rows + row + 1; K_LENGTH],
@@ -918,35 +898,35 @@ mod tests {
 
                 assert_eq!(
                     format!("user_info_{}", section * num_rows + row),
-                    res.get_unchecked::<&str, &str>(USER_INFO_ID_FIELD)
+                    res.get_unchecked::<&str, &str>("user_info_id")
                 );
 
                 // old values
                 assert_ne!(
                     &[section * num_rows + row; K_LENGTH],
-                    res.get_unchecked::<&[u8], &str>(USER_INFO_K_FIELD)
+                    res.get_unchecked::<&[u8], &str>("user_info_k")
                 );
                 assert_ne!(
                     &[section * num_rows + row; OPC_LENGTH],
-                    res.get_unchecked::<&[u8], &str>(USER_INFO_OPC_FIELD)
+                    res.get_unchecked::<&[u8], &str>("user_info_opc")
                 );
                 assert_ne!(
                     &[section * num_rows + row; SQN_LENGTH],
-                    res.get_unchecked::<&[u8], &str>(USER_INFO_SQN_FIELD)
+                    res.get_unchecked::<&[u8], &str>("user_info_sqn_max")
                 );
 
                 // new values
                 assert_eq!(
                     &[section * num_rows + row + 1; K_LENGTH],
-                    res.get_unchecked::<&[u8], &str>(USER_INFO_K_FIELD)
+                    res.get_unchecked::<&[u8], &str>("user_info_k")
                 );
                 assert_eq!(
                     &[section * num_rows + row + 2; OPC_LENGTH],
-                    res.get_unchecked::<&[u8], &str>(USER_INFO_OPC_FIELD)
+                    res.get_unchecked::<&[u8], &str>("user_info_opc")
                 );
                 assert_eq!(
                     &[section * num_rows + row + 3; SQN_LENGTH],
-                    res.get_unchecked::<&[u8], &str>(USER_INFO_SQN_FIELD)
+                    res.get_unchecked::<&[u8], &str>("user_info_sqn_max")
                 );
             }
         }
