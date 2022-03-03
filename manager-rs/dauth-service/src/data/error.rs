@@ -1,5 +1,6 @@
 use std::array::TryFromSliceError;
 
+use sqlx::Error as SqlxError;
 use thiserror::Error;
 
 /// General error type for dAuth service failures
@@ -16,6 +17,9 @@ pub enum DauthError {
 
     #[error("Data error -- {0}")]
     DataError(String),
+
+    #[error("Database error -- {0}")]
+    DatabaseError(#[from] SqlxError),
 
     #[error("Conversion error -- {0}")]
     ConversionError(#[from] TryFromSliceError),

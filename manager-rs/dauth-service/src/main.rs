@@ -2,12 +2,7 @@ mod data;
 mod local;
 mod rpc;
 
-use std::{
-    collections::HashMap,
-    fs,
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 
 use ed25519_dalek::Keypair;
 use rand::rngs::OsRng;
@@ -17,15 +12,13 @@ use tokio::runtime::Handle;
 use tracing::Level;
 use tracing_subscriber;
 
-use auth_vector::types::Id;
-
 use crate::data::{
     config::DauthConfig,
     context::{DauthContext, LocalContext, RemoteContext, RpcContext},
     error::DauthError,
     opt::DauthOpt,
-    user_info::UserInfo,
 };
+use crate::local::database;
 use crate::rpc::server;
 
 #[tokio::main]
@@ -34,27 +27,22 @@ async fn main() {
     tracing_subscriber::fmt().with_max_level(Level::INFO).init();
 
     let dauth_opt = DauthOpt::from_args();
-    let context = build_context(dauth_opt).expect("Failed to generate context");
+    let context = build_context(dauth_opt)
+        .await
+        .expect("Failed to generate context");
 
     server::start_server(context.clone()).await;
 }
 
-fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
+async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
     let config = build_config(dauth_opt.config_path)?;
-    let mut user_map: HashMap<Id, UserInfo> = HashMap::new();
-
-    for (id, user_info_config) in config.users {
-        tracing::info!("inserting ID {:?}", id);
-        user_map.insert(id.clone(), user_info_config.to_user_info()?);
-    }
 
     let keys = generate_keys(&config.ed25519_keyfile_path);
+    let pool = database::database_init(&config.database_path).await?;
 
-    Ok(Arc::new(DauthContext {
+    let context = Arc::new(DauthContext {
         local_context: LocalContext {
-            database: Mutex::new(HashMap::new()),
-            kseaf_map: Mutex::new(HashMap::new()),
-            user_info_database: Mutex::new(user_map),
+            database_pool: pool,
             local_user_id_min: config.local_user_id_min,
             local_user_id_max: config.local_user_id_max,
             signing_keys: keys,
@@ -67,7 +55,15 @@ fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
             host_addr: config.host_addr,
             client_stubs: tokio::sync::Mutex::new(HashMap::new()),
         },
-    }))
+    });
+
+    for (user_id, user_info_config) in config.users {
+        let user_info = user_info_config.to_user_info()?;
+        tracing::info!("inserting user info: {:?} - {:?}", user_id, user_info);
+        database::user_info_add(context.clone(), &user_id, &user_info).await?
+    }
+
+    Ok(context)
 }
 
 fn generate_keys(keyfile_path: &String) -> Keypair {

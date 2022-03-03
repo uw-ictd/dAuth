@@ -23,7 +23,7 @@ pub async fn auth_vector_get(
 ) -> Result<AuthVectorRes, DauthError> {
     tracing::info!("Handling request: {:?}", av_request);
 
-    match local::database::auth_vector_next(context.clone(), av_request) {
+    match local::database::auth_vector_next(context.clone(), av_request).await {
         Ok(av_result) => {
             tracing::info!("Reporting used {:?}", av_result);
             clients::broadcast_auth_vector_used(context, &av_result).await;
@@ -33,7 +33,7 @@ pub async fn auth_vector_get(
             tracing::info!("No auth vector found in database: {}", e);
 
             if auth_vector_is_local(context.clone(), av_request) {
-                auth_vector_generate(context.clone(), av_request)
+                auth_vector_generate(context.clone(), av_request).await
             } else {
                 // clients::request_auth_vector_remote(context, av_request).await
                 todo!()
@@ -50,7 +50,7 @@ pub async fn confirm_auth_vector_used(
 ) -> Result<auth_vector::types::Kseaf, DauthError> {
     tracing::info!("Handling confirm: {:?}", res_star);
 
-    match local::database::kseaf_get(context.clone(), &res_star) {
+    match local::database::kseaf_get(context.clone(), &res_star).await {
         Ok(key) => {
             // TODO(matt9j) Remove confirmed vectors from cache?
             //local::database::auth_vector_delete(context, res_star);
@@ -61,57 +61,51 @@ pub async fn confirm_auth_vector_used(
             Err(DauthError::NotFoundError("Key not available".to_string()))
         }
     }
-
 }
 
 /// Returns whether the auth vector belongs to this core
 fn auth_vector_is_local(context: Arc<DauthContext>, av_request: &AuthVectorReq) -> bool {
-    (av_request.user_id <= context.local_context.local_user_id_max) &&
-    (av_request.user_id >= context.local_context.local_user_id_min)
+    (av_request.user_id <= context.local_context.local_user_id_max)
+        && (av_request.user_id >= context.local_context.local_user_id_min)
 }
 
 /// Generates and returns a new auth vector
 /// Will fail if the requested id does not belong to the core
-fn auth_vector_generate(
+async fn auth_vector_generate(
     context: Arc<DauthContext>,
     av_request: &AuthVectorReq,
 ) -> Result<AuthVectorRes, DauthError> {
-    tracing::info!("Attempting to generate for {:?}", av_request.user_id);
+    tracing::info!("Generating new vector for {:?}", av_request.user_id);
 
-    match context
-        .local_context
-        .user_info_database
-        .lock()
-        .unwrap()
-        .get_mut(&av_request.user_id)
-    {
-        Some(user_info) => {
-            tracing::info!("User found: {:?}", user_info);
+    let mut user_info =
+        local::database::user_info_get(context.clone(), &av_request.user_id).await?;
 
-            let auth_vector_data =
-                auth_vector::generate_vector(&user_info.k, &user_info.opc, &user_info.sqn_max);
-            user_info.increment_sqn(0x21);
+    tracing::info!("User found: {:?}", user_info);
 
-            let av_response = AuthVectorRes {
-                user_id: av_request.user_id.clone(),
-                rand: auth_vector_data.rand,
-                autn: auth_vector_data.autn,
-                xres_star_hash: auth_vector_data.xres_star_hash,
-            };
+    // generate vector, then store new sqn max in the database
+    let auth_vector_data =
+        auth_vector::generate_vector(&user_info.k, &user_info.opc, &user_info.sqn_max);
+    user_info.increment_sqn(0x21);
+    local::database::user_info_add(context.clone(), &av_request.user_id, &user_info).await?;
 
-            local::database::kseaf_put(
-                context.clone(),
-                &auth_vector_data.xres_star,
-                &auth_vector_data.kseaf,
-            );
+    let seqnum = utilities::convert_sqn_bytes_to_int(&user_info.sqn_max)?;
 
-            tracing::info!("Auth vector generated: {:?}", av_response);
+    let av_response = AuthVectorRes {
+        user_id: av_request.user_id.clone(),
+        seqnum,
+        rand: auth_vector_data.rand,
+        autn: auth_vector_data.autn,
+        xres_star_hash: auth_vector_data.xres_star_hash,
+    };
 
-            Ok(av_response)
-        }
-        None => {
-            tracing::error!("No user info exists for {:?}", av_request);
-            Err(DauthError::NotFoundError(format!("No user info exists")))
-        }
-    }
+    local::database::kseaf_put(
+        context.clone(),
+        &auth_vector_data.xres_star,
+        &auth_vector_data.kseaf,
+    )
+    .await?;
+
+    tracing::info!("Auth vector generated: {:?}", av_response);
+
+    Ok(av_response)
 }

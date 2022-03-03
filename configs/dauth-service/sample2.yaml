@@ -20,3 +20,5 @@ local_user_id_max: "901700000000002"
 # keyfile for ed25519 keys used in signing remote messages
 ed25519_keyfile_path: "~/dauth_service/ed25519_keys"
 
+# path to create/find the database
+database_path: "~/dauth_service/sqlite2.db"

@@ -12,4 +12,6 @@ users: {
 host_addr: "127.0.0.1:50051"
 local_user_id_min: "imsi-901700000000000"
 local_user_id_max: "imsi-901700000000002"
-ed25519_keyfile_path: "~/dauth_service/ed25519_keys"
+ed25519_keyfile_path: "out/ed25519_keys"
+
+database_path: "out/sqlite.db"

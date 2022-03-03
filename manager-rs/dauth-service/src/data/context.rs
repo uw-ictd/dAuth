@@ -1,15 +1,11 @@
-use std::{
-    collections::{HashMap, VecDeque},
-    sync::Mutex,
-};
-
 use ed25519_dalek::Keypair;
+use sqlx::SqlitePool;
+use std::collections::HashMap;
 use tokio::runtime::Handle;
 use tonic::transport::Channel;
 
-use auth_vector::types::{HresStar, Id, Kseaf};
+use auth_vector::types::Id;
 
-use crate::data::{user_info::UserInfo, vector::AuthVectorRes};
 use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
 
 /// Maintains the context for all components of
@@ -23,9 +19,7 @@ pub struct DauthContext {
 
 #[derive(Debug)]
 pub struct LocalContext {
-    pub database: Mutex<HashMap<Id, VecDeque<AuthVectorRes>>>,
-    pub kseaf_map: Mutex<HashMap<HresStar, Kseaf>>,
-    pub user_info_database: Mutex<HashMap<Id, UserInfo>>,
+    pub database_pool: SqlitePool,
     pub local_user_id_min: Id,
     pub local_user_id_max: Id,
     pub signing_keys: Keypair,
