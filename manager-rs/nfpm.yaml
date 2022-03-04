@@ -64,7 +64,7 @@ conflicts:
 # This can be binaries or any other files.
 contents:
   # Basic files that apply to all packagers
-  - src: "./target/release/dauth-service"
+  - src: "./target/${TARGET}/dauth-service"
     dst: "/usr/bin/dauth-service"
 
   - src: "./init/dauth.service"

@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "infra"
+version = "0.0.0"
+description = "Dauth deployment infrastructure"
+authors = ["Matt Johnson <matt9j@cs.washington.edu>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+fabric = "^2.6.0"
+colorlog = "^6.6.0"
+
+[tool.poetry.dev-dependencies]
+black = "^22.1.0"
+pylint = "^2.12.2"
+rope = "^0.22.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

@@ -3,6 +3,24 @@
 
 Vagrant.configure(2) do |config|
 
+  # Determine available host resources
+  mem_ratio = 3/4
+  cpu_exec_cap = 75
+  host = RbConfig::CONFIG['host_os']
+  # Give VM 3/4 system memory & access to all cpu cores on the host
+  if host =~ /darwin/
+    cpus = `sysctl -n hw.ncpu`.to_i
+    # sysctl returns Bytes and we need to convert to MB
+    mem = `sysctl -n hw.memsize`.to_i / 1024^2 * mem_ratio
+  elsif host =~ /linux/
+    cpus = `nproc`.to_i
+    # meminfo shows KB and we need to convert to MB
+    mem = `grep 'MemTotal' /proc/meminfo | sed -e 's/MemTotal://' -e 's/ kB//'`.to_i / 1024 * mem_ratio
+  else # Windows folks
+    cpus = `wmic cpu get NumberOfCores`.split("\n")[2].to_i
+    mem = `wmic OS get TotalVisibleMemorySize`.split("\n")[2].to_i / 1024 * mem_ratio
+  end
+
   config.vm.define :ueransim do |ueransim|
     ueransim.vm.box = "ubuntu/focal64"
     ueransim.vm.hostname = "ueransim"
@@ -11,7 +29,7 @@ Vagrant.configure(2) do |config|
 
     ueransim.vm.provider "virtualbox" do |vb|
       vb.customize ["modifyvm", :id, "--memory", "2048"]
-      vb.customize ["modifyvm", :id, "--cpus", "3"]
+      vb.customize ["modifyvm", :id, "--cpus", "1"]
 
     end
 
@@ -34,7 +52,7 @@ Vagrant.configure(2) do |config|
 
     colte.vm.provider "virtualbox" do |vb|
       vb.customize ["modifyvm", :id, "--memory", "2048"]
-      vb.customize ["modifyvm", :id, "--cpus", "3"]
+      vb.customize ["modifyvm", :id, "--cpus", "1"]
     end
 
     colte.vm.provision "ansible" do |ansible|
@@ -59,7 +77,7 @@ Vagrant.configure(2) do |config|
 
     colte.vm.provider "virtualbox" do |vb|
       vb.customize ["modifyvm", :id, "--memory", "2048"]
-      vb.customize ["modifyvm", :id, "--cpus", "3"]
+      vb.customize ["modifyvm", :id, "--cpus", "1"]
     end
 
     colte.vm.provision "ansible" do |ansible|
@@ -99,7 +117,8 @@ Vagrant.configure(2) do |config|
 
     colte.vm.provider "virtualbox" do |vb|
       vb.customize ["modifyvm", :id, "--memory", "4096"]
-      vb.customize ["modifyvm", :id, "--cpus", "3"]
+      vb.customize ["modifyvm", :id, "--cpus", cpus]
+      vb.customize ["modifyvm", :id, "--cpuexecutioncap", 75]
     end
 
     colte.vm.provision "ansible" do |ansible|

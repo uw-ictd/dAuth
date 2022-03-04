@@ -1,0 +1,8 @@
+# Ignore dpkg-buildpackage byproducts
+.debhelper/
+*.debhelper
+open5gs-*/
+open5gs-*.substvars
+debhelper-build-stamp
+files
+tmp/

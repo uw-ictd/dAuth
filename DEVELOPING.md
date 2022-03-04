@@ -7,7 +7,38 @@ open5gs ausf.
 Currently the SEAF communicates with the manager via a minimalistic gRPC
 interface, and expects the manager to be running at its default port.
 
-# Running an end-to-end test
+# Deploying to the test environment for iterative development
+
+There is a convenience script, deploy.py, in the `infra/` directory which can be
+used to build and copy the required components into the test VMs colte1 and
+colte2. It is designed to run within the dauthDev vm. The first time you run it,
+you will want to build and deploy everything, like so:
+
+```bash
+cd infra
+poetry install
+poetry run python3 deploy.py --build-dauth --build-open5gs --deploy-dauth --deploy-open5gs --dest-host colte1.local --dest-host colte2.local
+```
+
+Building the packages for open5gs is expensive since they're build from scratch
+via the debian process, so after deploying open5gs, you probably just want to
+selectively build and deploy dauth with:
+
+```bash
+poetry install
+poetry run python3 deploy.py --build-dauth --deploy-dauth --dest-host colte1.local --dest-host colte2.local
+```
+
+This can be shortened to `deploy.py -bd -o ${Host} -o ${Host2}`
+
+This script replaces some of the more tedious build, deploy, and run steps in
+the manual process below.
+
+All deployed services will be running via systemd, so use the usual `systemctl
+${CMD} dauth.service open5gs-ausfd.service` and `journalctl -f -u dauth.service
+-u open5gs-ausfd.service` to control them and get their logs.
+
+# Manually running an end-to-end test
 
 **For this test, you only need the ueransim and dauthDev vms**
 

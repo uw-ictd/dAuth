@@ -9,39 +9,37 @@
     - "ssh_mesh_member"
 
   tasks:
-    - name: Update and upgrade apt packages
+    - name: Update apt package cache
       become: yes
       apt:
-        upgrade: yes
         update_cache: yes
 
-    - name: Install dependencies - software-properties-common
+    - name: Install open5gs and dauth runtime dependencies
       apt:
-        name: software-properties-common
+        name:
+          - software-properties-common
+          - libbson-1.0-0
+          - libidn11
+          - libmicrohttpd12
+          - libmongoc-1.0-0
+          - libsctp1
+          - libtins4.0
+          - mongodb
         state: present
 
-    - name: Add open5gs repo
-      apt_repository:
-        repo: ppa:open5gs/latest
-    
-    - name: Install open5gs
-      apt:
-        name: open5gs
-        state: present
-    
     - name: Copy network config
       copy:
         src: "../configs/network/{{ inventory_hostname }}.yaml"
         dest: "/etc/netplan/60-static-routes.yaml"
         remote_src: no
-      
+
     - name: Copy scripts
       copy:
         src: "../scripts/"
         dest: "/home/vagrant/scripts"
         remote_src: no
         mode: u=rwx,g=rwx,o=rwx
-    
+
     - name: Apply network changes
       command: netplan apply
       become: yes
@@ -50,24 +48,16 @@
       command: /home/vagrant/scripts/configure-fwd
       become: yes
 
-    - name: Configure open5gs ips
-      command: /home/vagrant/scripts/open5gs-ip-config.py {{ colte_ip }}
-      become: yes
+    - name: Create dauth config directory if it doesn't already exist
+      file:
+        path: /etc/dauth
+        state: directory
 
-    - name: Restart amf service
-      systemd:
-        name: open5gs-amfd
-        state: restarted
-        enabled: yes
+    - name: Write host data to a long-lived config file
+      ansible.builtin.template:
+        src: "templates/dauth-host-config.yml.j2"
+        dest: "/etc/dauth/host-config.yml"
 
-    - name: Start smf service
-      systemd:
-        name: open5gs-smfd
-        state: started
-        enabled: yes
-
-    - name: Start upf service
-      systemd:
-        name: open5gs-upfd
-        state: started
-        enabled: yes
+    # - name: Configure open5gs ips
+    #   command: /home/vagrant/scripts/open5gs-ip-config.py {{ colte_ip }}
+    #   become: yes
