@@ -2,7 +2,7 @@ pub mod constants;
 pub mod data;
 pub mod types;
 
-use hmac::{Hmac, Mac, NewMac};
+use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 
 use milenage::Milenage;
