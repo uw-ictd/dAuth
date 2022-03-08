@@ -6,10 +6,8 @@ use crate::local;
 use crate::rpc::dauth::local::aka_confirm_resp;
 use crate::rpc::dauth::local::local_authentication_server::LocalAuthentication;
 use crate::rpc::dauth::local::{AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp};
-use crate::rpc::dauth::remote::home_network_server::HomeNetwork;
-use crate::rpc::dauth::remote::{
-    GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq, GetHomeConfirmKeyResp,
-};
+use crate::rpc::dauth::remote::{home_network_server::HomeNetwork, backup_network_server::BackupNetwork};
+use crate::rpc::dauth::remote::*;
 
 /// Handles all RPC calls to the dAuth service.
 pub struct DauthHandler {
@@ -23,11 +21,10 @@ impl LocalAuthentication for DauthHandler {
         &self,
         request: tonic::Request<AkaVectorReq>,
     ) -> Result<tonic::Response<AkaVectorResp>, tonic::Status> {
-        let req = request.into_inner();
-        tracing::info!("Local request: {:?}", &req);
+        tracing::info!("Request: {:?}", request);
 
         let av_request: AuthVectorReq;
-        match AuthVectorReq::from_req(req) {
+        match AuthVectorReq::from_req(request.into_inner()) {
             Ok(req) => av_request = req,
             Err(e) => return Err(tonic::Status::new(tonic::Code::Aborted, e.to_string())),
         }
@@ -79,8 +76,7 @@ impl HomeNetwork for DauthHandler {
         &self,
         request: tonic::Request<GetHomeAuthVectorReq>,
     ) -> Result<tonic::Response<GetHomeAuthVectorResp>, tonic::Status> {
-        let av_request = request.into_inner();
-        tracing::info!("Remote request: {:?}", av_request);
+        tracing::info!("Request: {:?}", request);
         todo!();
 
         // match remote::manager::auth_vector_get_remote(self.context.clone(), &av_request).await {
@@ -100,8 +96,7 @@ impl HomeNetwork for DauthHandler {
         &self,
         request: tonic::Request<GetHomeConfirmKeyReq>,
     ) -> Result<tonic::Response<GetHomeConfirmKeyResp>, tonic::Status> {
-        let av_result = request.into_inner();
-        tracing::info!("Remote used: {:?}", av_result);
+        tracing::info!("Request: {:?}", request);
 
         todo!();
 
@@ -115,5 +110,71 @@ impl HomeNetwork for DauthHandler {
         //         Err(tonic::Status::new(tonic::Code::Aborted, e.to_string()))
         //     }
         // }
+    }
+}
+
+#[tonic::async_trait]
+impl BackupNetwork for DauthHandler {
+    async fn enroll_backup_prepare(
+        &self,
+        request: tonic::Request<EnrollBackupPrepareReq>
+    ) -> Result<tonic::Response<EnrollBackupPrepareResp>, tonic::Status> {
+        tracing::info!("Request: {:?}", request);
+
+        todo!();
+    }
+
+    async fn enroll_backup_commit(
+        &self,
+        request: tonic::Request<EnrollBackupCommitReq>
+    ) -> Result<tonic::Response<EnrollBackupCommitResp>, tonic::Status> {
+        tracing::info!("Request: {:?}", request);
+
+        todo!();
+    }
+
+    async fn get_auth_vector(
+        &self,
+        request: tonic::Request<GetBackupAuthVectorReq>
+    ) -> Result<tonic::Response<GetBackupAuthVectorResp>, tonic::Status> {
+        tracing::info!("Request: {:?}", request);
+
+        todo!();
+    }
+
+    async fn get_key_share(
+        &self,
+        request: tonic::Request<GetKeyShareReq>
+    ) -> Result<tonic::Response<GetKeyShareResp>, tonic::Status> {
+        tracing::info!("Request: {:?}", request);
+
+        todo!();
+    }
+
+    async fn withdraw_backup(
+        &self,
+        request: tonic::Request<WithdrawBackupReq>
+    ) -> Result<tonic::Response<WithdrawBackupResp>, tonic::Status> {
+        tracing::info!("Request: {:?}", request);
+
+        todo!();
+    }
+
+    async fn withdraw_shares(
+        &self,
+        request: tonic::Request<WithdrawSharesReq>
+    ) -> Result<tonic::Response<WithdrawSharesResp>, tonic::Status> {
+        tracing::info!("Request: {:?}", request);
+
+        todo!();
+    }
+
+    async fn flood_vector(
+        &self,
+        request: tonic::Request<FloodVectorReq>
+    ) -> Result<tonic::Response<FloodVectorResp>, tonic::Status> {
+        tracing::info!("Request: {:?}", request);
+
+        todo!();
     }
 }
