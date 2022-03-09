@@ -12,6 +12,7 @@ use crate::data::{error::DauthError, user_info::UserInfo, utilities};
 /// Holds all configuration data from a corresponding YAML file
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DauthConfig {
+    pub id: String,
     pub users: HashMap<String, UserInfoConfig>,
     pub remote_addrs: Vec<String>,
     pub host_addr: String,

@@ -16,6 +16,7 @@ enum SignedMessageKind {
     FLOOD_VECTOR_REQ = 6;
     GET_HOME_AUTH_VECTOR_REQ = 7;
     GET_HOME_CONFIRM_KEY_REQ = 8;
+    DELEGATED_AUTH_VECTOR5_G = 9;
 }
 
 message SignedMessage {
@@ -28,8 +29,11 @@ message SignedMessage {
 }
 
 message DelegatedAuthVector5G {
-    d_auth.AuthVector5G v = 1;
-    bytes home_network_signature = 2;
+    message Payload {
+        string serving_network_id = 1;
+        d_auth.AuthVector5G v = 2;
+    }
+    SignedMessage message = 1;
 }
 
 // Represents an m of n share of the key response to a valid authentication
@@ -292,6 +296,7 @@ message FloodVectorReq {
         string home_network_id = 1;
 
         // The vector to be flooded and used next.
+        // TODO: (nickfh7) is this redundant now?
         DelegatedAuthVector5G vector = 2;
     }
 

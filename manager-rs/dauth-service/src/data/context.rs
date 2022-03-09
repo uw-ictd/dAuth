@@ -1,4 +1,4 @@
-use ed25519_dalek::Keypair;
+use ed25519_dalek::{Keypair, PublicKey};
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use tokio::runtime::Handle;
@@ -19,6 +19,7 @@ pub struct DauthContext {
 
 #[derive(Debug)]
 pub struct LocalContext {
+    pub id: String,
     pub database_pool: SqlitePool,
     pub local_user_id_min: Id,
     pub local_user_id_max: Id,
@@ -28,6 +29,7 @@ pub struct LocalContext {
 #[derive(Debug)]
 pub struct RemoteContext {
     pub remote_addrs: Vec<String>,
+    pub remote_keys: HashMap<String, PublicKey>,
 }
 
 #[derive(Debug)]

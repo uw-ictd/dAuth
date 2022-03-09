@@ -42,6 +42,7 @@ async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthEr
 
     let context = Arc::new(DauthContext {
         local_context: LocalContext {
+            id: config.id,
             database_pool: pool,
             local_user_id_min: config.local_user_id_min,
             local_user_id_max: config.local_user_id_max,
@@ -49,6 +50,8 @@ async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthEr
         },
         remote_context: RemoteContext {
             remote_addrs: config.remote_addrs,
+            // TODO: (nickfh7) add keys to this
+            remote_keys: HashMap::new(),
         },
         rpc_context: RpcContext {
             runtime_handle: Handle::current(),

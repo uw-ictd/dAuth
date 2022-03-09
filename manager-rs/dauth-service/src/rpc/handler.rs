@@ -1,13 +1,17 @@
 use std::sync::Arc;
 
 use crate::data::context::DauthContext;
+use crate::data::signing;
 use crate::data::vector::AuthVectorReq;
 use crate::local;
+use crate::rpc::dauth::common::{AuthVector5G, UserIdKind};
 use crate::rpc::dauth::local::aka_confirm_resp;
 use crate::rpc::dauth::local::local_authentication_server::LocalAuthentication;
 use crate::rpc::dauth::local::{AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp};
-use crate::rpc::dauth::remote::{home_network_server::HomeNetwork, backup_network_server::BackupNetwork};
 use crate::rpc::dauth::remote::*;
+use crate::rpc::dauth::remote::{
+    backup_network_server::BackupNetwork, home_network_server::HomeNetwork,
+};
 
 /// Handles all RPC calls to the dAuth service.
 pub struct DauthHandler {
@@ -77,18 +81,80 @@ impl HomeNetwork for DauthHandler {
         request: tonic::Request<GetHomeAuthVectorReq>,
     ) -> Result<tonic::Response<GetHomeAuthVectorResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
-        todo!();
 
-        // match remote::manager::auth_vector_get_remote(self.context.clone(), &av_request).await {
-        //     Ok(av_result) => {
-        //         tracing::info!("Returning result: {:?}", av_result);
-        //         Ok(tonic::Response::new(av_result))
-        //     }
-        //     Err(e) => {
-        //         tracing::error!("Error while handling request for {:?}: {}", av_request, e);
-        //         Err(tonic::Status::new(tonic::Code::Aborted, e.to_string()))
-        //     }
-        // }
+        let message = request
+            .into_inner()
+            .message
+            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
+
+        let verify_result =
+            signing::verify_message(self.context.clone(), &message).or_else(|e| {
+                Err(tonic::Status::new(
+                    tonic::Code::Unauthenticated,
+                    format!("Failed to verify message: {}", e),
+                ))
+            })?;
+
+        match verify_result {
+            signing::SignPayloadType::GetHomeAuthVectorReq(payload) => {
+                // verify contents and fulfill request
+                match payload.user_id_type() {
+                    UserIdKind::Supi => {
+                        let user_id = std::str::from_utf8(payload.user_id.as_slice())
+                            .or_else(|e| {
+                                Err(tonic::Status::new(
+                                    tonic::Code::InvalidArgument,
+                                    format!("Bad user id: {}", e),
+                                ))
+                            })?
+                            .to_string();
+                        let av_result = local::manager::auth_vector_get(
+                            self.context.clone(),
+                            &AuthVectorReq { user_id },
+                        )
+                        .await
+                        .or_else(|e| {
+                            Err(tonic::Status::new(
+                                tonic::Code::Aborted,
+                                format!("Failed to process request: {}", e),
+                            ))
+                        })?;
+
+                        let payload = delegated_auth_vector5_g::Payload {
+                            serving_network_id: self.context.local_context.id.clone(),
+                            v: Some(AuthVector5G {
+                                rand: av_result.rand.to_vec(),
+                                xres_star_hash: av_result.xres_star_hash.to_vec(),
+                                autn: av_result.autn.to_vec(),
+                                seqnum: av_result.seqnum,
+                            }),
+                        };
+
+                        let vector = DelegatedAuthVector5G {
+                            message: Some(signing::sign_message(
+                                self.context.clone(),
+                                signing::SignPayloadType::DelegatedAuthVector5G(payload),
+                            )),
+                        };
+
+                        Ok(tonic::Response::new(GetHomeAuthVectorResp {
+                            vector: Some(vector),
+                        }))
+                    }
+                    _ => Err(tonic::Status::new(
+                        tonic::Code::InvalidArgument,
+                        format!("Unsupported user type: {}", payload.user_id_type),
+                    )),
+                }
+            }
+            _ => {
+                tracing::error!("Incorrect message type: {:?}", verify_result);
+                Err(tonic::Status::new(
+                    tonic::Code::InvalidArgument,
+                    format!("Incorrect message type"),
+                ))
+            }
+        }
     }
 
     /// Remote alert that a vector has been used
@@ -117,7 +183,7 @@ impl HomeNetwork for DauthHandler {
 impl BackupNetwork for DauthHandler {
     async fn enroll_backup_prepare(
         &self,
-        request: tonic::Request<EnrollBackupPrepareReq>
+        request: tonic::Request<EnrollBackupPrepareReq>,
     ) -> Result<tonic::Response<EnrollBackupPrepareResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
@@ -126,7 +192,7 @@ impl BackupNetwork for DauthHandler {
 
     async fn enroll_backup_commit(
         &self,
-        request: tonic::Request<EnrollBackupCommitReq>
+        request: tonic::Request<EnrollBackupCommitReq>,
     ) -> Result<tonic::Response<EnrollBackupCommitResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
@@ -135,7 +201,7 @@ impl BackupNetwork for DauthHandler {
 
     async fn get_auth_vector(
         &self,
-        request: tonic::Request<GetBackupAuthVectorReq>
+        request: tonic::Request<GetBackupAuthVectorReq>,
     ) -> Result<tonic::Response<GetBackupAuthVectorResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
@@ -144,7 +210,7 @@ impl BackupNetwork for DauthHandler {
 
     async fn get_key_share(
         &self,
-        request: tonic::Request<GetKeyShareReq>
+        request: tonic::Request<GetKeyShareReq>,
     ) -> Result<tonic::Response<GetKeyShareResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
@@ -153,7 +219,7 @@ impl BackupNetwork for DauthHandler {
 
     async fn withdraw_backup(
         &self,
-        request: tonic::Request<WithdrawBackupReq>
+        request: tonic::Request<WithdrawBackupReq>,
     ) -> Result<tonic::Response<WithdrawBackupResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
@@ -162,7 +228,7 @@ impl BackupNetwork for DauthHandler {
 
     async fn withdraw_shares(
         &self,
-        request: tonic::Request<WithdrawSharesReq>
+        request: tonic::Request<WithdrawSharesReq>,
     ) -> Result<tonic::Response<WithdrawSharesResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
@@ -171,7 +237,7 @@ impl BackupNetwork for DauthHandler {
 
     async fn flood_vector(
         &self,
-        request: tonic::Request<FloodVectorReq>
+        request: tonic::Request<FloodVectorReq>,
     ) -> Result<tonic::Response<FloodVectorResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
