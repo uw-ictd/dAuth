@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use auth_vector::types::ResStar;
+
 use crate::data::context::DauthContext;
 use crate::data::signing;
 use crate::data::vector::AuthVectorReq;
@@ -164,18 +166,50 @@ impl HomeNetwork for DauthHandler {
     ) -> Result<tonic::Response<GetHomeConfirmKeyResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        todo!();
+        let message = request
+            .into_inner()
+            .message
+            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
 
-        // match remote::manager::auth_vector_used_remote(context.clone(), &av_result).await {
-        //     Ok(()) => {
-        //         tracing::info!("Successfuly reported used: {:?}", av_result);
-        //         Ok(tonic::Response::new(AkaVectorUsedResp {}))
-        //     }
-        //     Err(e) => {
-        //         tracing::error!("Error reporting used: {}", e);
-        //         Err(tonic::Status::new(tonic::Code::Aborted, e.to_string()))
-        //     }
-        // }
+        let verify_result =
+            signing::verify_message(self.context.clone(), &message).or_else(|e| {
+                Err(tonic::Status::new(
+                    tonic::Code::Unauthenticated,
+                    format!("Failed to verify message: {}", e),
+                ))
+            })?;
+
+        match verify_result {
+            signing::SignPayloadType::GetHomeConfirmKeyReq(payload) => {
+                let res_star: ResStar = payload.res_star.as_slice().try_into().or_else(|e| {
+                    Err(tonic::Status::new(
+                        tonic::Code::InvalidArgument,
+                        format!("res star is invalid: {}", e),
+                    ))
+                })?;
+
+                let kseaf =
+                    local::manager::confirm_auth_vector_used(self.context.clone(), res_star)
+                        .await
+                        .or_else(|e| {
+                            Err(tonic::Status::new(
+                                tonic::Code::NotFound,
+                                format!("Failed to get kseaf: {}", e),
+                            ))
+                        })?;
+
+                Ok(tonic::Response::new(GetHomeConfirmKeyResp {
+                    kseaf: kseaf.to_vec(),
+                }))
+            }
+            _ => {
+                tracing::error!("Incorrect message type: {:?}", verify_result);
+                Err(tonic::Status::new(
+                    tonic::Code::InvalidArgument,
+                    format!("Incorrect message type"),
+                ))
+            }
+        }
     }
 }
 

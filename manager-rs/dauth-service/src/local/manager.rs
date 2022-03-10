@@ -50,17 +50,7 @@ pub async fn confirm_auth_vector_used(
 ) -> Result<auth_vector::types::Kseaf, DauthError> {
     tracing::info!("Handling confirm: {:?}", res_star);
 
-    match local::database::kseaf_get(context.clone(), &res_star).await {
-        Ok(key) => {
-            // TODO(matt9j) Remove confirmed vectors from cache?
-            //local::database::auth_vector_delete(context, res_star);
-            Ok(key)
-        }
-        Err(e) => {
-            tracing::info!("Confirm failed!: {}", e);
-            Err(DauthError::NotFoundError("Key not available".to_string()))
-        }
-    }
+    local::database::kseaf_get(context.clone(), &res_star).await
 }
 
 /// Returns whether the auth vector belongs to this core
