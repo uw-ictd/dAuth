@@ -236,7 +236,11 @@ mod tests {
     use crate::local::queries;
 
     fn gen_name() -> String {
-        let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
+        let s: String = thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(10)
+            .map(char::from)
+            .collect();
 
         format!("sqlite_{}.db", s)
     }
