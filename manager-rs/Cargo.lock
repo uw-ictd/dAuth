@@ -331,8 +331,10 @@ dependencies = [
  "hex",
  "prost",
  "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "serde_yaml",
+ "shamir",
  "sqlx",
  "structopt",
  "tempfile",
@@ -1304,6 +1306,14 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest 0.10.3",
+]
+
+[[package]]
+name = "shamir"
+version = "2.1.0"
+source = "git+https://github.com/matt9j/shamir#8d2c9720c2b570d1c19a07f9b37b0f352a581837"
+dependencies = [
+ "rand 0.8.5",
 ]
 
 [[package]]
