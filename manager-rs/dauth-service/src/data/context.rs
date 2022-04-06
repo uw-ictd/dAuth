@@ -30,6 +30,7 @@ pub struct LocalContext {
 pub struct RemoteContext {
     pub remote_addrs: Vec<String>,
     pub remote_keys: HashMap<String, PublicKey>,
+    pub pending_backups: tokio::sync::Mutex<HashMap<String, String>>,
 }
 
 #[derive(Debug)]

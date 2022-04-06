@@ -50,4 +50,14 @@ impl AuthVectorRes {
             }),
         }
     }
+
+    pub fn from_av5_g(user_id: &str, vector: AuthVector5G) -> Result<AuthVectorRes, DauthError> {
+        Ok(AuthVectorRes {
+            user_id: user_id.to_string(),
+            seqnum: vector.seqnum,
+            xres_star_hash: vector.xres_star_hash[..].try_into()?,
+            autn: vector.autn[..].try_into()?,
+            rand: vector.rand[..].try_into()?,
+        })
+    }
 }

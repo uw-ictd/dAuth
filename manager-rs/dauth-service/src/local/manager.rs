@@ -42,6 +42,16 @@ pub async fn auth_vector_get(
     }
 }
 
+// Store a new auth vector, likely as a backup
+pub async fn auth_vector_store(
+    context: Arc<DauthContext>,
+    av_result: &AuthVectorRes,
+) -> Result<(), DauthError> {
+    tracing::info!("Handling request: {:?}", av_result);
+
+    local::database::auth_vector_put(context.clone(), av_result).await
+}
+
 /// Local handler for used vectors.
 /// Called for both local and remote use.
 pub async fn confirm_auth_vector_used(

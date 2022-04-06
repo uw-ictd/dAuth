@@ -52,6 +52,7 @@ async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthEr
             remote_addrs: config.remote_addrs,
             // TODO: (nickfh7) add keys to this
             remote_keys: HashMap::new(),
+            pending_backups: tokio::sync::Mutex::new(HashMap::new()),
         },
         rpc_context: RpcContext {
             runtime_handle: Handle::current(),

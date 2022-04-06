@@ -78,6 +78,7 @@ pub fn sign_message(context: Arc<DauthContext>, payload: SignPayloadType) -> rem
     remote::SignedMessage {
         container,
         signature,
+        signer_id: context.local_context.id.clone(),
     }
 }
 
@@ -110,55 +111,55 @@ pub fn verify_message(
         remote::SignedMessageKind::DelegatedAuthVector5G => {
             let payload =
                 remote::delegated_auth_vector5_g::Payload::decode(container.payload.as_slice())?;
-            verify_message_with_id(context.clone(), message, &payload.serving_network_id)?;
+            verify_message_with_id(context.clone(), message, &message.signer_id)?;
             Ok(SignPayloadType::DelegatedAuthVector5G(payload))
         }
         remote::SignedMessageKind::GetHomeAuthVectorReq => {
             let payload =
                 remote::get_home_auth_vector_req::Payload::decode(container.payload.as_slice())?;
-            verify_message_with_id(context.clone(), message, &payload.serving_network_id)?;
+            verify_message_with_id(context.clone(), message, &message.signer_id)?;
             Ok(SignPayloadType::GetHomeAuthVectorReq(payload))
         }
         remote::SignedMessageKind::GetHomeConfirmKeyReq => {
             let payload =
                 remote::get_home_confirm_key_req::Payload::decode(container.payload.as_slice())?;
-            verify_message_with_id(context.clone(), message, &payload.serving_network_id)?;
+            verify_message_with_id(context.clone(), message, &message.signer_id)?;
             Ok(SignPayloadType::GetHomeConfirmKeyReq(payload))
         }
         remote::SignedMessageKind::EnrollBackupPrepareReq => {
             let payload =
                 remote::enroll_backup_prepare_req::Payload::decode(container.payload.as_slice())?;
             // TODO (nickfh7): Figure out how to get id from context
-            verify_message_with_id(context.clone(), message, "TODO")?;
+            verify_message_with_id(context.clone(), message, &message.signer_id)?;
             Ok(SignPayloadType::EnrollBackupPrepareReq(payload))
         }
         remote::SignedMessageKind::GetBackupAuthVectorReq => {
             let payload =
                 remote::get_backup_auth_vector_req::Payload::decode(container.payload.as_slice())?;
-            verify_message_with_id(context.clone(), message, &payload.serving_network_id)?;
+            verify_message_with_id(context.clone(), message, &message.signer_id)?;
             Ok(SignPayloadType::GetBackupAuthVectorReq(payload))
         }
         remote::SignedMessageKind::GetKeyShareReq => {
             let payload = remote::get_key_share_req::Payload::decode(container.payload.as_slice())?;
-            verify_message_with_id(context.clone(), message, &payload.serving_network_id)?;
+            verify_message_with_id(context.clone(), message, &message.signer_id)?;
             Ok(SignPayloadType::GetKeyShareReq(payload))
         }
         remote::SignedMessageKind::WithdrawBackupReq => {
             let payload =
                 remote::withdraw_backup_req::Payload::decode(container.payload.as_slice())?;
             // TODO (nickfh7): Figure out how to get id from context
-            verify_message_with_id(context.clone(), message, "TODO")?;
+            verify_message_with_id(context.clone(), message, &message.signer_id)?;
             Ok(SignPayloadType::WithdrawBackupReq(payload))
         }
         remote::SignedMessageKind::WithdrawSharesReq => {
             let payload =
                 remote::withdraw_shares_req::Payload::decode(container.payload.as_slice())?;
-            verify_message_with_id(context.clone(), message, &payload.home_network_id)?;
+            verify_message_with_id(context.clone(), message, &message.signer_id)?;
             Ok(SignPayloadType::WithdrawSharesReq(payload))
         }
         remote::SignedMessageKind::FloodVectorReq => {
             let payload = remote::flood_vector_req::Payload::decode(container.payload.as_slice())?;
-            verify_message_with_id(context.clone(), message, &payload.home_network_id)?;
+            verify_message_with_id(context.clone(), message, &message.signer_id)?;
             Ok(SignPayloadType::FloodVectorReq(payload))
         }
         _ => Err(DauthError::InvalidMessageError(format!(

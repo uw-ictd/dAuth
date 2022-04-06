@@ -83,7 +83,7 @@ pub async fn insert_vector(
     transaction: &mut Transaction<'_, Sqlite>,
     id: &str,
     seqnum: i64,
-    xres: &[u8],
+    xres_star_hash: &[u8],
     autn: &[u8],
     rand: &[u8],
 ) -> Result<(), DauthError> {
@@ -93,7 +93,7 @@ pub async fn insert_vector(
     )
     .bind(id)
     .bind(seqnum)
-    .bind(xres)
+    .bind(xres_star_hash)
     .bind(autn)
     .bind(rand)
     .execute(transaction)

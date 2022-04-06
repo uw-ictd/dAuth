@@ -26,6 +26,7 @@ message SignedMessage {
     }
     bytes container = 1;
     bytes signature = 2;
+    string signer_id = 3;
 }
 
 message DelegatedAuthVector5G {
@@ -38,6 +39,7 @@ message DelegatedAuthVector5G {
 
 // Represents an m of n share of the key response to a valid authentication
 // confirmation.
+// This is signed by the home network it originated from
 message DelegatedConfirmationShare {
     message Payload {
         // The hashed xres_star corresponding to this confirmation. It is used as a
@@ -48,9 +50,7 @@ message DelegatedConfirmationShare {
         // A threshold share of the k_seaf needed to communicate with the UE.
         bytes confirmation_share = 2;
     }
-
-    Payload payload = 1;
-    bytes home_network_signature = 2;
+    SignedMessage message = 1; // Signed by home network, not backup network
 }
 
 service HomeNetwork {

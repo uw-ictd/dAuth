@@ -30,7 +30,7 @@ pub async fn auth_vector_next(
     context: Arc<DauthContext>,
     av_request: &AuthVectorReq,
 ) -> Result<AuthVectorRes, DauthError> {
-    tracing::info!("Database next: {:?}", av_request);
+    tracing::info!("Vector next: {:?}", av_request);
 
     let mut transaction = context.local_context.database_pool.begin().await?;
 
@@ -53,12 +53,33 @@ pub async fn auth_vector_next(
     })
 }
 
+pub async fn auth_vector_put(
+    context: Arc<DauthContext>,
+    av_result: &AuthVectorRes,
+) -> Result<(), DauthError> {
+    tracing::info!("Vector put: {:?}", av_result);
+
+    let mut transaction = context.local_context.database_pool.begin().await?;
+    queries::insert_vector(
+        &mut transaction,
+        &av_result.user_id,
+        av_result.seqnum,
+        &av_result.xres_star_hash,
+        &av_result.autn,
+        &av_result.rand,
+    )
+    .await?;
+    transaction.commit().await?;
+
+    Ok(())
+}
+
 /// Deletes a vector if found.
 pub async fn auth_vector_delete(
     context: Arc<DauthContext>,
     av_result: &AuthVectorRes,
 ) -> Result<(), DauthError> {
-    tracing::info!("Database delete: {:?}", av_result);
+    tracing::info!("Vector delete: {:?}", av_result);
 
     let mut transaction = context.local_context.database_pool.begin().await?;
     queries::remove_vector(&mut transaction, &av_result.user_id, av_result.seqnum).await?;
