@@ -1,5 +1,6 @@
 use auth_vector::types::Id;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteRow};
+use sqlx::Error as SqlxError;
 use sqlx::{Sqlite, Transaction};
 
 use crate::data::error::DauthError;
@@ -14,6 +15,24 @@ pub async fn build_pool(database_path: &str) -> Result<SqlitePool, DauthError> {
                 .filename(database_path),
         )
         .await?)
+}
+
+/// Creates the flood vector table if it does not exist already.
+/// Meant to be used before the auth vector table.
+pub async fn init_flood_vector_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS flood_vector_table (
+            user_id TEXT NOT NULL,
+            seqnum INT NOT NULL,
+            xres_star_hash BLOB NOT NULL,
+            autn BLOB NOT NULL,
+            rand BLOB NOT NULL,
+            PRIMARY KEY (user_id, seqnum)
+        );",
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
 }
 
 /// Creates the auth vector table if it does not exist already.
@@ -47,7 +66,7 @@ pub async fn init_kseaf_table(pool: &SqlitePool) -> Result<(), DauthError> {
 }
 
 /// Creates the auth vector table if it does not exist already.
-pub async fn init_user_info_vector_table(pool: &SqlitePool) -> Result<(), DauthError> {
+pub async fn init_user_info_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS user_info_table (
             user_info_id TEST PRIMARY KEY,
@@ -59,6 +78,28 @@ pub async fn init_user_info_vector_table(pool: &SqlitePool) -> Result<(), DauthE
     .execute(pool)
     .await?;
     Ok(())
+}
+
+/// Check first for higher priority flood vectors
+/// Generally, it is normal for this to return Ok(None)
+pub async fn get_first_flood_vector(
+    transaction: &mut Transaction<'_, Sqlite>,
+    id: &str,
+) -> Result<Option<SqliteRow>, SqlxError> {
+    let res = sqlx::query(
+        "SELECT * FROM flood_vector_table
+        WHERE user_id=$1
+        ORDER BY seqnum
+        LIMIT 1;",
+    )
+    .bind(id)
+    .fetch_one(transaction)
+    .await;
+
+    match res {
+        Err(SqlxError::RowNotFound) => Ok(None),
+        _ => Ok(Some(res?)),
+    }
 }
 
 /// Returns the first for a given id, sorted by rank (seqnum).
@@ -102,6 +143,31 @@ pub async fn insert_vector(
     Ok(())
 }
 
+/// Inserts a vector with the given data.
+/// Returns an error if (id, seqnum) is not unique.
+pub async fn insert_flood_vector(
+    transaction: &mut Transaction<'_, Sqlite>,
+    id: &str,
+    seqnum: i64,
+    xres_star_hash: &[u8],
+    autn: &[u8],
+    rand: &[u8],
+) -> Result<(), DauthError> {
+    sqlx::query(
+        "INSERT INTO flood_vector_table
+        VALUES ($1,$2,$3,$4,$5)",
+    )
+    .bind(id)
+    .bind(seqnum)
+    .bind(xres_star_hash)
+    .bind(autn)
+    .bind(rand)
+    .execute(transaction)
+    .await?;
+
+    Ok(())
+}
+
 /// Removes the vector with the (id, seqnum) pair.
 pub async fn remove_vector(
     transaction: &mut Transaction<'_, Sqlite>,
@@ -110,6 +176,23 @@ pub async fn remove_vector(
 ) -> Result<(), DauthError> {
     sqlx::query(
         "DELETE FROM auth_vector_table
+        WHERE (user_id,seqnum)=($1,$2)",
+    )
+    .bind(id)
+    .bind(seqnum)
+    .execute(transaction)
+    .await?;
+    Ok(())
+}
+
+/// Removes the vector with the (id, seqnum) pair.
+pub async fn remove_flood_vector(
+    transaction: &mut Transaction<'_, Sqlite>,
+    id: &str,
+    seqnum: i64,
+) -> Result<(), DauthError> {
+    sqlx::query(
+        "DELETE FROM flood_vector_table
         WHERE (user_id,seqnum)=($1,$2)",
     )
     .bind(id)
@@ -248,8 +331,9 @@ mod tests {
 
         let pool = queries::build_pool(&path).await.unwrap();
         queries::init_auth_vector_table(&pool).await.unwrap();
+        queries::init_flood_vector_table(&pool).await.unwrap();
         queries::init_kseaf_table(&pool).await.unwrap();
-        queries::init_user_info_vector_table(&pool).await.unwrap();
+        queries::init_user_info_table(&pool).await.unwrap();
 
         pool
     }
@@ -258,6 +342,21 @@ mod tests {
     #[tokio::test]
     async fn test_db_init() {
         init().await;
+    }
+
+    /// Test that db fails on non-existent result
+    #[tokio::test]
+    #[should_panic]
+    async fn test_av_empty_get() {
+        let pool = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        queries::get_first_vector(&mut transaction, "test_id_0")
+            .await
+            .unwrap();
+
+        transaction.commit().await.unwrap();
     }
 
     /// Test that db can insert
@@ -284,6 +383,52 @@ mod tests {
                 .unwrap();
             }
         }
+
+        transaction.commit().await.unwrap();
+    }
+
+    /// Test that db can insert
+    #[tokio::test]
+    async fn test_av_flood() {
+        let pool = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        assert!(
+            queries::get_first_flood_vector(&mut transaction, "test_id_0")
+                .await
+                .unwrap()
+                .is_none()
+        );
+
+        queries::insert_flood_vector(
+            &mut transaction,
+            "test_id_0",
+            1,
+            &[0_u8; RES_STAR_HASH_LENGTH],
+            &[0_u8; AUTN_LENGTH],
+            &[0_u8; RAND_LENGTH],
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            !queries::get_first_flood_vector(&mut transaction, "test_id_0")
+                .await
+                .unwrap()
+                .is_none()
+        );
+
+        queries::remove_flood_vector(&mut transaction, "test_id_0", 1)
+            .await
+            .unwrap();
+
+        assert!(
+            queries::get_first_flood_vector(&mut transaction, "test_id_0")
+                .await
+                .unwrap()
+                .is_none()
+        );
 
         transaction.commit().await.unwrap();
     }

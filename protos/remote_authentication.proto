@@ -296,8 +296,10 @@ message FloodVectorReq {
         string home_network_id = 1;
 
         // The vector to be flooded and used next.
-        // TODO: (nickfh7) is this redundant now?
         DelegatedAuthVector5G vector = 2;
+
+        d_auth.UserIdKind user_id_kind = 3;
+        bytes user_id = 4;
     }
 
     SignedMessage message = 1;

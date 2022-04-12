@@ -390,7 +390,82 @@ impl BackupNetwork for DauthHandler {
     ) -> Result<tonic::Response<GetBackupAuthVectorResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        todo!();
+        let message = request
+            .into_inner()
+            .message
+            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
+
+        let verify_result =
+            signing::verify_message(self.context.clone(), &message).or_else(|e| {
+                Err(tonic::Status::new(
+                    tonic::Code::Unauthenticated,
+                    format!("Failed to verify message: {}", e),
+                ))
+            })?;
+
+        match verify_result {
+            signing::SignPayloadType::GetBackupAuthVectorReq(payload) => {
+                // TODO: check that this network is okay, i.e has enough reputation
+
+                // verify contents and fulfill request
+                match payload.user_id_type() {
+                    UserIdKind::Supi => {
+                        let user_id = std::str::from_utf8(payload.user_id.as_slice())
+                            .or_else(|e| {
+                                Err(tonic::Status::new(
+                                    tonic::Code::InvalidArgument,
+                                    format!("Bad user id: {}", e),
+                                ))
+                            })?
+                            .to_string();
+                        let av_result = local::manager::auth_vector_get(
+                            self.context.clone(),
+                            &AuthVectorReq { user_id },
+                        )
+                        .await
+                        .or_else(|e| {
+                            Err(tonic::Status::new(
+                                tonic::Code::Aborted,
+                                format!("Failed to process request: {}", e),
+                            ))
+                        })?;
+
+                        let payload = delegated_auth_vector5_g::Payload {
+                            // TODO: Change this to the accurate id?
+                            serving_network_id: self.context.local_context.id.clone(),
+                            v: Some(AuthVector5G {
+                                rand: av_result.rand.to_vec(),
+                                xres_star_hash: av_result.xres_star_hash.to_vec(),
+                                autn: av_result.autn.to_vec(),
+                                seqnum: av_result.seqnum,
+                            }),
+                        };
+
+                        let vector = DelegatedAuthVector5G {
+                            message: Some(signing::sign_message(
+                                self.context.clone(),
+                                signing::SignPayloadType::DelegatedAuthVector5G(payload),
+                            )),
+                        };
+
+                        Ok(tonic::Response::new(GetBackupAuthVectorResp {
+                            vector: Some(vector),
+                        }))
+                    }
+                    _ => Err(tonic::Status::new(
+                        tonic::Code::InvalidArgument,
+                        format!("Unsupported user type: {:?}", payload.user_id_type()),
+                    )),
+                }
+            }
+            _ => {
+                tracing::error!("Incorrect message type: {:?}", verify_result);
+                Err(tonic::Status::new(
+                    tonic::Code::InvalidArgument,
+                    format!("Incorrect message type"),
+                ))
+            }
+        }
     }
 
     async fn get_key_share(
@@ -426,6 +501,114 @@ impl BackupNetwork for DauthHandler {
     ) -> Result<tonic::Response<FloodVectorResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        todo!();
+        let message = request
+            .into_inner()
+            .message
+            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
+
+        let verify_result =
+            signing::verify_message(self.context.clone(), &message).or_else(|e| {
+                Err(tonic::Status::new(
+                    tonic::Code::Unauthenticated,
+                    format!("Failed to verify message: {}", e),
+                ))
+            })?;
+
+        match verify_result {
+            signing::SignPayloadType::FloodVectorReq(payload) => {
+                // TODO: Check home network
+
+                match payload.user_id_kind() {
+                    UserIdKind::Supi => {
+                        let user_id = std::str::from_utf8(payload.user_id.as_slice())
+                            .or_else(|e| {
+                                Err(tonic::Status::new(
+                                    tonic::Code::InvalidArgument,
+                                    format!("Bad user id: {}", e),
+                                ))
+                            })?
+                            .to_string();
+
+                        if let Some(dvector) = payload.vector {
+                            if let Some(vector_message) = dvector.message {
+                                match signing::verify_message(self.context.clone(), &vector_message)
+                                {
+                                    Ok(verify_vector_result) => {
+                                        match verify_vector_result {
+                                            signing::SignPayloadType::DelegatedAuthVector5G(
+                                                vector_payload,
+                                            ) => {
+                                                if let Some(vector) = vector_payload.v {
+                                                    match AuthVectorRes::from_av5_g(&user_id, vector) {
+                                                    Ok(av_request) => {
+                                                        match local::manager::flood_vector_store(
+                                                            self.context.clone(),
+                                                            &av_request).await {
+                                                            Err(e) => {
+                                                                Err(tonic::Status::new(
+                                                                    tonic::Code::InvalidArgument,
+                                                                    format!("Failed to store vector: {}", e),
+                                                                ))
+                                                            },
+                                                            Ok(()) => {
+                                                                Ok(tonic::Response::new(FloodVectorResp{}))
+                                                            }
+                                                        }
+                                                    },
+                                                    Err(e) => {
+                                                        Err(tonic::Status::new(
+                                                            tonic::Code::Aborted,
+                                                            format!("failed to store flood vector: {}", e),
+                                                        ))
+                                                    }
+                                                }
+                                                } else {
+                                                    Err(tonic::Status::new(
+                                                        tonic::Code::InvalidArgument,
+                                                        format!("Empty vector payload"),
+                                                    ))
+                                                }
+                                            }
+                                            _ => Err(tonic::Status::new(
+                                                tonic::Code::InvalidArgument,
+                                                format!(
+                                                    "Bad vector type: {:?}",
+                                                    verify_vector_result
+                                                ),
+                                            )),
+                                        }
+                                    }
+                                    Err(e) => Err(tonic::Status::new(
+                                        tonic::Code::InvalidArgument,
+                                        format!("Failed to verify auth vector: {}", e),
+                                    )),
+                                }
+                            } else {
+                                Err(tonic::Status::new(
+                                    tonic::Code::InvalidArgument,
+                                    format!("Empty vector sent"),
+                                ))
+                            }
+                        } else {
+                            Err(tonic::Status::new(
+                                tonic::Code::InvalidArgument,
+                                format!("No vector sent"),
+                            ))
+                        }
+                    }
+                    _ => Err(tonic::Status::new(
+                        tonic::Code::InvalidArgument,
+                        format!("Unsupported user id kind: {:?}", payload.user_id_kind()),
+                    )),
+                }
+            }
+            _ => {
+                tracing::error!("Incorrect vector type: {:?}", verify_result);
+                Err(tonic::Status::new(
+                    tonic::Code::InvalidArgument,
+                    format!("Incorrect message type"),
+                ))
+            }
+        }
     }
 }

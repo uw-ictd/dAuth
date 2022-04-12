@@ -19,8 +19,10 @@ use crate::local::queries;
 pub async fn database_init(database_path: &str) -> Result<SqlitePool, DauthError> {
     let pool: SqlitePool = queries::build_pool(database_path).await?;
 
+    queries::init_flood_vector_table(&pool).await?;
     queries::init_auth_vector_table(&pool).await?;
     queries::init_kseaf_table(&pool).await?;
+    queries::init_user_info_table(&pool).await?;
 
     Ok(pool)
 }
@@ -34,13 +36,30 @@ pub async fn auth_vector_next(
 
     let mut transaction = context.local_context.database_pool.begin().await?;
 
-    let row = queries::get_first_vector(&mut transaction, &av_request.user_id).await?;
-    queries::remove_vector(
-        &mut transaction,
-        row.try_get::<&str, &str>("user_id")?,
-        row.try_get::<i64, &str>("seqnum")?,
-    )
-    .await?;
+    // Check for a flood vector first
+    let row = if let Ok(Some(flood_row)) =
+        queries::get_first_flood_vector(&mut transaction, &av_request.user_id).await
+    {
+        queries::remove_flood_vector(
+            &mut transaction,
+            flood_row.try_get::<&str, &str>("user_id")?,
+            flood_row.try_get::<i64, &str>("seqnum")?,
+        )
+        .await?;
+
+        flood_row
+    } else {
+        let auth_row = queries::get_first_vector(&mut transaction, &av_request.user_id).await?;
+
+        queries::remove_vector(
+            &mut transaction,
+            auth_row.try_get::<&str, &str>("user_id")?,
+            auth_row.try_get::<i64, &str>("seqnum")?,
+        )
+        .await?;
+
+        auth_row
+    };
 
     transaction.commit().await?;
 
@@ -83,6 +102,41 @@ pub async fn auth_vector_delete(
 
     let mut transaction = context.local_context.database_pool.begin().await?;
     queries::remove_vector(&mut transaction, &av_result.user_id, av_result.seqnum).await?;
+    transaction.commit().await?;
+
+    Ok(())
+}
+
+pub async fn flood_vector_put(
+    context: Arc<DauthContext>,
+    av_result: &AuthVectorRes,
+) -> Result<(), DauthError> {
+    tracing::info!("Vector put: {:?}", av_result);
+
+    let mut transaction = context.local_context.database_pool.begin().await?;
+    queries::insert_flood_vector(
+        &mut transaction,
+        &av_result.user_id,
+        av_result.seqnum,
+        &av_result.xres_star_hash,
+        &av_result.autn,
+        &av_result.rand,
+    )
+    .await?;
+    transaction.commit().await?;
+
+    Ok(())
+}
+
+/// Deletes a vector if found.
+pub async fn flood_vector_delete(
+    context: Arc<DauthContext>,
+    av_result: &AuthVectorRes,
+) -> Result<(), DauthError> {
+    tracing::info!("Vector delete: {:?}", av_result);
+
+    let mut transaction = context.local_context.database_pool.begin().await?;
+    queries::remove_flood_vector(&mut transaction, &av_result.user_id, av_result.seqnum).await?;
     transaction.commit().await?;
 
     Ok(())
