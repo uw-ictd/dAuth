@@ -177,7 +177,7 @@ mod tests {
             hex::encode(result.xres_star_hash)
         ); // Need to confirm
         assert_eq!(
-            "110c22efde7f2855bfb7dcf246b542ba2fe631d802e9e98b6c4dfad0d185750e",
+            "b2cb4eda3b7fa56fb0bfefde811560a366836bcd2b14782d9293460efa9792af",
             hex::encode(result.kseaf)
         ); // Need to confirm
     }
