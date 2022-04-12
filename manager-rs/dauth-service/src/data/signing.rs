@@ -11,6 +11,7 @@ use crate::rpc::dauth::remote;
 #[derive(Debug)]
 pub enum SignPayloadType {
     DelegatedAuthVector5G(remote::delegated_auth_vector5_g::Payload),
+    DelegatedConfirmationShare(remote::delegated_confirmation_share::Payload),
     GetHomeAuthVectorReq(remote::get_home_auth_vector_req::Payload),
     GetHomeConfirmKeyReq(remote::get_home_confirm_key_req::Payload),
     EnrollBackupPrepareReq(remote::enroll_backup_prepare_req::Payload),
@@ -26,6 +27,10 @@ pub fn sign_message(context: Arc<DauthContext>, payload: SignPayloadType) -> rem
         SignPayloadType::DelegatedAuthVector5G(payload_message) => (
             payload_message.encode_to_vec(),
             remote::SignedMessageKind::DelegatedAuthVector5G,
+        ),
+        SignPayloadType::DelegatedConfirmationShare(payload_message) => (
+            payload_message.encode_to_vec(),
+            remote::SignedMessageKind::DelegatedConfirmationShare,
         ),
         SignPayloadType::GetHomeAuthVectorReq(payload_message) => (
             payload_message.encode_to_vec(),
@@ -113,6 +118,13 @@ pub fn verify_message(
                 remote::delegated_auth_vector5_g::Payload::decode(container.payload.as_slice())?;
             verify_message_with_id(context.clone(), message, &message.signer_id)?;
             Ok(SignPayloadType::DelegatedAuthVector5G(payload))
+        }
+        remote::SignedMessageKind::DelegatedConfirmationShare => {
+            let payload = remote::delegated_confirmation_share::Payload::decode(
+                container.payload.as_slice(),
+            )?;
+            verify_message_with_id(context.clone(), message, &message.signer_id)?;
+            Ok(SignPayloadType::DelegatedConfirmationShare(payload))
         }
         remote::SignedMessageKind::GetHomeAuthVectorReq => {
             let payload =

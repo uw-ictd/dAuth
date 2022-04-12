@@ -17,6 +17,7 @@ enum SignedMessageKind {
     GET_HOME_AUTH_VECTOR_REQ = 7;
     GET_HOME_CONFIRM_KEY_REQ = 8;
     DELEGATED_AUTH_VECTOR5_G = 9;
+    DELEGATED_CONFIRMATION_SHARE = 10;
 }
 
 message SignedMessage {

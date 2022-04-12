@@ -360,11 +360,27 @@ impl BackupNetwork for DauthHandler {
                         // verify that the home network is the original requester
                         if &message.signer_id == home_network_id {
                             match signing::verify_message(self.context.clone(), &message) {
-                                Ok(_payload) => {
-                                    todo!() // Todo: Add share requests to database
-                                }
+                                Ok(verify_result) => match verify_result {
+                                    signing::SignPayloadType::DelegatedConfirmationShare(
+                                        payload,
+                                    ) => local::manager::confirmation_share_store(
+                                        self.context.clone(),
+                                        &payload.xres_star_hash[..].try_into().unwrap(),
+                                        &payload.confirmation_share[..].try_into().unwrap(),
+                                    )
+                                    .await
+                                    .unwrap_or_else(|e| {
+                                        tracing::warn!("Failed to store vector: {}", e)
+                                    }),
+                                    _ => {
+                                        tracing::warn!(
+                                            "Bad confirmation share type: {:?}",
+                                            verify_result
+                                        )
+                                    }
+                                },
                                 Err(e) => {
-                                    tracing::warn!("Failed to verify auth vector: {}", e)
+                                    tracing::warn!("Failed to verify confirmation share: {}", e)
                                 }
                             }
                         } else {

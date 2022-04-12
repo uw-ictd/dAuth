@@ -3,7 +3,7 @@ use std::sync::Arc;
 use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
 
-use auth_vector::types::{Id, Kseaf, ResStar};
+use auth_vector::types::{HresStar, Id, Kseaf, ResStar};
 
 use crate::data::{
     context::DauthContext,
@@ -22,6 +22,7 @@ pub async fn database_init(database_path: &str) -> Result<SqlitePool, DauthError
     queries::init_flood_vector_table(&pool).await?;
     queries::init_auth_vector_table(&pool).await?;
     queries::init_kseaf_table(&pool).await?;
+    queries::init_confirmation_share_table(&pool).await?;
     queries::init_user_info_table(&pool).await?;
 
     Ok(pool)
@@ -133,7 +134,7 @@ pub async fn flood_vector_delete(
     context: Arc<DauthContext>,
     av_result: &AuthVectorRes,
 ) -> Result<(), DauthError> {
-    tracing::info!("Vector delete: {:?}", av_result);
+    tracing::info!("Flood vector delete: {:?}", av_result);
 
     let mut transaction = context.local_context.database_pool.begin().await?;
     queries::remove_flood_vector(&mut transaction, &av_result.user_id, av_result.seqnum).await?;
@@ -167,6 +168,41 @@ pub async fn kseaf_put(
 
     let mut transaction = context.local_context.database_pool.begin().await?;
     queries::insert_kseaf(&mut transaction, xres_star, kseaf).await?;
+    transaction.commit().await?;
+
+    Ok(())
+}
+
+/// Removes and returns a confirmation share.
+pub async fn confirmation_share_get(
+    context: Arc<DauthContext>,
+    xres_star_hash: &HresStar,
+) -> Result<Kseaf, DauthError> {
+    tracing::info!("Confirmation share get: {:?}", xres_star_hash);
+
+    let mut transaction = context.local_context.database_pool.begin().await?;
+    let row = queries::get_confirmation_share(&mut transaction, xres_star_hash).await?;
+    queries::delete_confirmation_share(&mut transaction, xres_star_hash).await?;
+    transaction.commit().await?;
+
+    Ok(row.try_get::<&[u8], &str>("kseaf_data")?.try_into()?)
+}
+
+/// Adds a kseaf value with the given xres_star_hash.
+pub async fn confirmation_share_put(
+    context: Arc<DauthContext>,
+    xres_star_hash: &HresStar,
+    confirmation_share: &Kseaf,
+) -> Result<(), DauthError> {
+    tracing::info!(
+        "Confirmation share put: {:?} - {:?}",
+        xres_star_hash,
+        confirmation_share
+    );
+
+    let mut transaction = context.local_context.database_pool.begin().await?;
+    queries::insert_confirmation_share(&mut transaction, xres_star_hash, confirmation_share)
+        .await?;
     transaction.commit().await?;
 
     Ok(())

@@ -65,6 +65,19 @@ pub async fn init_kseaf_table(pool: &SqlitePool) -> Result<(), DauthError> {
     Ok(())
 }
 
+/// Creates the kseaf table if it does not exist already.
+pub async fn init_confirmation_share_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS confirmation_share_table (
+            xres_star_hash BLOB PRIMARY KEY,
+            confirmation_share BLOB NOT NULL
+        );",
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 /// Creates the auth vector table if it does not exist already.
 pub async fn init_user_info_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
@@ -246,6 +259,54 @@ pub async fn get_kseaf(
         WHERE kseaf_uuid=$1;",
     )
     .bind(uuid)
+    .fetch_one(transaction)
+    .await?)
+}
+
+/// Inserts a confirmation share
+pub async fn insert_confirmation_share(
+    transaction: &mut Transaction<'_, Sqlite>,
+    xres_star_hash: &[u8],
+    confirmation_share: &[u8],
+) -> Result<(), DauthError> {
+    sqlx::query(
+        "INSERT INTO confirmation_share_table
+        VALUES ($1,$2)",
+    )
+    .bind(xres_star_hash)
+    .bind(confirmation_share)
+    .execute(transaction)
+    .await?;
+
+    Ok(())
+}
+
+/// Deletes a confirmation share if found.
+pub async fn delete_confirmation_share(
+    transaction: &mut Transaction<'_, Sqlite>,
+    xres_star_hash: &[u8],
+) -> Result<(), DauthError> {
+    sqlx::query(
+        "DELETE FROM confirmation_share_table
+        WHERE xres_star_hash=$1",
+    )
+    .bind(xres_star_hash)
+    .execute(transaction)
+    .await?;
+
+    Ok(())
+}
+
+/// Returns a confirmation share if found.
+pub async fn get_confirmation_share(
+    transaction: &mut Transaction<'_, Sqlite>,
+    xres_star_hash: &[u8],
+) -> Result<SqliteRow, DauthError> {
+    Ok(sqlx::query(
+        "SELECT * FROM confirmation_share_table
+        WHERE xres_star_hash=$1;",
+    )
+    .bind(xres_star_hash)
     .fetch_one(transaction)
     .await?)
 }

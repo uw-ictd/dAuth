@@ -62,6 +62,22 @@ pub async fn flood_vector_store(
     local::database::flood_vector_put(context.clone(), av_result).await
 }
 
+// Store a new auth vector, likely as a backup
+pub async fn confirmation_share_store(
+    context: Arc<DauthContext>,
+    xres_star_hash: &auth_vector::types::HresStar,
+    confirmation_share: &auth_vector::types::Kseaf,
+) -> Result<(), DauthError> {
+    tracing::info!(
+        "Handling confirmation store: {:?} - {:?}",
+        xres_star_hash,
+        confirmation_share
+    );
+
+    local::database::confirmation_share_put(context.clone(), xres_star_hash, confirmation_share)
+        .await
+}
+
 /// Local handler for used vectors.
 /// Called for both local and remote use.
 pub async fn confirm_auth_vector_used(
