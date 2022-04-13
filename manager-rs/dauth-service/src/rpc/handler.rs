@@ -3,7 +3,8 @@ use std::sync::Arc;
 use auth_vector::types::ResStar;
 
 use crate::data::context::DauthContext;
-use crate::data::signing;
+use crate::data::error::DauthError;
+use crate::data::signing::{self, SignPayloadType};
 use crate::data::vector::{AuthVectorReq, AuthVectorRes};
 use crate::local;
 use crate::rpc::dauth::common::{AuthVector5G, UserIdKind};
@@ -97,65 +98,12 @@ impl HomeNetwork for DauthHandler {
                 ))
             })?;
 
-        match verify_result {
-            signing::SignPayloadType::GetHomeAuthVectorReq(payload) => {
-                // verify contents and fulfill request
-                match payload.user_id_type() {
-                    UserIdKind::Supi => {
-                        let user_id = std::str::from_utf8(payload.user_id.as_slice())
-                            .or_else(|e| {
-                                Err(tonic::Status::new(
-                                    tonic::Code::InvalidArgument,
-                                    format!("Bad user id: {}", e),
-                                ))
-                            })?
-                            .to_string();
-                        let av_result = local::manager::auth_vector_get(
-                            self.context.clone(),
-                            &AuthVectorReq { user_id },
-                        )
-                        .await
-                        .or_else(|e| {
-                            Err(tonic::Status::new(
-                                tonic::Code::Aborted,
-                                format!("Failed to process request: {}", e),
-                            ))
-                        })?;
-
-                        let payload = delegated_auth_vector5_g::Payload {
-                            serving_network_id: self.context.local_context.id.clone(),
-                            v: Some(AuthVector5G {
-                                rand: av_result.rand.to_vec(),
-                                xres_star_hash: av_result.xres_star_hash.to_vec(),
-                                autn: av_result.autn.to_vec(),
-                                seqnum: av_result.seqnum,
-                            }),
-                        };
-
-                        let vector = DelegatedAuthVector5G {
-                            message: Some(signing::sign_message(
-                                self.context.clone(),
-                                signing::SignPayloadType::DelegatedAuthVector5G(payload),
-                            )),
-                        };
-
-                        Ok(tonic::Response::new(GetHomeAuthVectorResp {
-                            vector: Some(vector),
-                        }))
-                    }
-                    _ => Err(tonic::Status::new(
-                        tonic::Code::InvalidArgument,
-                        format!("Unsupported user type: {:?}", payload.user_id_type()),
-                    )),
-                }
-            }
-            _ => {
-                tracing::error!("Incorrect message type: {:?}", verify_result);
-                Err(tonic::Status::new(
-                    tonic::Code::InvalidArgument,
-                    format!("Incorrect message type"),
-                ))
-            }
+        match DauthHandler::get_auth_vector_hlp(self.context.clone(), verify_result).await {
+            Ok(result) => Ok(result),
+            Err(e) => Err(tonic::Status::new(
+                tonic::Code::Aborted,
+                format!("Error while handling request: {}", e),
+            )),
         }
     }
 
@@ -179,36 +127,12 @@ impl HomeNetwork for DauthHandler {
                 ))
             })?;
 
-        match verify_result {
-            signing::SignPayloadType::GetHomeConfirmKeyReq(payload) => {
-                let res_star: ResStar = payload.res_star.as_slice().try_into().or_else(|e| {
-                    Err(tonic::Status::new(
-                        tonic::Code::InvalidArgument,
-                        format!("res star is invalid: {}", e),
-                    ))
-                })?;
-
-                let kseaf =
-                    local::manager::confirm_auth_vector_used(self.context.clone(), res_star)
-                        .await
-                        .or_else(|e| {
-                            Err(tonic::Status::new(
-                                tonic::Code::NotFound,
-                                format!("Failed to get kseaf: {}", e),
-                            ))
-                        })?;
-
-                Ok(tonic::Response::new(GetHomeConfirmKeyResp {
-                    kseaf: kseaf.to_vec(),
-                }))
-            }
-            _ => {
-                tracing::error!("Incorrect message type: {:?}", verify_result);
-                Err(tonic::Status::new(
-                    tonic::Code::InvalidArgument,
-                    format!("Incorrect message type"),
-                ))
-            }
+        match DauthHandler::get_confirm_key_hlp(self.context.clone(), verify_result).await {
+            Ok(result) => Ok(result),
+            Err(e) => Err(tonic::Status::new(
+                tonic::Code::Aborted,
+                format!("Error while handling request: {}", e),
+            )),
         }
     }
 }
@@ -222,7 +146,7 @@ impl BackupNetwork for DauthHandler {
         tracing::info!("Request: {:?}", request);
 
         // For now, always accept
-        // TODO (nickfh7) add more logic to define cases acceptance
+        // TODO (nickfh7) add more logic to define acceptance cases
 
         let message = request
             .into_inner()
@@ -237,58 +161,12 @@ impl BackupNetwork for DauthHandler {
                 ))
             })?;
 
-        match verify_result {
-            signing::SignPayloadType::EnrollBackupPrepareReq(payload) => {
-                // verify contents and fulfill request
-                match payload.user_id_kind() {
-                    UserIdKind::Supi => {
-                        let user_id = std::str::from_utf8(payload.user_id.as_slice())
-                            .or_else(|e| {
-                                Err(tonic::Status::new(
-                                    tonic::Code::InvalidArgument,
-                                    format!("Bad user id: {}", e),
-                                ))
-                            })?
-                            .to_string();
-
-                        if self.context.local_context.id != payload.backup_network_id {
-                            Err(tonic::Status::new(
-                                tonic::Code::InvalidArgument,
-                                format!(
-                                    "Wrong intended backup network: {:?}",
-                                    payload.backup_network_id
-                                ),
-                            ))
-                        } else {
-                            // TODO (nickfh7) check originating id?
-                            self.context
-                                .remote_context
-                                .pending_backups
-                                .lock()
-                                .await
-                                .insert(user_id, payload.home_network_id.clone());
-
-                            Ok(tonic::Response::new(EnrollBackupPrepareResp {
-                                message: Some(signing::sign_message(
-                                    self.context.clone(),
-                                    signing::SignPayloadType::EnrollBackupPrepareReq(payload),
-                                )),
-                            }))
-                        }
-                    }
-                    _ => Err(tonic::Status::new(
-                        tonic::Code::InvalidArgument,
-                        format!("Unsupported user type: {:?}", payload.user_id_kind()),
-                    )),
-                }
-            }
-            _ => {
-                tracing::error!("Incorrect message type: {:?}", verify_result);
-                Err(tonic::Status::new(
-                    tonic::Code::InvalidArgument,
-                    format!("Incorrect message type"),
-                ))
-            }
+        match DauthHandler::enroll_backup_prepare_hlp(self.context.clone(), verify_result).await {
+            Ok(result) => Ok(result),
+            Err(e) => Err(tonic::Status::new(
+                tonic::Code::Aborted,
+                format!("Error while handling request: {}", e),
+            )),
         }
     }
 
@@ -299,103 +177,11 @@ impl BackupNetwork for DauthHandler {
         tracing::info!("Request: {:?}", request);
 
         let content = request.into_inner();
-
-        match content.user_id_kind() {
-            UserIdKind::Supi => {
-                let user_id = std::str::from_utf8(content.user_id.as_slice())
-                    .or_else(|e| {
-                        Err(tonic::Status::new(
-                            tonic::Code::InvalidArgument,
-                            format!("Bad user id: {}", e),
-                        ))
-                    })?
-                    .to_string();
-
-                let pending_backups = self.context.remote_context.pending_backups.lock().await;
-                let home_network_id = pending_backups.get(&user_id.clone()).ok_or_else(|| {
-                    tonic::Status::new(
-                        tonic::Code::InvalidArgument,
-                        format!("Pending backup request not found"),
-                    )
-                })?;
-
-                for vector_request in content.vectors {
-                    if let Some(message) = vector_request.message {
-                        match signing::verify_message(self.context.clone(), &message) {
-                            Ok(verify_result) => match verify_result {
-                                signing::SignPayloadType::DelegatedAuthVector5G(payload) => {
-                                    if let Some(vector) = payload.v {
-                                        match AuthVectorRes::from_av5_g(&user_id, vector) {
-                                            Ok(av_request) => local::manager::auth_vector_store(
-                                                self.context.clone(),
-                                                &av_request,
-                                            )
-                                            .await
-                                            .unwrap_or_else(|e| {
-                                                tracing::warn!("Failed to store vector: {}", e)
-                                            }),
-                                            Err(e) => {
-                                                tracing::warn!("Failed to process vector: {}", e)
-                                            }
-                                        }
-                                    } else {
-                                        tracing::warn!("Empty vector sent")
-                                    }
-                                }
-                                _ => {
-                                    tracing::warn!("Bad vector type: {:?}", verify_result)
-                                }
-                            },
-                            Err(e) => {
-                                tracing::warn!("Failed to verify auth vector: {}", e)
-                            }
-                        }
-                    } else {
-                        tracing::warn!("Recieved empty auth vector");
-                    }
-                }
-
-                for share_request in content.shares {
-                    if let Some(message) = share_request.message {
-                        // verify that the home network is the original requester
-                        if &message.signer_id == home_network_id {
-                            match signing::verify_message(self.context.clone(), &message) {
-                                Ok(verify_result) => match verify_result {
-                                    signing::SignPayloadType::DelegatedConfirmationShare(
-                                        payload,
-                                    ) => local::manager::confirmation_share_store(
-                                        self.context.clone(),
-                                        &payload.xres_star_hash[..].try_into().unwrap(),
-                                        &payload.confirmation_share[..].try_into().unwrap(),
-                                    )
-                                    .await
-                                    .unwrap_or_else(|e| {
-                                        tracing::warn!("Failed to store vector: {}", e)
-                                    }),
-                                    _ => {
-                                        tracing::warn!(
-                                            "Bad confirmation share type: {:?}",
-                                            verify_result
-                                        )
-                                    }
-                                },
-                                Err(e) => {
-                                    tracing::warn!("Failed to verify confirmation share: {}", e)
-                                }
-                            }
-                        } else {
-                            tracing::warn!("Signer and home network id mismatch")
-                        }
-                    } else {
-                        tracing::warn!("Recieved empty share request");
-                    }
-                }
-
-                Ok(tonic::Response::new(EnrollBackupCommitResp {}))
-            }
-            _ => Err(tonic::Status::new(
-                tonic::Code::InvalidArgument,
-                format!("Unsupported user type: {:?}", content.user_id_kind()),
+        match DauthHandler::enroll_backup_commit_hlp(self.context.clone(), content).await {
+            Ok(result) => Ok(result),
+            Err(e) => Err(tonic::Status::new(
+                tonic::Code::Aborted,
+                format!("Error while handling request: {}", e),
             )),
         }
     }
@@ -625,6 +411,211 @@ impl BackupNetwork for DauthHandler {
                     format!("Incorrect message type"),
                 ))
             }
+        }
+    }
+}
+
+/// Implementation of all helper functions to condense error logic
+impl DauthHandler {
+    pub async fn get_auth_vector_hlp(
+        context: Arc<DauthContext>,
+        verify_result: SignPayloadType,
+    ) -> Result<tonic::Response<GetHomeAuthVectorResp>, DauthError> {
+        if let SignPayloadType::GetHomeAuthVectorReq(payload) = verify_result {
+            // TODO: Handle other user id types
+            let user_id = std::str::from_utf8(payload.user_id.as_slice())?.to_string();
+            let av_result =
+                local::manager::auth_vector_get(context.clone(), &AuthVectorReq { user_id })
+                    .await?;
+
+            let payload = delegated_auth_vector5_g::Payload {
+                serving_network_id: context.local_context.id.clone(),
+                v: Some(AuthVector5G {
+                    rand: av_result.rand.to_vec(),
+                    xres_star_hash: av_result.xres_star_hash.to_vec(),
+                    autn: av_result.autn.to_vec(),
+                    seqnum: av_result.seqnum,
+                }),
+            };
+
+            let vector = DelegatedAuthVector5G {
+                message: Some(signing::sign_message(
+                    context.clone(),
+                    signing::SignPayloadType::DelegatedAuthVector5G(payload),
+                )),
+            };
+
+            Ok(tonic::Response::new(GetHomeAuthVectorResp {
+                vector: Some(vector),
+            }))
+        } else {
+            Err(DauthError::InvalidMessageError(format!(
+                "Incorrect message type: {:?}",
+                verify_result
+            )))
+        }
+    }
+
+    pub async fn get_confirm_key_hlp(
+        context: Arc<DauthContext>,
+        verify_result: SignPayloadType,
+    ) -> Result<tonic::Response<GetHomeConfirmKeyResp>, DauthError> {
+        if let SignPayloadType::GetHomeConfirmKeyReq(payload) = verify_result {
+            let res_star: ResStar = payload.res_star.as_slice().try_into()?;
+
+            let kseaf = local::manager::confirm_auth_vector_used(context.clone(), res_star).await?;
+
+            Ok(tonic::Response::new(GetHomeConfirmKeyResp {
+                kseaf: kseaf.to_vec(),
+            }))
+        } else {
+            Err(DauthError::InvalidMessageError(format!(
+                "Incorrect message type: {:?}",
+                verify_result
+            )))
+        }
+    }
+
+    pub async fn enroll_backup_prepare_hlp(
+        context: Arc<DauthContext>,
+        verify_result: SignPayloadType,
+    ) -> Result<tonic::Response<EnrollBackupPrepareResp>, DauthError> {
+        if let signing::SignPayloadType::EnrollBackupPrepareReq(payload) = verify_result {
+            match payload.user_id_kind() {
+                UserIdKind::Supi => {
+                    let user_id = std::str::from_utf8(payload.user_id.as_slice())?.to_string();
+
+                    if context.local_context.id != payload.backup_network_id {
+                        Err(DauthError::InvalidMessageError(format!(
+                            "Wrong intended network: {:?}",
+                            payload.backup_network_id
+                        )))
+                    } else {
+                        // TODO (nickfh7) check originating id?
+                        context
+                            .remote_context
+                            .pending_backups
+                            .lock()
+                            .await
+                            .insert(user_id, payload.home_network_id.clone());
+
+                        Ok(tonic::Response::new(EnrollBackupPrepareResp {
+                            message: Some(signing::sign_message(
+                                context.clone(),
+                                signing::SignPayloadType::EnrollBackupPrepareReq(payload),
+                            )),
+                        }))
+                    }
+                }
+                _ => Err(DauthError::InvalidMessageError(format!(
+                    "Unsupported user type: {:?}",
+                    payload.user_id_kind()
+                ))),
+            }
+        } else {
+            Err(DauthError::InvalidMessageError(format!(
+                "Incorrect message type: {:?}",
+                verify_result
+            )))
+        }
+    }
+
+    pub async fn handle_delegated_vector_store(
+        context: Arc<DauthContext>,
+        dvector: DelegatedAuthVector5G,
+        user_id: &str,
+    ) -> Result<(), DauthError> {
+        let verify_result = signing::verify_message(
+            context.clone(),
+            &dvector.message.ok_or(DauthError::InvalidMessageError(
+                "Missing content".to_string(),
+            ))?,
+        )?;
+
+        if let SignPayloadType::DelegatedAuthVector5G(payload) = verify_result {
+            local::manager::auth_vector_store(
+                context.clone(),
+                &AuthVectorRes::from_av5_g(
+                    user_id,
+                    payload.v.ok_or(DauthError::InvalidMessageError(
+                        "Missing content".to_string(),
+                    ))?,
+                )?,
+            )
+            .await
+        } else {
+            Err(DauthError::InvalidMessageError(format!(
+                "Incorrect message type: {:?}",
+                verify_result
+            )))
+        }
+    }
+
+    pub async fn handle_confirmation_share_store(
+        context: Arc<DauthContext>,
+        dshare: DelegatedConfirmationShare,
+    ) -> Result<(), DauthError> {
+        let verify_result = signing::verify_message(
+            context.clone(),
+            &dshare.message.ok_or(DauthError::InvalidMessageError(
+                "Missing content".to_string(),
+            ))?,
+        )?;
+
+        if let SignPayloadType::DelegatedConfirmationShare(payload) = verify_result {
+            local::manager::confirmation_share_store(
+                context.clone(),
+                &payload.xres_star_hash[..].try_into()?,
+                &payload.confirmation_share[..].try_into()?,
+            )
+            .await
+        } else {
+            Err(DauthError::InvalidMessageError(format!(
+                "Incorrect message type: {:?}",
+                verify_result
+            )))
+        }
+    }
+
+    pub async fn enroll_backup_commit_hlp(
+        context: Arc<DauthContext>,
+        content: EnrollBackupCommitReq,
+    ) -> Result<tonic::Response<EnrollBackupCommitResp>, DauthError> {
+        match content.user_id_kind() {
+            UserIdKind::Supi => {
+                let user_id = std::str::from_utf8(content.user_id.as_slice())?.to_string();
+
+                let pending_backups = context.remote_context.pending_backups.lock().await;
+
+                // TODO: possibly use home network id?
+                let _home_network_id = pending_backups.get(&user_id.clone()).ok_or(
+                    DauthError::InvalidMessageError("Enroll backup request not found".to_string()),
+                )?;
+
+                for dvector in content.vectors {
+                    DauthHandler::handle_delegated_vector_store(context.clone(), dvector, &user_id)
+                        .await
+                        .or_else(|e| {
+                            tracing::warn!("Failed to store vector: {}", e);
+                            Ok::<(), DauthError>(()) // proceed through errors for now
+                        })?
+                }
+
+                for dshare in content.shares {
+                    DauthHandler::handle_confirmation_share_store(context.clone(), dshare)
+                        .await
+                        .or_else(|e| {
+                            tracing::warn!("Failed to store confirmation share: {}", e);
+                            Ok::<(), DauthError>(()) // proceed through errors for now
+                        })?
+                }
+
+                Ok(tonic::Response::new(EnrollBackupCommitResp {}))
+            }
+            _ => Err(DauthError::InvalidMessageError(format!(
+                "Unsupported user type: {:?}",
+                content.user_id_kind()
+            ))),
         }
     }
 }
