@@ -66,11 +66,11 @@ pub async fn init_kseaf_table(pool: &SqlitePool) -> Result<(), DauthError> {
 }
 
 /// Creates the kseaf table if it does not exist already.
-pub async fn init_confirmation_share_table(pool: &SqlitePool) -> Result<(), DauthError> {
+pub async fn init_key_share_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
-        "CREATE TABLE IF NOT EXISTS confirmation_share_table (
+        "CREATE TABLE IF NOT EXISTS key_share_table (
             xres_star_hash BLOB PRIMARY KEY,
-            confirmation_share BLOB NOT NULL
+            key_share BLOB NOT NULL
         );",
     )
     .execute(pool)
@@ -263,31 +263,31 @@ pub async fn get_kseaf(
     .await?)
 }
 
-/// Inserts a confirmation share
-pub async fn insert_confirmation_share(
+/// Inserts a key share
+pub async fn insert_key_share(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
-    confirmation_share: &[u8],
+    key_share: &[u8],
 ) -> Result<(), DauthError> {
     sqlx::query(
-        "INSERT INTO confirmation_share_table
+        "INSERT INTO key_share_table
         VALUES ($1,$2)",
     )
     .bind(xres_star_hash)
-    .bind(confirmation_share)
+    .bind(key_share)
     .execute(transaction)
     .await?;
 
     Ok(())
 }
 
-/// Deletes a confirmation share if found.
-pub async fn delete_confirmation_share(
+/// Deletes a key share if found.
+pub async fn delete_key_share(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
 ) -> Result<(), DauthError> {
     sqlx::query(
-        "DELETE FROM confirmation_share_table
+        "DELETE FROM key_share_table
         WHERE xres_star_hash=$1",
     )
     .bind(xres_star_hash)
@@ -297,13 +297,13 @@ pub async fn delete_confirmation_share(
     Ok(())
 }
 
-/// Returns a confirmation share if found.
-pub async fn get_confirmation_share(
+/// Returns a key share if found.
+pub async fn get_key_share(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
 ) -> Result<SqliteRow, DauthError> {
     Ok(sqlx::query(
-        "SELECT * FROM confirmation_share_table
+        "SELECT * FROM key_share_table
         WHERE xres_star_hash=$1;",
     )
     .bind(xres_star_hash)

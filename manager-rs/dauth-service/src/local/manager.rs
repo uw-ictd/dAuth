@@ -63,19 +63,30 @@ pub async fn flood_vector_store(
 }
 
 // Store a new auth vector, likely as a backup
-pub async fn confirmation_share_store(
+pub async fn key_share_store(
     context: Arc<DauthContext>,
     xres_star_hash: &auth_vector::types::HresStar,
-    confirmation_share: &auth_vector::types::Kseaf,
+    key_share: &auth_vector::types::Kseaf,
 ) -> Result<(), DauthError> {
+    tracing::info!("Handling key store: {:?} - {:?}", xres_star_hash, key_share);
+
+    local::database::key_share_put(context.clone(), xres_star_hash, key_share).await
+}
+
+pub async fn key_share_get(
+    context: Arc<DauthContext>,
+    res_star: &auth_vector::types::ResStar,
+    xres_star_hash: &auth_vector::types::HresStar,
+) -> Result<auth_vector::types::Kseaf, DauthError> {
     tracing::info!(
-        "Handling confirmation store: {:?} - {:?}",
+        "Handling key share get: {:?} - {:?}",
+        res_star,
         xres_star_hash,
-        confirmation_share
     );
 
-    local::database::confirmation_share_put(context.clone(), xres_star_hash, confirmation_share)
-        .await
+    // TODO: Validate res_star!
+
+    local::database::key_share_get(context, xres_star_hash).await
 }
 
 /// Local handler for used vectors.

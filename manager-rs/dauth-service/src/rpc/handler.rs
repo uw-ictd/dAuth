@@ -220,7 +220,26 @@ impl BackupNetwork for DauthHandler {
     ) -> Result<tonic::Response<GetKeyShareResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        todo!();
+        let message = request
+            .into_inner()
+            .message
+            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
+
+        let verify_result =
+            signing::verify_message(self.context.clone(), &message).or_else(|e| {
+                Err(tonic::Status::new(
+                    tonic::Code::Unauthenticated,
+                    format!("Failed to verify message: {}", e),
+                ))
+            })?;
+
+        match DauthHandler::get_key_share_hlp(self.context.clone(), verify_result).await {
+            Ok(result) => Ok(result),
+            Err(e) => Err(tonic::Status::new(
+                tonic::Code::Aborted,
+                format!("Error while handling request: {}", e),
+            )),
+        }
     }
 
     async fn withdraw_backup(
@@ -318,7 +337,7 @@ impl DauthHandler {
         }
     }
 
-    pub async fn handle_confirmation_share_store(
+    pub async fn handle_key_share_store(
         context: Arc<DauthContext>,
         dshare: DelegatedConfirmationShare,
     ) -> Result<(), DauthError> {
@@ -330,7 +349,7 @@ impl DauthHandler {
         )?;
 
         if let SignPayloadType::DelegatedConfirmationShare(payload) = verify_result {
-            local::manager::confirmation_share_store(
+            local::manager::key_share_store(
                 context.clone(),
                 &payload.xres_star_hash[..].try_into()?,
                 &payload.confirmation_share[..].try_into()?,
@@ -395,7 +414,6 @@ impl DauthHandler {
         }
     }
 
-    /// Specific helper for getting the confirm key
     pub async fn get_confirm_key_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
@@ -490,10 +508,10 @@ impl DauthHandler {
                 }
 
                 for dshare in content.shares {
-                    DauthHandler::handle_confirmation_share_store(context.clone(), dshare)
+                    DauthHandler::handle_key_share_store(context.clone(), dshare)
                         .await
                         .or_else(|e| {
-                            tracing::warn!("Failed to store confirmation share: {}", e);
+                            tracing::warn!("Failed to store key share: {}", e);
                             Ok::<(), DauthError>(()) // proceed through errors for now
                         })?
                 }
@@ -518,6 +536,41 @@ impl DauthHandler {
                 vector: Some(
                     DauthHandler::handle_get_auth_vector(context.clone(), &user_id).await?,
                 ),
+            }))
+        } else {
+            Err(DauthError::InvalidMessageError(format!(
+                "Incorrect message type: {:?}",
+                verify_result
+            )))
+        }
+    }
+
+    pub async fn get_key_share_hlp(
+        context: Arc<DauthContext>,
+        verify_result: SignPayloadType,
+    ) -> Result<tonic::Response<GetKeyShareResp>, DauthError> {
+        if let SignPayloadType::GetKeyShareReq(payload) = verify_result {
+            let key_share = local::manager::key_share_get(
+                context.clone(),
+                payload.res_star[..].try_into()?,
+                payload.hash_xres_star[..].try_into()?,
+            )
+            .await?;
+
+            let payload = delegated_confirmation_share::Payload {
+                xres_star_hash: payload.hash_xres_star,
+                confirmation_share: key_share.to_vec(),
+            };
+
+            let dshare = DelegatedConfirmationShare {
+                message: Some(signing::sign_message(
+                    context.clone(),
+                    signing::SignPayloadType::DelegatedConfirmationShare(payload),
+                )),
+            };
+
+            Ok(tonic::Response::new(GetKeyShareResp {
+                share: Some(dshare),
             }))
         } else {
             Err(DauthError::InvalidMessageError(format!(

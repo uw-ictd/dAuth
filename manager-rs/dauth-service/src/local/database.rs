@@ -22,7 +22,7 @@ pub async fn database_init(database_path: &str) -> Result<SqlitePool, DauthError
     queries::init_flood_vector_table(&pool).await?;
     queries::init_auth_vector_table(&pool).await?;
     queries::init_kseaf_table(&pool).await?;
-    queries::init_confirmation_share_table(&pool).await?;
+    queries::init_key_share_table(&pool).await?;
     queries::init_user_info_table(&pool).await?;
 
     Ok(pool)
@@ -173,36 +173,31 @@ pub async fn kseaf_put(
     Ok(())
 }
 
-/// Removes and returns a confirmation share.
-pub async fn confirmation_share_get(
+/// Removes and returns a key share.
+pub async fn key_share_get(
     context: Arc<DauthContext>,
     xres_star_hash: &HresStar,
 ) -> Result<Kseaf, DauthError> {
-    tracing::info!("Confirmation share get: {:?}", xres_star_hash);
+    tracing::info!("key share get: {:?}", xres_star_hash);
 
     let mut transaction = context.local_context.database_pool.begin().await?;
-    let row = queries::get_confirmation_share(&mut transaction, xres_star_hash).await?;
-    queries::delete_confirmation_share(&mut transaction, xres_star_hash).await?;
+    let row = queries::get_key_share(&mut transaction, xres_star_hash).await?;
+    queries::delete_key_share(&mut transaction, xres_star_hash).await?;
     transaction.commit().await?;
 
-    Ok(row.try_get::<&[u8], &str>("kseaf_data")?.try_into()?)
+    Ok(row.try_get::<&[u8], &str>("key_share")?.try_into()?)
 }
 
 /// Adds a kseaf value with the given xres_star_hash.
-pub async fn confirmation_share_put(
+pub async fn key_share_put(
     context: Arc<DauthContext>,
     xres_star_hash: &HresStar,
-    confirmation_share: &Kseaf,
+    key_share: &Kseaf,
 ) -> Result<(), DauthError> {
-    tracing::info!(
-        "Confirmation share put: {:?} - {:?}",
-        xres_star_hash,
-        confirmation_share
-    );
+    tracing::info!("key share put: {:?} - {:?}", xres_star_hash, key_share);
 
     let mut transaction = context.local_context.database_pool.begin().await?;
-    queries::insert_confirmation_share(&mut transaction, xres_star_hash, confirmation_share)
-        .await?;
+    queries::insert_key_share(&mut transaction, xres_star_hash, key_share).await?;
     transaction.commit().await?;
 
     Ok(())
