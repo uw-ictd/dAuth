@@ -58,7 +58,7 @@ pub async fn get(
     .await?)
 }
 
-/// Adds a network as a backup for the user id
+/// Removes the network as a backup for this network
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,

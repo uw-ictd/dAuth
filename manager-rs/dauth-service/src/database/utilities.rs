@@ -11,6 +11,7 @@ pub trait DauthDataUtilities {
     fn to_kseaf(&self) -> Result<Kseaf, DauthError>;
     fn to_key_share(&self) -> Result<Kseaf, DauthError>;
     fn to_user_info(&self) -> Result<UserInfo, DauthError>;
+    fn to_backup_user_home_network_id(&self) -> Result<String, DauthError>;
 }
 
 /// Add functionality to the sqlite row
@@ -41,5 +42,9 @@ impl DauthDataUtilities for SqliteRow {
                 .try_get::<&[u8], &str>("user_info_sqn_max")?
                 .try_into()?,
         })
+    }
+
+    fn to_backup_user_home_network_id(&self) -> Result<String, DauthError> {
+        Ok(self.try_get::<&str, &str>("home_network_id")?.to_string())
     }
 }

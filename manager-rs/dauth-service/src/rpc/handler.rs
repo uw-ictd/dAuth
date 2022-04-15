@@ -23,7 +23,8 @@ pub struct DauthHandler {
 
 #[tonic::async_trait]
 impl LocalAuthentication for DauthHandler {
-    /// Local (home core) request for a vector
+    /// Local request for a vector that will be generated on this network.
+    /// No authentication is done.
     async fn get_auth_vector(
         &self,
         request: tonic::Request<AkaVectorReq>,
@@ -48,6 +49,8 @@ impl LocalAuthentication for DauthHandler {
         }
     }
 
+    /// Local request for to complete auth process for a vector.
+    /// No authentication is done.
     async fn confirm_auth(
         &self,
         request: tonic::Request<AkaConfirmReq>,
@@ -78,7 +81,8 @@ impl LocalAuthentication for DauthHandler {
 
 #[tonic::async_trait]
 impl HomeNetwork for DauthHandler {
-    /// Remote request for a vector
+    /// Remote request for a vector that will be generated on this network.
+    /// Checks for proper authentication and reputation.
     async fn get_auth_vector(
         &self,
         request: tonic::Request<GetHomeAuthVectorReq>,
@@ -107,7 +111,8 @@ impl HomeNetwork for DauthHandler {
         }
     }
 
-    /// Remote alert that a vector has been used
+    /// Remote request for to complete auth process for a vector.
+    /// Checks for proper authentication.
     async fn get_confirm_key(
         &self,
         request: tonic::Request<GetHomeConfirmKeyReq>,
@@ -139,14 +144,14 @@ impl HomeNetwork for DauthHandler {
 
 #[tonic::async_trait]
 impl BackupNetwork for DauthHandler {
+    /// Request for this network to become a backup network.
+    /// Checks for proper authentication and eligibility.
+    /// Sets the provided user as being backed up by this network.
     async fn enroll_backup_prepare(
         &self,
         request: tonic::Request<EnrollBackupPrepareReq>,
     ) -> Result<tonic::Response<EnrollBackupPrepareResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
-
-        // For now, always accept
-        // TODO (nickfh7) add more logic to define acceptance cases
 
         let message = request
             .into_inner()
@@ -170,6 +175,9 @@ impl BackupNetwork for DauthHandler {
         }
     }
 
+    /// Finishes the process of enrolling this network as a backup.
+    /// Stores all provided auth vectors and key shares.
+    /// Fails if the user is not being backed up by this network.
     async fn enroll_backup_commit(
         &self,
         request: tonic::Request<EnrollBackupCommitReq>,
@@ -186,11 +194,14 @@ impl BackupNetwork for DauthHandler {
         }
     }
 
+    /// Retrieves an auth vector backup that has been stored by this network.
     async fn get_auth_vector(
         &self,
         request: tonic::Request<GetBackupAuthVectorReq>,
     ) -> Result<tonic::Response<GetBackupAuthVectorResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
+
+        // TODO: Handle retry case? Auth vector is removed from database
 
         let message = request
             .into_inner()
@@ -214,6 +225,7 @@ impl BackupNetwork for DauthHandler {
         }
     }
 
+    /// Retrieves a key share that has been stored by this network.
     async fn get_key_share(
         &self,
         request: tonic::Request<GetKeyShareReq>,
@@ -221,6 +233,7 @@ impl BackupNetwork for DauthHandler {
         tracing::info!("Request: {:?}", request);
 
         // TODO: Need to alert home network
+        // TODO: Handle retry case? Key share is removed from database
 
         let message = request
             .into_inner()
@@ -309,7 +322,7 @@ impl DauthHandler {
 
         if let SignPayloadType::DelegatedAuthVector5G(payload) = verify_result {
             if is_flood {
-                manager::store_flood_vector(
+                manager::store_backup_flood_vector(
                     context.clone(),
                     &AuthVectorRes::from_av5_g(
                         &user_id,
@@ -320,7 +333,7 @@ impl DauthHandler {
                 )
                 .await
             } else {
-                manager::store_auth_vector(
+                manager::store_backup_auth_vector(
                     context.clone(),
                     &AuthVectorRes::from_av5_g(
                         user_id,
@@ -365,36 +378,6 @@ impl DauthHandler {
         }
     }
 
-    pub async fn handle_get_auth_vector(
-        context: Arc<DauthContext>,
-        user_id: &str,
-    ) -> Result<DelegatedAuthVector5G, DauthError> {
-        let av_result = manager::next_auth_vector(
-            context.clone(),
-            &AuthVectorReq {
-                user_id: user_id.to_string(),
-            },
-        )
-        .await?;
-
-        let payload = delegated_auth_vector5_g::Payload {
-            serving_network_id: context.local_context.id.clone(),
-            v: Some(AuthVector5G {
-                rand: av_result.rand.to_vec(),
-                xres_star_hash: av_result.xres_star_hash.to_vec(),
-                autn: av_result.autn.to_vec(),
-                seqnum: av_result.seqnum,
-            }),
-        };
-
-        Ok(DelegatedAuthVector5G {
-            message: Some(signing::sign_message(
-                context.clone(),
-                signing::SignPayloadType::DelegatedAuthVector5G(payload),
-            )),
-        })
-    }
-
     /* Specific helpers */
     pub async fn get_home_auth_vector_hlp(
         context: Arc<DauthContext>,
@@ -403,10 +386,33 @@ impl DauthHandler {
         if let SignPayloadType::GetHomeAuthVectorReq(payload) = verify_result {
             let user_id = std::str::from_utf8(payload.user_id.as_slice())?.to_string();
 
+            // TODO: Handle reputation
+
+            let av_result = manager::generate_auth_vector(
+                context.clone(),
+                &AuthVectorReq {
+                    user_id: user_id.to_string(),
+                },
+            )
+            .await?;
+
+            let payload = delegated_auth_vector5_g::Payload {
+                serving_network_id: context.local_context.id.clone(),
+                v: Some(AuthVector5G {
+                    rand: av_result.rand.to_vec(),
+                    xres_star_hash: av_result.xres_star_hash.to_vec(),
+                    autn: av_result.autn.to_vec(),
+                    seqnum: av_result.seqnum,
+                }),
+            };
+
             Ok(tonic::Response::new(GetHomeAuthVectorResp {
-                vector: Some(
-                    DauthHandler::handle_get_auth_vector(context.clone(), &user_id).await?,
-                ),
+                vector: Some(DelegatedAuthVector5G {
+                    message: Some(signing::sign_message(
+                        context.clone(),
+                        signing::SignPayloadType::DelegatedAuthVector5G(payload),
+                    )),
+                }),
             }))
         } else {
             Err(DauthError::InvalidMessageError(format!(
@@ -451,13 +457,7 @@ impl DauthHandler {
                             payload.backup_network_id
                         )))
                     } else {
-                        // TODO (nickfh7) check originating id?
-                        context
-                            .remote_context
-                            .pending_backups
-                            .lock()
-                            .await
-                            .insert(user_id, payload.home_network_id.clone());
+                        manager::set_backup_user(context.clone(), &user_id, &payload.home_network_id).await?;
 
                         Ok(tonic::Response::new(EnrollBackupPrepareResp {
                             message: Some(signing::sign_message(
@@ -488,13 +488,11 @@ impl DauthHandler {
             UserIdKind::Supi => {
                 let user_id = std::str::from_utf8(content.user_id.as_slice())?.to_string();
 
-                let pending_backups = context.remote_context.pending_backups.lock().await;
-
                 // TODO: possibly use home network id?
-                let _home_network_id = pending_backups.get(&user_id.clone()).ok_or(
-                    DauthError::InvalidMessageError("Enroll backup request not found".to_string()),
-                )?;
+                let _home_network_id = manager::get_backup_user(context.clone(), &user_id).await?;
 
+
+                // TODO: Move all adds into a single transaction to allow fail and revert?
                 for dvector in content.vectors {
                     DauthHandler::handle_delegated_vector_store(
                         context.clone(),
@@ -534,10 +532,31 @@ impl DauthHandler {
         if let SignPayloadType::GetBackupAuthVectorReq(payload) = verify_result {
             let user_id = std::str::from_utf8(payload.user_id.as_slice())?.to_string();
 
+            let av_result = manager::next_backup_auth_vector(
+                context.clone(),
+                &AuthVectorReq {
+                    user_id: user_id.to_string(),
+                },
+            )
+            .await?;
+
+            let payload = delegated_auth_vector5_g::Payload {
+                serving_network_id: context.local_context.id.clone(),
+                v: Some(AuthVector5G {
+                    rand: av_result.rand.to_vec(),
+                    xres_star_hash: av_result.xres_star_hash.to_vec(),
+                    autn: av_result.autn.to_vec(),
+                    seqnum: av_result.seqnum,
+                }),
+            };
+
             Ok(tonic::Response::new(GetBackupAuthVectorResp {
-                vector: Some(
-                    DauthHandler::handle_get_auth_vector(context.clone(), &user_id).await?,
-                ),
+                vector: Some(DelegatedAuthVector5G {
+                    message: Some(signing::sign_message(
+                        context.clone(),
+                        signing::SignPayloadType::DelegatedAuthVector5G(payload),
+                    )),
+                }),
             }))
         } else {
             Err(DauthError::InvalidMessageError(format!(
