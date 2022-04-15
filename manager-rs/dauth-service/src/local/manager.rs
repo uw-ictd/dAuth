@@ -9,7 +9,59 @@ use crate::data::{
     vector::{AuthVectorReq, AuthVectorRes},
 };
 use crate::local;
+use crate::local::database::utilities::DauthDataUtilities;
 use crate::rpc::clients;
+
+/// Generates and returns a new auth vector
+/// Will fail if the requested id does not belong to the core
+pub async fn generate_auth_vector(
+    context: Arc<DauthContext>,
+    av_request: &AuthVectorReq,
+) -> Result<AuthVectorRes, DauthError> {
+    tracing::info!("Generating new vector for {:?}", av_request.user_id);
+
+    let mut transaction = context.local_context.database_pool.begin().await?;
+
+    let mut user_info = local::database::user_infos::get(&mut transaction, &av_request.user_id)
+        .await?
+        .to_user_info()?;
+
+    tracing::info!("User found: {:?}", user_info);
+
+    // generate vector, then store new sqn max in the database
+    let auth_vector_data =
+        auth_vector::generate_vector(&user_info.k, &user_info.opc, &user_info.sqn_max);
+    user_info.increment_sqn(32);
+    local::database::user_infos::upsert(
+        &mut transaction,
+        &av_request.user_id,
+        &user_info.k,
+        &user_info.opc,
+        &user_info.sqn_max,
+    )
+    .await?;
+
+    let seqnum = utilities::convert_sqn_bytes_to_int(&user_info.sqn_max)?;
+
+    let av_response = AuthVectorRes {
+        user_id: av_request.user_id.clone(),
+        seqnum,
+        rand: auth_vector_data.rand,
+        autn: auth_vector_data.autn,
+        xres_star_hash: auth_vector_data.xres_star_hash,
+    };
+
+    local::database::kseafs::add(
+        &mut transaction,
+        &auth_vector_data.xres_star,
+        &auth_vector_data.kseaf,
+    )
+    .await?;
+
+    tracing::info!("Auth vector generated: {:?}", av_response);
+
+    Ok(av_response)
+}
 
 /// Attempts to find or possibly generate a new auth vector.
 /// Order of checks:
@@ -104,45 +156,4 @@ pub async fn confirm_auth_vector_used(
 fn auth_vector_is_local(context: Arc<DauthContext>, av_request: &AuthVectorReq) -> bool {
     (av_request.user_id <= context.local_context.local_user_id_max)
         && (av_request.user_id >= context.local_context.local_user_id_min)
-}
-
-/// Generates and returns a new auth vector
-/// Will fail if the requested id does not belong to the core
-async fn auth_vector_generate(
-    context: Arc<DauthContext>,
-    av_request: &AuthVectorReq,
-) -> Result<AuthVectorRes, DauthError> {
-    tracing::info!("Generating new vector for {:?}", av_request.user_id);
-
-    let mut user_info =
-        local::database::user_info_get(context.clone(), &av_request.user_id).await?;
-
-    tracing::info!("User found: {:?}", user_info);
-
-    // generate vector, then store new sqn max in the database
-    let auth_vector_data =
-        auth_vector::generate_vector(&user_info.k, &user_info.opc, &user_info.sqn_max);
-    user_info.increment_sqn(0x21);
-    local::database::user_info_add(context.clone(), &av_request.user_id, &user_info).await?;
-
-    let seqnum = utilities::convert_sqn_bytes_to_int(&user_info.sqn_max)?;
-
-    let av_response = AuthVectorRes {
-        user_id: av_request.user_id.clone(),
-        seqnum,
-        rand: auth_vector_data.rand,
-        autn: auth_vector_data.autn,
-        xres_star_hash: auth_vector_data.xres_star_hash,
-    };
-
-    local::database::kseaf_put(
-        context.clone(),
-        &auth_vector_data.xres_star,
-        &auth_vector_data.kseaf,
-    )
-    .await?;
-
-    tracing::info!("Auth vector generated: {:?}", av_response);
-
-    Ok(av_response)
 }

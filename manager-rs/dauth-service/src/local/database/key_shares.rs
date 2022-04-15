@@ -75,11 +75,9 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::tempdir;
 
-    use auth_vector::constants::{
-        KSEAF_LENGTH, RES_STAR_HASH_LENGTH, RES_STAR_LENGTH,
-    };
+    use auth_vector::constants::{KSEAF_LENGTH, RES_STAR_HASH_LENGTH, RES_STAR_LENGTH};
 
-    use crate::local::queries::{key_shares, general};
+    use crate::local::database::{general, key_shares};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -103,7 +101,7 @@ mod tests {
     async fn test_db_init() {
         init().await;
     }
-    
+
     /// Test that insert works
     #[tokio::test]
     async fn test_add() {

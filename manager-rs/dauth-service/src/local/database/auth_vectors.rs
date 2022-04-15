@@ -104,11 +104,9 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::tempdir;
 
-    use auth_vector::constants::{
-        AUTN_LENGTH, RAND_LENGTH, RES_STAR_HASH_LENGTH,
-    };
+    use auth_vector::constants::{AUTN_LENGTH, RAND_LENGTH, RES_STAR_HASH_LENGTH};
 
-    use crate::local::queries::{auth_vectors, general};
+    use crate::local::database::{auth_vectors, general};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -349,9 +347,11 @@ mod tests {
         let num_sections = 10;
 
         for section in 0..num_sections {
-            assert!(auth_vectors::get_first(&mut transaction, &format!("test_id_{}", section))
-                .await
-                .is_err())
+            assert!(
+                auth_vectors::get_first(&mut transaction, &format!("test_id_{}", section))
+                    .await
+                    .is_err()
+            )
         }
 
         transaction.commit().await.unwrap();

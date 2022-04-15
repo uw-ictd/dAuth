@@ -82,11 +82,9 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::tempdir;
 
-    use auth_vector::constants::{
-        K_LENGTH, OPC_LENGTH, SQN_LENGTH,
-    };
+    use auth_vector::constants::{K_LENGTH, OPC_LENGTH, SQN_LENGTH};
 
-    use crate::local::queries::{user_infos, general};
+    use crate::local::database::{general, user_infos};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();

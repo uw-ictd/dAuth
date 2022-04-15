@@ -36,7 +36,7 @@ impl LocalAuthentication for DauthHandler {
             Err(e) => return Err(tonic::Status::new(tonic::Code::Aborted, e.to_string())),
         }
 
-        match local::manager::auth_vector_get(self.context.clone(), &av_request).await {
+        match local::manager::generate_auth_vector(self.context.clone(), &av_request).await {
             Ok(av_result) => {
                 tracing::info!("Returning result: {:?}", av_result);
                 Ok(tonic::Response::new(av_result.to_resp()))
@@ -219,6 +219,8 @@ impl BackupNetwork for DauthHandler {
         request: tonic::Request<GetKeyShareReq>,
     ) -> Result<tonic::Response<GetKeyShareResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
+
+        // TODO: Need to alert home network
 
         let message = request
             .into_inner()

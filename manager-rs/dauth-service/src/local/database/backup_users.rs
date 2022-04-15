@@ -79,7 +79,7 @@ mod tests {
     use sqlx::SqlitePool;
     use tempfile::tempdir;
 
-    use crate::local::queries::{backup_users, general};
+    use crate::local::database::{backup_users, general};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -103,7 +103,7 @@ mod tests {
     async fn test_db_init() {
         init().await;
     }
-    
+
     /// Test that insert works
     #[tokio::test]
     async fn test_add() {
@@ -151,12 +151,9 @@ mod tests {
         let mut transaction = pool.begin().await.unwrap();
 
         for row in 0..num_rows {
-            let res = backup_users::get(
-                &mut transaction,
-                &format!("test_user_id_{}", row),
-            )
-            .await
-            .unwrap();
+            let res = backup_users::get(&mut transaction, &format!("test_user_id_{}", row))
+                .await
+                .unwrap();
         }
         transaction.commit().await.unwrap();
     }
@@ -195,12 +192,11 @@ mod tests {
         let mut transaction = pool.begin().await.unwrap();
 
         for row in 0..num_rows {
-            assert!(backup_users::get(
-                &mut transaction,
-                &format!("test_user_id_{}", row),
-            )
-            .await
-            .is_err());
+            assert!(
+                backup_users::get(&mut transaction, &format!("test_user_id_{}", row),)
+                    .await
+                    .is_err()
+            );
         }
         transaction.commit().await.unwrap();
     }

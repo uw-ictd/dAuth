@@ -19,7 +19,7 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 /* Queries */
 
 /// Inserts a kseaf with a given uuid and value.
-pub async fn insert_kseaf(
+pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     uuid: &[u8],
     value: &[u8],
@@ -36,8 +36,22 @@ pub async fn insert_kseaf(
     Ok(())
 }
 
+/// Returns a kseaf value if found.
+pub async fn get(
+    transaction: &mut Transaction<'_, Sqlite>,
+    uuid: &[u8],
+) -> Result<SqliteRow, DauthError> {
+    Ok(sqlx::query(
+        "SELECT * FROM kseaf_table
+        WHERE kseaf_uuid=$1;",
+    )
+    .bind(uuid)
+    .fetch_one(transaction)
+    .await?)
+}
+
 /// Deletes a kseaf vaule if found.
-pub async fn delete_kseaf(
+pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     uuid: &[u8],
 ) -> Result<(), DauthError> {
@@ -52,20 +66,6 @@ pub async fn delete_kseaf(
     Ok(())
 }
 
-/// Returns a kseaf value if found.
-pub async fn get_kseaf(
-    transaction: &mut Transaction<'_, Sqlite>,
-    uuid: &[u8],
-) -> Result<SqliteRow, DauthError> {
-    Ok(sqlx::query(
-        "SELECT * FROM kseaf_table
-        WHERE kseaf_uuid=$1;",
-    )
-    .bind(uuid)
-    .fetch_one(transaction)
-    .await?)
-}
-
 /* Testing */
 
 #[cfg(test)]
@@ -75,11 +75,9 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::tempdir;
 
-    use auth_vector::constants::{
-        KSEAF_LENGTH, RES_STAR_LENGTH,
-    };
+    use auth_vector::constants::{KSEAF_LENGTH, RES_STAR_LENGTH};
 
-    use crate::local::queries::{kseafs, general};
+    use crate::local::database::{general, kseafs};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -116,7 +114,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                kseafs::insert_kseaf(
+                kseafs::add(
                     &mut transaction,
                     &[section * num_rows + row; RES_STAR_LENGTH],
                     &[section * num_rows + row; KSEAF_LENGTH],
@@ -140,7 +138,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                kseafs::insert_kseaf(
+                kseafs::add(
                     &mut transaction,
                     &[section * num_rows + row; RES_STAR_LENGTH],
                     &[section * num_rows + row; KSEAF_LENGTH],
@@ -155,7 +153,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                let res = kseafs::get_kseaf(
+                let res = kseafs::get(
                     &mut transaction,
                     &[section * num_rows + row; RES_STAR_LENGTH],
                 )
@@ -183,7 +181,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                kseafs::insert_kseaf(
+                kseafs::add(
                     &mut transaction,
                     &[section * num_rows + row; RES_STAR_LENGTH],
                     &[section * num_rows + row; KSEAF_LENGTH],
@@ -198,7 +196,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                kseafs::delete_kseaf(
+                kseafs::remove(
                     &mut transaction,
                     &[section * num_rows + row; RES_STAR_LENGTH],
                 )
@@ -213,7 +211,7 @@ mod tests {
         for section in 0..num_sections {
             for row in 0..num_rows {
                 // should have been deleted
-                assert!(kseafs::get_kseaf(
+                assert!(kseafs::get(
                     &mut transaction,
                     &[section * num_rows + row; RES_STAR_LENGTH],
                 )
@@ -236,7 +234,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                kseafs::insert_kseaf(
+                kseafs::add(
                     &mut transaction,
                     &[section * num_rows + row; RES_STAR_LENGTH],
                     &[section * num_rows + row; KSEAF_LENGTH],
@@ -251,7 +249,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                let res = kseafs::get_kseaf(
+                let res = kseafs::get(
                     &mut transaction,
                     &[section * num_rows + row; RES_STAR_LENGTH],
                 )
@@ -263,7 +261,7 @@ mod tests {
                     res.get_unchecked::<&[u8], &str>("kseaf_data")
                 );
 
-                kseafs::delete_kseaf(
+                kseafs::remove(
                     &mut transaction,
                     res.get_unchecked::<&[u8], &str>("kseaf_uuid"),
                 )
@@ -278,7 +276,7 @@ mod tests {
         for section in 0..num_sections {
             for row in 0..num_rows {
                 // should have been deleted
-                assert!(kseafs::get_kseaf(
+                assert!(kseafs::get(
                     &mut transaction,
                     &[section * num_rows + row; RES_STAR_LENGTH],
                 )
@@ -296,7 +294,7 @@ mod tests {
         let pool = init().await;
         let mut transaction = pool.begin().await.unwrap();
 
-        kseafs::insert_kseaf(
+        kseafs::add(
             &mut transaction,
             &[0_u8; RES_STAR_LENGTH],
             &[1_u8; KSEAF_LENGTH],
@@ -304,7 +302,7 @@ mod tests {
         .await
         .unwrap();
 
-        kseafs::insert_kseaf(
+        kseafs::add(
             &mut transaction,
             &[0_u8; RES_STAR_LENGTH],
             &[1_u8; KSEAF_LENGTH],

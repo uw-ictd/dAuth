@@ -84,7 +84,7 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::tempdir;
 
-    use crate::local::queries::{backup_networks, general};
+    use crate::local::database::{backup_networks, general};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -108,7 +108,7 @@ mod tests {
     async fn test_db_init() {
         init().await;
     }
-    
+
     /// Test that insert works
     #[tokio::test]
     async fn test_add() {
@@ -125,7 +125,7 @@ mod tests {
                     &mut transaction,
                     &format!("test_user_id_{}", row),
                     &format!("test_network_id_{}", section),
-                    section
+                    section,
                 )
                 .await
                 .unwrap();
@@ -150,7 +150,7 @@ mod tests {
                     &mut transaction,
                     &format!("test_user_id_{}", row),
                     &format!("test_network_id_{}", section),
-                    section
+                    section,
                 )
                 .await
                 .unwrap();
@@ -170,10 +170,7 @@ mod tests {
                 .await
                 .unwrap();
 
-                assert_eq!(
-                    section,
-                    res.get_unchecked::<i32, &str>("seq_num_slice")
-                );
+                assert_eq!(section, res.get_unchecked::<i32, &str>("seq_num_slice"));
             }
         }
         transaction.commit().await.unwrap();
@@ -195,7 +192,7 @@ mod tests {
                     &mut transaction,
                     &format!("test_user_id_{}", row),
                     &format!("test_network_id_{}", section),
-                    section
+                    section,
                 )
                 .await
                 .unwrap();

@@ -110,11 +110,9 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::tempdir;
 
-    use auth_vector::constants::{
-        AUTN_LENGTH, RAND_LENGTH, RES_STAR_HASH_LENGTH,
-    };
+    use auth_vector::constants::{AUTN_LENGTH, RAND_LENGTH, RES_STAR_HASH_LENGTH};
 
-    use crate::local::queries::{flood_vectors, general};
+    use crate::local::database::{flood_vectors, general};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -148,7 +146,8 @@ mod tests {
 
         assert!(flood_vectors::get_first(&mut transaction, "test_id_0")
             .await
-            .unwrap().is_none());
+            .unwrap()
+            .is_none());
 
         transaction.commit().await.unwrap();
     }
@@ -261,7 +260,10 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!("test_id_1", res.unwrap().get_unchecked::<&str, &str>("user_id"));
+        assert_eq!(
+            "test_id_1",
+            res.unwrap().get_unchecked::<&str, &str>("user_id")
+        );
         assert_eq!(0, res.unwrap().get_unchecked::<i64, &str>("seqnum"));
 
         transaction.commit().await.unwrap();
@@ -310,57 +312,59 @@ mod tests {
         transaction.commit().await.unwrap();
     }
 
-        /// Test that db can delete after inserts
-        #[tokio::test]
-        async fn test_remove_all() {
-            let pool = init().await;
-    
-            let mut transaction = pool.begin().await.unwrap();
-    
-            let num_rows = 10;
-            let num_sections = 10;
-    
-            for section in 0..num_sections {
-                for row in 0..num_rows {
-                    flood_vectors::add(
-                        &mut transaction,
-                        &format!("test_id_{}", section),
-                        row,
-                        &[0_u8; RES_STAR_HASH_LENGTH],
-                        &[0_u8; AUTN_LENGTH],
-                        &[0_u8; RAND_LENGTH],
-                    )
-                    .await
-                    .unwrap();
-                }
+    /// Test that db can delete after inserts
+    #[tokio::test]
+    async fn test_remove_all() {
+        let pool = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let num_rows = 10;
+        let num_sections = 10;
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                flood_vectors::add(
+                    &mut transaction,
+                    &format!("test_id_{}", section),
+                    row,
+                    &[0_u8; RES_STAR_HASH_LENGTH],
+                    &[0_u8; AUTN_LENGTH],
+                    &[0_u8; RAND_LENGTH],
+                )
+                .await
+                .unwrap();
             }
-    
-            transaction.commit().await.unwrap();
-    
-            let mut transaction = pool.begin().await.unwrap();
-    
-            let num_sections = 10;
-    
-            for section in 0..num_sections {
-                flood_vectors::remove_all(&mut transaction, &format!("test_id_{}", section))
-                    .await
-                    .unwrap();
-            }
-    
-            transaction.commit().await.unwrap();
-    
-            let mut transaction = pool.begin().await.unwrap();
-    
-            let num_sections = 10;
-    
-            for section in 0..num_sections {
-                assert!(flood_vectors::get_first(&mut transaction, &format!("test_id_{}", section))
-                    .await
-                    .is_err())
-            }
-    
-            transaction.commit().await.unwrap();
         }
+
+        transaction.commit().await.unwrap();
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let num_sections = 10;
+
+        for section in 0..num_sections {
+            flood_vectors::remove_all(&mut transaction, &format!("test_id_{}", section))
+                .await
+                .unwrap();
+        }
+
+        transaction.commit().await.unwrap();
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let num_sections = 10;
+
+        for section in 0..num_sections {
+            assert!(
+                flood_vectors::get_first(&mut transaction, &format!("test_id_{}", section))
+                    .await
+                    .is_err()
+            )
+        }
+
+        transaction.commit().await.unwrap();
+    }
 
     /// Test that db can delete after inserts
     #[tokio::test]
