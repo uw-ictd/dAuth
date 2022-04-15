@@ -257,13 +257,34 @@ impl BackupNetwork for DauthHandler {
         }
     }
 
+    /// Removes the requested user id as a backup on this network.
+    /// Deletes all related auth vectors (excludes flood vectors).
     async fn withdraw_backup(
         &self,
         request: tonic::Request<WithdrawBackupReq>,
     ) -> Result<tonic::Response<WithdrawBackupResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        todo!();
+        let message = request
+            .into_inner()
+            .message
+            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
+
+        let verify_result =
+            signing::verify_message(self.context.clone(), &message).or_else(|e| {
+                Err(tonic::Status::new(
+                    tonic::Code::Unauthenticated,
+                    format!("Failed to verify message: {}", e),
+                ))
+            })?;
+
+        match DauthHandler::withdraw_backup_hlp(self.context.clone(), verify_result).await {
+            Ok(result) => Ok(result),
+            Err(e) => Err(tonic::Status::new(
+                tonic::Code::Aborted,
+                format!("Error while handling request: {}", e),
+            )),
+        }
     }
 
     async fn withdraw_shares(
@@ -272,7 +293,26 @@ impl BackupNetwork for DauthHandler {
     ) -> Result<tonic::Response<WithdrawSharesResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        todo!();
+        let message = request
+            .into_inner()
+            .message
+            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
+
+        let verify_result =
+            signing::verify_message(self.context.clone(), &message).or_else(|e| {
+                Err(tonic::Status::new(
+                    tonic::Code::Unauthenticated,
+                    format!("Failed to verify message: {}", e),
+                ))
+            })?;
+
+        match DauthHandler::withdraw_shares_hlp(self.context.clone(), verify_result).await {
+            Ok(result) => Ok(result),
+            Err(e) => Err(tonic::Status::new(
+                tonic::Code::Aborted,
+                format!("Error while handling request: {}", e),
+            )),
+        }
     }
 
     async fn flood_vector(
@@ -307,12 +347,11 @@ impl BackupNetwork for DauthHandler {
 /// Implementation of all helper functions to reuse/condense error logic
 impl DauthHandler {
     /* General helpers */
-    pub async fn handle_delegated_vector_store(
+    pub fn handle_delegated_vector(
         context: Arc<DauthContext>,
         dvector: DelegatedAuthVector5G,
         user_id: &str,
-        is_flood: bool,
-    ) -> Result<(), DauthError> {
+    ) -> Result<AuthVectorRes, DauthError> {
         let verify_result = signing::verify_message(
             context.clone(),
             &dvector.message.ok_or(DauthError::InvalidMessageError(
@@ -321,29 +360,12 @@ impl DauthHandler {
         )?;
 
         if let SignPayloadType::DelegatedAuthVector5G(payload) = verify_result {
-            if is_flood {
-                manager::store_backup_flood_vector(
-                    context.clone(),
-                    &AuthVectorRes::from_av5_g(
-                        &user_id,
-                        payload.v.ok_or(DauthError::InvalidMessageError(
-                            "Missing content".to_string(),
-                        ))?,
-                    )?,
-                )
-                .await
-            } else {
-                manager::store_backup_auth_vector(
-                    context.clone(),
-                    &AuthVectorRes::from_av5_g(
-                        user_id,
-                        payload.v.ok_or(DauthError::InvalidMessageError(
-                            "Missing content".to_string(),
-                        ))?,
-                    )?,
-                )
-                .await
-            }
+            Ok(AuthVectorRes::from_av5_g(
+                user_id,
+                payload.v.ok_or(DauthError::InvalidMessageError(
+                    "Missing content".to_string(),
+                ))?,
+            )?)
         } else {
             Err(DauthError::InvalidMessageError(format!(
                 "Incorrect message type: {:?}",
@@ -352,10 +374,10 @@ impl DauthHandler {
         }
     }
 
-    pub async fn handle_key_share_store(
+    pub fn handle_key_share(
         context: Arc<DauthContext>,
         dshare: DelegatedConfirmationShare,
-    ) -> Result<(), DauthError> {
+    ) -> Result<(auth_vector::types::HresStar, auth_vector::types::Kseaf), DauthError> {
         let verify_result = signing::verify_message(
             context.clone(),
             &dshare.message.ok_or(DauthError::InvalidMessageError(
@@ -364,12 +386,10 @@ impl DauthHandler {
         )?;
 
         if let SignPayloadType::DelegatedConfirmationShare(payload) = verify_result {
-            manager::store_key_share(
-                context.clone(),
-                &payload.xres_star_hash[..].try_into()?,
-                &payload.confirmation_share[..].try_into()?,
-            )
-            .await
+            Ok((
+                payload.xres_star_hash[..].try_into()?,
+                payload.confirmation_share[..].try_into()?,
+            ))
         } else {
             Err(DauthError::InvalidMessageError(format!(
                 "Incorrect message type: {:?}",
@@ -457,7 +477,12 @@ impl DauthHandler {
                             payload.backup_network_id
                         )))
                     } else {
-                        manager::set_backup_user(context.clone(), &user_id, &payload.home_network_id).await?;
+                        manager::set_backup_user(
+                            context.clone(),
+                            &user_id,
+                            &payload.home_network_id,
+                        )
+                        .await?;
 
                         Ok(tonic::Response::new(EnrollBackupPrepareResp {
                             message: Some(signing::sign_message(
@@ -491,30 +516,44 @@ impl DauthHandler {
                 // TODO: possibly use home network id?
                 let _home_network_id = manager::get_backup_user(context.clone(), &user_id).await?;
 
+                // collect all properly formated delegated vectors
+                // skip errors
+                manager::store_backup_auth_vectors(
+                    context.clone(),
+                    content
+                        .vectors
+                        .into_iter()
+                        .flat_map(|dvector| {
+                            DauthHandler::handle_delegated_vector(
+                                context.clone(),
+                                dvector,
+                                &user_id,
+                            )
+                            .or_else(|e| {
+                                tracing::warn!("Failed to process vector: {}", e);
+                                Err(e)
+                            })
+                        })
+                        .collect(),
+                )
+                .await?;
 
-                // TODO: Move all adds into a single transaction to allow fail and revert?
-                for dvector in content.vectors {
-                    DauthHandler::handle_delegated_vector_store(
-                        context.clone(),
-                        dvector,
-                        &user_id,
-                        false,
-                    )
-                    .await
-                    .or_else(|e| {
-                        tracing::warn!("Failed to store vector: {}", e);
-                        Ok::<(), DauthError>(()) // proceed through errors for now
-                    })?
-                }
-
-                for dshare in content.shares {
-                    DauthHandler::handle_key_share_store(context.clone(), dshare)
-                        .await
-                        .or_else(|e| {
-                            tracing::warn!("Failed to store key share: {}", e);
-                            Ok::<(), DauthError>(()) // proceed through errors for now
-                        })?
-                }
+                // collect all properly formated delegated shares
+                // skip errors
+                manager::store_key_shares(
+                    context.clone(),
+                    content
+                        .shares
+                        .into_iter()
+                        .flat_map(|dshare| {
+                            DauthHandler::handle_key_share(context.clone(), dshare).or_else(|e| {
+                                tracing::warn!("Failed to process key share: {}", e);
+                                Err(e)
+                            })
+                        })
+                        .collect(),
+                )
+                .await?;
 
                 Ok(tonic::Response::new(EnrollBackupCommitResp {}))
             }
@@ -601,6 +640,66 @@ impl DauthHandler {
         }
     }
 
+    pub async fn withdraw_backup_hlp(
+        context: Arc<DauthContext>,
+        verify_result: SignPayloadType,
+    ) -> Result<tonic::Response<WithdrawBackupResp>, DauthError> {
+        if let SignPayloadType::WithdrawBackupReq(payload) = verify_result {
+            let user_id = std::str::from_utf8(payload.user_id.as_slice())?.to_string();
+
+            if context.local_context.id != payload.backup_network_id {
+                Err(DauthError::InvalidMessageError(format!(
+                    "Wrong intended network: {:?}",
+                    payload.backup_network_id
+                )))
+            } else {
+                if manager::get_backup_user(context.clone(), &user_id).await?
+                    != payload.home_network_id
+                {
+                    Err(DauthError::InvalidMessageError(format!(
+                        "Not the correct home network",
+                    )))
+                } else {
+                    manager::remove_backup_user(
+                        context.clone(),
+                        &user_id,
+                        &payload.home_network_id,
+                    )
+                    .await?;
+                    Ok(tonic::Response::new(WithdrawBackupResp {}))
+                }
+            }
+        } else {
+            Err(DauthError::InvalidMessageError(format!(
+                "Incorrect message type: {:?}",
+                verify_result
+            )))
+        }
+    }
+
+    pub async fn withdraw_shares_hlp(
+        context: Arc<DauthContext>,
+        verify_result: SignPayloadType,
+    ) -> Result<tonic::Response<WithdrawSharesResp>, DauthError> {
+        if let SignPayloadType::WithdrawSharesReq(payload) = verify_result {
+            manager::remove_key_shares(
+                context.clone(),
+                payload
+                    .xres_star_hash
+                    .iter()
+                    .flat_map(|xres_star_hash_vec| xres_star_hash_vec[..].try_into())
+                    .collect(),
+            )
+            .await?;
+            Ok(tonic::Response::new(WithdrawSharesResp {}))
+        } else {
+            Err(DauthError::InvalidMessageError(format!(
+                "Incorrect message type: {:?}",
+                verify_result
+            )))
+        }
+    }
+
     pub async fn flood_vector_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
@@ -613,11 +712,9 @@ impl DauthHandler {
                         "Missing content".to_string(),
                     ))?;
 
-                    DauthHandler::handle_delegated_vector_store(
+                    manager::store_backup_flood_vector(
                         context.clone(),
-                        dvector,
-                        &user_id,
-                        true,
+                        &DauthHandler::handle_delegated_vector(context, dvector, &user_id)?,
                     )
                     .await?;
 

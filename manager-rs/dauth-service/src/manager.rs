@@ -77,13 +77,14 @@ pub async fn confirm_auth_vector(
     let kseaf = database::kseafs::get(&mut transaction, &res_star)
         .await?
         .to_kseaf()?;
+    database::kseafs::remove(&mut transaction, &res_star).await?;
 
     transaction.commit().await?;
     Ok(kseaf)
 }
 
 // Store a new auth vector as a backup.
-pub async fn store_backup_auth_vector(
+pub async fn _store_backup_auth_vector(
     context: Arc<DauthContext>,
     av_result: &AuthVectorRes,
 ) -> Result<(), DauthError> {
@@ -100,6 +101,32 @@ pub async fn store_backup_auth_vector(
         &av_result.rand,
     )
     .await?;
+
+    transaction.commit().await?;
+    Ok(())
+}
+
+/// Store all auth vectors in the set.
+/// Stores all or none on failure.
+pub async fn store_backup_auth_vectors(
+    context: Arc<DauthContext>,
+    av_results: Vec<AuthVectorRes>,
+) -> Result<(), DauthError> {
+    tracing::info!("Storing auth vectors: {:?}", av_results);
+
+    let mut transaction = context.local_context.database_pool.begin().await?;
+
+    for av_result in av_results {
+        database::auth_vectors::add(
+            &mut transaction,
+            &av_result.user_id,
+            av_result.seqnum,
+            &av_result.xres_star_hash,
+            &av_result.autn,
+            &av_result.rand,
+        )
+        .await?;
+    }
 
     transaction.commit().await?;
     Ok(())
@@ -183,25 +210,46 @@ pub async fn get_backup_user(
     tracing::info!("Getting backup user: {:?}", user_id);
 
     let mut transaction = context.local_context.database_pool.begin().await?;
-    let res = database::backup_users::get(&mut transaction, user_id).await?.to_backup_user_home_network_id()?;
+    let res = database::backup_users::get(&mut transaction, user_id)
+        .await?
+        .to_backup_user_home_network_id()?;
     transaction.commit().await?;
     Ok(res)
 }
 
-// Store a new auth vector, likely as a backup
-pub async fn store_key_share(
+/// Removes the user from being backup up on this network.
+/// Also removes all related auth vectors.
+pub async fn remove_backup_user(
     context: Arc<DauthContext>,
-    xres_star_hash: &auth_vector::types::HresStar,
-    key_share: &auth_vector::types::Kseaf,
+    user_id: &str,
+    home_network_id: &str,
 ) -> Result<(), DauthError> {
-    tracing::info!("Handling key store: {:?} - {:?}", xres_star_hash, key_share);
+    tracing::info!("Getting backup user: {:?}", user_id);
 
     let mut transaction = context.local_context.database_pool.begin().await?;
-    database::key_shares::add(&mut transaction, xres_star_hash, key_share).await?;
+    database::backup_users::remove(&mut transaction, user_id, home_network_id).await?;
+    database::auth_vectors::remove_all(&mut transaction, user_id).await?;
     transaction.commit().await?;
     Ok(())
 }
 
+// Stores a collection of key shares.
+pub async fn store_key_shares(
+    context: Arc<DauthContext>,
+    key_shares: Vec<(auth_vector::types::HresStar, auth_vector::types::Kseaf)>,
+) -> Result<(), DauthError> {
+    tracing::info!("Handling multiple key store: {:?}", key_shares);
+
+    let mut transaction = context.local_context.database_pool.begin().await?;
+
+    for (xres_star_hash, key_share) in key_shares {
+        database::key_shares::add(&mut transaction, &xres_star_hash, &key_share).await?;
+    }
+    transaction.commit().await?;
+    Ok(())
+}
+
+/// Removes and returns a key share value.
 pub async fn get_key_share(
     context: Arc<DauthContext>,
     res_star: &auth_vector::types::ResStar,
@@ -216,16 +264,32 @@ pub async fn get_key_share(
     // TODO: Validate res_star, send back to home network
 
     let mut transaction = context.local_context.database_pool.begin().await?;
-
     let key_share = database::key_shares::get(&mut transaction, xres_star_hash)
         .await?
         .to_key_share()?;
+    database::key_shares::remove(&mut transaction, xres_star_hash).await?;
 
     transaction.commit().await?;
     Ok(key_share)
 }
 
-/// Returns whether the auth vector belongs to this core
+/// Removes all key shares.
+/// On failure, removes none.
+pub async fn remove_key_shares(
+    context: Arc<DauthContext>,
+    xres_star_hashs: Vec<&auth_vector::types::HresStar>,
+) -> Result<(), DauthError> {
+    tracing::info!("Handling key shares remove: {:?}", xres_star_hashs,);
+
+    let mut transaction = context.local_context.database_pool.begin().await?;
+    for xres_star_hash in xres_star_hashs {
+        database::key_shares::remove(&mut transaction, xres_star_hash).await?;
+    }
+    transaction.commit().await?;
+    Ok(())
+}
+
+/// Returns whether the auth vector belongs to this core.
 fn _auth_vector_is_local(context: Arc<DauthContext>, av_request: &AuthVectorReq) -> bool {
     (av_request.user_id <= context.local_context.local_user_id_max)
         && (av_request.user_id >= context.local_context.local_user_id_min)

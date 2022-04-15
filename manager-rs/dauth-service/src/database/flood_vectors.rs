@@ -87,7 +87,7 @@ pub async fn remove(
 }
 
 /// Removes all vectors belonging to an id.
-pub async fn remove_all(
+pub async fn _remove_all(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
 ) -> Result<(), DauthError> {
@@ -258,12 +258,10 @@ mod tests {
 
         let res = flood_vectors::get_first(&mut transaction, "test_id_1")
             .await
-            .unwrap().unwrap();
+            .unwrap()
+            .unwrap();
 
-        assert_eq!(
-            "test_id_1",
-            res.get_unchecked::<&str, &str>("user_id")
-        );
+        assert_eq!("test_id_1", res.get_unchecked::<&str, &str>("user_id"));
         assert_eq!(0, res.get_unchecked::<i64, &str>("seqnum"));
 
         transaction.commit().await.unwrap();
@@ -344,7 +342,7 @@ mod tests {
         let num_sections = 10;
 
         for section in 0..num_sections {
-            flood_vectors::remove_all(&mut transaction, &format!("test_id_{}", section))
+            flood_vectors::_remove_all(&mut transaction, &format!("test_id_{}", section))
                 .await
                 .unwrap();
         }
@@ -359,7 +357,8 @@ mod tests {
             assert!(
                 flood_vectors::get_first(&mut transaction, &format!("test_id_{}", section))
                     .await
-                    .unwrap().is_none()
+                    .unwrap()
+                    .is_none()
             )
         }
 
@@ -403,7 +402,8 @@ mod tests {
                 let res =
                     flood_vectors::get_first(&mut transaction, &format!("test_id_{}", section))
                         .await
-                        .unwrap().unwrap();
+                        .unwrap()
+                        .unwrap();
 
                 flood_vectors::remove(&mut transaction, &format!("test_id_{}", section), row)
                     .await

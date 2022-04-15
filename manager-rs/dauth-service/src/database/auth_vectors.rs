@@ -83,13 +83,13 @@ pub async fn remove(
 /// Removes all vectors belonging to an id.
 pub async fn remove_all(
     transaction: &mut Transaction<'_, Sqlite>,
-    id: &str,
+    user_id: &str,
 ) -> Result<(), DauthError> {
     sqlx::query(
         "DELETE FROM auth_vector_table
         WHERE user_id=$1",
     )
-    .bind(id)
+    .bind(user_id)
     .execute(transaction)
     .await?;
     Ok(())
