@@ -6,7 +6,7 @@ use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
 use crate::data::signing::{self, SignPayloadType};
 use crate::data::vector::{AuthVectorReq, AuthVectorRes};
-use crate::local;
+use crate::manager;
 use crate::rpc::dauth::common::{AuthVector5G, UserIdKind};
 use crate::rpc::dauth::local::aka_confirm_resp;
 use crate::rpc::dauth::local::local_authentication_server::LocalAuthentication;
@@ -36,7 +36,7 @@ impl LocalAuthentication for DauthHandler {
             Err(e) => return Err(tonic::Status::new(tonic::Code::Aborted, e.to_string())),
         }
 
-        match local::manager::generate_auth_vector(self.context.clone(), &av_request).await {
+        match manager::generate_auth_vector(self.context.clone(), &av_request).await {
             Ok(av_result) => {
                 tracing::info!("Returning result: {:?}", av_result);
                 Ok(tonic::Response::new(av_result.to_resp()))
@@ -63,7 +63,7 @@ impl LocalAuthentication for DauthHandler {
                 ))
             })?;
 
-        let kseaf = local::manager::confirm_auth_vector_used(self.context.clone(), res_star)
+        let kseaf = manager::confirm_auth_vector(self.context.clone(), res_star)
             .await
             .or_else(|e| Err(tonic::Status::new(tonic::Code::NotFound, e.to_string())))?;
 
@@ -309,7 +309,7 @@ impl DauthHandler {
 
         if let SignPayloadType::DelegatedAuthVector5G(payload) = verify_result {
             if is_flood {
-                local::manager::flood_vector_store(
+                manager::store_flood_vector(
                     context.clone(),
                     &AuthVectorRes::from_av5_g(
                         &user_id,
@@ -320,7 +320,7 @@ impl DauthHandler {
                 )
                 .await
             } else {
-                local::manager::auth_vector_store(
+                manager::store_auth_vector(
                     context.clone(),
                     &AuthVectorRes::from_av5_g(
                         user_id,
@@ -351,7 +351,7 @@ impl DauthHandler {
         )?;
 
         if let SignPayloadType::DelegatedConfirmationShare(payload) = verify_result {
-            local::manager::key_share_store(
+            manager::store_key_share(
                 context.clone(),
                 &payload.xres_star_hash[..].try_into()?,
                 &payload.confirmation_share[..].try_into()?,
@@ -369,7 +369,7 @@ impl DauthHandler {
         context: Arc<DauthContext>,
         user_id: &str,
     ) -> Result<DelegatedAuthVector5G, DauthError> {
-        let av_result = local::manager::auth_vector_get(
+        let av_result = manager::next_auth_vector(
             context.clone(),
             &AuthVectorReq {
                 user_id: user_id.to_string(),
@@ -423,7 +423,7 @@ impl DauthHandler {
         if let SignPayloadType::GetHomeConfirmKeyReq(payload) = verify_result {
             let res_star: ResStar = payload.res_star.as_slice().try_into()?;
 
-            let kseaf = local::manager::confirm_auth_vector_used(context.clone(), res_star).await?;
+            let kseaf = manager::confirm_auth_vector(context.clone(), res_star).await?;
 
             Ok(tonic::Response::new(GetHomeConfirmKeyResp {
                 kseaf: kseaf.to_vec(),
@@ -552,7 +552,7 @@ impl DauthHandler {
         verify_result: SignPayloadType,
     ) -> Result<tonic::Response<GetKeyShareResp>, DauthError> {
         if let SignPayloadType::GetKeyShareReq(payload) = verify_result {
-            let key_share = local::manager::key_share_get(
+            let key_share = manager::get_key_share(
                 context.clone(),
                 payload.res_star[..].try_into()?,
                 payload.hash_xres_star[..].try_into()?,

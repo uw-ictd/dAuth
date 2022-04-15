@@ -1,5 +1,6 @@
 mod data;
-mod local;
+mod database;
+mod manager;
 mod rpc;
 
 use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
@@ -18,7 +19,6 @@ use crate::data::{
     error::DauthError,
     opt::DauthOpt,
 };
-use crate::local::database;
 use crate::rpc::server;
 
 #[tokio::main]
@@ -38,7 +38,7 @@ async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthEr
     let config = build_config(dauth_opt.config_path)?;
 
     let keys = generate_keys(&config.ed25519_keyfile_path);
-    let pool = database::database_init(&config.database_path).await?;
+    let pool = database::general::database_init(&config.database_path).await?;
 
     let context = Arc::new(DauthContext {
         local_context: LocalContext {
@@ -64,7 +64,17 @@ async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthEr
     for (user_id, user_info_config) in config.users {
         let user_info = user_info_config.to_user_info()?;
         tracing::info!("inserting user info: {:?} - {:?}", user_id, user_info);
-        database::user_info_add(context.clone(), &user_id, &user_info).await?
+
+        let mut transaction = context.local_context.database_pool.begin().await?;
+        database::user_infos::upsert(
+            &mut transaction,
+            &user_id,
+            &user_info.k,
+            &user_info.opc,
+            &user_info.sqn_max,
+        )
+        .await?;
+        transaction.commit().await?;
     }
 
     Ok(context)

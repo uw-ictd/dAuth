@@ -1,7 +1,7 @@
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 
 use crate::data::error::DauthError;
-use crate::local::database;
+use crate::database;
 
 /// Constructs the sqlite pool for running queries.
 pub async fn build_pool(database_path: &str) -> Result<SqlitePool, DauthError> {
@@ -40,7 +40,7 @@ mod tests {
     use sqlx::SqlitePool;
     use tempfile::tempdir;
 
-    use crate::local::database;
+    use crate::database;
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();

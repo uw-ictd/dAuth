@@ -1,14 +1,12 @@
 use sqlx::sqlite::{SqlitePool, SqliteRow};
-use sqlx::Error as SqlxError;
 use sqlx::{Sqlite, Transaction};
 
 use crate::data::error::DauthError;
 
-/// Creates the flood vector table if it does not exist already.
-/// Meant to be used before the auth vector table.
+/// Creates the auth vector table if it does not exist already.
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
-        "CREATE TABLE IF NOT EXISTS flood_vector_table (
+        "CREATE TABLE IF NOT EXISTS auth_vector_table (
             user_id TEXT NOT NULL,
             seqnum INT NOT NULL,
             xres_star_hash BLOB NOT NULL,
@@ -22,6 +20,8 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     Ok(())
 }
 
+/* Queries */
+
 /// Inserts a vector with the given data.
 /// Returns an error if (id, seqnum) is not unique.
 pub async fn add(
@@ -33,7 +33,7 @@ pub async fn add(
     rand: &[u8],
 ) -> Result<(), DauthError> {
     sqlx::query(
-        "INSERT INTO flood_vector_table
+        "INSERT INTO auth_vector_table
         VALUES ($1,$2,$3,$4,$5)",
     )
     .bind(id)
@@ -47,26 +47,20 @@ pub async fn add(
     Ok(())
 }
 
-/// Check first for higher priority flood vectors
-/// Generally, it is normal for this to return Ok(None)
+/// Returns the first for a given id, sorted by rank (seqnum).
 pub async fn get_first(
     transaction: &mut Transaction<'_, Sqlite>,
     id: &str,
-) -> Result<Option<SqliteRow>, SqlxError> {
-    let res = sqlx::query(
-        "SELECT * FROM flood_vector_table
+) -> Result<SqliteRow, DauthError> {
+    Ok(sqlx::query(
+        "SELECT * FROM auth_vector_table
         WHERE user_id=$1
         ORDER BY seqnum
         LIMIT 1;",
     )
     .bind(id)
     .fetch_one(transaction)
-    .await;
-
-    match res {
-        Err(SqlxError::RowNotFound) => Ok(None),
-        _ => Ok(Some(res?)),
-    }
+    .await?)
 }
 
 /// Removes the vector with the (id, seqnum) pair.
@@ -76,7 +70,7 @@ pub async fn remove(
     seqnum: i64,
 ) -> Result<(), DauthError> {
     sqlx::query(
-        "DELETE FROM flood_vector_table
+        "DELETE FROM auth_vector_table
         WHERE (user_id,seqnum)=($1,$2)",
     )
     .bind(id)
@@ -92,7 +86,7 @@ pub async fn remove_all(
     id: &str,
 ) -> Result<(), DauthError> {
     sqlx::query(
-        "DELETE FROM flood_vector_table
+        "DELETE FROM auth_vector_table
         WHERE user_id=$1",
     )
     .bind(id)
@@ -108,11 +102,11 @@ mod tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
     use sqlx::{Row, SqlitePool};
-    use tempfile::tempdir;
+    use tempfile::{tempdir, TempDir};
 
     use auth_vector::constants::{AUTN_LENGTH, RAND_LENGTH, RES_STAR_HASH_LENGTH};
 
-    use crate::local::database::{flood_vectors, general};
+    use crate::database::{auth_vectors, general};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -120,15 +114,15 @@ mod tests {
         format!("sqlite_{}.db", s)
     }
 
-    async fn init() -> SqlitePool {
+    async fn init() -> (SqlitePool, TempDir) {
         let dir = tempdir().unwrap();
         let path = String::from(dir.path().join(gen_name()).to_str().unwrap());
         println!("Building temporary db: {}", path);
 
         let pool = general::build_pool(&path).await.unwrap();
-        flood_vectors::init_table(&pool).await.unwrap();
+        auth_vectors::init_table(&pool).await.unwrap();
 
-        pool
+        (pool, dir)
     }
 
     /// Test that db and table creation will work
@@ -139,23 +133,23 @@ mod tests {
 
     /// Test that db fails on non-existent result
     #[tokio::test]
+    #[should_panic]
     async fn test_empty_get() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 
-        assert!(flood_vectors::get_first(&mut transaction, "test_id_0")
+        auth_vectors::get_first(&mut transaction, "test_id_0")
             .await
-            .unwrap()
-            .is_none());
+            .unwrap();
 
         transaction.commit().await.unwrap();
     }
 
     /// Test that db can insert
     #[tokio::test]
-    async fn test_add() {
-        let pool = init().await;
+    async fn test_get() {
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 
@@ -164,7 +158,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                flood_vectors::add(
+                auth_vectors::add(
                     &mut transaction,
                     &format!("test_id_{}", section),
                     row,
@@ -184,10 +178,10 @@ mod tests {
     #[tokio::test]
     #[should_panic]
     async fn test_add_dupicate_fail() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
         let mut transaction = pool.begin().await.unwrap();
 
-        flood_vectors::add(
+        auth_vectors::add(
             &mut transaction,
             "test_id_1",
             1,
@@ -198,7 +192,7 @@ mod tests {
         .await
         .unwrap();
 
-        flood_vectors::add(
+        auth_vectors::add(
             &mut transaction,
             "test_id_1",
             1,
@@ -215,11 +209,11 @@ mod tests {
     /// Test that db can delete after inserts
     #[tokio::test]
     async fn test_get_first() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 
-        flood_vectors::add(
+        auth_vectors::add(
             &mut transaction,
             "test_id_1",
             2,
@@ -230,7 +224,7 @@ mod tests {
         .await
         .unwrap();
 
-        flood_vectors::add(
+        auth_vectors::add(
             &mut transaction,
             "test_id_1",
             0,
@@ -241,7 +235,7 @@ mod tests {
         .await
         .unwrap();
 
-        flood_vectors::add(
+        auth_vectors::add(
             &mut transaction,
             "test_id_1",
             1,
@@ -256,15 +250,12 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
 
-        let res = flood_vectors::get_first(&mut transaction, "test_id_1")
+        let res = auth_vectors::get_first(&mut transaction, "test_id_1")
             .await
             .unwrap();
 
-        assert_eq!(
-            "test_id_1",
-            res.unwrap().get_unchecked::<&str, &str>("user_id")
-        );
-        assert_eq!(0, res.unwrap().get_unchecked::<i64, &str>("seqnum"));
+        assert_eq!("test_id_1", res.get_unchecked::<&str, &str>("user_id"));
+        assert_eq!(0, res.get_unchecked::<i64, &str>("seqnum"));
 
         transaction.commit().await.unwrap();
     }
@@ -272,7 +263,7 @@ mod tests {
     /// Test that db can delete after inserts
     #[tokio::test]
     async fn test_remove() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 
@@ -281,7 +272,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                flood_vectors::add(
+                auth_vectors::add(
                     &mut transaction,
                     &format!("test_id_{}", section),
                     row,
@@ -303,7 +294,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                flood_vectors::remove(&mut transaction, &format!("test_id_{}", section), row)
+                auth_vectors::remove(&mut transaction, &format!("test_id_{}", section), row)
                     .await
                     .unwrap();
             }
@@ -315,7 +306,7 @@ mod tests {
     /// Test that db can delete after inserts
     #[tokio::test]
     async fn test_remove_all() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 
@@ -324,7 +315,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                flood_vectors::add(
+                auth_vectors::add(
                     &mut transaction,
                     &format!("test_id_{}", section),
                     row,
@@ -344,7 +335,7 @@ mod tests {
         let num_sections = 10;
 
         for section in 0..num_sections {
-            flood_vectors::remove_all(&mut transaction, &format!("test_id_{}", section))
+            auth_vectors::remove_all(&mut transaction, &format!("test_id_{}", section))
                 .await
                 .unwrap();
         }
@@ -357,7 +348,7 @@ mod tests {
 
         for section in 0..num_sections {
             assert!(
-                flood_vectors::get_first(&mut transaction, &format!("test_id_{}", section))
+                auth_vectors::get_first(&mut transaction, &format!("test_id_{}", section))
                     .await
                     .is_err()
             )
@@ -369,7 +360,7 @@ mod tests {
     /// Test that db can delete after inserts
     #[tokio::test]
     async fn test_get_first_with_delete() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 
@@ -378,7 +369,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                flood_vectors::add(
+                auth_vectors::add(
                     &mut transaction,
                     &format!("test_id_{}", section),
                     row,
@@ -401,19 +392,19 @@ mod tests {
         for section in 0..num_sections {
             for row in 0..num_rows {
                 let res =
-                    flood_vectors::get_first(&mut transaction, &format!("test_id_{}", section))
+                    auth_vectors::get_first(&mut transaction, &format!("test_id_{}", section))
                         .await
                         .unwrap();
 
-                flood_vectors::remove(&mut transaction, &format!("test_id_{}", section), row)
+                auth_vectors::remove(&mut transaction, &format!("test_id_{}", section), row)
                     .await
                     .unwrap();
 
                 assert_eq!(
                     &format!("test_id_{}", section),
-                    res.unwrap().get_unchecked::<&str, &str>("user_id")
+                    res.get_unchecked::<&str, &str>("user_id")
                 );
-                assert_eq!(row, res.unwrap().get_unchecked::<i64, &str>("seqnum"));
+                assert_eq!(row, res.get_unchecked::<i64, &str>("seqnum"));
             }
         }
 

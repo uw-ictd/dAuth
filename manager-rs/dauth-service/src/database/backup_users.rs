@@ -10,7 +10,7 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS backup_users_table (
             user_id TEXT NOT NULL,
-            home_network_id TEXT NOT NULL
+            home_network_id TEXT NOT NULL,
             PRIMARY KEY (user_id,home_network_id)
         );",
     )
@@ -77,9 +77,9 @@ mod tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
     use sqlx::SqlitePool;
-    use tempfile::tempdir;
+    use tempfile::{tempdir, TempDir};
 
-    use crate::local::database::{backup_users, general};
+    use crate::database::{backup_users, general};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -87,7 +87,7 @@ mod tests {
         format!("sqlite_{}.db", s)
     }
 
-    async fn init() -> SqlitePool {
+    async fn init() -> (SqlitePool, TempDir) {
         let dir = tempdir().unwrap();
         let path = String::from(dir.path().join(gen_name()).to_str().unwrap());
         println!("Building temporary db: {}", path);
@@ -95,7 +95,7 @@ mod tests {
         let pool = general::build_pool(&path).await.unwrap();
         backup_users::init_table(&pool).await.unwrap();
 
-        pool
+        (pool, dir)
     }
 
     /// Test that db and table creation will work
@@ -107,23 +107,20 @@ mod tests {
     /// Test that insert works
     #[tokio::test]
     async fn test_add() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 
         let num_rows = 10;
-        let num_sections = 10;
 
-        for section in 0..num_sections {
-            for row in 0..num_rows {
-                backup_users::add(
-                    &mut transaction,
-                    &format!("test_user_id_{}", row),
-                    "test_home_network",
-                )
-                .await
-                .unwrap();
-            }
+        for row in 0..num_rows {
+            backup_users::add(
+                &mut transaction,
+                &format!("test_user_id_{}", row),
+                "test_home_network",
+            )
+            .await
+            .unwrap();
         }
         transaction.commit().await.unwrap();
     }
@@ -131,7 +128,7 @@ mod tests {
     /// Tests that get works
     #[tokio::test]
     async fn test_get() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 
@@ -151,7 +148,7 @@ mod tests {
         let mut transaction = pool.begin().await.unwrap();
 
         for row in 0..num_rows {
-            let res = backup_users::get(&mut transaction, &format!("test_user_id_{}", row))
+            backup_users::get(&mut transaction, &format!("test_user_id_{}", row))
                 .await
                 .unwrap();
         }
@@ -161,12 +158,11 @@ mod tests {
     /// Test that deletes work
     #[tokio::test]
     async fn test_remove() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 
         let num_rows = 10;
-        let num_sections = 10;
 
         for row in 0..num_rows {
             backup_users::add(

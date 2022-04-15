@@ -80,11 +80,11 @@ mod tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
     use sqlx::{Row, SqlitePool};
-    use tempfile::tempdir;
+    use tempfile::{tempdir, TempDir};
 
     use auth_vector::constants::{K_LENGTH, OPC_LENGTH, SQN_LENGTH};
 
-    use crate::local::database::{general, user_infos};
+    use crate::database::{general, user_infos};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -92,7 +92,7 @@ mod tests {
         format!("sqlite_{}.db", s)
     }
 
-    async fn init() -> SqlitePool {
+    async fn init() -> (SqlitePool, TempDir) {
         let dir = tempdir().unwrap();
         let path = String::from(dir.path().join(gen_name()).to_str().unwrap());
         println!("Building temporary db: {}", path);
@@ -100,7 +100,7 @@ mod tests {
         let pool = general::build_pool(&path).await.unwrap();
         user_infos::init_table(&pool).await.unwrap();
 
-        pool
+        (pool, dir)
     }
 
     /// Test that db and table creation will work
@@ -112,7 +112,7 @@ mod tests {
     /// Test that insert works
     #[tokio::test]
     async fn test_add() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 
@@ -138,7 +138,7 @@ mod tests {
     /// Test that insert works
     #[tokio::test]
     async fn test_get() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 
@@ -194,7 +194,7 @@ mod tests {
     /// Test that delete works
     #[tokio::test]
     async fn test_remove() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 
@@ -245,7 +245,7 @@ mod tests {
     /// Test that updates works
     #[tokio::test]
     async fn test_update() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 

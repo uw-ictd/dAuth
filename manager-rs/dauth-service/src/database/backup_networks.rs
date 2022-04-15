@@ -10,9 +10,9 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS backup_networks_table (
             user_id TEXT NOT NULL,
-            backup_network TEXT NOT NULL
-            seq_num_slice INT NOT NULL
-            PRIMARY KEY (user_id, backup_network)
+            backup_network_id TEXT NOT NULL,
+            seq_num_slice INT NOT NULL,
+            PRIMARY KEY (user_id,backup_network_id)
         );",
     )
     .execute(pool)
@@ -50,7 +50,7 @@ pub async fn get(
 ) -> Result<SqliteRow, SqlxError> {
     Ok(sqlx::query(
         "SELECT * FROM backup_networks_table
-        WHERE (user_id, backup_network_id)=($1,$2);",
+        WHERE (user_id,backup_network_id)=($1,$2);",
     )
     .bind(user_id)
     .bind(backup_network_id)
@@ -82,9 +82,9 @@ mod tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
     use sqlx::{Row, SqlitePool};
-    use tempfile::tempdir;
+    use tempfile::{tempdir, TempDir};
 
-    use crate::local::database::{backup_networks, general};
+    use crate::database::{backup_networks, general};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -92,7 +92,7 @@ mod tests {
         format!("sqlite_{}.db", s)
     }
 
-    async fn init() -> SqlitePool {
+    async fn init() -> (SqlitePool, TempDir) {
         let dir = tempdir().unwrap();
         let path = String::from(dir.path().join(gen_name()).to_str().unwrap());
         println!("Building temporary db: {}", path);
@@ -100,7 +100,7 @@ mod tests {
         let pool = general::build_pool(&path).await.unwrap();
         backup_networks::init_table(&pool).await.unwrap();
 
-        pool
+        (pool, dir)
     }
 
     /// Test that db and table creation will work
@@ -112,7 +112,7 @@ mod tests {
     /// Test that insert works
     #[tokio::test]
     async fn test_add() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 
@@ -137,7 +137,7 @@ mod tests {
     /// Tests that get works
     #[tokio::test]
     async fn test_get() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 
@@ -179,7 +179,7 @@ mod tests {
     /// Test that deletes work
     #[tokio::test]
     async fn test_remove() {
-        let pool = init().await;
+        let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
 
