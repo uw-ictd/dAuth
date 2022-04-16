@@ -1,0 +1,50 @@
+sequenceDiagram
+%% @config(./diagram-config.json)
+    participant UE
+    participant SN as Serving Network
+    participant BN as Backup Network 1
+    participant BNB as Backup Network 2
+    participant BNC as Backup Network N
+    participant HN as Home Network
+    UE->>SN: Attach Request {IMSI}
+    activate UE
+    Note right of UE: 3GPP 5G-AKA UE Authentication<br/>Flow from UE Perspective
+    Note over SN,BN: IMSI sent in the clear in 4G-LTE if GUTI<br/> context cannot be retreived or not established.
+    SN->>BN: GetAuthVector {IMSI}
+
+    BN-->>SN: AuthVectorRes {AUTH, Hash(XRES)}
+    SN->>UE: AuthRequest {AUTH}
+    Note over UE: Derive key heirarchy from K_i <br/> Generate RES
+    UE->>SN: AuthResponse {RES}
+
+    Par
+        SN->>BN: GetKeyShare {Hash(XRES), RES}
+        Note over BN: Validate res is the correct preimage for the hash<br/> and corresponds to a valid share
+        BN-->>SN: GetKeyShareResp {share, SUPI}
+    and
+        SN->>BNB: GetKeyShare {Hash(XRES), RES}
+        Note over BNB: Validate res is the correct preimage for the hash<br/> and corresponds to a valid share
+        BNB-->>SN: GetKeyShareResp {share, SUPI}
+    and
+        SN->>BNC: GetKeyShare {Hash(XRES), RES}
+        Note over BNC: Validate res is the correct preimage for the hash<br/> and corresponds to a valid share
+        BNC-->>SN: GetKeyShareResp {share, SUPI}
+    end
+
+    Note over SN: Combine shares to derive K_seaf <br/> Generate K_amf and K_gnb from K_seaf
+    SN->>UE: Attach Accept {SecurityModeCommand(K_amf)}
+    UE->>SN: SecurityModeCommandComplete
+    deactivate UE
+    Note over UE,SN: Authentication Complete
+
+    Note over BN,HN: At a later point once home network back online
+    Par
+        BN->>HN: ConfirmKeyReq {ServingNetwork, SUPI, Hash(XRES), RES}
+        HN-->>BN: ConfirmKeyRes {Hash(XRES_j),share_j}
+    and
+        BNB->>HN: ConfirmKeyReq {ServingNetwork, SUPI, Hash(XRES), RES}
+        HN-->>BNB: ConfirmKeyRes {Hash(XRES_j),share_j}
+    and
+        BNC->>HN: ConfirmKeyReq {ServingNetwork, SUPI, Hash(XRES), RES}
+        HN-->>BNC: ConfirmKeyRes {Hash(XRES_j),share_j}
+    end
