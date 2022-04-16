@@ -1,0 +1,17 @@
+sequenceDiagram
+%% @config(./diagram-config.json)
+    participant UE
+    participant SN as Serving Network
+    participant BN as Backup Network(s)
+    participant HN as Home Network
+    UE->>SN: Attach Request {SUCI}
+    SN->>HN: GetAuthVector {SUCI}
+    HN-->>SN: AuthVectorRes {AUTH, Hash(XRES*)}
+    Note over UE: Validate AUTH<br/>Derive key heirarchy from K_i and AUTH<br/> Generate RES*
+    SN->>UE: AuthRequest {AUTH}
+    UE->>SN: AuthResponse {RES*}
+    SN->>HN: GetKey {Hash(XRES*), RES*}
+    HN-->>SN: GetKeyResp {K_seaf}
+    Note over SN: Generate K_amf and K_gnb from K_seaf
+    SN->>UE: AttachAccept {SecurityModeCommand(k_seaf)}
+    UE->>SN: SecurityModeComplete
