@@ -87,7 +87,7 @@ pub async fn remove(
 }
 
 /// Removes all vectors belonging to an id.
-pub async fn _remove_all(
+pub async fn remove_all(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
 ) -> Result<(), DauthError> {
@@ -342,7 +342,7 @@ mod tests {
         let num_sections = 10;
 
         for section in 0..num_sections {
-            flood_vectors::_remove_all(&mut transaction, &format!("test_id_{}", section))
+            flood_vectors::remove_all(&mut transaction, &format!("test_id_{}", section))
                 .await
                 .unwrap();
         }

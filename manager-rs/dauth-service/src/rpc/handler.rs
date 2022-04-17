@@ -11,9 +11,16 @@ use crate::rpc::dauth::common::{AuthVector5G, UserIdKind};
 use crate::rpc::dauth::local::aka_confirm_resp;
 use crate::rpc::dauth::local::local_authentication_server::LocalAuthentication;
 use crate::rpc::dauth::local::{AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp};
-use crate::rpc::dauth::remote::*;
 use crate::rpc::dauth::remote::{
     backup_network_server::BackupNetwork, home_network_server::HomeNetwork,
+};
+use crate::rpc::dauth::remote::{delegated_auth_vector5_g, delegated_confirmation_share};
+use crate::rpc::dauth::remote::{
+    DelegatedAuthVector5G, DelegatedConfirmationShare, EnrollBackupCommitReq,
+    EnrollBackupCommitResp, EnrollBackupPrepareReq, EnrollBackupPrepareResp, FloodVectorReq,
+    FloodVectorResp, GetBackupAuthVectorReq, GetBackupAuthVectorResp, GetHomeAuthVectorReq,
+    GetHomeAuthVectorResp, GetHomeConfirmKeyReq, GetHomeConfirmKeyResp, GetKeyShareReq,
+    GetKeyShareResp, WithdrawBackupReq, WithdrawBackupResp, WithdrawSharesReq, WithdrawSharesResp,
 };
 
 /// Handles all RPC calls to the dAuth service.
@@ -347,13 +354,13 @@ impl BackupNetwork for DauthHandler {
 /// Implementation of all helper functions to reuse/condense error logic
 impl DauthHandler {
     /* General helpers */
-    pub fn handle_delegated_vector(
+    fn handle_delegated_vector(
         context: Arc<DauthContext>,
         dvector: DelegatedAuthVector5G,
         user_id: &str,
     ) -> Result<AuthVectorRes, DauthError> {
         let verify_result = signing::verify_message(
-            context.clone(),
+            context,
             &dvector.message.ok_or(DauthError::InvalidMessageError(
                 "Missing content".to_string(),
             ))?,
@@ -374,12 +381,12 @@ impl DauthHandler {
         }
     }
 
-    pub fn handle_key_share(
+    fn handle_key_share(
         context: Arc<DauthContext>,
         dshare: DelegatedConfirmationShare,
     ) -> Result<(auth_vector::types::HresStar, auth_vector::types::Kseaf), DauthError> {
         let verify_result = signing::verify_message(
-            context.clone(),
+            context,
             &dshare.message.ok_or(DauthError::InvalidMessageError(
                 "Missing content".to_string(),
             ))?,
@@ -399,7 +406,7 @@ impl DauthHandler {
     }
 
     /* Specific helpers */
-    pub async fn get_home_auth_vector_hlp(
+    async fn get_home_auth_vector_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
     ) -> Result<tonic::Response<GetHomeAuthVectorResp>, DauthError> {
@@ -429,7 +436,7 @@ impl DauthHandler {
             Ok(tonic::Response::new(GetHomeAuthVectorResp {
                 vector: Some(DelegatedAuthVector5G {
                     message: Some(signing::sign_message(
-                        context.clone(),
+                        context,
                         signing::SignPayloadType::DelegatedAuthVector5G(payload),
                     )),
                 }),
@@ -442,14 +449,14 @@ impl DauthHandler {
         }
     }
 
-    pub async fn get_confirm_key_hlp(
+    async fn get_confirm_key_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
     ) -> Result<tonic::Response<GetHomeConfirmKeyResp>, DauthError> {
         if let SignPayloadType::GetHomeConfirmKeyReq(payload) = verify_result {
             let res_star: ResStar = payload.res_star.as_slice().try_into()?;
 
-            let kseaf = manager::confirm_auth_vector(context.clone(), res_star).await?;
+            let kseaf = manager::confirm_auth_vector(context, res_star).await?;
 
             Ok(tonic::Response::new(GetHomeConfirmKeyResp {
                 kseaf: kseaf.to_vec(),
@@ -462,7 +469,7 @@ impl DauthHandler {
         }
     }
 
-    pub async fn enroll_backup_prepare_hlp(
+    async fn enroll_backup_prepare_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
     ) -> Result<tonic::Response<EnrollBackupPrepareResp>, DauthError> {
@@ -486,7 +493,7 @@ impl DauthHandler {
 
                         Ok(tonic::Response::new(EnrollBackupPrepareResp {
                             message: Some(signing::sign_message(
-                                context.clone(),
+                                context,
                                 signing::SignPayloadType::EnrollBackupPrepareReq(payload),
                             )),
                         }))
@@ -505,7 +512,7 @@ impl DauthHandler {
         }
     }
 
-    pub async fn enroll_backup_commit_hlp(
+    async fn enroll_backup_commit_hlp(
         context: Arc<DauthContext>,
         content: EnrollBackupCommitReq,
     ) -> Result<tonic::Response<EnrollBackupCommitResp>, DauthError> {
@@ -564,7 +571,7 @@ impl DauthHandler {
         }
     }
 
-    pub async fn get_backup_auth_vector_hlp(
+    async fn get_backup_auth_vector_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
     ) -> Result<tonic::Response<GetBackupAuthVectorResp>, DauthError> {
@@ -592,7 +599,7 @@ impl DauthHandler {
             Ok(tonic::Response::new(GetBackupAuthVectorResp {
                 vector: Some(DelegatedAuthVector5G {
                     message: Some(signing::sign_message(
-                        context.clone(),
+                        context,
                         signing::SignPayloadType::DelegatedAuthVector5G(payload),
                     )),
                 }),
@@ -605,7 +612,7 @@ impl DauthHandler {
         }
     }
 
-    pub async fn get_key_share_hlp(
+    async fn get_key_share_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
     ) -> Result<tonic::Response<GetKeyShareResp>, DauthError> {
@@ -624,7 +631,7 @@ impl DauthHandler {
 
             let dshare = DelegatedConfirmationShare {
                 message: Some(signing::sign_message(
-                    context.clone(),
+                    context,
                     signing::SignPayloadType::DelegatedConfirmationShare(payload),
                 )),
             };
@@ -640,7 +647,7 @@ impl DauthHandler {
         }
     }
 
-    pub async fn withdraw_backup_hlp(
+    async fn withdraw_backup_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
     ) -> Result<tonic::Response<WithdrawBackupResp>, DauthError> {
@@ -660,12 +667,8 @@ impl DauthHandler {
                         "Not the correct home network",
                     )))
                 } else {
-                    manager::remove_backup_user(
-                        context.clone(),
-                        &user_id,
-                        &payload.home_network_id,
-                    )
-                    .await?;
+                    manager::remove_backup_user(context, &user_id, &payload.home_network_id)
+                        .await?;
                     Ok(tonic::Response::new(WithdrawBackupResp {}))
                 }
             }
@@ -677,13 +680,13 @@ impl DauthHandler {
         }
     }
 
-    pub async fn withdraw_shares_hlp(
+    async fn withdraw_shares_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
     ) -> Result<tonic::Response<WithdrawSharesResp>, DauthError> {
         if let SignPayloadType::WithdrawSharesReq(payload) = verify_result {
             manager::remove_key_shares(
-                context.clone(),
+                context,
                 payload
                     .xres_star_hash
                     .iter()
@@ -700,7 +703,7 @@ impl DauthHandler {
         }
     }
 
-    pub async fn flood_vector_hlp(
+    async fn flood_vector_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
     ) -> Result<tonic::Response<FloodVectorResp>, DauthError> {

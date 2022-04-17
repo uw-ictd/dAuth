@@ -58,7 +58,7 @@ pub async fn upsert(
 }
 
 /// Remove user info if exists.
-pub async fn _remove(
+pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &Id,
 ) -> Result<(), DauthError> {
@@ -219,7 +219,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                user_infos::_remove(
+                user_infos::remove(
                     &mut transaction,
                     &format!("user_info_{}", section * num_rows + row),
                 )
