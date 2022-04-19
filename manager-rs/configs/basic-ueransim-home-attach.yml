@@ -1,3 +1,5 @@
+id: "Host 1"
+
 remote_addrs:
   - "192.168.56.200"
 
