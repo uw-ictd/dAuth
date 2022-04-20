@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+
+package dauth_directory;
+
+// The directory service is a centralized datastore for dauth networks
+// to share addresses, public keys, and user home/backup networks.
+service Directory {
+    // Registers the calling network with the directory service.
+    // Calling network provides its network id, address, and public key.
+    // If the network is already registered, data is updated.
+    rpc Register(RegisterReq) returns (RegisterResp);
+
+    // Looks up a specific network by its network id.
+    // If the network has been registered, returns the corresponding 
+    // address and public key.
+    rpc LooukupNetwork(LooukupNetworkReq) returns (LooukupNetworkResp);
+
+    // Looks up a specific user by its user id.
+    // If the user exists, returns the corresponding home network id
+    // and the set of backup network ids
+    rpc LookupUser(LookupUserReq) returns (LookupUserResp);
+
+    // Adds a user with its user id, home network id, and set of backup
+    // network ids.
+    // If the user does not exist, the home network becomes the owner.
+    // If the user already exists, home network must match the owner
+    // and the user data will be updated.
+    rpc UpsertUser(UpsertUserReq) returns (UpsertUserResp);
+}
+
+message RegisterReq {
+    string network_id = 1;
+    string address = 2;
+    bytes public_key = 3;
+}
+
+message RegisterResp {
+    // no fields
+}
+
+message LooukupNetworkReq {
+    string network_id = 1;
+}
+
+message LooukupNetworkResp {
+    string address = 1;
+    bytes public_key = 2;
+}
+
+message LookupUserReq {
+    string user_id = 1;
+}
+
+message LookupUserResp {
+    string home_network_id = 1;
+    repeated string backup_network_ids = 2;
+}
+
+message UpsertUserReq {
+    string user_id = 1;
+    string home_network_id = 2;
+    repeated string backup_network_ids = 3;
+}
+
+message UpsertUserResp {
+    // no fields
+}
