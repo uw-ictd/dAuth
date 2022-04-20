@@ -173,13 +173,10 @@ pub async fn next_backup_auth_vector(
         database::flood_vectors::get_first(&mut transaction, &av_request.user_id).await
     {
         vector = flood_row.to_auth_vector()?;
-        database::flood_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
     } else {
         vector = database::auth_vectors::get_first(&mut transaction, &av_request.user_id)
             .await?
             .to_auth_vector()?;
-
-        database::auth_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
     };
 
     transaction.commit().await?;
@@ -267,6 +264,18 @@ pub async fn get_key_share(
     let key_share = database::key_shares::get(&mut transaction, xres_star_hash)
         .await?
         .to_key_share()?;
+
+    
+    if let Ok(row) = database::flood_vectors::get_by_hash(&mut transaction, xres_star_hash).await {
+        let vector = row.to_auth_vector()?;
+        database::flood_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
+    } else if let Ok(row) = database::auth_vectors::get_by_hash(&mut transaction, xres_star_hash).await {
+        let vector = row.to_auth_vector()?;
+        database::auth_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
+    } else {
+        tracing::info!("Vector not found on this network: {:?}", xres_star_hash);
+    }
+
     database::key_shares::remove(&mut transaction, xres_star_hash).await?;
 
     transaction.commit().await?;
