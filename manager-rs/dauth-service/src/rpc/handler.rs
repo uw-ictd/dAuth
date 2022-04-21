@@ -30,7 +30,7 @@ pub struct DauthHandler {
 
 #[tonic::async_trait]
 impl LocalAuthentication for DauthHandler {
-    /// Local request for a vector that will be generated on this network.
+    /// Local request for a vector that will be used on this network.
     /// No authentication is done.
     async fn get_auth_vector(
         &self,
@@ -44,7 +44,7 @@ impl LocalAuthentication for DauthHandler {
             Err(e) => return Err(tonic::Status::new(tonic::Code::Aborted, e.to_string())),
         }
 
-        match manager::generate_auth_vector(self.context.clone(), &av_request).await {
+        match manager::find_vector(self.context.clone(), &av_request).await {
             Ok(av_result) => {
                 tracing::info!("Returning result: {:?}", av_result);
                 Ok(tonic::Response::new(av_result.to_resp()))

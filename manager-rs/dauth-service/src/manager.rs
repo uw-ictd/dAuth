@@ -11,6 +11,23 @@ use crate::data::{
 use crate::database;
 use crate::database::utilities::DauthDataUtilities;
 
+/// Attempts to get a vector in the following order of checks:
+/// 1. Generate the vector locally if this is the home network
+/// 2. Lookup the home network of the user and request a vector
+/// 3. Request a vector from all backup networks
+pub async fn find_vector(
+    context: Arc<DauthContext>,
+    av_request: &AuthVectorReq,
+) -> Result<AuthVectorRes, DauthError> {
+    tracing::info!("Attempting to find a vector: {:?}", av_request);
+
+    if let Ok(vector) = generate_auth_vector(context.clone(), av_request).await {
+        Ok(vector)
+    } else {
+        todo!()
+    }
+}
+
 /// Generates and returns a new auth vector.
 /// Will fail if the requested id does not belong to this network/core.
 pub async fn generate_auth_vector(
