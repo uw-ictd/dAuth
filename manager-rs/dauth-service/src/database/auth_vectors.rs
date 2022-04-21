@@ -301,7 +301,8 @@ mod tests {
         let mut transaction = pool.begin().await.unwrap();
 
         assert!(auth_vectors::get_by_hash(&mut transaction, &bad_hash)
-            .await.is_err());
+            .await
+            .is_err());
 
         let res = auth_vectors::get_by_hash(&mut transaction, &good_hash)
             .await

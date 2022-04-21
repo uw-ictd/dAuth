@@ -258,19 +258,22 @@ pub async fn get_key_share(
         xres_star_hash,
     );
 
-    // TODO: Validate res_star, send back to home network
+    // TODO: Alert home network
 
     let mut transaction = context.local_context.database_pool.begin().await?;
     let key_share = database::key_shares::get(&mut transaction, xres_star_hash)
         .await?
         .to_key_share()?;
 
-    
     if let Ok(row) = database::flood_vectors::get_by_hash(&mut transaction, xres_star_hash).await {
         let vector = row.to_auth_vector()?;
+        validate_xres_star_hash(xres_star_hash, res_star, &vector.rand)?;
         database::flood_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
-    } else if let Ok(row) = database::auth_vectors::get_by_hash(&mut transaction, xres_star_hash).await {
+    } else if let Ok(row) =
+        database::auth_vectors::get_by_hash(&mut transaction, xres_star_hash).await
+    {
         let vector = row.to_auth_vector()?;
+        validate_xres_star_hash(xres_star_hash, res_star, &vector.rand)?;
         database::auth_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
     } else {
         tracing::info!("Vector not found on this network: {:?}", xres_star_hash);
@@ -296,6 +299,20 @@ pub async fn remove_key_shares(
     }
     transaction.commit().await?;
     Ok(())
+}
+
+fn validate_xres_star_hash(
+    xres_star_hash: &auth_vector::types::HresStar,
+    res_star: &auth_vector::types::ResStar,
+    rand: &auth_vector::types::Rand,
+) -> Result<(), DauthError> {
+    if xres_star_hash != &auth_vector::gen_xres_star_hash(rand, res_star) {
+        Err(DauthError::DataError(
+            "Provided res* does not hash to provided xres* hash".to_string(),
+        ))
+    } else {
+        Ok(())
+    }
 }
 
 /// Returns whether the auth vector belongs to this core.

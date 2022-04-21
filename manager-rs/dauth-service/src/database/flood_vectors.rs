@@ -308,7 +308,8 @@ mod tests {
         let mut transaction = pool.begin().await.unwrap();
 
         assert!(flood_vectors::get_by_hash(&mut transaction, &bad_hash)
-            .await.is_err());
+            .await
+            .is_err());
 
         let res = flood_vectors::get_by_hash(&mut transaction, &good_hash)
             .await
