@@ -69,6 +69,21 @@ pub async fn get_first(
     }
 }
 
+/// Returns the auth vector with the corresponding xres_star_hash.
+pub async fn get_by_hash(
+    transaction: &mut Transaction<'_, Sqlite>,
+    xres_star_hash: &[u8],
+) -> Result<SqliteRow, DauthError> {
+    Ok(sqlx::query(
+        "SELECT * FROM flood_vector_table
+        WHERE xres_star_hash=$1
+        LIMIT 1;",
+    )
+    .bind(xres_star_hash)
+    .fetch_one(transaction)
+    .await?)
+}
+
 /// Removes the vector with the (id, seqnum) pair.
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
@@ -259,6 +274,45 @@ mod tests {
         let res = flood_vectors::get_first(&mut transaction, "test_id_1")
             .await
             .unwrap()
+            .unwrap();
+
+        assert_eq!("test_id_1", res.get_unchecked::<&str, &str>("user_id"));
+        assert_eq!(0, res.get_unchecked::<i64, &str>("seqnum"));
+
+        transaction.commit().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_get_by_hash() {
+        let (pool, _dir) = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let good_hash = [0_u8; RES_STAR_HASH_LENGTH];
+        let mut bad_hash = [0_u8; RES_STAR_HASH_LENGTH];
+        bad_hash[0] = 1;
+
+        flood_vectors::add(
+            &mut transaction,
+            "test_id_1",
+            0,
+            &good_hash,
+            &[0_u8; AUTN_LENGTH],
+            &[0_u8; RAND_LENGTH],
+        )
+        .await
+        .unwrap();
+
+        transaction.commit().await.unwrap();
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        assert!(flood_vectors::get_by_hash(&mut transaction, &bad_hash)
+            .await
+            .is_err());
+
+        let res = flood_vectors::get_by_hash(&mut transaction, &good_hash)
+            .await
             .unwrap();
 
         assert_eq!("test_id_1", res.get_unchecked::<&str, &str>("user_id"));
