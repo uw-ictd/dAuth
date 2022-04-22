@@ -25,20 +25,37 @@ pub async fn find_vector(
     if let Ok(vector) = generate_auth_vector(context.clone(), av_request).await {
         Ok(vector)
     } else {
-        let (home_network_id, backup_network_ids) = clients::directory::lookup_user(context.clone(), &av_request.user_id).await?;
+        let (home_network_id, backup_network_ids) =
+            clients::directory::lookup_user(context.clone(), &av_request.user_id).await?;
 
-        let (home_address, _) = clients::directory::lookup_network(context.clone(), &home_network_id).await?;
-        if let Ok(vector) = clients::home_network::get_auth_vector(context.clone(), &av_request.user_id, &home_address).await {
+        let (home_address, _) =
+            clients::directory::lookup_network(context.clone(), &home_network_id).await?;
+        if let Ok(vector) = clients::home_network::get_auth_vector(
+            context.clone(),
+            &av_request.user_id,
+            &home_address,
+        )
+        .await
+        {
             Ok(vector)
         } else {
             for backup_network_id in backup_network_ids {
-                let (backup_address, _) = clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
-                if let Ok(vector) = clients::backup_network::get_auth_vector(context.clone(), &av_request.user_id, &backup_address).await {
-                    return Ok(vector)
+                let (backup_address, _) =
+                    clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
+                if let Ok(vector) = clients::backup_network::get_auth_vector(
+                    context.clone(),
+                    &av_request.user_id,
+                    &backup_address,
+                )
+                .await
+                {
+                    return Ok(vector);
                 }
             }
             tracing::warn!("No auth vector found");
-            Err(DauthError::NotFoundError("No auth vector found".to_string()))
+            Err(DauthError::NotFoundError(
+                "No auth vector found".to_string(),
+            ))
         }
     }
 }
