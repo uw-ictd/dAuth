@@ -372,8 +372,10 @@ name = "directory-service"
 version = "0.1.0"
 dependencies = [
  "prost",
+ "rand 0.7.3",
  "sqlx",
  "structopt",
+ "tempfile",
  "thiserror",
  "tokio",
  "tonic",
