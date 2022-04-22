@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use auth_vector::types::{ResStar, HresStar, Kseaf};
+use auth_vector::types::{HresStar, Kseaf, ResStar};
 
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;

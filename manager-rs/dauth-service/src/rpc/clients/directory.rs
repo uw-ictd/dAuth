@@ -7,9 +7,7 @@ use crate::data::error::DauthError;
 
 /// Registers this network with the directory service.
 /// Provides this network's id, address, and public key.
-pub async fn register(
-    context: Arc<DauthContext>,
-) -> Result<(), DauthError> {
+pub async fn register(context: Arc<DauthContext>) -> Result<(), DauthError> {
     todo!()
 }
 

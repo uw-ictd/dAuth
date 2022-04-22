@@ -5,7 +5,6 @@ use crate::data::error::DauthError;
 use crate::data::signing::{self, SignPayloadType};
 use crate::data::vector::{AuthVectorReq, AuthVectorRes};
 use crate::manager;
-use crate::rpc::handlers::handler::DauthHandler;
 use crate::rpc::dauth::common::{AuthVector5G, UserIdKind};
 use crate::rpc::dauth::remote::backup_network_server::BackupNetwork;
 use crate::rpc::dauth::remote::{delegated_auth_vector5_g, delegated_confirmation_share};
@@ -15,6 +14,7 @@ use crate::rpc::dauth::remote::{
     FloodVectorResp, GetBackupAuthVectorReq, GetBackupAuthVectorResp, GetKeyShareReq,
     GetKeyShareResp, WithdrawBackupReq, WithdrawBackupResp, WithdrawSharesReq, WithdrawSharesResp,
 };
+use crate::rpc::handlers::handler::DauthHandler;
 
 #[tonic::async_trait]
 impl BackupNetwork for DauthHandler {

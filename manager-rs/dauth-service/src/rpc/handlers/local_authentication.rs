@@ -1,9 +1,9 @@
 use crate::data::vector::AuthVectorReq;
 use crate::manager;
-use crate::rpc::handlers::handler::DauthHandler;
 use crate::rpc::dauth::local::aka_confirm_resp;
 use crate::rpc::dauth::local::local_authentication_server::LocalAuthentication;
 use crate::rpc::dauth::local::{AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp};
+use crate::rpc::handlers::handler::DauthHandler;
 
 #[tonic::async_trait]
 impl LocalAuthentication for DauthHandler {
