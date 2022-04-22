@@ -26,6 +26,7 @@
 #include "local_authentication.grpc.pb.h"
 #include "local_authentication.pb.h"
 
+#include "context.h"
 #include "dauth-context-c-binding.h"
 #include "dauth-context.hpp"
 
@@ -66,6 +67,22 @@ dauth_context_final(dauth_context_t * const context) {
     return true;
 }
 
+bool
+wait_for_next_rpc_event(void** tag) {
+    ausf_context_t* ausf_context = ausf_self();
+    ogs_assert(ausf_context);
+    ogs_assert(ausf_context->dauth_context);
+    return access_dauth_context(ausf_context->dauth_context).waitNextRpcCompletion(tag);
+}
+
+void
+grpc_client_termination() {
+    ausf_context_t* ausf_context = ausf_self();
+    ogs_assert(ausf_context);
+    ogs_assert(ausf_context->dauth_context);
+    access_dauth_context(ausf_context->dauth_context).shutdownQueue();
+}
+
 #ifdef __cplusplus
 }
 #endif
@@ -73,10 +90,23 @@ dauth_context_final(dauth_context_t * const context) {
 std::unique_ptr<dauth_local::LocalAuthentication::Stub>
 dauth_context::makeLocalAuthenticationStub() {
     std::unique_ptr<dauth_local::LocalAuthentication::Stub> stub = dauth_local::LocalAuthentication::NewStub(_channel);
+    return stub;
+}
+
+void
+dauth_context::shutdownQueue() {
+    _completion_queue.Shutdown();
+}
+
+bool
+dauth_context::waitNextRpcCompletion(void** tag) {
+    bool ok = false;
+    _completion_queue.Next(tag, &ok);
+    return ok;
 }
 
 dauth_context&
-access_dauth_context_internal(dauth_context_t * const context) {
+access_dauth_context(dauth_context_t * const context) {
     ogs_assert(context->dauth_context_internal);
     dauth_context * internal_context = reinterpret_cast<dauth_context*>(context->dauth_context_internal);
     return (*internal_context);

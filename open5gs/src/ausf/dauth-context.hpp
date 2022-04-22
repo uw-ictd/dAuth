@@ -33,13 +33,22 @@ public:
     dauth_context(
         std::shared_ptr<grpc::Channel> channel
     ):
-        _channel(channel)
+        _channel(channel),
+        _completion_queue()
     {}
 
     std::unique_ptr<dauth_local::LocalAuthentication::Stub>
     makeLocalAuthenticationStub();
+
+    void
+    shutdownQueue();
+
+    bool
+    waitNextRpcCompletion(void** tag);
+
 private:
     std::shared_ptr<grpc::Channel> _channel;
+    grpc::CompletionQueue _completion_queue;
 };
 
 dauth_context&

@@ -36,6 +36,15 @@ dauth_context_init(dauth_context_t * context);
 bool
 dauth_context_final(dauth_context_t * const context);
 
+bool
+wait_for_next_rpc_event(void** tag);
+
+bool
+handle_rpc_completion(void* tag);
+
+void
+grpc_client_termination();
+
 #ifdef __cplusplus
 }
 #endif

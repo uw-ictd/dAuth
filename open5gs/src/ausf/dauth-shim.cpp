@@ -22,6 +22,7 @@
 #include <string.h>
 
 #include "authentication_data.pb.h"
+#include "dauth-context-c-binding.h"
 #include "local_authentication.grpc.pb.h"
 #include "local_authentication.pb.h"
 
@@ -49,6 +50,12 @@ bounded_strlen(const char * const str, size_t max_length) {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+bool
+handle_rpc_completion(void *tag) {
+    ogs_info("Handling tag %p", tag);
+    return true;
+}
 
 bool
 ausf_dauth_shim_request_auth_vector(
