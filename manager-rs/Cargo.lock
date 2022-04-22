@@ -368,6 +368,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "directory-service"
+version = "0.1.0"
+dependencies = [
+ "prost",
+ "structopt",
+ "thiserror",
+ "tokio",
+ "tonic",
+ "tonic-build",
+ "tracing",
+ "tracing-futures",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "dotenv"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

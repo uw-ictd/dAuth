@@ -1,0 +1,19 @@
+[package]
+name = "directory-service"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tonic = "^0.6.1"
+prost = "0.9"
+tokio = { version = "^1.13.0", features = ["macros", "rt-multi-thread"]}
+tracing = "0.1.29"
+tracing-futures = "0.2.5"
+tracing-subscriber = "0.3.2"
+thiserror = "1.0"
+structopt = "0.3"
+
+[build-dependencies]
+tonic-build = "0.6"
