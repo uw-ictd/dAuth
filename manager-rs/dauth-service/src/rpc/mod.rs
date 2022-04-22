@@ -1,5 +1,5 @@
 pub mod clients;
-mod handler;
+pub mod handlers;
 pub mod server;
 
 pub mod dauth {

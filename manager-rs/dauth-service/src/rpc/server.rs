@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tonic::transport::Server;
 
 use crate::data::context::DauthContext;
-use crate::rpc::handler::DauthHandler;
+use crate::rpc::handlers::handler::DauthHandler;
 
 use crate::rpc::dauth::local::local_authentication_server::LocalAuthenticationServer;
 use crate::rpc::dauth::remote::home_network_server::HomeNetworkServer;
