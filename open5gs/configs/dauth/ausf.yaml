@@ -19,7 +19,7 @@
 #    domain: core,sbi,ausf,event,tlv,mem,sock
 #
 logger:
-    file: /var/log/open5gs/ausf.log
+    file: /dev/null
 #
 # ausf:
 #

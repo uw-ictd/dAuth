@@ -21,14 +21,17 @@
 #include <memory>
 #include <string.h>
 
+#include "authentication_data.pb.h"
+#include "local_authentication.grpc.pb.h"
+#include "local_authentication.pb.h"
+
 #include "core/ogs-core.h"
+#include "context.h"
+#include "dauth-context.hpp"
 #include "dauth-shim.h"
 #include "model/authentication_info.h"
 #include "model/authentication_vector.h"
 
-#include "authentication_data.pb.h"
-#include "local_authentication.grpc.pb.h"
-#include "local_authentication.pb.h"
 
 using namespace dauth_local;
 
@@ -67,10 +70,12 @@ ausf_dauth_shim_request_auth_vector(
         return false;
     }
 
-    // TODO(matt9j) Move to a one-time context instead of re-opening each time and making new stubs
     ogs_debug("[%s] Creating gRPC LocalAuthentication stub", supi);
-    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials());
-    std::unique_ptr<LocalAuthentication::Stub> stub = LocalAuthentication::NewStub(channel);
+
+    ausf_context_t* ausf_context = ausf_self();
+    ogs_assert(ausf_context);
+    ogs_assert(ausf_context->dauth_context);
+    std::unique_ptr<LocalAuthentication::Stub> stub = access_dauth_context(ausf_context->dauth_context).makeLocalAuthenticationStub();
 
     // Fill request protobuf
     ogs_debug("[%s] Filling d_auth::AKAVectorReq request", supi);
@@ -258,10 +263,11 @@ ausf_dauth_shim_request_confirm_auth(
         return false;
     }
 
-    // TODO(matt9j) Move to a one-time context instead of re-opening each time and making new stubs
     ogs_debug("[%s] Creating gRPC LocalAuthentication stub", supi);
-    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials());
-    std::unique_ptr<LocalAuthentication::Stub> stub = LocalAuthentication::NewStub(channel);
+    ausf_context_t* ausf_context = ausf_self();
+    ogs_assert(ausf_context);
+    ogs_assert(ausf_context->dauth_context);
+    std::unique_ptr<LocalAuthentication::Stub> stub = access_dauth_context(ausf_context->dauth_context).makeLocalAuthenticationStub();
 
     // Fill request protobuf
     ogs_debug("[%s] Filling d_auth::AKAConfirmReq request", supi);

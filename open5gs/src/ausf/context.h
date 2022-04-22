@@ -25,6 +25,7 @@
 #include "ogs-sbi.h"
 
 #include "ausf-sm.h"
+#include "dauth-context-c-binding.h"
 #include "timer.h"
 
 #ifdef __cplusplus
@@ -45,6 +46,7 @@ typedef struct ausf_context_s {
     ogs_hash_t      *suci_hash;
     ogs_hash_t      *supi_hash;
 
+    dauth_context_t *dauth_context;
 } ausf_context_t;
 
 struct ausf_ue_s {

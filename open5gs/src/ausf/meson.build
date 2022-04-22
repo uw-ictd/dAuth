@@ -104,6 +104,7 @@ libausf_sources = files('''
     ue-sm.c
 
     dauth-shim.cpp
+    dauth-context.cpp
 
     sbi-path.c
     ausf-sm.c
