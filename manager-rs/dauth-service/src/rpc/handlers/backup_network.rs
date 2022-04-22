@@ -14,10 +14,13 @@ use crate::rpc::dauth::remote::{
     FloodVectorResp, GetBackupAuthVectorReq, GetBackupAuthVectorResp, GetKeyShareReq,
     GetKeyShareResp, WithdrawBackupReq, WithdrawBackupResp, WithdrawSharesReq, WithdrawSharesResp,
 };
-use crate::rpc::handlers::handler::DauthHandler;
+
+pub struct BackupNetworkHandler {
+    pub context: Arc<DauthContext>,
+}
 
 #[tonic::async_trait]
-impl BackupNetwork for DauthHandler {
+impl BackupNetwork for BackupNetworkHandler {
     /// Request for this network to become a backup network.
     /// Checks for proper authentication and eligibility.
     /// Sets the provided user as being backed up by this network.
@@ -40,7 +43,9 @@ impl BackupNetwork for DauthHandler {
                 ))
             })?;
 
-        match DauthHandler::enroll_backup_prepare_hlp(self.context.clone(), verify_result).await {
+        match BackupNetworkHandler::enroll_backup_prepare_hlp(self.context.clone(), verify_result)
+            .await
+        {
             Ok(result) => Ok(result),
             Err(e) => Err(tonic::Status::new(
                 tonic::Code::Aborted,
@@ -59,7 +64,7 @@ impl BackupNetwork for DauthHandler {
         tracing::info!("Request: {:?}", request);
 
         let content = request.into_inner();
-        match DauthHandler::enroll_backup_commit_hlp(self.context.clone(), content).await {
+        match BackupNetworkHandler::enroll_backup_commit_hlp(self.context.clone(), content).await {
             Ok(result) => Ok(result),
             Err(e) => Err(tonic::Status::new(
                 tonic::Code::Aborted,
@@ -90,7 +95,9 @@ impl BackupNetwork for DauthHandler {
                 ))
             })?;
 
-        match DauthHandler::get_backup_auth_vector_hlp(self.context.clone(), verify_result).await {
+        match BackupNetworkHandler::get_backup_auth_vector_hlp(self.context.clone(), verify_result)
+            .await
+        {
             Ok(result) => Ok(result),
             Err(e) => Err(tonic::Status::new(
                 tonic::Code::Aborted,
@@ -122,7 +129,7 @@ impl BackupNetwork for DauthHandler {
                 ))
             })?;
 
-        match DauthHandler::get_key_share_hlp(self.context.clone(), verify_result).await {
+        match BackupNetworkHandler::get_key_share_hlp(self.context.clone(), verify_result).await {
             Ok(result) => Ok(result),
             Err(e) => Err(tonic::Status::new(
                 tonic::Code::Aborted,
@@ -152,7 +159,7 @@ impl BackupNetwork for DauthHandler {
                 ))
             })?;
 
-        match DauthHandler::withdraw_backup_hlp(self.context.clone(), verify_result).await {
+        match BackupNetworkHandler::withdraw_backup_hlp(self.context.clone(), verify_result).await {
             Ok(result) => Ok(result),
             Err(e) => Err(tonic::Status::new(
                 tonic::Code::Aborted,
@@ -180,7 +187,7 @@ impl BackupNetwork for DauthHandler {
                 ))
             })?;
 
-        match DauthHandler::withdraw_shares_hlp(self.context.clone(), verify_result).await {
+        match BackupNetworkHandler::withdraw_shares_hlp(self.context.clone(), verify_result).await {
             Ok(result) => Ok(result),
             Err(e) => Err(tonic::Status::new(
                 tonic::Code::Aborted,
@@ -208,7 +215,7 @@ impl BackupNetwork for DauthHandler {
                 ))
             })?;
 
-        match DauthHandler::flood_vector_hlp(self.context.clone(), verify_result).await {
+        match BackupNetworkHandler::flood_vector_hlp(self.context.clone(), verify_result).await {
             Ok(result) => Ok(result),
             Err(e) => Err(tonic::Status::new(
                 tonic::Code::Aborted,
@@ -219,7 +226,7 @@ impl BackupNetwork for DauthHandler {
 }
 
 /// Implementation of all helper functions to reuse/condense error logic
-impl DauthHandler {
+impl BackupNetworkHandler {
     /* General helpers */
     fn handle_delegated_vector(
         context: Arc<DauthContext>,
@@ -336,7 +343,7 @@ impl DauthHandler {
                         .vectors
                         .into_iter()
                         .flat_map(|dvector| {
-                            DauthHandler::handle_delegated_vector(
+                            BackupNetworkHandler::handle_delegated_vector(
                                 context.clone(),
                                 dvector,
                                 &user_id,
@@ -358,10 +365,12 @@ impl DauthHandler {
                         .shares
                         .into_iter()
                         .flat_map(|dshare| {
-                            DauthHandler::handle_key_share(context.clone(), dshare).or_else(|e| {
-                                tracing::warn!("Failed to process key share: {}", e);
-                                Err(e)
-                            })
+                            BackupNetworkHandler::handle_key_share(context.clone(), dshare).or_else(
+                                |e| {
+                                    tracing::warn!("Failed to process key share: {}", e);
+                                    Err(e)
+                                },
+                            )
                         })
                         .collect(),
                 )
@@ -522,7 +531,7 @@ impl DauthHandler {
 
                     manager::store_backup_flood_vector(
                         context.clone(),
-                        &DauthHandler::handle_delegated_vector(context, dvector, &user_id)?,
+                        &BackupNetworkHandler::handle_delegated_vector(context, dvector, &user_id)?,
                     )
                     .await?;
 

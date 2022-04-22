@@ -1,12 +1,18 @@
+use std::sync::Arc;
+
+use crate::data::context::DauthContext;
 use crate::data::vector::AuthVectorReq;
 use crate::manager;
 use crate::rpc::dauth::local::aka_confirm_resp;
 use crate::rpc::dauth::local::local_authentication_server::LocalAuthentication;
 use crate::rpc::dauth::local::{AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp};
-use crate::rpc::handlers::handler::DauthHandler;
+
+pub struct LocalAuthenticationHandler {
+    pub context: Arc<DauthContext>,
+}
 
 #[tonic::async_trait]
-impl LocalAuthentication for DauthHandler {
+impl LocalAuthentication for LocalAuthenticationHandler {
     /// Local request for a vector that will be used on this network.
     /// No authentication is done.
     async fn get_auth_vector(

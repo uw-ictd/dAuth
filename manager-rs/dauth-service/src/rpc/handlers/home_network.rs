@@ -14,10 +14,13 @@ use crate::rpc::dauth::remote::{
     DelegatedAuthVector5G, GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq,
     GetHomeConfirmKeyResp,
 };
-use crate::rpc::handlers::handler::DauthHandler;
+
+pub struct HomeNetworkHandler {
+    pub context: Arc<DauthContext>,
+}
 
 #[tonic::async_trait]
-impl HomeNetwork for DauthHandler {
+impl HomeNetwork for HomeNetworkHandler {
     /// Remote request for a vector that will be generated on this network.
     /// Checks for proper authentication and reputation.
     async fn get_auth_vector(
@@ -39,7 +42,9 @@ impl HomeNetwork for DauthHandler {
                 ))
             })?;
 
-        match DauthHandler::get_home_auth_vector_hlp(self.context.clone(), verify_result).await {
+        match HomeNetworkHandler::get_home_auth_vector_hlp(self.context.clone(), verify_result)
+            .await
+        {
             Ok(result) => Ok(result),
             Err(e) => Err(tonic::Status::new(
                 tonic::Code::Aborted,
@@ -69,7 +74,7 @@ impl HomeNetwork for DauthHandler {
                 ))
             })?;
 
-        match DauthHandler::get_confirm_key_hlp(self.context.clone(), verify_result).await {
+        match HomeNetworkHandler::get_confirm_key_hlp(self.context.clone(), verify_result).await {
             Ok(result) => Ok(result),
             Err(e) => Err(tonic::Status::new(
                 tonic::Code::Aborted,
@@ -79,7 +84,7 @@ impl HomeNetwork for DauthHandler {
     }
 }
 
-impl DauthHandler {
+impl HomeNetworkHandler {
     async fn get_home_auth_vector_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
