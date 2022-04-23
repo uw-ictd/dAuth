@@ -22,6 +22,7 @@ pub async fn database_init(database_path: &str) -> Result<SqlitePool, DirectoryE
 
     database::networks::init_table(&pool).await?;
     database::users::init_table(&pool).await?;
+    database::backups::init_table(&pool).await?;
 
     Ok(pool)
 }

@@ -1,6 +1,4 @@
 use std::sync::Arc;
-
-use sqlx::sqlite::SqliteRow;
 use sqlx::Row;
 
 use crate::data::{context::DirectoryContext, error::DirectoryError};
@@ -74,7 +72,7 @@ pub async fn upsert_user(
     context: Arc<DirectoryContext>,
     user_id: &str,
     home_network_id: &str,
-    backup_network_ids: Vec<&str>,
+    backup_network_ids: &Vec<String>,
 ) -> Result<(), DirectoryError> {
     tracing::info!("Register called: {:?}-{:?}-{:?}", user_id, home_network_id, backup_network_ids);
 
