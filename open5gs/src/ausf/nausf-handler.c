@@ -20,7 +20,7 @@
 #include "sbi-path.h"
 #include "nnrf-handler.h"
 #include "nausf-handler.h"
-#include "dauth-shim.h"
+#include "dauth-c-binding.h"
 
 bool ausf_nausf_auth_handle_authenticate(ausf_ue_t *ausf_ue,
         ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg)

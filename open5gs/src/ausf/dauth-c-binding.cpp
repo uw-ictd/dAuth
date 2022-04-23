@@ -22,14 +22,13 @@
 #include <string.h>
 
 #include "authentication_data.pb.h"
-#include "dauth-context-c-binding.h"
 #include "local_authentication.grpc.pb.h"
 #include "local_authentication.pb.h"
 
 #include "core/ogs-core.h"
 #include "context.h"
-#include "dauth-context.hpp"
-#include "dauth-shim.h"
+#include "dauth-context-util.hpp"
+#include "dauth-c-binding.h"
 #include "model/authentication_info.h"
 #include "model/authentication_vector.h"
 
@@ -58,6 +57,44 @@ handle_rpc_completion(void *tag) {
 }
 
 bool
+dauth_context_init(dauth_context_t * const context) {
+    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials());
+
+    dauth_server_context * const internal_context = new dauth_server_context(channel);
+
+    ogs_assert(internal_context);
+    if (!internal_context) {
+        return false;
+    }
+
+    context->server_context = internal_context;
+    return true;
+}
+
+bool
+dauth_context_final(dauth_context_t * const context) {
+    ogs_assert(context->server_context);
+    dauth_server_context * internal_context = reinterpret_cast<dauth_server_context*>(context->server_context);
+    delete internal_context;
+    context->server_context = nullptr;
+    return true;
+}
+
+bool
+wait_for_next_rpc_event(void** tag) {
+    ausf_context_t* ausf_context = ausf_self();
+    ogs_assert(ausf_context);
+    return access_dauth_server_context(ausf_context->dauth_context).queueWaitNextRpcCompletion(tag);
+}
+
+void
+grpc_client_shutdown(void) {
+    ausf_context_t* ausf_context = ausf_self();
+    ogs_assert(ausf_context);
+    access_dauth_server_context(ausf_context->dauth_context).queueShutdown();
+}
+
+bool
 ausf_dauth_shim_request_auth_vector(
     const char * const supi,
     const OpenAPI_authentication_info_t * const authentication_info,
@@ -81,8 +118,7 @@ ausf_dauth_shim_request_auth_vector(
 
     ausf_context_t* ausf_context = ausf_self();
     ogs_assert(ausf_context);
-    ogs_assert(ausf_context->dauth_context);
-    std::unique_ptr<LocalAuthentication::Stub> stub = access_dauth_context(ausf_context->dauth_context).makeLocalAuthenticationStub();
+    std::unique_ptr<LocalAuthentication::Stub> stub = access_dauth_server_context(ausf_context->dauth_context).makeLocalAuthenticationStub();
 
     // Fill request protobuf
     ogs_debug("[%s] Filling d_auth::AKAVectorReq request", supi);
@@ -130,7 +166,7 @@ ausf_dauth_shim_request_auth_vector(
     ogs_assert(response.auth_vector().rand().length() == OGS_RAND_LEN);
     ogs_assert(response.auth_vector().xres_star_hash().length() == OGS_MAX_RES_LEN);
     ogs_assert(response.auth_vector().autn().length() == OGS_AUTN_LEN);
-    ogs_info("[%s] LocalAuthentication.GetAuthVector autn length %d", supi, response.auth_vector().autn().length());
+    ogs_info("[%s] LocalAuthentication.GetAuthVector autn length %lu", supi, response.auth_vector().autn().length());
     // Unpack the received vector
     memcpy(received_vector->rand, response.auth_vector().rand().c_str(), response.auth_vector().rand().length());
     memcpy(received_vector->autn, response.auth_vector().autn().c_str(), response.auth_vector().autn().length());
@@ -273,8 +309,7 @@ ausf_dauth_shim_request_confirm_auth(
     ogs_debug("[%s] Creating gRPC LocalAuthentication stub", supi);
     ausf_context_t* ausf_context = ausf_self();
     ogs_assert(ausf_context);
-    ogs_assert(ausf_context->dauth_context);
-    std::unique_ptr<LocalAuthentication::Stub> stub = access_dauth_context(ausf_context->dauth_context).makeLocalAuthenticationStub();
+    std::unique_ptr<LocalAuthentication::Stub> stub = access_dauth_server_context(ausf_context->dauth_context).makeLocalAuthenticationStub();
 
     // Fill request protobuf
     ogs_debug("[%s] Filling d_auth::AKAConfirmReq request", supi);

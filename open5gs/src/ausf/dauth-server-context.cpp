@@ -17,36 +17,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef AUSF_DAUTH_CONTEXT_C_BINDING_H
-#define AUSF_DAUTH_CONTEXT_C_BINDING_H
+#include "dauth-server-context.hpp"
 
-#include <stdbool.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef struct dauth_context_wrapper {
-    void* dauth_context_internal;
-} dauth_context_t;
-
-bool
-dauth_context_init(dauth_context_t * context);
-
-bool
-dauth_context_final(dauth_context_t * const context);
-
-bool
-wait_for_next_rpc_event(void** tag);
-
-bool
-handle_rpc_completion(void* tag);
+std::unique_ptr<dauth_local::LocalAuthentication::Stub>
+dauth_server_context::makeLocalAuthenticationStub() {
+    std::unique_ptr<dauth_local::LocalAuthentication::Stub> stub = dauth_local::LocalAuthentication::NewStub(_channel);
+    return stub;
+}
 
 void
-grpc_client_termination();
-
-#ifdef __cplusplus
+dauth_server_context::queueShutdown() {
+    _completion_queue.Shutdown();
 }
-#endif
 
-#endif /* AUSF_DAUTH_CONTEXT_C_BINDING_H */
+bool
+dauth_server_context::queueWaitNextRpcCompletion(void** tag) {
+    bool ok = false;
+    _completion_queue.Next(tag, &ok);
+    return ok;
+}

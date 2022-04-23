@@ -19,7 +19,7 @@
 
 #include "sbi-path.h"
 
-#include "dauth-context-c-binding.h"
+#include "dauth-c-binding.h"
 
 static ausf_context_t self;
 
@@ -46,7 +46,7 @@ void ausf_context_init(void)
     self.supi_hash = ogs_hash_make();
     ogs_assert(self.supi_hash);
 
-    ogs_assert(dauth_context_init(self.dauth_context));
+    ogs_assert(dauth_context_init(&self.dauth_context));
 
     context_initialized = 1;
 }
@@ -57,7 +57,7 @@ void ausf_context_final(void)
 
     ausf_ue_remove_all();
 
-    ogs_assert(dauth_context_final(self.dauth_context));
+    ogs_assert(dauth_context_final(&self.dauth_context));
 
     ogs_assert(self.suci_hash);
     ogs_hash_destroy(self.suci_hash);

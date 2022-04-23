@@ -17,11 +17,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef AUSF_DAUTH_SHIM_H
-#define AUSF_DAUTH_SHIM_H
+#ifndef __AUSF_DAUTH_C_BINDING_H__
+#define __AUSF_DAUTH_C_BINDING_H__
 
-#include "context.h"
+#include "ogs-app.h"
 #include "ogs-crypt.h"
+#include "ogs-sbi.h"
+
+#include "event.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,6 +35,25 @@ typedef struct dauth_shim_vector {
     uint8_t xres_star_hash[OGS_MAX_RES_LEN];
     uint8_t autn[OGS_AUTN_LEN];
 } dauth_shim_vector_t;
+
+typedef struct dauth_context_wrapper {
+    void* server_context;
+} dauth_context_t;
+
+bool
+dauth_context_init(dauth_context_t * const context);
+
+bool
+dauth_context_final(dauth_context_t * const context);
+
+bool
+wait_for_next_rpc_event(void** tag);
+
+bool
+handle_rpc_completion(void* tag);
+
+void
+grpc_client_shutdown(void);
 
 bool
 ausf_dauth_shim_request_auth_vector(
@@ -60,4 +82,4 @@ ausf_dauth_shim_forward_confirmed_key(
 }
 #endif
 
-#endif /* AUSF_NAUSF_HANDLER_H */
+#endif /* __AUSF_DAUTH_C_BINDING_H__ */

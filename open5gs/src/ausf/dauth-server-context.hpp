@@ -17,20 +17,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef AUSF_DAUTH_CONTEXT_HPP
-#define AUSF_DAUTH_CONTEXT_HPP
+#ifndef __AUSF_DAUTH_SERVER_CONTEXT_HPP__
+#define __AUSF_DAUTH_SERVER_CONTEXT_HPP__
 
-#include <grpcpp/grpcpp.h>
 #include <memory>
 
-#include "grpcpp/impl/codegen/completion_queue.h"
+#include <grpcpp/grpcpp.h>
 #include "local_authentication.grpc.pb.h"
 
-#include "dauth-context-c-binding.h"
+#include "dauth-c-binding.h"
 
-class dauth_context {
+class dauth_server_context {
 public:
-    dauth_context(
+    dauth_server_context(
         std::shared_ptr<grpc::Channel> channel
     ):
         _channel(channel),
@@ -41,17 +40,14 @@ public:
     makeLocalAuthenticationStub();
 
     void
-    shutdownQueue();
+    queueShutdown();
 
     bool
-    waitNextRpcCompletion(void** tag);
+    queueWaitNextRpcCompletion(void** tag);
 
 private:
     std::shared_ptr<grpc::Channel> _channel;
     grpc::CompletionQueue _completion_queue;
 };
 
-dauth_context&
-access_dauth_context(dauth_context_t * const context);
-
-#endif /* AUSF_DAUTH_CONTEXT_HPP */
+#endif /* __AUSF_DAUTH_SERVER_CONTEXT_HPP__ */

@@ -19,7 +19,7 @@
 
 #include "event.h"
 #include "sbi-path.h"
-#include "dauth-context-c-binding.h"
+#include "dauth-c-binding.h"
 
 static ogs_thread_t *grpc_thread;
 static ogs_thread_t *event_thread;
@@ -85,7 +85,7 @@ void ausf_terminate(void)
 
     /* Daemon terminating */
     event_termination();
-    grpc_client_termination();
+    grpc_client_shutdown();
 
     ogs_thread_destroy(grpc_thread);
     ogs_thread_destroy(event_thread);
