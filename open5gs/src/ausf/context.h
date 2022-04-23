@@ -62,6 +62,8 @@ struct ausf_ue_s {
     char *auth_events_url;
     OpenAPI_auth_result_e auth_result;
 
+    dauth_ue_context_t dauth_context;
+
     uint8_t rand[OGS_RAND_LEN];
     uint8_t xres_star[OGS_MAX_RES_LEN];
     uint8_t hxres_star[OGS_MAX_RES_LEN];

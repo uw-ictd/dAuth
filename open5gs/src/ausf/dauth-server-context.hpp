@@ -25,8 +25,6 @@
 #include <grpcpp/grpcpp.h>
 #include "local_authentication.grpc.pb.h"
 
-#include "dauth-c-binding.h"
-
 class dauth_server_context {
 public:
     dauth_server_context(

@@ -22,6 +22,7 @@
 
 #include "dauth-c-binding.h"
 #include "dauth-server-context.hpp"
+#include "dauth-local-auth-client.hpp"
 
 inline
 dauth_server_context&

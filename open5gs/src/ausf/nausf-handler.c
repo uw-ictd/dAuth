@@ -55,15 +55,14 @@ bool ausf_nausf_auth_handle_authenticate(ausf_ue_t *ausf_ue,
     ausf_ue->serving_network_name = ogs_strdup(serving_network_name);
     ogs_assert(ausf_ue->serving_network_name);
 
-    dauth_shim_vector_t received_vector;
     bool vector_request_success =
-        ausf_dauth_shim_request_auth_vector(ausf_ue->supi, AuthenticationInfo, &received_vector);
+        ausf_dauth_shim_request_auth_vector(ausf_ue, AuthenticationInfo);
 
     ogs_assert(vector_request_success == true);
 
     // TODO(matt9j) Do the forwarding here...
     bool send_response_success =
-        ausf_dauth_shim_forward_received_auth_vector(ausf_ue, stream, AuthenticationInfo, &received_vector);
+        ausf_dauth_shim_forward_received_auth_vector(ausf_ue, stream, AuthenticationInfo);
 
     ogs_assert(send_response_success == true);
 

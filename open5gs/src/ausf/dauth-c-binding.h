@@ -30,15 +30,13 @@
 extern "C" {
 #endif
 
-typedef struct dauth_shim_vector {
-    uint8_t rand[OGS_RAND_LEN];
-    uint8_t xres_star_hash[OGS_MAX_RES_LEN];
-    uint8_t autn[OGS_AUTN_LEN];
-} dauth_shim_vector_t;
-
 typedef struct dauth_context_wrapper {
     void* server_context;
 } dauth_context_t;
+
+typedef struct dauth_ue_context {
+    void* local_auth_client;
+} dauth_ue_context_t;
 
 bool
 dauth_context_init(dauth_context_t * const context);
@@ -57,16 +55,16 @@ grpc_client_shutdown(void);
 
 bool
 ausf_dauth_shim_request_auth_vector(
-    const char * const supi,
-    const OpenAPI_authentication_info_t * const authentication_info,
-    dauth_shim_vector_t * const received_vector);
+    ausf_ue_t * const ausf_ue,
+    const OpenAPI_authentication_info_t * const authentication_info
+    );
 
 bool
 ausf_dauth_shim_forward_received_auth_vector(
     ausf_ue_t * const ausf_ue,
     ogs_sbi_stream_t *stream,
-    const OpenAPI_authentication_info_t * const authentication_info,
-    dauth_shim_vector_t * const received_vector);
+    const OpenAPI_authentication_info_t * const authentication_info
+    );
 
 bool
 ausf_dauth_shim_request_confirm_auth(

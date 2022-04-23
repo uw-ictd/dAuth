@@ -17,7 +17,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "dauth-context-c-binding.h"
+#include "dauth-c-binding.h"
 #include "event.h"
 #include "sbi-path.h"
 #include "nnrf-handler.h"

@@ -105,6 +105,7 @@ libausf_sources = files('''
 
     dauth-c-binding.cpp
     dauth-server-context.cpp
+    dauth-local-auth-client.cpp
 
     sbi-path.c
     ausf-sm.c
