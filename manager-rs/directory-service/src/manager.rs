@@ -31,6 +31,10 @@ pub async fn lookup_user(user_id: &str) -> Result<(String, Vec<String>), Directo
 /// If the user does not exist, the home network become the owner.
 /// If the user already exists, the home network must be the owner
 /// and the user info will be updated.
-pub async fn upsert_user(user_id: &str, home_network_id: &str, backup_network_ids: Vec<&str>) {
+pub async fn upsert_user(
+    user_id: &str,
+    home_network_id: &str,
+    backup_network_ids: Vec<&str>,
+) -> Result<(), DirectoryError> {
     todo!()
 }
