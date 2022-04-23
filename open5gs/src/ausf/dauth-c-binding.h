@@ -56,13 +56,16 @@ grpc_client_shutdown(void);
 bool
 ausf_dauth_shim_request_auth_vector(
     ausf_ue_t * const ausf_ue,
-    const OpenAPI_authentication_info_t * const authentication_info
+    const OpenAPI_authentication_info_t * const authentication_info,
+    ogs_sbi_stream_t *stream
     );
 
 bool
 ausf_dauth_shim_request_confirm_auth(
     ausf_ue_t * const ausf_ue,
-    const uint8_t * const res_star);
+    const uint8_t * const res_star,
+    ogs_sbi_stream_t *stream
+    );
 
 #ifdef __cplusplus
 }

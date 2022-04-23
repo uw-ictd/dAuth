@@ -155,10 +155,9 @@ static void ausf_grpc_main(void *data)
         void* rpc_tag = NULL;
         bool ok = wait_for_next_rpc_event(&rpc_tag);
         if (!ok) {
-            ogs_warn("wait_for_next_rpc_event not ok");
+            ogs_error("wait_for_next_rpc_event not ok, shutting down");
             break;
         }
-
         ogs_assert(rpc_tag);
 
         ausf_event_t *e = NULL;

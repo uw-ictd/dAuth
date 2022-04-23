@@ -199,7 +199,7 @@ void ausf_ue_remove_all()
         ausf_ue_remove(ausf_ue);
 }
 
-ausf_ue_t *ausf_ue_find_by_suci(char *suci)
+ausf_ue_t *ausf_ue_find_by_suci(const char *suci)
 {
     ogs_assert(suci);
     return (ausf_ue_t *)ogs_hash_get(self.suci_hash, suci, strlen(suci));

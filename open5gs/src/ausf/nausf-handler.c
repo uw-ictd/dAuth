@@ -56,7 +56,7 @@ bool ausf_nausf_auth_handle_authenticate(ausf_ue_t *ausf_ue,
     ogs_assert(ausf_ue->serving_network_name);
 
     bool vector_request_success =
-        ausf_dauth_shim_request_auth_vector(ausf_ue, AuthenticationInfo);
+        ausf_dauth_shim_request_auth_vector(ausf_ue, AuthenticationInfo, stream);
 
     ogs_assert(vector_request_success == true);
 
@@ -101,7 +101,7 @@ bool ausf_nausf_auth_handle_authenticate_confirmation(ausf_ue_t *ausf_ue,
             res_star, sizeof(res_star));
 
     // TODO(matt9j) Handle invalid key errors more gracefully than asserting.
-    ogs_assert(true == ausf_dauth_shim_request_confirm_auth(ausf_ue, res_star));
+    ogs_assert(true == ausf_dauth_shim_request_confirm_auth(ausf_ue, res_star, stream));
 
     return true;
 }

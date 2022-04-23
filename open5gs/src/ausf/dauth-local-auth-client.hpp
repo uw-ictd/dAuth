@@ -32,6 +32,7 @@
 #include <memory>
 
 #include <grpcpp/grpcpp.h>
+#include <string>
 #include "local_authentication.grpc.pb.h"
 #include "local_authentication.pb.h"
 
@@ -41,24 +42,36 @@ typedef struct dauth_shim_vector {
     uint8_t autn[OGS_AUTN_LEN];
 } dauth_shim_vector_t;
 
+enum client_state{
+    INIT,
+    WAITING_AUTH_RESP,
+    AUTH_DONE,
+    WAITING_CONFIRM_RESP,
+    DONE
+} ;
+
 
 class dauth_local_auth_client {
 public:
     dauth_local_auth_client(
         std::unique_ptr<dauth_local::LocalAuthentication::Stub> stub,
-        grpc::CompletionQueue* queue
+        grpc::CompletionQueue* queue,
+        char* suci
     ):
+        state_(client_state::INIT),
+        ue_suci_(suci),
+        pending_stream_(nullptr),
+
         stub_(std::move(stub)),
         completion_queue_(queue),
+        grpc_status_(),
+        grpc_context_(),
 
         auth_vector_req_(),
         resync_info_(),
         auth_vector_resp_(),
         confirm_auth_req_(),
         confirm_auth_resp_(),
-
-        grpc_context_(),
-        grpc_status_(),
 
         auth_vector_rpc_(),
         confirm_auth_rpc_()
@@ -67,31 +80,40 @@ public:
     bool
     request_auth_vector(
         const char * const supi,
-        const OpenAPI_authentication_info_t * const authentication_info
+        const OpenAPI_authentication_info_t * const authentication_info,
+        ogs_sbi_stream_t *stream
     );
 
     bool
     handle_request_auth_vector_res(
-        ausf_ue_t * const ausf_ue,
-        ogs_sbi_stream_t *stream
+        ausf_ue_t * const ausf_ue
     );
 
     bool
     request_confirm_auth(
         ausf_ue_t * const ausf_ue,
-        const uint8_t * const res_star
+        const uint8_t * const res_star,
+        ogs_sbi_stream_t *stream
     );
 
     bool
     handle_request_confirm_auth_res(
-        ausf_ue_t * const ausf_ue,
-        ogs_sbi_stream_t *stream
+        ausf_ue_t * const ausf_ue
     );
 
+    bool
+    notify_rpc_complete(void);
+
 private:
+    client_state state_;
+    std::string ue_suci_;
+    ogs_sbi_stream_t * pending_stream_;
+
     std::unique_ptr<dauth_local::LocalAuthentication::Stub> stub_;
     // TODO(matt9j) Consider making an explicit shared pointer.
     grpc::CompletionQueue* completion_queue_;
+    grpc::Status grpc_status_;
+    std::unique_ptr<grpc::ClientContext> grpc_context_;
 
     // Allocate all messages ahead of time to allow asynchronous read/fill.
     dauth_local::AKAVectorReq auth_vector_req_;
@@ -100,12 +122,8 @@ private:
     dauth_local::AKAConfirmReq confirm_auth_req_;
     dauth_local::AKAConfirmResp confirm_auth_resp_;
 
-    grpc::ClientContext grpc_context_;
-    grpc::Status grpc_status_;
-
     std::unique_ptr<grpc::ClientAsyncResponseReader<dauth_local::AKAVectorResp>> auth_vector_rpc_;
     std::unique_ptr<grpc::ClientAsyncResponseReader<dauth_local::AKAConfirmResp>> confirm_auth_rpc_;
-
 };
 
 

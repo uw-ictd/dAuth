@@ -42,9 +42,8 @@ extern "C" {
 bool
 handle_rpc_completion(void *tag) {
     ogs_info("Handling tag %p", tag);
-    // TODO(matt9j) Advance to the next stage of the dauth authentication
-    // depending on the received message and current UE state.
-    return true;
+    dauth_local_auth_client* client = reinterpret_cast<dauth_local_auth_client*>(tag);
+    return client->notify_rpc_complete();
 }
 
 bool
@@ -88,7 +87,8 @@ grpc_client_shutdown(void) {
 bool
 ausf_dauth_shim_request_auth_vector(
     ausf_ue_t * const ausf_ue,
-    const OpenAPI_authentication_info_t * const authentication_info
+    const OpenAPI_authentication_info_t * const authentication_info,
+    ogs_sbi_stream_t *stream
 ) {
     if (ausf_ue->dauth_context.local_auth_client != NULL) {
         ogs_error("Received dauth client request while request in progress");
@@ -100,7 +100,8 @@ ausf_dauth_shim_request_auth_vector(
 
     ausf_ue->dauth_context.local_auth_client = new dauth_local_auth_client(
         access_dauth_server_context(ausf_context->dauth_context).makeLocalAuthenticationStub(),
-        &access_dauth_server_context(ausf_context->dauth_context).completionQueue()
+        &access_dauth_server_context(ausf_context->dauth_context).completionQueue(),
+        ausf_ue->suci
     );
     ogs_assert(ausf_ue->dauth_context.local_auth_client);
     if (!ausf_ue->dauth_context.local_auth_client) {
@@ -109,13 +110,14 @@ ausf_dauth_shim_request_auth_vector(
 
     dauth_local_auth_client& client = access_dauth_local_auth_client_context(ausf_ue->dauth_context);
 
-    return client.request_auth_vector(ausf_ue->supi, authentication_info);
+    return client.request_auth_vector(ausf_ue->supi, authentication_info, stream);
 }
 
 bool
 ausf_dauth_shim_request_confirm_auth(
     ausf_ue_t * const ausf_ue,
-    const uint8_t * const res_star
+    const uint8_t * const res_star,
+    ogs_sbi_stream_t *stream
 ) {
     ogs_assert(ausf_ue->dauth_context.local_auth_client);
     if (!ausf_ue->dauth_context.local_auth_client) {
@@ -124,7 +126,7 @@ ausf_dauth_shim_request_confirm_auth(
 
     dauth_local_auth_client& client = access_dauth_local_auth_client_context(ausf_ue->dauth_context);
 
-    return client.request_confirm_auth(ausf_ue, res_star);
+    return client.request_confirm_auth(ausf_ue, res_star, stream);
 }
 
 #ifdef __cplusplus

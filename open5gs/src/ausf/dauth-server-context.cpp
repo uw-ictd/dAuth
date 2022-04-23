@@ -17,6 +17,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "context.h"
 #include "dauth-server-context.hpp"
 
 std::unique_ptr<dauth_local::LocalAuthentication::Stub>
@@ -33,6 +34,9 @@ dauth_server_context::queueShutdown(void) {
 bool
 dauth_server_context::queueWaitNextRpcCompletion(void** tag) {
     bool ok = false;
-    _completion_queue.Next(tag, &ok);
-    return ok;
+    bool queue_success = _completion_queue.Next(tag, &ok);
+    if (queue_success) {
+        ogs_assert(ok);
+    }
+    return queue_success;
 }
