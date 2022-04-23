@@ -1,5 +1,3 @@
-use std::array::TryFromSliceError;
-
 use sqlx::Error as SqlxError;
 use thiserror::Error;
 
