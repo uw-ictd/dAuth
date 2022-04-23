@@ -67,6 +67,7 @@ struct ausf_ue_s {
     uint8_t hxres_star[OGS_MAX_RES_LEN];
     uint8_t kausf[OGS_SHA256_DIGEST_SIZE];
     uint8_t kseaf[OGS_SHA256_DIGEST_SIZE];
+};
 
 #define AUSF_NF_INSTANCE_CLEAR(_cAUSE, _nFInstance) \
     do { \
@@ -83,7 +84,6 @@ struct ausf_ue_s {
         } \
         ogs_sbi_nf_instance_remove(_nFInstance); \
     } while(0)
-};
 
 void ausf_context_init(void);
 void ausf_context_final(void);
