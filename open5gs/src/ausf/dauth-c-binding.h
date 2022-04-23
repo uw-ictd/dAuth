@@ -60,21 +60,9 @@ ausf_dauth_shim_request_auth_vector(
     );
 
 bool
-ausf_dauth_shim_forward_received_auth_vector(
-    ausf_ue_t * const ausf_ue,
-    ogs_sbi_stream_t *stream,
-    const OpenAPI_authentication_info_t * const authentication_info
-    );
-
-bool
 ausf_dauth_shim_request_confirm_auth(
     ausf_ue_t * const ausf_ue,
     const uint8_t * const res_star);
-
-bool
-ausf_dauth_shim_forward_confirmed_key(
-    ausf_ue_t * const ausf_ue,
-    ogs_sbi_stream_t *stream);
 
 #ifdef __cplusplus
 }

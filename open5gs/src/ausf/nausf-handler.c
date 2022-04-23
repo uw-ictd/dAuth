@@ -60,12 +60,6 @@ bool ausf_nausf_auth_handle_authenticate(ausf_ue_t *ausf_ue,
 
     ogs_assert(vector_request_success == true);
 
-    // TODO(matt9j) Do the forwarding here...
-    bool send_response_success =
-        ausf_dauth_shim_forward_received_auth_vector(ausf_ue, stream, AuthenticationInfo);
-
-    ogs_assert(send_response_success == true);
-
     // ogs_assert(true ==
     //     ausf_sbi_discover_and_send(OpenAPI_nf_type_UDM, ausf_ue, stream,
     //         AuthenticationInfo->resynchronization_info,
@@ -108,8 +102,6 @@ bool ausf_nausf_auth_handle_authenticate_confirmation(ausf_ue_t *ausf_ue,
 
     // TODO(matt9j) Handle invalid key errors more gracefully than asserting.
     ogs_assert(true == ausf_dauth_shim_request_confirm_auth(ausf_ue, res_star));
-
-    ogs_assert(true == ausf_dauth_shim_forward_confirmed_key(ausf_ue, stream));
 
     return true;
 }

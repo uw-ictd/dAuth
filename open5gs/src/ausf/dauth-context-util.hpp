@@ -32,4 +32,12 @@ access_dauth_server_context(const dauth_context_t context) {
     return (*internal_context);
 }
 
+inline
+dauth_local_auth_client&
+access_dauth_local_auth_client_context(const dauth_ue_context_t context) {
+    ogs_assert(context.local_auth_client);
+    dauth_local_auth_client * internal_context = reinterpret_cast<dauth_local_auth_client*>(context.local_auth_client);
+    return (*internal_context);
+}
+
 #endif /* __AUSF_DAUTH_CONTEXT_UTIL_HPP__ */

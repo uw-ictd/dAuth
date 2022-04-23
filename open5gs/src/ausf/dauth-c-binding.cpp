@@ -25,10 +25,10 @@
 #include "local_authentication.grpc.pb.h"
 #include "local_authentication.pb.h"
 
-#include "core/ogs-core.h"
 #include "context.h"
-#include "dauth-context-util.hpp"
 #include "dauth-c-binding.h"
+#include "dauth-context-util.hpp"
+#include "dauth-local-auth-client.hpp"
 #include "model/authentication_info.h"
 #include "model/authentication_vector.h"
 
@@ -42,6 +42,8 @@ extern "C" {
 bool
 handle_rpc_completion(void *tag) {
     ogs_info("Handling tag %p", tag);
+    // TODO(matt9j) Advance to the next stage of the dauth authentication
+    // depending on the received message and current UE state.
     return true;
 }
 
@@ -88,16 +90,26 @@ ausf_dauth_shim_request_auth_vector(
     ausf_ue_t * const ausf_ue,
     const OpenAPI_authentication_info_t * const authentication_info
 ) {
-    return false;
-}
+    if (ausf_ue->dauth_context.local_auth_client != NULL) {
+        ogs_error("Received dauth client request while request in progress");
+        return false;
+    }
 
-bool
-ausf_dauth_shim_forward_received_auth_vector(
-    ausf_ue_t * const ausf_ue,
-    ogs_sbi_stream_t *stream,
-    const OpenAPI_authentication_info_t * const authentication_info
-) {
-    return false;
+    ausf_context_t* ausf_context = ausf_self();
+    ogs_assert(ausf_context);
+
+    ausf_ue->dauth_context.local_auth_client = new dauth_local_auth_client(
+        access_dauth_server_context(ausf_context->dauth_context).makeLocalAuthenticationStub(),
+        &access_dauth_server_context(ausf_context->dauth_context).completionQueue()
+    );
+    ogs_assert(ausf_ue->dauth_context.local_auth_client);
+    if (!ausf_ue->dauth_context.local_auth_client) {
+        return false;
+    }
+
+    dauth_local_auth_client& client = access_dauth_local_auth_client_context(ausf_ue->dauth_context);
+
+    return client.request_auth_vector(ausf_ue->supi, authentication_info);
 }
 
 bool
@@ -105,15 +117,14 @@ ausf_dauth_shim_request_confirm_auth(
     ausf_ue_t * const ausf_ue,
     const uint8_t * const res_star
 ) {
-    return false;
-}
+    ogs_assert(ausf_ue->dauth_context.local_auth_client);
+    if (!ausf_ue->dauth_context.local_auth_client) {
+        return false;
+    }
 
-bool
-ausf_dauth_shim_forward_confirmed_key(
-    ausf_ue_t * const ausf_ue,
-    ogs_sbi_stream_t *stream
-) {
-    return false;
+    dauth_local_auth_client& client = access_dauth_local_auth_client_context(ausf_ue->dauth_context);
+
+    return client.request_confirm_auth(ausf_ue, res_star);
 }
 
 #ifdef __cplusplus

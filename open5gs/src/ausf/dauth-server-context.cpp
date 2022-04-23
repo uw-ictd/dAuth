@@ -20,13 +20,13 @@
 #include "dauth-server-context.hpp"
 
 std::unique_ptr<dauth_local::LocalAuthentication::Stub>
-dauth_server_context::makeLocalAuthenticationStub() {
+dauth_server_context::makeLocalAuthenticationStub(void) {
     std::unique_ptr<dauth_local::LocalAuthentication::Stub> stub = dauth_local::LocalAuthentication::NewStub(_channel);
     return stub;
 }
 
 void
-dauth_server_context::queueShutdown() {
+dauth_server_context::queueShutdown(void) {
     _completion_queue.Shutdown();
 }
 

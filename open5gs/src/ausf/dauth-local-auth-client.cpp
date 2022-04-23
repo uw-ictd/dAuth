@@ -67,65 +67,23 @@ dauth_local_auth_client::request_auth_vector(
 
     ogs_debug("[%s] Creating gRPC LocalAuthentication stub", supi);
 
-    ausf_context_t* ausf_context = ausf_self();
-    ogs_assert(ausf_context);
-    std::unique_ptr<LocalAuthentication::Stub> stub = access_dauth_server_context(ausf_context->dauth_context).makeLocalAuthenticationStub();
-
     // Fill request protobuf
     ogs_debug("[%s] Filling d_auth::AKAVectorReq request", supi);
-    AKAVectorReq request;
-    request.set_user_id(supi, supi_length);
-    request.set_user_id_type(::d_auth::UserIdKind::SUPI);
+    auth_vector_req_.set_user_id(supi, supi_length);
+    auth_vector_req_.set_user_id_type(::d_auth::UserIdKind::SUPI);
 
-    d_auth::AKAResyncInfo resync_info;
     if(authentication_info->resynchronization_info) {
         ogs_debug("[%s] Filling d_auth::AKAResyncInfo request", supi);
-        resync_info.set_auts(authentication_info->resynchronization_info->auts);
-        resync_info.set_auts(authentication_info->resynchronization_info->rand);
-        request.set_allocated_resync_info(&resync_info);
+        resync_info_.set_auts(authentication_info->resynchronization_info->auts);
+        resync_info_.set_auts(authentication_info->resynchronization_info->rand);
+        auth_vector_req_.set_allocated_resync_info(&resync_info_);
     }
-
-    // Allocate response and context memory on the stack
-    AKAVectorResp response;
-    grpc::ClientContext context;
 
     ogs_debug("[%s] Sending LocalAuthentication.GetAuthVector request", supi);
-    grpc::Status status = stub->GetAuthVector(&context, request, &response);
+    auth_vector_rpc_ = stub_->PrepareAsyncGetAuthVector(&grpc_context_, auth_vector_req_, completion_queue_);
+    auth_vector_rpc_->StartCall();
 
-    // Handle failure
-    if (!status.ok()) {
-        ogs_error(
-            "[%s] LocalAuthentication.GetAuthVector RPC Failed with status [%d]:%s",
-            supi,
-            status.error_code(),
-            status.error_message().c_str()
-        );
-        return false;
-    }
-    ogs_info("[%s] LocalAuthentication.GetAuthVector RPC Success", supi);
-
-    if (response.error() != AKAVectorResp_ErrorKind::AKAVectorResp_ErrorKind_NO_ERROR) {
-        ogs_error(
-            "[%s] LocalAuthentication.GetAuthVector RPC succeeded with error status [%d]",
-            supi,
-            response.error()
-        );
-        return false;
-    }
-
-    // Debug sanity checks on size.
-    ogs_assert(response.auth_vector().rand().length() == OGS_RAND_LEN);
-    ogs_assert(response.auth_vector().xres_star_hash().length() == OGS_MAX_RES_LEN);
-    ogs_assert(response.auth_vector().autn().length() == OGS_AUTN_LEN);
-    ogs_info("[%s] LocalAuthentication.GetAuthVector autn length %lu", supi, response.auth_vector().autn().length());
-    // Unpack the received vector
-    memcpy(received_vector.rand, response.auth_vector().rand().c_str(), response.auth_vector().rand().length());
-    memcpy(received_vector.autn, response.auth_vector().autn().c_str(), response.auth_vector().autn().length());
-    memcpy(
-        received_vector.xres_star_hash,
-        response.auth_vector().xres_star_hash().c_str(),
-        response.auth_vector().xres_star_hash().length()
-        );
+    auth_vector_rpc_->Finish(&auth_vector_resp_, &grpc_status_, this);
 
     return true;
 }
@@ -134,10 +92,37 @@ dauth_local_auth_client::request_auth_vector(
 bool
 dauth_local_auth_client::handle_request_auth_vector_res(
     ausf_ue_t * const ausf_ue,
-    ogs_sbi_stream_t *stream,
-    const OpenAPI_authentication_info_t * const authentication_info
+    ogs_sbi_stream_t *stream
 ) {
-        ogs_sbi_server_t *server = NULL;
+
+    // Handle failure
+    if (!grpc_status_.ok()) {
+        ogs_error(
+            "[%s] LocalAuthentication.GetAuthVector RPC Failed with status [%d]:%s",
+            ausf_ue->supi,
+            grpc_status_.error_code(),
+            grpc_status_.error_message().c_str()
+        );
+        return false;
+    }
+    ogs_info("[%s] LocalAuthentication.GetAuthVector RPC Success", ausf_ue->supi);
+
+    if (auth_vector_resp_.error() != AKAVectorResp_ErrorKind::AKAVectorResp_ErrorKind_NO_ERROR) {
+        ogs_error(
+            "[%s] LocalAuthentication.GetAuthVector RPC succeeded with error status [%d]",
+            ausf_ue->supi,
+            auth_vector_resp_.error()
+        );
+        return false;
+    }
+
+    // Debug sanity checks on size.
+    ogs_assert(auth_vector_resp_.auth_vector().rand().length() == OGS_RAND_LEN);
+    ogs_assert(auth_vector_resp_.auth_vector().xres_star_hash().length() == OGS_MAX_RES_LEN);
+    ogs_assert(auth_vector_resp_.auth_vector().autn().length() == OGS_AUTN_LEN);
+    ogs_info("[%s] LocalAuthentication.GetAuthVector autn length %lu", ausf_ue->supi, auth_vector_resp_.auth_vector().autn().length());
+
+    ogs_sbi_server_t *server = NULL;
 
     ogs_sbi_message_t sendmsg;
     ogs_sbi_header_t header;
@@ -159,9 +144,11 @@ dauth_local_auth_client::handle_request_auth_vector_res(
 
     ausf_ue->auth_type = OpenAPI_auth_type_5G_AKA;
 
-    memcpy(ausf_ue->rand, received_vector.rand, sizeof(ausf_ue->rand));
-    memcpy(ausf_ue->hxres_star, received_vector.xres_star_hash, sizeof(ausf_ue->hxres_star));
+    memcpy(ausf_ue->rand, auth_vector_resp_.auth_vector().rand().c_str(), sizeof(ausf_ue->rand));
+    memcpy(ausf_ue->hxres_star, auth_vector_resp_.auth_vector().xres_star_hash().c_str(), sizeof(ausf_ue->hxres_star));
     // NOTE: Missing kausf, which open5gs has received from the UDM at this point
+    char autn_byte_buffer[OGS_AUTN_LEN];
+    memcpy(autn_byte_buffer, auth_vector_resp_.auth_vector().autn().c_str(), auth_vector_resp_.auth_vector().autn().length());
 
     memset(&UeAuthenticationCtx, 0, sizeof(UeAuthenticationCtx));
 
@@ -170,16 +157,28 @@ dauth_local_auth_client::handle_request_auth_vector_res(
     // Convert received binary crypto values to ascii strings of hex values as
     // needed for the SBI interface.
     memset(&AV5G_AKA, 0, sizeof(AV5G_AKA));
-    ogs_hex_to_ascii(received_vector.rand, sizeof(received_vector.rand),
-            rand_string, sizeof(rand_string));
+    ogs_hex_to_ascii(
+        ausf_ue->rand,
+        sizeof(ausf_ue->rand),
+        rand_string,
+        sizeof(rand_string)
+    );
     AV5G_AKA.rand = rand_string;
 
-    ogs_hex_to_ascii(received_vector.autn, sizeof(received_vector.autn),
-            autn_string, sizeof(autn_string));
+    ogs_hex_to_ascii(
+        autn_byte_buffer,
+        sizeof(autn_byte_buffer),
+        autn_string,
+        sizeof(autn_string)
+    );
     AV5G_AKA.autn = autn_string;
 
-    ogs_hex_to_ascii(ausf_ue->hxres_star, sizeof(ausf_ue->hxres_star),
-            hxres_star_string, sizeof(hxres_star_string));
+    ogs_hex_to_ascii(
+        ausf_ue->hxres_star,
+        sizeof(ausf_ue->hxres_star),
+        hxres_star_string,
+        sizeof(hxres_star_string)
+    );
     AV5G_AKA.hxres_star = hxres_star_string;
 
     UeAuthenticationCtx._5g_auth_data = &AV5G_AKA;
@@ -228,8 +227,6 @@ dauth_local_auth_client::handle_request_auth_vector_res(
     ogs_free(sendmsg.http.location);
 
     return true;
-
-
 }
 
 bool

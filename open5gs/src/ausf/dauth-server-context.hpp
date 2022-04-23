@@ -23,6 +23,7 @@
 #include <memory>
 
 #include <grpcpp/grpcpp.h>
+#include "grpcpp/impl/codegen/completion_queue.h"
 #include "local_authentication.grpc.pb.h"
 
 class dauth_server_context {
@@ -35,13 +36,19 @@ public:
     {}
 
     std::unique_ptr<dauth_local::LocalAuthentication::Stub>
-    makeLocalAuthenticationStub();
+    makeLocalAuthenticationStub(void);
 
     void
-    queueShutdown();
+    queueShutdown(void);
 
     bool
     queueWaitNextRpcCompletion(void** tag);
+
+    inline
+    grpc::CompletionQueue&
+    completionQueue(void) {
+        return _completion_queue;
+    }
 
 private:
     std::shared_ptr<grpc::Channel> _channel;
