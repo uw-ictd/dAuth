@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use sqlx::sqlite::SqliteRow;
 use sqlx::Row;
 
@@ -11,7 +13,7 @@ use crate::database;
 /// Registers a network with the directory.
 /// Stores the networks address and public key.
 pub async fn register(
-    context: DirectoryContext,
+    context: Arc<DirectoryContext>,
     network_id: &str,
     address: &str,
     public_key: &Vec<u8>,
@@ -28,7 +30,7 @@ pub async fn register(
 /// Looks up a network by id and checks if it has been registered.
 /// Returns the address and public key of the network.
 pub async fn lookup_network(
-    context: DirectoryContext,
+    context: Arc<DirectoryContext>,
     network_id: &str,
 ) -> Result<(String, Vec<u8>), DirectoryError> {
     tracing::info!("Looup network called: {:?}", network_id);
@@ -45,7 +47,7 @@ pub async fn lookup_network(
 /// Looks up a user by id.
 /// Returns the home network id and set of backup network ids.
 pub async fn lookup_user(
-    context: DirectoryContext,
+    context: Arc<DirectoryContext>,
     user_id: &str,
 ) -> Result<(String, Vec<String>), DirectoryError> {
     tracing::info!("Looup user called: {:?}", user_id);
@@ -69,7 +71,7 @@ pub async fn lookup_user(
 /// If the user already exists, the home network must be the owner
 /// and the user info will be updated.
 pub async fn upsert_user(
-    context: DirectoryContext,
+    context: Arc<DirectoryContext>,
     user_id: &str,
     home_network_id: &str,
     backup_network_ids: Vec<&str>,
