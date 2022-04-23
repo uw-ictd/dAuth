@@ -26,7 +26,7 @@ pub async fn upsert(
     transaction: &mut Transaction<'_, Sqlite>,
     network_id: &str,
     address: &str,
-    public_key: &[u8],
+    public_key: &Vec<u8>,
 ) -> Result<(), SqlxError> {
     sqlx::query(
         "REPLACE INTO networks_directory_table
@@ -99,7 +99,7 @@ mod tests {
                 &mut transaction,
                 &format!("test_network_id_{}", row),
                 &format!("test_address_{}", row),
-                &[0u8, 12],
+                &vec![0, 0, 0],
             )
             .await
             .unwrap();
@@ -117,7 +117,7 @@ mod tests {
             &mut transaction,
             "test_network_0",
             "test_address_0",
-            &[0u8, 12],
+            &vec![0, 0, 0],
         )
         .await
         .unwrap();
@@ -131,7 +131,7 @@ mod tests {
         .await
         .unwrap();
         assert_eq!("test_address_0", res.get_unchecked::<&str, &str>("address"));
-        assert_eq!(&[0u8, 12], res.get_unchecked::<&[u8], &str>("public_key"));
+        assert_eq!(vec![0, 0, 0], res.get_unchecked::<Vec<u8>, &str>("public_key"));
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
@@ -139,7 +139,7 @@ mod tests {
             &mut transaction,
             "test_network_0",
             "test_address_0a",
-            &[1u8, 12],
+            &vec![1, 1, 1],
         )
         .await
         .unwrap();
@@ -153,7 +153,7 @@ mod tests {
         .await
         .unwrap();
         assert_eq!("test_address_0a", res.get_unchecked::<&str, &str>("address"));
-        assert_eq!(&[1u8, 12], res.get_unchecked::<&[u8], &str>("public_key"));
+        assert_eq!(vec![1, 1, 1], res.get_unchecked::<Vec<u8>, &str>("public_key"));
         transaction.commit().await.unwrap();
     }
 
@@ -170,7 +170,7 @@ mod tests {
                 &mut transaction,
                 &format!("test_network_id_{}", row),
                 &format!("test_address_{}", row),
-                &[0u8, 12],
+                &vec![0, 0, 0],
             )
             .await
             .unwrap();
@@ -187,7 +187,7 @@ mod tests {
             .unwrap();
 
             assert_eq!(&format!("test_address_{}", row), res.get_unchecked::<&str, &str>("address"));
-            assert_eq!(&[0u8, 12], res.get_unchecked::<&[u8], &str>("public_key"));
+            assert_eq!(vec![0, 0, 0], res.get_unchecked::<Vec<u8>, &str>("public_key"));
         }
         transaction.commit().await.unwrap();
     }

@@ -6,19 +6,19 @@ use crate::data::error::DirectoryError;
 
 /// Registers a network with the directory.
 /// Stores the networks address and public key.
-pub async fn register(network_id: String, address: String, public_key: Vec<u8>) -> Result<(), DirectoryError> {
+pub async fn register(network_id: &str, address: &str, public_key: &Vec<u8>) -> Result<(), DirectoryError> {
     todo!()
 }
 
 /// Looks up a network by id and checks if it has been registered.
 /// Returns the address and public key of the network.
-pub async fn lookup_network(network_id: String) -> Result<(String, Vec<u8>), DirectoryError> {
+pub async fn lookup_network(network_id: &str) -> Result<(String, Vec<u8>), DirectoryError> {
     todo!()
 }
 
 /// Looks up a user by id.
 /// Returns the home network id and set of backup network ids.
-pub async fn lookup_user(user_id: String) -> Result<(String, Vec<String>), DirectoryError> {
+pub async fn lookup_user(user_id: &str) -> Result<(String, Vec<String>), DirectoryError> {
     todo!()
 }
 
@@ -27,6 +27,6 @@ pub async fn lookup_user(user_id: String) -> Result<(String, Vec<String>), Direc
 /// If the user does not exist, the home network become the owner.
 /// If the user already exists, the home network must be the owner
 /// and the user info will be updated.
-pub async fn upsert_user(user_id: String, home_network_id: String, backup_network_ids: Vec<String>) {
+pub async fn upsert_user(user_id: &str, home_network_id: &str, backup_network_ids: Vec<&str>) {
     todo!()
 }
