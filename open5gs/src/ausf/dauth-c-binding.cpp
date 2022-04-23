@@ -90,21 +90,24 @@ ausf_dauth_shim_request_auth_vector(
     const OpenAPI_authentication_info_t * const authentication_info,
     ogs_sbi_stream_t *stream
 ) {
-    if (ausf_ue->dauth_context.local_auth_client != NULL) {
-        ogs_error("Received dauth client request while request in progress");
-        return false;
+    // Allocate a new client for this UE if one does not exist already.
+    if (ausf_ue->dauth_context.local_auth_client == nullptr) {
+        ausf_context_t* ausf_context = ausf_self();
+        ogs_assert(ausf_context);
+
+        ausf_ue->dauth_context.local_auth_client = new dauth_local_auth_client(
+            access_dauth_server_context(ausf_context->dauth_context).makeLocalAuthenticationStub(),
+            &access_dauth_server_context(ausf_context->dauth_context).completionQueue(),
+            ausf_ue->suci
+        );
+        ogs_assert(ausf_ue->dauth_context.local_auth_client);
+        if (!ausf_ue->dauth_context.local_auth_client) {
+            return false;
+        }
     }
 
-    ausf_context_t* ausf_context = ausf_self();
-    ogs_assert(ausf_context);
-
-    ausf_ue->dauth_context.local_auth_client = new dauth_local_auth_client(
-        access_dauth_server_context(ausf_context->dauth_context).makeLocalAuthenticationStub(),
-        &access_dauth_server_context(ausf_context->dauth_context).completionQueue(),
-        ausf_ue->suci
-    );
-    ogs_assert(ausf_ue->dauth_context.local_auth_client);
-    if (!ausf_ue->dauth_context.local_auth_client) {
+    if (access_dauth_local_auth_client_context(ausf_ue->dauth_context).in_progress()) {
+        ogs_error("Received dauth client request while another request is in progress");
         return false;
     }
 

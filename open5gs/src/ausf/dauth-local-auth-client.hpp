@@ -104,6 +104,9 @@ public:
     bool
     notify_rpc_complete(void);
 
+    bool
+    in_progress(void);
+
 private:
     client_state state_;
     std::string ue_suci_;

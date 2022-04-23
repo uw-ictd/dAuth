@@ -367,12 +367,13 @@ dauth_local_auth_client::handle_request_confirm_auth_res(
     state_ = client_state::DONE;
     ogs_assert(true == ogs_sbi_server_send_response(pending_stream_, response));
     pending_stream_ = nullptr;
+    state_ = client_state::INIT;
 
     return true;
 }
 
 bool
-dauth_local_auth_client::notify_rpc_complete() {
+dauth_local_auth_client::notify_rpc_complete(void) {
     // Lookup UE by ID in case table was rehashed
     ausf_ue_t *ausf_ue = ausf_ue_find_by_suci(ue_suci_.c_str());
     ogs_assert(ausf_ue);
@@ -393,4 +394,9 @@ dauth_local_auth_client::notify_rpc_complete() {
     }
 
     return false;
+}
+
+bool
+dauth_local_auth_client::in_progress(void) {
+    return (state_ != client_state::INIT);
 }
