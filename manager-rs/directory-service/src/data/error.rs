@@ -20,4 +20,7 @@ pub enum DirectoryError {
 
     #[error("Conversion error -- {0}")]
     ConversionError(#[from] TryFromSliceError),
+
+    #[error("Invalid access -- {0}")]
+    InvalidAccess(String),
 }

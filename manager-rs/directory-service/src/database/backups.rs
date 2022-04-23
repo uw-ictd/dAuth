@@ -25,14 +25,14 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DirectoryError> {
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
-    home_network_id: &str,
+    backup_network_id: &str,
 ) -> Result<(), SqlxError> {
     sqlx::query(
         "INSERT INTO backups_directory_table
         VALUES ($1,$2)",
     )
     .bind(user_id)
-    .bind(home_network_id)
+    .bind(backup_network_id)
     .execute(transaction)
     .await?;
 

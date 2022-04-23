@@ -1,4 +1,8 @@
+use sqlx::sqlite::SqliteRow;
+use sqlx::Row;
+
 use crate::data::{context::DirectoryContext, error::DirectoryError};
+use crate::database;
 
 /*  Manager handles all functionality of the directory service.
  *  Shares a 1:1 relation with the RPC handler.
@@ -12,7 +16,13 @@ pub async fn register(
     address: &str,
     public_key: &Vec<u8>,
 ) -> Result<(), DirectoryError> {
-    todo!()
+    tracing::info!("Register called: {:?}-{:?}-{:?}", network_id, address, public_key);
+
+    let mut transaction = context.database_pool.begin().await?;
+    database::networks::upsert(&mut transaction, network_id, address, public_key).await?;
+    transaction.commit().await?;
+
+    Ok(())
 }
 
 /// Looks up a network by id and checks if it has been registered.
@@ -21,7 +31,15 @@ pub async fn lookup_network(
     context: DirectoryContext,
     network_id: &str,
 ) -> Result<(String, Vec<u8>), DirectoryError> {
-    todo!()
+    tracing::info!("Looup network called: {:?}", network_id);
+    
+    let mut transaction = context.database_pool.begin().await?;
+    let row = database::networks::get(&mut transaction, network_id).await?;
+    let address = row.try_get::<String, &str>("address")?;
+    let public_key = row.try_get::<Vec<u8>, &str>("public_key")?;
+    transaction.commit().await?;
+
+    Ok((address, public_key))
 }
 
 /// Looks up a user by id.
@@ -30,7 +48,19 @@ pub async fn lookup_user(
     context: DirectoryContext,
     user_id: &str,
 ) -> Result<(String, Vec<String>), DirectoryError> {
-    todo!()
+    tracing::info!("Looup user called: {:?}", user_id);
+
+    let mut transaction = context.database_pool.begin().await?;
+    let row = database::users::get(&mut transaction, user_id).await?;
+    let home_network_id = row.try_get::<String, &str>("home_network_id")?;
+
+    let mut backup_network_ids = Vec::new();
+    for row in database::backups::get(&mut transaction, user_id).await? {
+        backup_network_ids.push(row.try_get::<String, &str>("backup_network_id")?)
+    }
+    transaction.commit().await?;
+
+    Ok((home_network_id, backup_network_ids))
 }
 
 /// Stores the user with the provided home network and set of
@@ -44,5 +74,24 @@ pub async fn upsert_user(
     home_network_id: &str,
     backup_network_ids: Vec<&str>,
 ) -> Result<(), DirectoryError> {
-    todo!()
+    tracing::info!("Register called: {:?}-{:?}-{:?}", user_id, home_network_id, backup_network_ids);
+
+    let mut transaction = context.database_pool.begin().await?;
+
+    if let Ok(row) = database::users::get(&mut transaction, user_id).await {
+        if home_network_id == row.try_get::<String, &str>("home_network_id")? {
+            database::backups::remove(&mut transaction, user_id).await?;
+        } else {
+            return Err(DirectoryError::InvalidAccess("User owned by another network".to_string()));
+        }
+    } else {
+        database::users::add(&mut transaction, user_id, home_network_id).await?;
+    }
+
+    for backup_network_id in backup_network_ids {
+        database::backups::add(&mut transaction, user_id, backup_network_id).await?
+    }
+
+    transaction.commit().await?;
+    Ok(())
 }
