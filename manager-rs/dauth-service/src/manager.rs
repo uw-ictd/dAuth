@@ -10,6 +10,55 @@ use crate::data::{
 };
 use crate::database;
 use crate::database::utilities::DauthDataUtilities;
+use crate::rpc::clients;
+
+/// Attempts to get a vector in the following order of checks:
+/// 1. Generate the vector locally if this is the home network
+/// 2. Lookup the home network of the user and request a vector
+/// 3. Request a vector from all backup networks
+pub async fn find_vector(
+    context: Arc<DauthContext>,
+    av_request: &AuthVectorReq,
+) -> Result<AuthVectorRes, DauthError> {
+    tracing::info!("Attempting to find a vector: {:?}", av_request);
+
+    if let Ok(vector) = generate_auth_vector(context.clone(), av_request).await {
+        Ok(vector)
+    } else {
+        let (home_network_id, backup_network_ids) =
+            clients::directory::lookup_user(context.clone(), &av_request.user_id).await?;
+
+        let (home_address, _) =
+            clients::directory::lookup_network(context.clone(), &home_network_id).await?;
+        if let Ok(vector) = clients::home_network::get_auth_vector(
+            context.clone(),
+            &av_request.user_id,
+            &home_address,
+        )
+        .await
+        {
+            Ok(vector)
+        } else {
+            for backup_network_id in backup_network_ids {
+                let (backup_address, _) =
+                    clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
+                if let Ok(vector) = clients::backup_network::get_auth_vector(
+                    context.clone(),
+                    &av_request.user_id,
+                    &backup_address,
+                )
+                .await
+                {
+                    return Ok(vector);
+                }
+            }
+            tracing::warn!("No auth vector found");
+            Err(DauthError::NotFoundError(
+                "No auth vector found".to_string(),
+            ))
+        }
+    }
+}
 
 /// Generates and returns a new auth vector.
 /// Will fail if the requested id does not belong to this network/core.
