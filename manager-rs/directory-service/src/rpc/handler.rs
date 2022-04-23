@@ -8,7 +8,7 @@ use crate::rpc::directory_service::{
     RegisterResp, UpsertUserReq, UpsertUserResp,
 };
 
-/// Handles all RPC calls to the dAuth service.
+/// Handles all RPC calls to the directory service.
 pub struct DirectoryHandler {
     pub context: Arc<DirectoryContext>,
 }
