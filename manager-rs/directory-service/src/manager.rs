@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use sqlx::Row;
+use std::sync::Arc;
 
 use crate::data::{context::DirectoryContext, error::DirectoryError};
 use crate::database;
@@ -16,7 +16,12 @@ pub async fn register(
     address: &str,
     public_key: &Vec<u8>,
 ) -> Result<(), DirectoryError> {
-    tracing::info!("Register called: {:?}-{:?}-{:?}", network_id, address, public_key);
+    tracing::info!(
+        "Register called: {:?}-{:?}-{:?}",
+        network_id,
+        address,
+        public_key
+    );
 
     let mut transaction = context.database_pool.begin().await?;
     database::networks::upsert(&mut transaction, network_id, address, public_key).await?;
@@ -32,7 +37,7 @@ pub async fn lookup_network(
     network_id: &str,
 ) -> Result<(String, Vec<u8>), DirectoryError> {
     tracing::info!("Looup network called: {:?}", network_id);
-    
+
     let mut transaction = context.database_pool.begin().await?;
     let row = database::networks::get(&mut transaction, network_id).await?;
     let address = row.try_get::<String, &str>("address")?;
@@ -74,7 +79,12 @@ pub async fn upsert_user(
     home_network_id: &str,
     backup_network_ids: &Vec<String>,
 ) -> Result<(), DirectoryError> {
-    tracing::info!("Register called: {:?}-{:?}-{:?}", user_id, home_network_id, backup_network_ids);
+    tracing::info!(
+        "Register called: {:?}-{:?}-{:?}",
+        user_id,
+        home_network_id,
+        backup_network_ids
+    );
 
     let mut transaction = context.database_pool.begin().await?;
 
@@ -82,7 +92,9 @@ pub async fn upsert_user(
         if home_network_id == row.try_get::<String, &str>("home_network_id")? {
             database::backups::remove(&mut transaction, user_id).await?;
         } else {
-            return Err(DirectoryError::InvalidAccess("User owned by another network".to_string()));
+            return Err(DirectoryError::InvalidAccess(
+                "User owned by another network".to_string(),
+            ));
         }
     } else {
         database::users::add(&mut transaction, user_id, home_network_id).await?;

@@ -9,4 +9,7 @@ pub enum DirectoryError {
 
     #[error("Invalid access -- {0}")]
     InvalidAccess(String),
+
+    #[error("Config error -- {0}")]
+    ConfigError(String),
 }
