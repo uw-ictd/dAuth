@@ -140,12 +140,9 @@ mod tests {
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        let res = backups::get(
-            &mut transaction,
-            &format!("test_user_id_0"),
-        )
-        .await
-        .unwrap();
+        let res = backups::get(&mut transaction, &format!("test_user_id_0"))
+            .await
+            .unwrap();
 
         let mut xres = Vec::new();
 

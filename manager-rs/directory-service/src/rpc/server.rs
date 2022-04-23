@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use tonic::transport::Server;
 
-use crate::rpc::directory_service::directory_server::DirectoryServer;
 use crate::data::context::DirectoryContext;
+use crate::rpc::directory_service::directory_server::DirectoryServer;
 use crate::rpc::handler::DirectoryHandler;
 
 #[tracing::instrument]

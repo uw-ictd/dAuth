@@ -6,7 +6,11 @@ use crate::data::error::DirectoryError;
 
 /// Registers a network with the directory.
 /// Stores the networks address and public key.
-pub async fn register(network_id: &str, address: &str, public_key: &Vec<u8>) -> Result<(), DirectoryError> {
+pub async fn register(
+    network_id: &str,
+    address: &str,
+    public_key: &Vec<u8>,
+) -> Result<(), DirectoryError> {
     todo!()
 }
 

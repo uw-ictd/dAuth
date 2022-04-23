@@ -64,7 +64,7 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::{tempdir, TempDir};
 
-    use crate::database::{networks, general};
+    use crate::database::{general, networks};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -110,7 +110,6 @@ mod tests {
     #[tokio::test]
     async fn test_update() {
         let (pool, _dir) = init().await;
-        let num_rows = 10;
 
         let mut transaction = pool.begin().await.unwrap();
         networks::upsert(
@@ -124,14 +123,14 @@ mod tests {
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        let res = networks::get(
-            &mut transaction,
-            "test_network_0",
-        )
-        .await
-        .unwrap();
+        let res = networks::get(&mut transaction, "test_network_0")
+            .await
+            .unwrap();
         assert_eq!("test_address_0", res.get_unchecked::<&str, &str>("address"));
-        assert_eq!(vec![0, 0, 0], res.get_unchecked::<Vec<u8>, &str>("public_key"));
+        assert_eq!(
+            vec![0, 0, 0],
+            res.get_unchecked::<Vec<u8>, &str>("public_key")
+        );
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
@@ -146,14 +145,17 @@ mod tests {
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        let res = networks::get(
-            &mut transaction,
-            "test_network_0",
-        )
-        .await
-        .unwrap();
-        assert_eq!("test_address_0a", res.get_unchecked::<&str, &str>("address"));
-        assert_eq!(vec![1, 1, 1], res.get_unchecked::<Vec<u8>, &str>("public_key"));
+        let res = networks::get(&mut transaction, "test_network_0")
+            .await
+            .unwrap();
+        assert_eq!(
+            "test_address_0a",
+            res.get_unchecked::<&str, &str>("address")
+        );
+        assert_eq!(
+            vec![1, 1, 1],
+            res.get_unchecked::<Vec<u8>, &str>("public_key")
+        );
         transaction.commit().await.unwrap();
     }
 
@@ -179,15 +181,18 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            let res = networks::get(
-                &mut transaction,
-                &format!("test_network_id_{}", row),
-            )
-            .await
-            .unwrap();
+            let res = networks::get(&mut transaction, &format!("test_network_id_{}", row))
+                .await
+                .unwrap();
 
-            assert_eq!(&format!("test_address_{}", row), res.get_unchecked::<&str, &str>("address"));
-            assert_eq!(vec![0, 0, 0], res.get_unchecked::<Vec<u8>, &str>("public_key"));
+            assert_eq!(
+                &format!("test_address_{}", row),
+                res.get_unchecked::<&str, &str>("address")
+            );
+            assert_eq!(
+                vec![0, 0, 0],
+                res.get_unchecked::<Vec<u8>, &str>("public_key")
+            );
         }
         transaction.commit().await.unwrap();
     }

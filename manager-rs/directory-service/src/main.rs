@@ -3,6 +3,4 @@ mod database;
 mod manager;
 mod rpc;
 
-fn main() {
-
-}
+fn main() {}

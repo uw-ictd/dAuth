@@ -61,7 +61,7 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::{tempdir, TempDir};
 
-    use crate::database::{users, general};
+    use crate::database::{general, users};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -124,14 +124,14 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            let res = users::get(
-                &mut transaction,
-                &format!("test_user_id_{}", row),
-            )
-            .await
-            .unwrap();
+            let res = users::get(&mut transaction, &format!("test_user_id_{}", row))
+                .await
+                .unwrap();
 
-            assert_eq!(&format!("test_network_id_{}", row), res.get_unchecked::<&str, &str>("home_network_id"));
+            assert_eq!(
+                &format!("test_network_id_{}", row),
+                res.get_unchecked::<&str, &str>("home_network_id")
+            );
         }
         transaction.commit().await.unwrap();
     }

@@ -3,7 +3,10 @@ use std::sync::Arc;
 use crate::data::context::DirectoryContext;
 use crate::data::error::DirectoryError;
 use crate::rpc::directory_service::directory_server::Directory;
-use crate::rpc::directory_service::{RegisterReq, RegisterResp, LookupUserReq, LookupUserResp, LooukupNetworkReq, LooukupNetworkResp, UpsertUserReq, UpsertUserResp};
+use crate::rpc::directory_service::{
+    LookupUserReq, LookupUserResp, LooukupNetworkReq, LooukupNetworkResp, RegisterReq,
+    RegisterResp, UpsertUserReq, UpsertUserResp,
+};
 
 /// Handles all RPC calls to the dAuth service.
 pub struct DirectoryHandler {
