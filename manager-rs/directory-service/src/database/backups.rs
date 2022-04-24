@@ -60,7 +60,7 @@ pub async fn remove(
 ) -> Result<(), SqlxError> {
     sqlx::query(
         "DELETE FROM backups_directory_table
-        WHERE user_info_id=$1",
+        WHERE user_id=$1",
     )
     .bind(user_id)
     .execute(transaction)
@@ -120,7 +120,6 @@ mod tests {
         transaction.commit().await.unwrap();
     }
 
-    /// Tests that get works
     #[tokio::test]
     async fn test_get() {
         let (pool, _dir) = init().await;
@@ -155,6 +154,44 @@ mod tests {
         }
 
         assert!(xres.is_empty());
+
+        transaction.commit().await.unwrap();
+    }
+    
+    #[tokio::test]
+    async fn test_remove() {
+        let (pool, _dir) = init().await;
+
+        let num_rows = 10;
+
+        let mut transaction = pool.begin().await.unwrap();
+        for row in 0..num_rows {
+            backups::add(
+                &mut transaction,
+                &format!("test_user_id_0"),
+                &format!("test_network_id_{}", row),
+            )
+            .await
+            .unwrap();
+        }
+        transaction.commit().await.unwrap();
+
+        let mut transaction = pool.begin().await.unwrap();
+        let res = backups::get(&mut transaction, &format!("test_user_id_0"))
+            .await
+            .unwrap();
+
+        assert!(!res.is_empty());
+
+        backups::remove(&mut transaction, &format!("test_user_id_0"))
+            .await
+            .unwrap();
+
+        let res = backups::get(&mut transaction, &format!("test_user_id_0"))
+            .await
+            .unwrap();
+
+        assert!(res.is_empty());
 
         transaction.commit().await.unwrap();
     }
