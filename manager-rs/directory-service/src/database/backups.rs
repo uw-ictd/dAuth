@@ -157,7 +157,7 @@ mod tests {
 
         transaction.commit().await.unwrap();
     }
-    
+
     #[tokio::test]
     async fn test_remove() {
         let (pool, _dir) = init().await;
