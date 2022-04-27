@@ -17,6 +17,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "dauth-c-binding.h"
+#include "event.h"
 #include "sbi-path.h"
 #include "nnrf-handler.h"
 
@@ -60,6 +62,10 @@ void ausf_state_operational(ogs_fsm_t *s, ausf_event_t *e)
     case OGS_FSM_EXIT_SIG:
         break;
 
+    case AUSF_EVT_RPC_COMPLETION:
+        ogs_assert(e->rpc_tag);
+        ogs_assert(handle_rpc_completion(e->rpc_tag));
+        break;
     case AUSF_EVT_SBI_SERVER:
         request = e->sbi.request;
         ogs_assert(request);

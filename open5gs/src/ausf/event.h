@@ -41,6 +41,8 @@ typedef enum {
     AUSF_EVT_SBI_CLIENT,
     AUSF_EVT_SBI_TIMER,
 
+    AUSF_EVT_RPC_COMPLETION,
+
     AUSF_EVT_TOP,
 
 } ausf_event_e;
@@ -57,6 +59,7 @@ typedef struct ausf_event_s {
         ogs_sbi_message_t *message;
     } sbi;
 
+    void* rpc_tag;
     ausf_ue_t *ausf_ue;
 
     ogs_timer_t *timer;

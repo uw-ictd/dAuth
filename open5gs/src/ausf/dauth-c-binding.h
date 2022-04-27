@@ -17,47 +17,58 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef AUSF_DAUTH_SHIM_H
-#define AUSF_DAUTH_SHIM_H
+#ifndef __AUSF_DAUTH_C_BINDING_H__
+#define __AUSF_DAUTH_C_BINDING_H__
 
-#include "context.h"
+#include "ogs-app.h"
 #include "ogs-crypt.h"
+#include "ogs-sbi.h"
+
+#include "event.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct dauth_shim_vector {
-    uint8_t rand[OGS_RAND_LEN];
-    uint8_t xres_star_hash[OGS_MAX_RES_LEN];
-    uint8_t autn[OGS_AUTN_LEN];
-} dauth_shim_vector_t;
+typedef struct dauth_context_wrapper {
+    void* server_context;
+} dauth_context_t;
+
+typedef struct dauth_ue_context {
+    void* local_auth_client;
+} dauth_ue_context_t;
+
+bool
+dauth_context_init(dauth_context_t * const context);
+
+bool
+dauth_context_final(dauth_context_t * const context);
+
+bool
+wait_for_next_rpc_event(void** tag);
+
+bool
+handle_rpc_completion(void* tag);
+
+void
+grpc_client_shutdown(void);
 
 bool
 ausf_dauth_shim_request_auth_vector(
-    const char * const supi,
-    const OpenAPI_authentication_info_t * const authentication_info,
-    dauth_shim_vector_t * const received_vector);
-
-bool
-ausf_dauth_shim_forward_received_auth_vector(
     ausf_ue_t * const ausf_ue,
-    ogs_sbi_stream_t *stream,
     const OpenAPI_authentication_info_t * const authentication_info,
-    dauth_shim_vector_t * const received_vector);
+    ogs_sbi_stream_t *stream
+    );
 
 bool
 ausf_dauth_shim_request_confirm_auth(
     ausf_ue_t * const ausf_ue,
-    const uint8_t * const res_star);
-
-bool
-ausf_dauth_shim_forward_confirmed_key(
-    ausf_ue_t * const ausf_ue,
-    ogs_sbi_stream_t *stream);
+    const uint8_t * const res_star,
+    ogs_sbi_stream_t *stream
+    );
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* AUSF_NAUSF_HANDLER_H */
+#endif /* __AUSF_DAUTH_C_BINDING_H__ */

@@ -21,14 +21,19 @@
 #include <memory>
 #include <string.h>
 
+#include "authentication_data.pb.h"
+#include "dauth-local-auth-client.hpp"
+#include "grpcpp/impl/codegen/client_context.h"
+#include "local_authentication.grpc.pb.h"
+#include "local_authentication.pb.h"
+
 #include "core/ogs-core.h"
-#include "dauth-shim.h"
+#include "context.h"
+#include "dauth-context-util.hpp"
+#include "dauth-c-binding.h"
 #include "model/authentication_info.h"
 #include "model/authentication_vector.h"
 
-#include "authentication_data.pb.h"
-#include "local_authentication.grpc.pb.h"
-#include "local_authentication.pb.h"
 
 using namespace dauth_local;
 
@@ -43,16 +48,17 @@ bounded_strlen(const char * const str, size_t max_length) {
     return static_cast<size_t>(end_pointer - str);
 }
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 bool
-ausf_dauth_shim_request_auth_vector(
+dauth_local_auth_client::request_auth_vector(
     const char * const supi,
     const OpenAPI_authentication_info_t * const authentication_info,
-    dauth_shim_vector_t * const received_vector
+    ogs_sbi_stream_t *stream
 ) {
+    if (state_ != client_state::INIT) {
+        ogs_error("Bad local client state [%d]", state_);
+    }
+    ogs_assert(state_ == client_state::INIT);
+
     if(!supi) {
         ogs_error("Null supi in auth vector request");
         return false;
@@ -67,78 +73,68 @@ ausf_dauth_shim_request_auth_vector(
         return false;
     }
 
-    // TODO(matt9j) Move to a one-time context instead of re-opening each time and making new stubs
-    ogs_debug("[%s] Creating gRPC LocalAuthentication stub", supi);
-    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials());
-    std::unique_ptr<LocalAuthentication::Stub> stub = LocalAuthentication::NewStub(channel);
-
     // Fill request protobuf
     ogs_debug("[%s] Filling d_auth::AKAVectorReq request", supi);
-    AKAVectorReq request;
-    request.set_user_id(supi, supi_length);
-    request.set_user_id_type(::d_auth::UserIdKind::SUPI);
+    auth_vector_req_.set_user_id(supi, supi_length);
+    auth_vector_req_.set_user_id_type(::d_auth::UserIdKind::SUPI);
 
-    d_auth::AKAResyncInfo resync_info;
     if(authentication_info->resynchronization_info) {
         ogs_debug("[%s] Filling d_auth::AKAResyncInfo request", supi);
-        resync_info.set_auts(authentication_info->resynchronization_info->auts);
-        resync_info.set_auts(authentication_info->resynchronization_info->rand);
-        request.set_allocated_resync_info(&resync_info);
+        resync_info_.set_auts(authentication_info->resynchronization_info->auts);
+        resync_info_.set_auts(authentication_info->resynchronization_info->rand);
+        auth_vector_req_.set_allocated_resync_info(&resync_info_);
     }
-
-    // Allocate response and context memory on the stack
-    AKAVectorResp response;
-    grpc::ClientContext context;
 
     ogs_debug("[%s] Sending LocalAuthentication.GetAuthVector request", supi);
-    grpc::Status status = stub->GetAuthVector(&context, request, &response);
+    grpc_context_ = std::make_unique<grpc::ClientContext>();
+    auth_vector_rpc_ = stub_->PrepareAsyncGetAuthVector(grpc_context_.get(), auth_vector_req_, completion_queue_);
 
-    // Handle failure
-    if (!status.ok()) {
-        ogs_error(
-            "[%s] LocalAuthentication.GetAuthVector RPC Failed with status [%d]:%s",
-            supi,
-            status.error_code(),
-            status.error_message().c_str()
-        );
-        return false;
-    }
-    ogs_info("[%s] LocalAuthentication.GetAuthVector RPC Success", supi);
+    // Update state before sending externally visible call.
+    state_ = client_state::WAITING_AUTH_RESP;
+    pending_stream_ = stream;
 
-    if (response.error() != AKAVectorResp_ErrorKind::AKAVectorResp_ErrorKind_NO_ERROR) {
-        ogs_error(
-            "[%s] LocalAuthentication.GetAuthVector RPC succeeded with error status [%d]",
-            supi,
-            response.error()
-        );
-        return false;
-    }
-
-    // Debug sanity checks on size.
-    ogs_assert(response.auth_vector().rand().length() == OGS_RAND_LEN);
-    ogs_assert(response.auth_vector().xres_star_hash().length() == OGS_MAX_RES_LEN);
-    ogs_assert(response.auth_vector().autn().length() == OGS_AUTN_LEN);
-    ogs_info("[%s] LocalAuthentication.GetAuthVector autn length %d", supi, response.auth_vector().autn().length());
-    // Unpack the received vector
-    memcpy(received_vector->rand, response.auth_vector().rand().c_str(), response.auth_vector().rand().length());
-    memcpy(received_vector->autn, response.auth_vector().autn().c_str(), response.auth_vector().autn().length());
-    memcpy(
-        received_vector->xres_star_hash,
-        response.auth_vector().xres_star_hash().c_str(),
-        response.auth_vector().xres_star_hash().length()
-        );
+    auth_vector_rpc_->StartCall();
+    auth_vector_rpc_->Finish(&auth_vector_resp_, &grpc_status_, this);
 
     return true;
 }
 
 // Moved and slightly tweaked from nudm_handler::ausf_nudm_ueau_handle_get
 bool
-ausf_dauth_shim_forward_received_auth_vector(
-    ausf_ue_t * const ausf_ue,
-    ogs_sbi_stream_t *stream,
-    const OpenAPI_authentication_info_t * const authentication_info,
-    dauth_shim_vector_t * const received_vector
+dauth_local_auth_client::handle_request_auth_vector_res(
+    ausf_ue_t * const ausf_ue
 ) {
+    if (state_ != client_state::WAITING_AUTH_RESP) {
+        ogs_error("Bad local client state [%d]", state_);
+    }
+    ogs_assert(state_ == client_state::WAITING_AUTH_RESP);
+
+    // Handle failure
+    if (!grpc_status_.ok()) {
+        ogs_error(
+            "[%s] LocalAuthentication.GetAuthVector RPC Failed with status [%d]:%s",
+            ausf_ue->supi,
+            grpc_status_.error_code(),
+            grpc_status_.error_message().c_str()
+        );
+        return false;
+    }
+    ogs_info("[%s] LocalAuthentication.GetAuthVector RPC Success", ausf_ue->supi);
+
+    if (auth_vector_resp_.error() != AKAVectorResp_ErrorKind::AKAVectorResp_ErrorKind_NO_ERROR) {
+        ogs_error(
+            "[%s] LocalAuthentication.GetAuthVector RPC succeeded with error status [%d]",
+            ausf_ue->supi,
+            auth_vector_resp_.error()
+        );
+        return false;
+    }
+
+    // Debug sanity checks on size.
+    ogs_assert(auth_vector_resp_.auth_vector().rand().length() == OGS_RAND_LEN);
+    ogs_assert(auth_vector_resp_.auth_vector().xres_star_hash().length() == OGS_MAX_RES_LEN);
+    ogs_assert(auth_vector_resp_.auth_vector().autn().length() == OGS_AUTN_LEN);
+
     ogs_sbi_server_t *server = NULL;
 
     ogs_sbi_message_t sendmsg;
@@ -155,15 +151,17 @@ ausf_dauth_shim_forward_received_auth_vector(
     OpenAPI_links_value_schema_t LinksValueSchemeValue;
 
     ogs_assert(ausf_ue);
-    ogs_assert(stream);
-    server = ogs_sbi_server_from_stream(stream);
+    ogs_assert(pending_stream_);
+    server = ogs_sbi_server_from_stream(pending_stream_);
     ogs_assert(server);
 
     ausf_ue->auth_type = OpenAPI_auth_type_5G_AKA;
 
-    memcpy(ausf_ue->rand, received_vector->rand, sizeof(ausf_ue->rand));
-    memcpy(ausf_ue->hxres_star, received_vector->xres_star_hash, sizeof(ausf_ue->hxres_star));
+    memcpy(ausf_ue->rand, auth_vector_resp_.auth_vector().rand().c_str(), sizeof(ausf_ue->rand));
+    memcpy(ausf_ue->hxres_star, auth_vector_resp_.auth_vector().xres_star_hash().c_str(), sizeof(ausf_ue->hxres_star));
     // NOTE: Missing kausf, which open5gs has received from the UDM at this point
+    char autn_byte_buffer[OGS_AUTN_LEN];
+    memcpy(autn_byte_buffer, auth_vector_resp_.auth_vector().autn().c_str(), auth_vector_resp_.auth_vector().autn().length());
 
     memset(&UeAuthenticationCtx, 0, sizeof(UeAuthenticationCtx));
 
@@ -172,16 +170,28 @@ ausf_dauth_shim_forward_received_auth_vector(
     // Convert received binary crypto values to ascii strings of hex values as
     // needed for the SBI interface.
     memset(&AV5G_AKA, 0, sizeof(AV5G_AKA));
-    ogs_hex_to_ascii(received_vector->rand, sizeof(received_vector->rand),
-            rand_string, sizeof(rand_string));
+    ogs_hex_to_ascii(
+        ausf_ue->rand,
+        sizeof(ausf_ue->rand),
+        rand_string,
+        sizeof(rand_string)
+    );
     AV5G_AKA.rand = rand_string;
 
-    ogs_hex_to_ascii(received_vector->autn, sizeof(received_vector->autn),
-            autn_string, sizeof(autn_string));
+    ogs_hex_to_ascii(
+        autn_byte_buffer,
+        sizeof(autn_byte_buffer),
+        autn_string,
+        sizeof(autn_string)
+    );
     AV5G_AKA.autn = autn_string;
 
-    ogs_hex_to_ascii(ausf_ue->hxres_star, sizeof(ausf_ue->hxres_star),
-            hxres_star_string, sizeof(hxres_star_string));
+    ogs_hex_to_ascii(
+        ausf_ue->hxres_star,
+        sizeof(ausf_ue->hxres_star),
+        hxres_star_string,
+        sizeof(hxres_star_string)
+    );
     AV5G_AKA.hxres_star = hxres_star_string;
 
     UeAuthenticationCtx._5g_auth_data = &AV5G_AKA;
@@ -221,22 +231,32 @@ ausf_dauth_shim_forward_received_auth_vector(
     response = ogs_sbi_build_response(&sendmsg,
         OGS_SBI_HTTP_STATUS_CREATED);
     ogs_assert(response);
-    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+
+    // Update state before sending externally visible response.
+    state_ = client_state::AUTH_DONE;
+    ogs_assert(true == ogs_sbi_server_send_response(pending_stream_, response));
 
     OpenAPI_list_free(UeAuthenticationCtx._links);
     OpenAPI_map_free(LinksValueScheme);
 
     ogs_free(LinksValueSchemeValue.href);
     ogs_free(sendmsg.http.location);
+    pending_stream_ = nullptr;
 
     return true;
 }
 
 bool
-ausf_dauth_shim_request_confirm_auth(
+dauth_local_auth_client::request_confirm_auth(
     ausf_ue_t * const ausf_ue,
-    const uint8_t * const res_star
+    const uint8_t * const res_star,
+    ogs_sbi_stream_t *stream
 ) {
+    if (state_ != client_state::AUTH_DONE) {
+        ogs_error("Bad local client state [%d]", state_);
+    }
+    ogs_assert(state_ == client_state::AUTH_DONE);
+
     if(!ausf_ue) {
         ogs_error("Null UE in auth confirm request");
         return false;
@@ -258,36 +278,47 @@ ausf_dauth_shim_request_confirm_auth(
         return false;
     }
 
-    // TODO(matt9j) Move to a one-time context instead of re-opening each time and making new stubs
-    ogs_debug("[%s] Creating gRPC LocalAuthentication stub", supi);
-    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials());
-    std::unique_ptr<LocalAuthentication::Stub> stub = LocalAuthentication::NewStub(channel);
-
     // Fill request protobuf
     ogs_debug("[%s] Filling d_auth::AKAConfirmReq request", supi);
-    AKAConfirmReq request;
-    request.set_user_id(supi, supi_length);
-    request.set_user_id_type(::d_auth::UserIdKind::SUPI);
-    request.set_res_star(res_star, OGS_MAX_RES_LEN);
-
-    // Allocate response and context memory on the stack
-    AKAConfirmResp response;
-    grpc::ClientContext context;
+    confirm_auth_req_.set_user_id(supi, supi_length);
+    confirm_auth_req_.set_user_id_type(::d_auth::UserIdKind::SUPI);
+    confirm_auth_req_.set_res_star(res_star, OGS_MAX_RES_LEN);
 
     ogs_debug("[%s] Sending LocalAuthentication.ConfirmAuth request", supi);
-    grpc::Status status = stub->ConfirmAuth(&context, request, &response);
+    grpc_context_ = std::make_unique<grpc::ClientContext>();
+    confirm_auth_rpc_ = stub_->PrepareAsyncConfirmAuth(grpc_context_.get(), confirm_auth_req_, completion_queue_);
+
+    // Update state before sending externally visible request.
+    state_ = client_state::WAITING_CONFIRM_RESP;
+    pending_stream_ = stream;
+
+    confirm_auth_rpc_->StartCall();
+    confirm_auth_rpc_->Finish(&confirm_auth_resp_, &grpc_status_, this);
+
+    return true;
+}
+
+// Moved and slightly tweaked from nudm_handler::ausf_nudm_ueau_handle_result_confirmation_inform
+bool
+dauth_local_auth_client::handle_request_confirm_auth_res(
+    ausf_ue_t * const ausf_ue
+) {
+    if (state_ != client_state::WAITING_CONFIRM_RESP) {
+        ogs_error("Bad local client state [%d]", state_);
+    }
+    ogs_assert(state_ == client_state::WAITING_CONFIRM_RESP);
 
     // Handle failure
-    if (!status.ok()) {
+    if (!grpc_status_.ok()) {
         ogs_error(
             "[%s] LocalAuthentication.GetAuthVector RPC Failed with status [%d]:%s",
-            supi,
-            status.error_code(),
-            status.error_message().c_str()
+            ausf_ue->supi,
+            grpc_status_.error_code(),
+            grpc_status_.error_message().c_str()
         );
         return false;
     }
-    ogs_info("[%s] LocalAuthentication.ConfirmAuth RPC Success", supi);
+    ogs_info("[%s] LocalAuthentication.ConfirmAuth RPC Success", ausf_ue->supi);
 
     // TODO(matt9j) check if the res actually matches the hashed xres, and set
     // the auth result accordingly.
@@ -297,19 +328,10 @@ ausf_dauth_shim_request_confirm_auth(
     //     ausf_ue->auth_result = OpenAPI_auth_result_AUTHENTICATION_FAILURE;
 
     // Store the supplied kseaf in the local ue context
-    ogs_assert(response.kseaf().length() == 32);
-    memcpy(ausf_ue->kseaf, response.kseaf().c_str(), response.kseaf().length());
+    ogs_assert(confirm_auth_resp_.kseaf().length() == 32);
+    memcpy(ausf_ue->kseaf, confirm_auth_resp_.kseaf().c_str(), confirm_auth_resp_.kseaf().length());
     ausf_ue->auth_result = OpenAPI_auth_result_AUTHENTICATION_SUCCESS;
 
-    return true;
-}
-
-// Moved and slightly tweaked from nudm_handler::ausf_nudm_ueau_handle_result_confirmation_inform
-bool
-ausf_dauth_shim_forward_confirmed_key(
-    ausf_ue_t * const ausf_ue,
-    ogs_sbi_stream_t *stream
-) {
     ogs_sbi_message_t sendmsg;
     ogs_sbi_response_t *response = NULL;
 
@@ -318,7 +340,7 @@ ausf_dauth_shim_forward_confirmed_key(
     OpenAPI_confirmation_data_response_t ConfirmationDataResponse;
 
     ogs_assert(ausf_ue);
-    ogs_assert(stream);
+    ogs_assert(pending_stream_);
 
     memset(&ConfirmationDataResponse, 0, sizeof(ConfirmationDataResponse));
 
@@ -339,11 +361,41 @@ ausf_dauth_shim_forward_confirmed_key(
 
     response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_OK);
     ogs_assert(response);
-    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+
+    // Update state before sending externally visible response.
+    state_ = client_state::DONE;
+    ogs_assert(true == ogs_sbi_server_send_response(pending_stream_, response));
+    pending_stream_ = nullptr;
+    state_ = client_state::INIT;
 
     return true;
 }
 
-#ifdef __cplusplus
+bool
+dauth_local_auth_client::notify_rpc_complete(void) {
+    // Lookup UE by ID in case table was rehashed
+    ausf_ue_t *ausf_ue = ausf_ue_find_by_suci(ue_suci_.c_str());
+    ogs_assert(ausf_ue);
+
+    switch (state_) {
+        case WAITING_AUTH_RESP: {
+            return handle_request_auth_vector_res(ausf_ue);
+        }
+        case WAITING_CONFIRM_RESP: {
+            return handle_request_confirm_auth_res(ausf_ue);
+        }
+        case INIT:
+        case AUTH_DONE:
+        case DONE:
+        default:
+            ogs_error("Received rpc completion notify in bad state [%d]", state_);
+            ogs_assert(false);
+    }
+
+    return false;
 }
-#endif
+
+bool
+dauth_local_auth_client::in_progress(void) {
+    return (state_ != client_state::INIT);
+}

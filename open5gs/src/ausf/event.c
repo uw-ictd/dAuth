@@ -68,6 +68,8 @@ const char *ausf_event_get_name(ausf_event_t *e)
         return "AUSF_EVT_SBI_CLIENT";
     case AUSF_EVT_SBI_TIMER:
         return "AUSF_EVT_SBI_TIMER";
+    case AUSF_EVT_RPC_COMPLETION:
+        return "AUSF_EVT_RPC_COMPLETION";
 
     default: 
        break;

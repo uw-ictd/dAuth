@@ -103,7 +103,9 @@ libausf_sources = files('''
     nudm-handler.c
     ue-sm.c
 
-    dauth-shim.cpp
+    dauth-c-binding.cpp
+    dauth-server-context.cpp
+    dauth-local-auth-client.cpp
 
     sbi-path.c
     ausf-sm.c
