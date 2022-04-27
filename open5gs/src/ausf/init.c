@@ -17,19 +17,42 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <stdint.h>
+#include <sys/eventfd.h>
+#include <unistd.h>
+
 #include "event.h"
 #include "sbi-path.h"
 #include "dauth-c-binding.h"
 
+static int grpc_notify_fd;
 static ogs_thread_t *grpc_thread;
 static ogs_thread_t *event_thread;
 static void ausf_grpc_main(void *data);
 static void ausf_event_main(void *data);
 static int initialized = 0;
 
+
+/*
+Callback triggered when the grpc_notify_fd is triggered. Must occur before
+events are consumed from the queue to catch all signals from the grpc callback
+queue thread.
+*/
+static void notify_cb (short when, ogs_socket_t fd, void *data) {
+    int64_t grpc_event_counter;
+    ogs_debug("GRPC notify callback");
+    /* Reset the grpc event signal if needed. Do not check how many bytes
+    read, since the value does not actually matter */
+    ogs_assert(grpc_notify_fd);
+    read(grpc_notify_fd, &grpc_event_counter, sizeof(grpc_event_counter));
+}
+
 int ausf_initialize()
 {
     int rv;
+
+    grpc_notify_fd = eventfd(0, EFD_NONBLOCK);
+    ogs_assert(grpc_notify_fd);
 
     ausf_context_init();
     ausf_event_init();
@@ -47,6 +70,9 @@ int ausf_initialize()
 
     rv = ausf_sbi_open();
     if (rv != OGS_OK) return rv;
+
+    /* Ignoring return since the eventfd poll will never be cancelled or checked. */
+    ogs_pollset_add(ogs_app()->pollset, OGS_POLLIN, grpc_notify_fd, notify_cb, NULL);
 
     event_thread = ogs_thread_create(ausf_event_main, NULL);
     if (!event_thread) return OGS_ERROR;
@@ -98,6 +124,11 @@ void ausf_terminate(void)
     ogs_sbi_context_final();
 
     ausf_event_final(); /* Destroy event */
+
+    if (grpc_notify_fd) {
+        close(grpc_notify_fd);
+        grpc_notify_fd = 0;
+    }
 }
 
 
@@ -151,6 +182,8 @@ done:
 
 static void ausf_grpc_main(void *data)
 {
+    uint64_t event_ctr=1;
+
     for ( ;; ) {
         void* rpc_tag = NULL;
         bool ok = wait_for_next_rpc_event(&rpc_tag);
@@ -167,8 +200,13 @@ static void ausf_grpc_main(void *data)
         ogs_assert(e);
 
         e->rpc_tag = rpc_tag;
-
         rv = ogs_queue_push(ogs_app()->queue, e);
+
+        /* Write to the eventfd only after the event has been successfully
+        pushed to the queue to wake the consumer thread if necessary. */
+        ogs_assert(grpc_notify_fd);
+        ogs_assert(write(grpc_notify_fd, &event_ctr, sizeof(event_ctr)) == 8);
+
         if (rv != OGS_OK) {
             ogs_warn("ogs_queue_push() failed:%d", (int)rv);
             ausf_event_free(e);
