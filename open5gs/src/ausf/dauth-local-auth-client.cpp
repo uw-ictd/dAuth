@@ -134,7 +134,6 @@ dauth_local_auth_client::handle_request_auth_vector_res(
     ogs_assert(auth_vector_resp_.auth_vector().rand().length() == OGS_RAND_LEN);
     ogs_assert(auth_vector_resp_.auth_vector().xres_star_hash().length() == OGS_MAX_RES_LEN);
     ogs_assert(auth_vector_resp_.auth_vector().autn().length() == OGS_AUTN_LEN);
-    ogs_info("[%s] LocalAuthentication.GetAuthVector autn length %lu", ausf_ue->supi, auth_vector_resp_.auth_vector().autn().length());
 
     ogs_sbi_server_t *server = NULL;
 

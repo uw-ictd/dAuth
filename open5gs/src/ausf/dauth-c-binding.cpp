@@ -41,7 +41,7 @@ extern "C" {
 
 bool
 handle_rpc_completion(void *tag) {
-    ogs_info("Handling tag %p", tag);
+    ogs_debug("Handling tag %p", tag);
     dauth_local_auth_client* client = reinterpret_cast<dauth_local_auth_client*>(tag);
     return client->notify_rpc_complete();
 }
