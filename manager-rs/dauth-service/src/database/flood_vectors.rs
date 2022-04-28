@@ -9,12 +9,13 @@ use crate::data::error::DauthError;
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS flood_vector_table (
+            rank INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id TEXT NOT NULL,
             seqnum INT NOT NULL,
             xres_star_hash BLOB NOT NULL,
             autn BLOB NOT NULL,
             rand BLOB NOT NULL,
-            PRIMARY KEY (user_id, seqnum)
+            UNIQUE(user_id, seqnum)
         );",
     )
     .execute(pool)
@@ -34,6 +35,7 @@ pub async fn add(
 ) -> Result<(), DauthError> {
     sqlx::query(
         "INSERT INTO flood_vector_table
+        (user_id,seqnum,xres_star_hash,autn,rand)
         VALUES ($1,$2,$3,$4,$5)",
     )
     .bind(id)
@@ -56,7 +58,7 @@ pub async fn get_first(
     let res = sqlx::query(
         "SELECT * FROM flood_vector_table
         WHERE user_id=$1
-        ORDER BY seqnum
+        ORDER BY rank
         LIMIT 1;",
     )
     .bind(id)
@@ -237,7 +239,7 @@ mod tests {
         flood_vectors::add(
             &mut transaction,
             "test_id_1",
-            2,
+            1,
             &[0_u8; RES_STAR_HASH_LENGTH],
             &[0_u8; AUTN_LENGTH],
             &[0_u8; RAND_LENGTH],
@@ -259,7 +261,7 @@ mod tests {
         flood_vectors::add(
             &mut transaction,
             "test_id_1",
-            1,
+            2,
             &[0_u8; RES_STAR_HASH_LENGTH],
             &[0_u8; AUTN_LENGTH],
             &[0_u8; RAND_LENGTH],
@@ -277,7 +279,7 @@ mod tests {
             .unwrap();
 
         assert_eq!("test_id_1", res.get_unchecked::<&str, &str>("user_id"));
-        assert_eq!(0, res.get_unchecked::<i64, &str>("seqnum"));
+        assert_eq!(1, res.get_unchecked::<i64, &str>("seqnum"));
 
         transaction.commit().await.unwrap();
     }
