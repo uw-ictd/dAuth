@@ -9,8 +9,10 @@ use crate::data::error::DirectoryError;
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DirectoryError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS backups_directory_table (
-            user_id TEXT NOT NULL,
-            backup_network_id TEXT NOT NULL,
+            user_id TEXT NOT NULL
+                REFERENCES users_directory_table(user_id),
+            backup_network_id TEXT NOT NULL 
+                REFERENCES networks_directory_table(network_id),
             PRIMARY KEY (user_id, backup_network_id)
         );",
     )
@@ -78,7 +80,7 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::{tempdir, TempDir};
 
-    use crate::database::{backups, general};
+    use crate::database::{backups, general, users, networks};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -93,6 +95,8 @@ mod tests {
 
         let pool = general::build_pool(&path).await.unwrap();
         backups::init_table(&pool).await.unwrap();
+        users::init_table(&pool).await.unwrap();
+        networks::init_table(&pool).await.unwrap();
 
         (pool, dir)
     }
@@ -109,6 +113,21 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
+            networks::upsert(
+                &mut transaction,
+                &format!("test_network_id_{}", row),
+                &format!("test_network_address_{}", row),
+                &vec![0],
+            )
+            .await
+            .unwrap();
+            users::add(
+                &mut transaction,
+                &format!("test_user_id_{}", row),
+                &format!("test_network_id_{}", row),
+            )
+            .await
+            .unwrap();
             backups::add(
                 &mut transaction,
                 &format!("test_user_id_{}", row),
@@ -123,11 +142,36 @@ mod tests {
     #[tokio::test]
     async fn test_get() {
         let (pool, _dir) = init().await;
-
         let num_rows = 10;
 
         let mut transaction = pool.begin().await.unwrap();
+        networks::upsert(
+            &mut transaction,
+            &format!("test_home_network_id"),
+            &format!("test_home_address"),
+            &vec![0],
+        )
+        .await
+        .unwrap();
+        users::add(
+            &mut transaction,
+            &format!("test_user_id_0"),
+            &format!("test_home_network_id"),
+        )
+        .await
+        .unwrap();
+        transaction.commit().await.unwrap();
+
+        let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
+            networks::upsert(
+                &mut transaction,
+                &format!("test_network_id_{}", row),
+                &format!("test_network_address_{}", row),
+                &vec![0],
+            )
+            .await
+            .unwrap();
             backups::add(
                 &mut transaction,
                 &format!("test_user_id_0"),
@@ -161,11 +205,36 @@ mod tests {
     #[tokio::test]
     async fn test_remove() {
         let (pool, _dir) = init().await;
-
         let num_rows = 10;
 
         let mut transaction = pool.begin().await.unwrap();
+        networks::upsert(
+            &mut transaction,
+            &format!("test_home_network_id"),
+            &format!("test_home_address"),
+            &vec![0],
+        )
+        .await
+        .unwrap();
+        users::add(
+            &mut transaction,
+            &format!("test_user_id_0"),
+            &format!("test_home_network_id"),
+        )
+        .await
+        .unwrap();
+        transaction.commit().await.unwrap();
+
+        let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
+            networks::upsert(
+                &mut transaction,
+                &format!("test_network_id_{}", row),
+                &format!("test_network_address_{}", row),
+                &vec![0],
+            )
+            .await
+            .unwrap();
             backups::add(
                 &mut transaction,
                 &format!("test_user_id_0"),
@@ -194,5 +263,19 @@ mod tests {
         assert!(res.is_empty());
 
         transaction.commit().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_add_without_foreign_key_fail() {
+        let (pool, _dir) = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+        assert!(backups::add(
+            &mut transaction,
+            &format!("test_user_id"),
+            &format!("test_networ_id"),
+        )
+        .await
+        .is_err());
     }
 }
