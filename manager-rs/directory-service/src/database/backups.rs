@@ -80,7 +80,7 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::{tempdir, TempDir};
 
-    use crate::database::{backups, general, users, networks};
+    use crate::database::{backups, general, networks, users};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();

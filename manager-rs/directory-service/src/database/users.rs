@@ -62,7 +62,7 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::{tempdir, TempDir};
 
-    use crate::database::{general, users, networks};
+    use crate::database::{general, networks, users};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -116,7 +116,6 @@ mod tests {
         transaction.commit().await.unwrap();
     }
 
-    /// Tests that get works
     #[tokio::test]
     async fn test_get() {
         let (pool, _dir) = init().await;
@@ -159,9 +158,8 @@ mod tests {
         transaction.commit().await.unwrap();
     }
 
-    /// Tests that get works
     #[tokio::test]
-    async fn test_get_foreign_key_fail() {
+    async fn test_add_without_foreign_key_fail() {
         let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
