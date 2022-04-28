@@ -15,7 +15,7 @@ service Directory {
     // Looks up a specific network by its network id.
     // If the network has been registered, returns the corresponding 
     // address and public key.
-    rpc LooukupNetwork(LooukupNetworkReq) returns (LooukupNetworkResp);
+    rpc LookupNetwork(LooukupNetworkReq) returns (LooukupNetworkResp);
 
     // Looks up a specific user by its user id.
     // If the user exists, returns the corresponding home network id
