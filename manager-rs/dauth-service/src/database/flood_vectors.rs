@@ -9,7 +9,7 @@ use crate::data::error::DauthError;
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS flood_vector_table (
-            rowid INTEGER PRIMARY KEY AUTOINCREMENT,
+            rank INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id TEXT NOT NULL,
             seqnum INT NOT NULL,
             xres_star_hash BLOB NOT NULL,
@@ -58,7 +58,7 @@ pub async fn get_first(
     let res = sqlx::query(
         "SELECT * FROM flood_vector_table
         WHERE user_id=$1
-        ORDER BY rowid
+        ORDER BY rank
         LIMIT 1;",
     )
     .bind(id)
