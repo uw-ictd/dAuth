@@ -8,9 +8,7 @@ use crate::data::signing::{self, SignPayloadType};
 use crate::data::vector::AuthVectorRes;
 use crate::rpc::dauth::common::UserIdKind;
 use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
-use crate::rpc::dauth::remote::{
-    get_home_auth_vector_req::Payload as AVPayload, get_home_confirm_key_req::Payload as CKPayload,
-};
+use crate::rpc::dauth::remote::{get_home_auth_vector_req, get_home_confirm_key_req};
 use crate::rpc::dauth::remote::{GetHomeAuthVectorReq, GetHomeConfirmKeyReq};
 
 /// Get an auth vector from a user's home network.
@@ -31,7 +29,7 @@ pub async fn get_auth_vector(
         .get_auth_vector(GetHomeAuthVectorReq {
             message: Some(signing::sign_message(
                 context.clone(),
-                SignPayloadType::GetHomeAuthVectorReq(AVPayload {
+                SignPayloadType::GetHomeAuthVectorReq(get_home_auth_vector_req::Payload {
                     serving_network_id: context.local_context.id.clone(),
                     user_id_type: UserIdKind::Supi as i32,
                     user_id: user_id.as_bytes().to_vec(),
@@ -87,7 +85,7 @@ pub async fn get_confirm_key(
         .get_confirm_key(GetHomeConfirmKeyReq {
             message: Some(signing::sign_message(
                 context.clone(),
-                SignPayloadType::GetHomeConfirmKeyReq(CKPayload {
+                SignPayloadType::GetHomeConfirmKeyReq(get_home_confirm_key_req::Payload {
                     serving_network_id: context.local_context.id.clone(),
                     res_star: res_star.to_vec(),
                     hash_xres_star: xres_star_hash.to_vec(),
