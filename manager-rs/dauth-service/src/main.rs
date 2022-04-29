@@ -7,6 +7,7 @@ use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 
 use ed25519_dalek::Keypair;
 use rand::rngs::OsRng;
+use rpc::dauth::directory::directory_client::DirectoryClient;
 use serde_yaml;
 use structopt::StructOpt;
 use tokio::runtime::Handle;
@@ -54,10 +55,11 @@ async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthEr
         rpc_context: RpcContext {
             runtime_handle: Handle::current(),
             host_addr: config.host_addr,
-            directory_addr: config.directory_addr,
             backup_clients: tokio::sync::Mutex::new(HashMap::new()),
             home_clients: tokio::sync::Mutex::new(HashMap::new()),
-            directory_client: tokio::sync::Mutex::new(None),
+            directory_client: tokio::sync::Mutex::new(
+                DirectoryClient::connect(format!("http://{}", config.directory_addr)).await?,
+            ),
         },
     });
 

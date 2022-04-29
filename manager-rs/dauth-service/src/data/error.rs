@@ -9,9 +9,6 @@ pub enum DauthError {
     #[error("Not found error -- {0}")]
     NotFoundError(String),
 
-    #[error("Client error -- {0}")]
-    ClientError(String),
-
     #[error("Config error -- {0}")]
     ConfigError(String),
 
@@ -38,4 +35,10 @@ pub enum DauthError {
 
     #[error("Error while generating shamir share")]
     ShamirShareError(),
+
+    #[error("Tonic transport error -- {0}")]
+    TransportError(#[from] tonic::transport::Error),
+
+    #[error("Tonic status -- {0}")]
+    StatusError(#[from] tonic::Status),
 }
