@@ -5,8 +5,8 @@ use prost::Message;
 
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
-use crate::rpc::dauth::remote;
 use crate::rpc::clients::directory;
+use crate::rpc::dauth::remote;
 
 /// All payload types that expect to be signed
 #[derive(Debug)]

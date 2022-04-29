@@ -1,4 +1,4 @@
-use ed25519_dalek::{Keypair, PublicKey};
+use ed25519_dalek::Keypair;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use tokio::runtime::Handle;
@@ -6,8 +6,10 @@ use tonic::transport::Channel;
 
 use auth_vector::types::Id;
 
-use crate::rpc::dauth::remote::{backup_network_client::BackupNetworkClient, home_network_client::HomeNetworkClient};
 use crate::rpc::dauth::directory::directory_client::DirectoryClient;
+use crate::rpc::dauth::remote::{
+    backup_network_client::BackupNetworkClient, home_network_client::HomeNetworkClient,
+};
 
 /// Maintains the context for all components of
 /// the dAuth service. All state exists here.

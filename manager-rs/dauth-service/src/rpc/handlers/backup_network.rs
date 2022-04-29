@@ -35,8 +35,9 @@ impl BackupNetwork for BackupNetworkHandler {
             .message
             .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
 
-        let verify_result =
-            signing::verify_message(self.context.clone(), &message).await.or_else(|e| {
+        let verify_result = signing::verify_message(self.context.clone(), &message)
+            .await
+            .or_else(|e| {
                 Err(tonic::Status::new(
                     tonic::Code::Unauthenticated,
                     format!("Failed to verify message: {}", e),
@@ -87,8 +88,9 @@ impl BackupNetwork for BackupNetworkHandler {
             .message
             .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
 
-        let verify_result =
-            signing::verify_message(self.context.clone(), &message).await.or_else(|e| {
+        let verify_result = signing::verify_message(self.context.clone(), &message)
+            .await
+            .or_else(|e| {
                 Err(tonic::Status::new(
                     tonic::Code::Unauthenticated,
                     format!("Failed to verify message: {}", e),
@@ -121,8 +123,9 @@ impl BackupNetwork for BackupNetworkHandler {
             .message
             .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
 
-        let verify_result =
-            signing::verify_message(self.context.clone(), &message).await.or_else(|e| {
+        let verify_result = signing::verify_message(self.context.clone(), &message)
+            .await
+            .or_else(|e| {
                 Err(tonic::Status::new(
                     tonic::Code::Unauthenticated,
                     format!("Failed to verify message: {}", e),
@@ -151,8 +154,9 @@ impl BackupNetwork for BackupNetworkHandler {
             .message
             .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
 
-        let verify_result =
-            signing::verify_message(self.context.clone(), &message).await.or_else(|e| {
+        let verify_result = signing::verify_message(self.context.clone(), &message)
+            .await
+            .or_else(|e| {
                 Err(tonic::Status::new(
                     tonic::Code::Unauthenticated,
                     format!("Failed to verify message: {}", e),
@@ -179,8 +183,9 @@ impl BackupNetwork for BackupNetworkHandler {
             .message
             .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
 
-        let verify_result =
-            signing::verify_message(self.context.clone(), &message).await.or_else(|e| {
+        let verify_result = signing::verify_message(self.context.clone(), &message)
+            .await
+            .or_else(|e| {
                 Err(tonic::Status::new(
                     tonic::Code::Unauthenticated,
                     format!("Failed to verify message: {}", e),
@@ -207,8 +212,9 @@ impl BackupNetwork for BackupNetworkHandler {
             .message
             .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
 
-        let verify_result =
-            signing::verify_message(self.context.clone(), &message).await.or_else(|e| {
+        let verify_result = signing::verify_message(self.context.clone(), &message)
+            .await
+            .or_else(|e| {
                 Err(tonic::Status::new(
                     tonic::Code::Unauthenticated,
                     format!("Failed to verify message: {}", e),
@@ -238,7 +244,8 @@ impl BackupNetworkHandler {
             &dvector.message.ok_or(DauthError::InvalidMessageError(
                 "Missing content".to_string(),
             ))?,
-        ).await?;
+        )
+        .await?;
 
         if let SignPayloadType::DelegatedAuthVector5G(payload) = verify_result {
             Ok(AuthVectorRes::from_av5_g(
@@ -264,7 +271,8 @@ impl BackupNetworkHandler {
             &dshare.message.ok_or(DauthError::InvalidMessageError(
                 "Missing content".to_string(),
             ))?,
-        ).await?;
+        )
+        .await?;
 
         if let SignPayloadType::DelegatedConfirmationShare(payload) = verify_result {
             Ok((
@@ -344,7 +352,8 @@ impl BackupNetworkHandler {
                             context.clone(),
                             dvector,
                             &user_id,
-                        ).await
+                        )
+                        .await,
                     );
                 }
                 manager::store_backup_auth_vectors(
@@ -352,8 +361,7 @@ impl BackupNetworkHandler {
                     processed_vectors
                         .into_iter()
                         .flat_map(|vector| {
-                            vector
-                            .or_else(|e| {
+                            vector.or_else(|e| {
                                 tracing::warn!("Failed to process vector: {}", e);
                                 Err(e)
                             })
@@ -367,7 +375,7 @@ impl BackupNetworkHandler {
                 let mut processed_shares = Vec::new();
                 for dshare in content.shares {
                     processed_shares.push(
-                        BackupNetworkHandler::handle_key_share(context.clone(), dshare).await
+                        BackupNetworkHandler::handle_key_share(context.clone(), dshare).await,
                     );
                 }
                 manager::store_key_shares(
@@ -375,12 +383,10 @@ impl BackupNetworkHandler {
                     processed_shares
                         .into_iter()
                         .flat_map(|share| {
-                            share.or_else(
-                                |e| {
-                                    tracing::warn!("Failed to process key share: {}", e);
-                                    Err(e)
-                                },
-                            )
+                            share.or_else(|e| {
+                                tracing::warn!("Failed to process key share: {}", e);
+                                Err(e)
+                            })
                         })
                         .collect(),
                 )
@@ -541,7 +547,8 @@ impl BackupNetworkHandler {
 
                     manager::store_backup_flood_vector(
                         context.clone(),
-                        &BackupNetworkHandler::handle_delegated_vector(context, dvector, &user_id).await?,
+                        &BackupNetworkHandler::handle_delegated_vector(context, dvector, &user_id)
+                            .await?,
                     )
                     .await?;
 
