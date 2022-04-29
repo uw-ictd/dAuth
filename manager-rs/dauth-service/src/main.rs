@@ -54,9 +54,10 @@ async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthEr
         rpc_context: RpcContext {
             runtime_handle: Handle::current(),
             host_addr: config.host_addr,
+            directory_addr: config.directory_addr,
             backup_clients: tokio::sync::Mutex::new(HashMap::new()),
             home_clients: tokio::sync::Mutex::new(HashMap::new()),
-            directory_client: None,
+            directory_client: tokio::sync::Mutex::new(None),
         },
     });
 

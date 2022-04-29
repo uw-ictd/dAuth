@@ -38,7 +38,8 @@ pub struct RemoteContext {
 pub struct RpcContext {
     pub runtime_handle: Handle,
     pub host_addr: String,
+    pub directory_addr: String,
     pub home_clients: tokio::sync::Mutex<HashMap<String, HomeNetworkClient<Channel>>>,
     pub backup_clients: tokio::sync::Mutex<HashMap<String, BackupNetworkClient<Channel>>>,
-    pub directory_client: Option<DirectoryClient<Channel>>,
+    pub directory_client: tokio::sync::Mutex<Option<DirectoryClient<Channel>>>,
 }
