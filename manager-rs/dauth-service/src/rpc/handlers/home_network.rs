@@ -35,7 +35,7 @@ impl HomeNetwork for HomeNetworkHandler {
             .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
 
         let verify_result =
-            signing::verify_message(self.context.clone(), &message).or_else(|e| {
+            signing::verify_message(self.context.clone(), &message).await.or_else(|e| {
                 Err(tonic::Status::new(
                     tonic::Code::Unauthenticated,
                     format!("Failed to verify message: {}", e),
@@ -67,7 +67,7 @@ impl HomeNetwork for HomeNetworkHandler {
             .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
 
         let verify_result =
-            signing::verify_message(self.context.clone(), &message).or_else(|e| {
+            signing::verify_message(self.context.clone(), &message).await.or_else(|e| {
                 Err(tonic::Status::new(
                     tonic::Code::Unauthenticated,
                     format!("Failed to verify message: {}", e),
