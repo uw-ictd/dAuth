@@ -9,6 +9,9 @@ pub enum DauthError {
     #[error("Not found error -- {0}")]
     NotFoundError(String),
 
+    #[error("Client error -- {0}")]
+    ClientError(String),
+
     #[error("Config error -- {0}")]
     ConfigError(String),
 
