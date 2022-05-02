@@ -3,7 +3,6 @@ use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 use ed25519_dalek::Keypair;
 use rand::rngs::OsRng;
 use serde_yaml;
-use tokio::runtime::Handle;
 
 use crate::data::{
     config::DauthConfig,
