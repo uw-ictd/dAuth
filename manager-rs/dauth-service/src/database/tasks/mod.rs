@@ -1,1 +1,1 @@
-mod update_users;
+pub mod update_users;

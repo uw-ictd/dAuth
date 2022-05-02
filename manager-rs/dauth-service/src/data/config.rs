@@ -32,6 +32,7 @@ pub struct UserInfoConfig {
     pub k: String,
     pub opc: String,
     pub sqn_max: String,
+    pub backup_network_ids: Vec<String>,
 }
 
 impl UserInfoConfig {
