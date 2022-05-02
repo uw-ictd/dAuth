@@ -1,0 +1,260 @@
+use sqlx::sqlite::SqlitePool;
+use sqlx::Row;
+use sqlx::{Sqlite, Transaction};
+
+use crate::data::error::DauthError;
+
+/// Creates the update user table if it does not exist already.
+pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS task_update_users_table (
+            user_id TEXT NOT NULL
+                REFERENCES user_info_table(user_info_id),
+            backup_network_id INT NOT NULL,
+            PRIMARY KEY (user_id, backup_network_id)
+        );",
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/* Queries */
+
+/// Adds a user id with a set of backup network ids.
+pub async fn add(
+    transaction: &mut Transaction<'_, Sqlite>,
+    user_id: &str,
+    backup_network_ids: &Vec<String>,
+) -> Result<(), DauthError> {
+    // TODO: Add more efficient multi insert?
+    for backup_network_id in backup_network_ids {
+        sqlx::query(
+            "INSERT INTO task_update_users_table
+            VALUES ($1,$2)",
+        )
+        .bind(user_id)
+        .bind(backup_network_id)
+        .execute(&mut *transaction)
+        .await?;
+    }
+
+    Ok(())
+}
+
+/// Gets the next user id and set of backups network ids.
+pub async fn get_next(
+    transaction: &mut Transaction<'_, Sqlite>,
+) -> Result<Option<(String, Vec<String>)>, DauthError> {
+    if let Some(user_id_row) = sqlx::query("SELECT user_id FROM task_update_users_table LIMIT 1")
+        .fetch_optional(&mut *transaction)
+        .await?
+    {
+        let user_id = user_id_row.try_get::<&str, &str>("user_id")?.to_string();
+        let rows = sqlx::query(
+            "SELECT * FROM task_update_users_table
+            WHERE user_id=$1;",
+        )
+        .bind(&user_id)
+        .fetch_all(transaction)
+        .await?;
+
+        let mut backup_ids = Vec::new();
+        for row in rows {
+            backup_ids.push(row.try_get::<&str, &str>("backup_network_id")?.to_string())
+        }
+
+        Ok(Some((user_id, backup_ids)))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Removes a user id and all its backup network ids.
+pub async fn remove(
+    transaction: &mut Transaction<'_, Sqlite>,
+    user_id: &str,
+) -> Result<(), DauthError> {
+    sqlx::query(
+        "DELETE FROM task_update_users_table
+        WHERE user_id=$1",
+    )
+    .bind(user_id)
+    .execute(transaction)
+    .await?;
+
+    Ok(())
+}
+
+/* Testing */
+
+#[cfg(test)]
+mod tests {
+    use rand::distributions::Alphanumeric;
+    use rand::{thread_rng, Rng};
+    use sqlx::SqlitePool;
+    use tempfile::{tempdir, TempDir};
+
+    use crate::database::{general, tasks, user_infos};
+
+    fn gen_name() -> String {
+        let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
+
+        format!("sqlite_{}.db", s)
+    }
+
+    async fn init() -> (SqlitePool, TempDir) {
+        let dir = tempdir().unwrap();
+        let path = String::from(dir.path().join(gen_name()).to_str().unwrap());
+        println!("Building temporary db: {}", path);
+
+        let pool = general::build_pool(&path).await.unwrap();
+        tasks::update_users::init_table(&pool).await.unwrap();
+        user_infos::init_table(&pool).await.unwrap();
+
+        (pool, dir)
+    }
+
+    #[tokio::test]
+    async fn test_db_init() {
+        init().await;
+    }
+
+    #[tokio::test]
+    async fn test_add() {
+        let (pool, _dir) = init().await;
+        let num_rows = 10;
+
+        let mut transaction = pool.begin().await.unwrap();
+        for row in 0..num_rows {
+            user_infos::upsert(
+                &mut transaction,
+                &format!("test_user_id_{}", row),
+                &[0u8, 3],
+                &[0u8, 3],
+                &[0u8, 3],
+            )
+            .await
+            .unwrap();
+
+            tasks::update_users::add(
+                &mut transaction,
+                &format!("test_user_id_{}", row),
+                &vec![
+                    "test_network_id_a".to_string(),
+                    "test_network_id_b".to_string(),
+                    "test_network_id_c".to_string(),
+                ],
+            )
+            .await
+            .unwrap();
+        }
+        transaction.commit().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_get() {
+        let (pool, _dir) = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+        assert!(tasks::update_users::get_next(&mut transaction)
+            .await
+            .unwrap()
+            .is_none());
+        transaction.commit().await.unwrap();
+
+        let mut transaction = pool.begin().await.unwrap();
+        user_infos::upsert(
+            &mut transaction,
+            &"test_user_id".to_string(),
+            &[0u8, 3],
+            &[0u8, 3],
+            &[0u8, 3],
+        )
+        .await
+        .unwrap();
+
+        tasks::update_users::add(
+            &mut transaction,
+            "test_user_id",
+            &vec![
+                "test_network_id_a".to_string(),
+                "test_network_id_b".to_string(),
+                "test_network_id_c".to_string(),
+            ],
+        )
+        .await
+        .unwrap();
+        transaction.commit().await.unwrap();
+
+        let mut transaction = pool.begin().await.unwrap();
+        let (user_id, backup_ids) = tasks::update_users::get_next(&mut transaction)
+            .await
+            .unwrap()
+            .unwrap();
+        transaction.commit().await.unwrap();
+
+        assert_eq!(user_id, "test_user_id");
+        assert!(backup_ids.contains(&"test_network_id_a".to_string()));
+        assert!(backup_ids.contains(&"test_network_id_b".to_string()));
+        assert!(backup_ids.contains(&"test_network_id_c".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_remove() {
+        let (pool, _dir) = init().await;
+        let num_rows = 10;
+
+        let mut transaction = pool.begin().await.unwrap();
+        for row in 0..num_rows {
+            user_infos::upsert(
+                &mut transaction,
+                &format!("test_user_id_{}", row),
+                &[0u8, 3],
+                &[0u8, 3],
+                &[0u8, 3],
+            )
+            .await
+            .unwrap();
+
+            tasks::update_users::add(
+                &mut transaction,
+                &format!("test_user_id_{}", row),
+                &vec![
+                    "test_network_id_a".to_string(),
+                    "test_network_id_b".to_string(),
+                    "test_network_id_c".to_string(),
+                ],
+            )
+            .await
+            .unwrap();
+        }
+        transaction.commit().await.unwrap();
+
+        let mut transaction = pool.begin().await.unwrap();
+        assert!(tasks::update_users::get_next(&mut transaction)
+            .await
+            .unwrap()
+            .is_some());
+        transaction.commit().await.unwrap();
+
+        for _ in 0..num_rows {
+            let mut transaction = pool.begin().await.unwrap();
+            let (user_id, _) = tasks::update_users::get_next(&mut transaction)
+                .await
+                .unwrap()
+                .unwrap();
+            tasks::update_users::remove(&mut transaction, &user_id)
+                .await
+                .unwrap();
+            transaction.commit().await.unwrap();
+        }
+
+        let mut transaction = pool.begin().await.unwrap();
+        assert!(tasks::update_users::get_next(&mut transaction)
+            .await
+            .unwrap()
+            .is_none());
+        transaction.commit().await.unwrap();
+    }
+}
