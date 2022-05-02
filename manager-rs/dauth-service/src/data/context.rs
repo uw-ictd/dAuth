@@ -1,6 +1,7 @@
 use ed25519_dalek::Keypair;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
+use std::time::{Duration, SystemTime};
 use tonic::transport::Channel;
 
 use auth_vector::types::Id;
@@ -17,6 +18,7 @@ pub struct DauthContext {
     pub local_context: LocalContext,
     pub remote_context: RemoteContext,
     pub rpc_context: RpcContext,
+    pub tasks_context: TasksContext,
 }
 
 #[derive(Debug)]
@@ -39,4 +41,11 @@ pub struct RpcContext {
     pub home_clients: tokio::sync::Mutex<HashMap<String, HomeNetworkClient<Channel>>>,
     pub backup_clients: tokio::sync::Mutex<HashMap<String, BackupNetworkClient<Channel>>>,
     pub directory_client: tokio::sync::Mutex<DirectoryClient<Channel>>,
+}
+
+#[derive(Debug)]
+pub struct TasksContext {
+    pub start_time: SystemTime,
+    pub startup_delay: Duration,
+    pub interval: Duration,
 }

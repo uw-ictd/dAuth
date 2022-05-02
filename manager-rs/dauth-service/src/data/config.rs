@@ -21,6 +21,8 @@ pub struct DauthConfig {
     pub local_user_id_max: String,
     pub ed25519_keyfile_path: String,
     pub database_path: String,
+    pub task_startup_delay: f64,
+    pub task_interval: f64,
 }
 
 /// For ease of inputting content in the yaml file

@@ -3,6 +3,7 @@ mod database;
 mod manager;
 mod rpc;
 mod startup;
+mod tasks;
 
 use structopt::StructOpt;
 use tracing::Level;
@@ -20,6 +21,10 @@ async fn main() {
     let context = startup::build_context(dauth_opt)
         .await
         .expect("Failed to generate context");
+
+    tasks::start_task_manager(context.clone())
+        .await
+        .expect("Failed to start task manager");
 
     server::start_server(context.clone()).await;
 }

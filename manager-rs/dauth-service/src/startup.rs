@@ -1,4 +1,10 @@
-use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
+use std::{
+    collections::HashMap,
+    fs,
+    path::PathBuf,
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use ed25519_dalek::Keypair;
 use rand::rngs::OsRng;
@@ -6,7 +12,7 @@ use serde_yaml;
 
 use crate::data::{
     config::DauthConfig,
-    context::{DauthContext, LocalContext, RemoteContext, RpcContext},
+    context::{DauthContext, LocalContext, RemoteContext, RpcContext, TasksContext},
     error::DauthError,
     opt::DauthOpt,
 };
@@ -37,6 +43,11 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             directory_client: tokio::sync::Mutex::new(
                 DirectoryClient::connect(format!("http://{}", config.directory_addr)).await?,
             ),
+        },
+        tasks_context: TasksContext {
+            start_time: SystemTime::now(),
+            startup_delay: Duration::from_secs_f64(config.task_startup_delay),
+            interval: Duration::from_secs_f64(config.task_interval),
         },
     });
 
