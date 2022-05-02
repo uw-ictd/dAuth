@@ -1,7 +1,6 @@
 use ed25519_dalek::Keypair;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
-use tokio::runtime::Handle;
 use tonic::transport::Channel;
 
 use auth_vector::types::Id;
