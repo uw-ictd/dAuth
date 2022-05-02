@@ -22,6 +22,10 @@ async fn main() {
         .await
         .expect("Failed to generate context");
 
+    rpc::clients::directory::register(context.clone())
+        .await
+        .expect("Failed to register with directory service");
+
     tasks::start_task_manager(context.clone())
         .await
         .expect("Failed to start task manager");
