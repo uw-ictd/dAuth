@@ -36,7 +36,6 @@ pub struct RemoteContext {
 
 #[derive(Debug)]
 pub struct RpcContext {
-    pub runtime_handle: Handle,
     pub host_addr: String,
     pub home_clients: tokio::sync::Mutex<HashMap<String, HomeNetworkClient<Channel>>>,
     pub backup_clients: tokio::sync::Mutex<HashMap<String, BackupNetworkClient<Channel>>>,

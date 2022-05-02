@@ -32,7 +32,6 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             backup_networks: config.backup_networks,
         },
         rpc_context: RpcContext {
-            runtime_handle: Handle::current(),
             host_addr: config.host_addr,
             backup_clients: tokio::sync::Mutex::new(HashMap::new()),
             home_clients: tokio::sync::Mutex::new(HashMap::new()),
