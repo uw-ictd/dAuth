@@ -14,7 +14,6 @@ use crate::rpc::dauth::remote::{
 #[derive(Debug)]
 pub struct DauthContext {
     pub local_context: LocalContext,
-    pub remote_context: RemoteContext,
     pub rpc_context: RpcContext,
     pub tasks_context: TasksContext,
 }
@@ -24,11 +23,6 @@ pub struct LocalContext {
     pub id: String,
     pub database_pool: SqlitePool,
     pub signing_keys: Keypair,
-}
-
-#[derive(Debug)]
-pub struct RemoteContext {
-    pub backup_networks: Vec<String>,
 }
 
 #[derive(Debug)]

@@ -12,7 +12,7 @@ use serde_yaml;
 
 use crate::data::{
     config::DauthConfig,
-    context::{DauthContext, LocalContext, RemoteContext, RpcContext, TasksContext},
+    context::{DauthContext, LocalContext, RpcContext, TasksContext},
     error::DauthError,
     opt::DauthOpt,
 };
@@ -30,9 +30,6 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             id: config.id,
             database_pool: pool,
             signing_keys: keys,
-        },
-        remote_context: RemoteContext {
-            backup_networks: config.backup_networks,
         },
         rpc_context: RpcContext {
             host_addr: config.host_addr,

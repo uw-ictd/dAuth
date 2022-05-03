@@ -14,7 +14,6 @@ use crate::data::{error::DauthError, user_info::UserInfo, utilities};
 pub struct DauthConfig {
     pub id: String,
     pub users: HashMap<String, UserInfoConfig>,
-    pub backup_networks: Vec<String>,
     pub host_addr: String,
     pub directory_addr: String,
     pub ed25519_keyfile_path: String,
