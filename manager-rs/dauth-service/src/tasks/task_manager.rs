@@ -19,12 +19,14 @@ async fn run(context: Arc<DauthContext>) -> Result<(), DauthError> {
         "Task manager running, starting normal tasks in {:?}s",
         context.tasks_context.startup_delay
     );
-    tokio::time::interval(context.tasks_context.startup_delay)
-        .tick()
-        .await;
+
+    let mut startup_delay = tokio::time::interval(context.tasks_context.startup_delay);
+    startup_delay.tick().await; // first tick does nothing
+    startup_delay.tick().await;
 
     let mut interval = tokio::time::interval(context.tasks_context.interval);
     loop {
+        interval.tick().await;
         tracing::info!("Checking for tasks to run");
 
         // Register with directory before any register-dependent tasks
@@ -35,7 +37,5 @@ async fn run(context: Arc<DauthContext>) -> Result<(), DauthError> {
                 tracing::warn!("Failed to run update user task: {}", e)
             }
         }
-
-        interval.tick().await;
     }
 }
