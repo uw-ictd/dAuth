@@ -4,8 +4,6 @@ use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 use tonic::transport::Channel;
 
-use auth_vector::types::Id;
-
 use crate::rpc::dauth::directory::directory_client::DirectoryClient;
 use crate::rpc::dauth::remote::{
     backup_network_client::BackupNetworkClient, home_network_client::HomeNetworkClient,
