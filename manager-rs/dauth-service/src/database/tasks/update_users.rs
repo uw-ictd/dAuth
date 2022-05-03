@@ -30,7 +30,7 @@ pub async fn add(
     // TODO: Add more efficient multi insert?
     for backup_network_id in backup_network_ids {
         sqlx::query(
-            "INSERT INTO task_update_users_table
+            "REPLACE INTO task_update_users_table
             VALUES ($1,$2)",
         )
         .bind(user_id)

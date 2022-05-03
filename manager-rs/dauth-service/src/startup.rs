@@ -41,6 +41,7 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             start_time: SystemTime::now(),
             startup_delay: Duration::from_secs_f64(config.task_startup_delay),
             interval: Duration::from_secs_f64(config.task_interval),
+            is_registered: tokio::sync::Mutex::new(false),
         },
     });
 

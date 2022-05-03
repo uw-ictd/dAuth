@@ -27,8 +27,13 @@ async fn run(context: Arc<DauthContext>) -> Result<(), DauthError> {
     loop {
         tracing::info!("Checking for tasks to run");
 
-        if let Err(e) = tasks::update_users::run_task(context.clone()).await {
-            tracing::warn!("Failed to run update user task: {}", e)
+        // Register with directory before any register-dependent tasks
+        if let Err(e) = tasks::register::run_task(context.clone()).await {
+            tracing::warn!("Failed to run register task: {}", e);
+        } else {
+            if let Err(e) = tasks::update_users::run_task(context.clone()).await {
+                tracing::warn!("Failed to run update user task: {}", e)
+            }
         }
 
         interval.tick().await;

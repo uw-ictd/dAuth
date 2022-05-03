@@ -39,4 +39,5 @@ pub struct TasksContext {
     pub start_time: SystemTime,
     pub startup_delay: Duration,
     pub interval: Duration,
+    pub is_registered: tokio::sync::Mutex<bool>,
 }
