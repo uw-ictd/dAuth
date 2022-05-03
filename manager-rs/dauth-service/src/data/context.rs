@@ -1,4 +1,4 @@
-use ed25519_dalek::{Keypair, PublicKey};
+use ed25519_dalek::Keypair;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use tokio::runtime::Handle;
@@ -6,7 +6,10 @@ use tonic::transport::Channel;
 
 use auth_vector::types::Id;
 
-use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
+use crate::rpc::dauth::directory::directory_client::DirectoryClient;
+use crate::rpc::dauth::remote::{
+    backup_network_client::BackupNetworkClient, home_network_client::HomeNetworkClient,
+};
 
 /// Maintains the context for all components of
 /// the dAuth service. All state exists here.
@@ -28,13 +31,14 @@ pub struct LocalContext {
 
 #[derive(Debug)]
 pub struct RemoteContext {
-    pub remote_addrs: Vec<String>,
-    pub remote_keys: HashMap<String, PublicKey>,
+    pub backup_networks: Vec<String>,
 }
 
 #[derive(Debug)]
 pub struct RpcContext {
     pub runtime_handle: Handle,
     pub host_addr: String,
-    pub client_stubs: tokio::sync::Mutex<HashMap<String, HomeNetworkClient<Channel>>>,
+    pub home_clients: tokio::sync::Mutex<HashMap<String, HomeNetworkClient<Channel>>>,
+    pub backup_clients: tokio::sync::Mutex<HashMap<String, BackupNetworkClient<Channel>>>,
+    pub directory_client: tokio::sync::Mutex<DirectoryClient<Channel>>,
 }

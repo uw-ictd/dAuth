@@ -92,7 +92,7 @@ pub fn create_shares_from_autn<T: rand_0_8::RngCore>(
     let secret = SecretData::with_secret_bytes(&input, 3, rng);
 
     let mut shares: Vec<AutnShare> = Vec::new();
-    for i in (1u8..share_count + 1) {
+    for i in 1u8..share_count + 1 {
         println!("Getting share {}", i);
         let share = secret.get_share(i).or_else(|e| {
             println!("Got error {:?}", e);

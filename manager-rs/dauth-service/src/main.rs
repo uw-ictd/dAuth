@@ -7,6 +7,7 @@ use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 
 use ed25519_dalek::Keypair;
 use rand::rngs::OsRng;
+use rpc::dauth::directory::directory_client::DirectoryClient;
 use serde_yaml;
 use structopt::StructOpt;
 use tokio::runtime::Handle;
@@ -49,14 +50,16 @@ async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthEr
             signing_keys: keys,
         },
         remote_context: RemoteContext {
-            remote_addrs: config.remote_addrs,
-            // TODO: (nickfh7) add keys to this
-            remote_keys: HashMap::new(),
+            backup_networks: config.backup_networks,
         },
         rpc_context: RpcContext {
             runtime_handle: Handle::current(),
             host_addr: config.host_addr,
-            client_stubs: tokio::sync::Mutex::new(HashMap::new()),
+            backup_clients: tokio::sync::Mutex::new(HashMap::new()),
+            home_clients: tokio::sync::Mutex::new(HashMap::new()),
+            directory_client: tokio::sync::Mutex::new(
+                DirectoryClient::connect(format!("http://{}", config.directory_addr)).await?,
+            ),
         },
     });
 

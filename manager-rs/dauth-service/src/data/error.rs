@@ -38,4 +38,10 @@ pub enum DauthError {
 
     #[error("Error while generating shamir share")]
     ShamirShareError(),
+
+    #[error("Tonic transport error -- {0}")]
+    TransportError(#[from] tonic::transport::Error),
+
+    #[error("Tonic status -- {0}")]
+    StatusError(#[from] tonic::Status),
 }
