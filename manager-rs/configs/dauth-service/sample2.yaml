@@ -2,7 +2,7 @@
 id: "sample-network-2"
 
 # Address this network will host on
-host_addr: "127.0.0.1:50051"
+host_addr: "127.0.0.1:50052"
 
 # Address of the directory service
 directory_addr: "127.0.0.1:8900"
