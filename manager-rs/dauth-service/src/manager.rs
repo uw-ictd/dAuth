@@ -363,9 +363,3 @@ fn validate_xres_star_hash(
         Ok(())
     }
 }
-
-/// Returns whether the auth vector belongs to this core.
-fn _auth_vector_is_local(context: Arc<DauthContext>, av_request: &AuthVectorReq) -> bool {
-    (av_request.user_id <= context.local_context.local_user_id_max)
-        && (av_request.user_id >= context.local_context.local_user_id_min)
-}

@@ -17,8 +17,6 @@ pub struct DauthConfig {
     pub backup_networks: Vec<String>,
     pub host_addr: String,
     pub directory_addr: String,
-    pub local_user_id_min: String,
-    pub local_user_id_max: String,
     pub ed25519_keyfile_path: String,
     pub database_path: String,
     pub task_startup_delay: f64,

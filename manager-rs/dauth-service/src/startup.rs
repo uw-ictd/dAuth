@@ -29,8 +29,6 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
         local_context: LocalContext {
             id: config.id,
             database_pool: pool,
-            local_user_id_min: config.local_user_id_min,
-            local_user_id_max: config.local_user_id_max,
             signing_keys: keys,
         },
         remote_context: RemoteContext {

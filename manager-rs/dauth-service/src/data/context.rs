@@ -25,8 +25,6 @@ pub struct DauthContext {
 pub struct LocalContext {
     pub id: String,
     pub database_pool: SqlitePool,
-    pub local_user_id_min: Id,
-    pub local_user_id_max: Id,
     pub signing_keys: Keypair,
 }
 
