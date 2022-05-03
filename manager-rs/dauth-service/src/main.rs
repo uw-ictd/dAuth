@@ -26,7 +26,7 @@ async fn main() {
         .await
         .expect("Failed to register with directory service");
 
-    tasks::start_task_manager(context.clone())
+    tasks::task_manager::start(context.clone())
         .await
         .expect("Failed to start task manager");
 

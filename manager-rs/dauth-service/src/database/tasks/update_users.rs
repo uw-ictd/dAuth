@@ -42,32 +42,39 @@ pub async fn add(
     Ok(())
 }
 
-/// Gets the next user id and set of backups network ids.
-pub async fn get_next(
+/// Gets all user ids
+pub async fn get_user_ids(
     transaction: &mut Transaction<'_, Sqlite>,
-) -> Result<Option<(String, Vec<String>)>, DauthError> {
-    if let Some(user_id_row) = sqlx::query("SELECT user_id FROM task_update_users_table LIMIT 1")
-        .fetch_optional(&mut *transaction)
-        .await?
-    {
-        let user_id = user_id_row.try_get::<&str, &str>("user_id")?.to_string();
-        let rows = sqlx::query(
-            "SELECT * FROM task_update_users_table
-            WHERE user_id=$1;",
-        )
-        .bind(&user_id)
+) -> Result<Vec<String>, DauthError> {
+    let mut result = Vec::new();
+    let rows = sqlx::query("SELECT user_id FROM task_update_users_table")
         .fetch_all(transaction)
         .await?;
 
-        let mut backup_ids = Vec::new();
-        for row in rows {
-            backup_ids.push(row.try_get::<&str, &str>("backup_network_id")?.to_string())
-        }
-
-        Ok(Some((user_id, backup_ids)))
-    } else {
-        Ok(None)
+    for row in rows {
+        result.push(row.try_get::<String, &str>("user_id")?);
     }
+    Ok(result)
+}
+
+/// Gets all backup network ids for a given user id.
+pub async fn get_backup_network_ids(
+    transaction: &mut Transaction<'_, Sqlite>,
+    user_id: &str,
+) -> Result<Vec<String>, DauthError> {
+    let mut result = Vec::new();
+    let rows = sqlx::query(
+        "SELECT backup_network_id FROM task_update_users_table
+        WHERE user_id=$1;",
+    )
+    .bind(user_id)
+    .fetch_all(transaction)
+    .await?;
+
+    for row in rows {
+        result.push(row.try_get::<String, &str>("backup_network_id")?);
+    }
+    Ok(result)
 }
 
 /// Removes a user id and all its backup network ids.
@@ -157,10 +164,10 @@ mod tests {
         let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
-        assert!(tasks::update_users::get_next(&mut transaction)
+        assert!(tasks::update_users::get_user_ids(&mut transaction)
             .await
             .unwrap()
-            .is_none());
+            .is_empty());
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
@@ -188,13 +195,16 @@ mod tests {
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        let (user_id, backup_ids) = tasks::update_users::get_next(&mut transaction)
+        let user_id = &tasks::update_users::get_user_ids(&mut transaction)
             .await
-            .unwrap()
-            .unwrap();
+            .unwrap()[0];
+        assert_eq!(user_id, "test_user_id");
         transaction.commit().await.unwrap();
 
-        assert_eq!(user_id, "test_user_id");
+        let mut transaction = pool.begin().await.unwrap();
+        let backup_ids = tasks::update_users::get_backup_network_ids(&mut transaction, user_id)
+            .await
+            .unwrap();
         assert!(backup_ids.contains(&"test_network_id_a".to_string()));
         assert!(backup_ids.contains(&"test_network_id_b".to_string()));
         assert!(backup_ids.contains(&"test_network_id_c".to_string()));
@@ -232,29 +242,28 @@ mod tests {
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        assert!(tasks::update_users::get_next(&mut transaction)
+        assert!(!tasks::update_users::get_user_ids(&mut transaction)
             .await
             .unwrap()
-            .is_some());
+            .is_empty());
         transaction.commit().await.unwrap();
 
-        for _ in 0..num_rows {
-            let mut transaction = pool.begin().await.unwrap();
-            let (user_id, _) = tasks::update_users::get_next(&mut transaction)
-                .await
-                .unwrap()
-                .unwrap();
+        let mut transaction = pool.begin().await.unwrap();
+        for user_id in tasks::update_users::get_user_ids(&mut transaction)
+            .await
+            .unwrap()
+        {
             tasks::update_users::remove(&mut transaction, &user_id)
                 .await
                 .unwrap();
-            transaction.commit().await.unwrap();
         }
+        transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        assert!(tasks::update_users::get_next(&mut transaction)
+        assert!(tasks::update_users::get_user_ids(&mut transaction)
             .await
             .unwrap()
-            .is_none());
+            .is_empty());
         transaction.commit().await.unwrap();
     }
 }

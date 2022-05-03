@@ -2,18 +2,19 @@ use std::sync::Arc;
 
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
+use crate::tasks;
 
 /// Starts a task manager that runs periodically.
 /// Does not block.
-pub async fn start_task_manager(context: Arc<DauthContext>) -> Result<(), DauthError> {
+pub async fn start(context: Arc<DauthContext>) -> Result<(), DauthError> {
     tracing::info!("Starting task manager");
 
-    tokio::spawn(async move { run_task_manager(context).await });
+    tokio::spawn(async move { run(context).await });
 
     Ok(())
 }
 
-async fn run_task_manager(context: Arc<DauthContext>) -> Result<(), DauthError> {
+async fn run(context: Arc<DauthContext>) -> Result<(), DauthError> {
     tracing::info!(
         "Task manager running, starting normal tasks in {:?}s",
         context.tasks_context.startup_delay
@@ -25,7 +26,10 @@ async fn run_task_manager(context: Arc<DauthContext>) -> Result<(), DauthError> 
     let mut interval = tokio::time::interval(context.tasks_context.interval);
     loop {
         tracing::info!("Checking for tasks to run");
-        // TODO: add tasks
+
+        if let Err(e) = tasks::update_users::run_task(context.clone()).await {
+            tracing::warn!("Failed to run update user task: {}", e)
+        }
 
         interval.tick().await;
     }
