@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use auth_vector::types::{HresStar, Kseaf};
+use tonic::transport::Channel;
 
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
@@ -27,7 +28,7 @@ pub async fn enroll_backup_prepare(
     backup_network_id: &str,
     address: &str,
 ) -> Result<(), DauthError> {
-    add_client(context.clone(), address).await?;
+    let mut client = build_client(context.clone(), address).await?;
 
     let sent_payload = enroll_backup_prepare_req::Payload {
         home_network_id: context.local_context.id.clone(),
@@ -36,13 +37,7 @@ pub async fn enroll_backup_prepare(
         user_id: user_id.as_bytes().to_vec(),
     };
 
-    let response = context
-        .rpc_context
-        .backup_clients
-        .lock()
-        .await
-        .get_mut(address)
-        .ok_or_else(|| DauthError::ClientError("Failed to get client".to_string()))?
+    let response = client
         .enroll_backup_prepare(EnrollBackupPrepareReq {
             message: Some(signing::sign_message(
                 context.clone(),
@@ -85,6 +80,8 @@ pub async fn enroll_backup_commit(
     key_shares: Vec<(HresStar, Kseaf)>,
     address: &str,
 ) -> Result<(), DauthError> {
+    let mut client = build_client(context.clone(), address).await?;
+
     let mut dvectors = Vec::new();
     let mut dshares = Vec::new();
 
@@ -103,13 +100,7 @@ pub async fn enroll_backup_commit(
         ))
     }
 
-    context
-        .rpc_context
-        .backup_clients
-        .lock()
-        .await
-        .get_mut(address)
-        .ok_or_else(|| DauthError::ClientError("Failed to get client".to_string()))?
+    client
         .enroll_backup_commit(EnrollBackupCommitReq {
             vectors: dvectors,
             shares: dshares,
@@ -127,13 +118,9 @@ pub async fn get_auth_vector(
     user_id: &str,
     address: &str,
 ) -> Result<AuthVectorRes, DauthError> {
-    let response = context
-        .rpc_context
-        .backup_clients
-        .lock()
-        .await
-        .get_mut(address)
-        .ok_or_else(|| DauthError::ClientError("Failed to get client".to_string()))?
+    let mut client = build_client(context.clone(), address).await?;
+
+    let response = client
         .get_auth_vector(GetBackupAuthVectorReq {
             message: Some(signing::sign_message(
                 context.clone(),
@@ -185,13 +172,9 @@ pub async fn get_key_share(
     res_star: Kseaf,
     address: &str,
 ) -> Result<Kseaf, DauthError> {
-    let response = context
-        .rpc_context
-        .backup_clients
-        .lock()
-        .await
-        .get_mut(address)
-        .ok_or_else(|| DauthError::ClientError("Failed to get client".to_string()))?
+    let mut client = build_client(context.clone(), address).await?;
+
+    let response = client
         .get_key_share(GetKeyShareReq {
             message: Some(signing::sign_message(
                 context.clone(),
@@ -230,13 +213,9 @@ pub async fn withdraw_backup(
     backup_network_id: &str,
     address: &str,
 ) -> Result<(), DauthError> {
-    context
-        .rpc_context
-        .backup_clients
-        .lock()
-        .await
-        .get_mut(address)
-        .ok_or_else(|| DauthError::ClientError("Failed to get client".to_string()))?
+    let mut client = build_client(context.clone(), address).await?;
+
+    client
         .withdraw_backup(WithdrawBackupReq {
             message: Some(signing::sign_message(
                 context.clone(),
@@ -259,19 +238,15 @@ pub async fn withdraw_shares(
     xres_star_hashs: Vec<HresStar>,
     address: &str,
 ) -> Result<(), DauthError> {
+    let mut client = build_client(context.clone(), address).await?;
+
     let mut proc_xrhs = Vec::new();
 
     for xrhs_slice in xres_star_hashs {
         proc_xrhs.push(xrhs_slice.to_vec());
     }
 
-    context
-        .rpc_context
-        .backup_clients
-        .lock()
-        .await
-        .get_mut(address)
-        .ok_or_else(|| DauthError::ClientError("Failed to get client".to_string()))?
+    client
         .withdraw_shares(WithdrawSharesReq {
             message: Some(signing::sign_message(
                 context.clone(),
@@ -294,13 +269,9 @@ pub async fn flood_vector(
     vector: &AuthVectorRes,
     address: &str,
 ) -> Result<(), DauthError> {
-    context
-        .rpc_context
-        .backup_clients
-        .lock()
-        .await
-        .get_mut(address)
-        .ok_or_else(|| DauthError::ClientError("Failed to get client".to_string()))?
+    let mut client = build_client(context.clone(), address).await?;
+
+    client
         .flood_vector(FloodVectorReq {
             message: Some(signing::sign_message(
                 context.clone(),
@@ -321,19 +292,12 @@ pub async fn flood_vector(
     Ok(())
 }
 
-/// Adds a client to the current context if it doesn't already exist.
-/// Otherwise, does nothing.
-async fn add_client(context: Arc<DauthContext>, address: &str) -> Result<(), DauthError> {
-    let mut clients = context.rpc_context.backup_clients.lock().await;
-
-    if !clients.contains_key(address) {
-        clients.insert(
-            address.to_string(),
-            BackupNetworkClient::connect(format!("http://{}", address)).await?,
-        );
-    }
-
-    Ok(())
+/// Builds and returns a client to the provided address.
+async fn build_client(
+    _context: Arc<DauthContext>,
+    address: &str,
+) -> Result<BackupNetworkClient<Channel>, DauthError> {
+    Ok(BackupNetworkClient::connect(format!("http://{}", address)).await?)
 }
 
 fn build_delegated_vector(

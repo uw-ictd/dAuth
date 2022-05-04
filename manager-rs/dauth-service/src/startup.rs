@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fs,
     path::PathBuf,
     sync::Arc,
@@ -33,9 +32,6 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
         rpc_context: RpcContext {
             host_addr: config.host_addr,
             directory_addr: config.directory_addr,
-            backup_clients: tokio::sync::Mutex::new(HashMap::new()),
-            home_clients: tokio::sync::Mutex::new(HashMap::new()),
-            directory_client: tokio::sync::Mutex::new(None),
         },
         tasks_context: TasksContext {
             start_time: SystemTime::now(),
