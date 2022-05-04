@@ -11,7 +11,7 @@ use crate::rpc::dauth::directory::{LookupUserReq, LooukupNetworkReq, RegisterReq
 /// Registers this network with the directory service.
 /// Provides this network's id, address, and public key.
 pub async fn register(context: Arc<DauthContext>) -> Result<(), DauthError> {
-    let mut client = build_client(context.clone(), &context.rpc_context.directory_addr).await?;
+    let mut client = get_client(context.clone()).await?;
 
     client
         .register(RegisterReq {
@@ -35,7 +35,7 @@ pub async fn lookup_network(
     context: Arc<DauthContext>,
     network_id: &str,
 ) -> Result<(String, PublicKey), DauthError> {
-    let mut client = build_client(context.clone(), &context.rpc_context.directory_addr).await?;
+    let mut client = get_client(context.clone()).await?;
 
     let response = client
         .lookup_network(LooukupNetworkReq {
@@ -57,7 +57,7 @@ pub async fn lookup_user(
     context: Arc<DauthContext>,
     user_id: &str,
 ) -> Result<(String, Vec<String>), DauthError> {
-    let mut client = build_client(context.clone(), &context.rpc_context.directory_addr).await?;
+    let mut client = get_client(context.clone()).await?;
 
     let response = client
         .lookup_user(LookupUserReq {
@@ -77,7 +77,7 @@ pub async fn upsert_user(
     user_id: &str,
     backup_network_ids: Vec<String>,
 ) -> Result<(), DauthError> {
-    let mut client = build_client(context.clone(), &context.rpc_context.directory_addr).await?;
+    let mut client = get_client(context.clone()).await?;
 
     client
         .upsert_user(UpsertUserReq {
@@ -90,10 +90,18 @@ pub async fn upsert_user(
     Ok(())
 }
 
-/// Builds and returns a client to the provided address.
-async fn build_client(
-    _context: Arc<DauthContext>,
-    address: &str,
-) -> Result<DirectoryClient<Channel>, DauthError> {
-    Ok(DirectoryClient::connect(format!("http://{}", address)).await?)
+/// Returns a client to the directory service at the provided address.
+/// Builds and caches the client if one does not exist.
+async fn get_client(context: Arc<DauthContext>) -> Result<DirectoryClient<Channel>, DauthError> {
+    let mut client_option = context.rpc_context.directory_client.lock().await;
+    if client_option.is_none() {
+        *client_option = Some(
+            DirectoryClient::connect(format!("http://{}", context.rpc_context.directory_addr))
+                .await?,
+        );
+    }
+
+    Ok(client_option
+        .clone()
+        .ok_or(DauthError::ClientError("Client not found".to_string()))?)
 }

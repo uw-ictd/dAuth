@@ -18,7 +18,7 @@ pub async fn get_auth_vector(
     user_id: &str,
     address: &str,
 ) -> Result<AuthVectorRes, DauthError> {
-    let mut client = build_client(context.clone(), address).await?;
+    let mut client = get_client(context.clone(), address).await?;
 
     let response = client
         .get_auth_vector(GetHomeAuthVectorReq {
@@ -68,7 +68,7 @@ pub async fn get_confirm_key(
     xres_star_hash: &HresStar,
     address: &str,
 ) -> Result<Kseaf, DauthError> {
-    let mut client = build_client(context.clone(), address).await?;
+    let mut client = get_client(context.clone(), address).await?;
 
     let response = client
         .get_confirm_key(GetHomeConfirmKeyReq {
@@ -87,10 +87,23 @@ pub async fn get_confirm_key(
     Ok(response.kseaf[..].try_into()?)
 }
 
-/// Builds and returns a client to the provided address.
-async fn build_client(
-    _context: Arc<DauthContext>,
+/// Returns a client to the service at the provided address.
+/// Builds and caches a client if one does not exist.
+async fn get_client(
+    context: Arc<DauthContext>,
     address: &str,
 ) -> Result<HomeNetworkClient<Channel>, DauthError> {
-    Ok(HomeNetworkClient::connect(format!("http://{}", address)).await?)
+    let mut clients = context.rpc_context.home_clients.lock().await;
+
+    if !clients.contains_key(address) {
+        clients.insert(
+            address.to_string(),
+            HomeNetworkClient::connect(format!("http://{}", address)).await?,
+        );
+    }
+
+    Ok(clients
+        .get(address)
+        .ok_or(DauthError::ClientError("Client not found".to_string()))?
+        .clone())
 }

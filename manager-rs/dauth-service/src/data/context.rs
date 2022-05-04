@@ -1,6 +1,13 @@
 use ed25519_dalek::Keypair;
 use sqlx::SqlitePool;
+use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
+use tonic::transport::Channel;
+
+use crate::rpc::dauth::directory::directory_client::DirectoryClient;
+use crate::rpc::dauth::remote::{
+    backup_network_client::BackupNetworkClient, home_network_client::HomeNetworkClient,
+};
 
 /// Maintains the context for all components of
 /// the dAuth service. All state exists here.
@@ -22,6 +29,9 @@ pub struct LocalContext {
 pub struct RpcContext {
     pub host_addr: String,
     pub directory_addr: String,
+    pub home_clients: tokio::sync::Mutex<HashMap<String, HomeNetworkClient<Channel>>>,
+    pub backup_clients: tokio::sync::Mutex<HashMap<String, BackupNetworkClient<Channel>>>,
+    pub directory_client: tokio::sync::Mutex<Option<DirectoryClient<Channel>>>,
 }
 
 #[derive(Debug)]
