@@ -1,10 +1,8 @@
 use ed25519_dalek::Keypair;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
-use tokio::runtime::Handle;
+use std::time::{Duration, Instant};
 use tonic::transport::Channel;
-
-use auth_vector::types::Id;
 
 use crate::rpc::dauth::directory::directory_client::DirectoryClient;
 use crate::rpc::dauth::remote::{
@@ -16,29 +14,30 @@ use crate::rpc::dauth::remote::{
 #[derive(Debug)]
 pub struct DauthContext {
     pub local_context: LocalContext,
-    pub remote_context: RemoteContext,
     pub rpc_context: RpcContext,
+    pub tasks_context: TasksContext,
 }
 
 #[derive(Debug)]
 pub struct LocalContext {
     pub id: String,
     pub database_pool: SqlitePool,
-    pub local_user_id_min: Id,
-    pub local_user_id_max: Id,
     pub signing_keys: Keypair,
 }
 
 #[derive(Debug)]
-pub struct RemoteContext {
-    pub backup_networks: Vec<String>,
+pub struct RpcContext {
+    pub host_addr: String,
+    pub directory_addr: String,
+    pub home_clients: tokio::sync::Mutex<HashMap<String, HomeNetworkClient<Channel>>>,
+    pub backup_clients: tokio::sync::Mutex<HashMap<String, BackupNetworkClient<Channel>>>,
+    pub directory_client: tokio::sync::Mutex<Option<DirectoryClient<Channel>>>,
 }
 
 #[derive(Debug)]
-pub struct RpcContext {
-    pub runtime_handle: Handle,
-    pub host_addr: String,
-    pub home_clients: tokio::sync::Mutex<HashMap<String, HomeNetworkClient<Channel>>>,
-    pub backup_clients: tokio::sync::Mutex<HashMap<String, BackupNetworkClient<Channel>>>,
-    pub directory_client: tokio::sync::Mutex<DirectoryClient<Channel>>,
+pub struct TasksContext {
+    pub start_time: Instant,
+    pub startup_delay: Duration,
+    pub interval: Duration,
+    pub is_registered: tokio::sync::Mutex<bool>,
 }

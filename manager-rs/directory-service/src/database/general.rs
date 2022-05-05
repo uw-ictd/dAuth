@@ -18,6 +18,10 @@ pub async fn build_pool(database_path: &str) -> Result<SqlitePool, DirectoryErro
 /// Builds the database connection pool.
 /// Creates the database and tables if they don't exist.
 pub async fn database_init(database_path: &str) -> Result<SqlitePool, DirectoryError> {
+    let path = std::path::Path::new(database_path);
+    let prefix = path.parent().unwrap();
+    std::fs::create_dir_all(prefix).unwrap();
+
     let pool: SqlitePool = database::general::build_pool(database_path).await?;
 
     database::networks::init_table(&pool).await?;

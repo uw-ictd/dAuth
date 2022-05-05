@@ -18,6 +18,10 @@ pub async fn build_pool(database_path: &str) -> Result<SqlitePool, DauthError> {
 /// Builds the database connection pool.
 /// Creates the database and tables if they don't exist.
 pub async fn database_init(database_path: &str) -> Result<SqlitePool, DauthError> {
+    let path = std::path::Path::new(database_path);
+    let prefix = path.parent().unwrap();
+    std::fs::create_dir_all(prefix).unwrap();
+    
     let pool: SqlitePool = database::general::build_pool(database_path).await?;
 
     database::flood_vectors::init_table(&pool).await?;
@@ -27,6 +31,7 @@ pub async fn database_init(database_path: &str) -> Result<SqlitePool, DauthError
     database::key_shares::init_table(&pool).await?;
     database::backup_networks::init_table(&pool).await?;
     database::backup_users::init_table(&pool).await?;
+    database::tasks::update_users::init_table(&pool).await?;
 
     Ok(pool)
 }

@@ -14,13 +14,12 @@ use crate::data::{error::DauthError, user_info::UserInfo, utilities};
 pub struct DauthConfig {
     pub id: String,
     pub users: HashMap<String, UserInfoConfig>,
-    pub backup_networks: Vec<String>,
     pub host_addr: String,
     pub directory_addr: String,
-    pub local_user_id_min: String,
-    pub local_user_id_max: String,
     pub ed25519_keyfile_path: String,
     pub database_path: String,
+    pub task_startup_delay: f64,
+    pub task_interval: f64,
 }
 
 /// For ease of inputting content in the yaml file
@@ -30,6 +29,7 @@ pub struct UserInfoConfig {
     pub k: String,
     pub opc: String,
     pub sqn_max: String,
+    pub backup_network_ids: Vec<String>,
 }
 
 impl UserInfoConfig {
