@@ -3,7 +3,7 @@ use std::{
     fs,
     path::PathBuf,
     sync::Arc,
-    time::{Duration, SystemTime},
+    time::{Duration, Instant},
 };
 
 use ed25519_dalek::Keypair;
@@ -38,7 +38,7 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             directory_client: tokio::sync::Mutex::new(None),
         },
         tasks_context: TasksContext {
-            start_time: SystemTime::now(),
+            start_time: Instant::now(),
             startup_delay: Duration::from_secs_f64(config.task_startup_delay),
             interval: Duration::from_secs_f64(config.task_interval),
             is_registered: tokio::sync::Mutex::new(false),

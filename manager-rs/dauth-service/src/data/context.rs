@@ -1,7 +1,7 @@
 use ed25519_dalek::Keypair;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant};
 use tonic::transport::Channel;
 
 use crate::rpc::dauth::directory::directory_client::DirectoryClient;
@@ -36,7 +36,7 @@ pub struct RpcContext {
 
 #[derive(Debug)]
 pub struct TasksContext {
-    pub start_time: SystemTime,
+    pub start_time: Instant,
     pub startup_delay: Duration,
     pub interval: Duration,
     pub is_registered: tokio::sync::Mutex<bool>,
