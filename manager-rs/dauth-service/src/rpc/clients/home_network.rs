@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use auth_vector::types::{HresStar, Kseaf, ResStar};
+use tonic::transport::Channel;
 
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
@@ -17,15 +18,9 @@ pub async fn get_auth_vector(
     user_id: &str,
     address: &str,
 ) -> Result<AuthVectorRes, DauthError> {
-    add_client(context.clone(), address).await?;
+    let mut client = get_client(context.clone(), address).await?;
 
-    let response = context
-        .rpc_context
-        .home_clients
-        .lock()
-        .await
-        .get_mut(address)
-        .ok_or_else(|| DauthError::ClientError("Failed to get client".to_string()))?
+    let response = client
         .get_auth_vector(GetHomeAuthVectorReq {
             message: Some(signing::sign_message(
                 context.clone(),
@@ -73,15 +68,9 @@ pub async fn get_confirm_key(
     xres_star_hash: &HresStar,
     address: &str,
 ) -> Result<Kseaf, DauthError> {
-    add_client(context.clone(), address).await?;
+    let mut client = get_client(context.clone(), address).await?;
 
-    let response = context
-        .rpc_context
-        .home_clients
-        .lock()
-        .await
-        .get_mut(address)
-        .ok_or_else(|| DauthError::ClientError("Failed to get client".to_string()))?
+    let response = client
         .get_confirm_key(GetHomeConfirmKeyReq {
             message: Some(signing::sign_message(
                 context.clone(),
@@ -98,9 +87,12 @@ pub async fn get_confirm_key(
     Ok(response.kseaf[..].try_into()?)
 }
 
-/// Adds a client to the current context if it doesn't already exist.
-/// Otherwise, does nothing.
-async fn add_client(context: Arc<DauthContext>, address: &str) -> Result<(), DauthError> {
+/// Returns a client to the service at the provided address.
+/// Builds and caches a client if one does not exist.
+async fn get_client(
+    context: Arc<DauthContext>,
+    address: &str,
+) -> Result<HomeNetworkClient<Channel>, DauthError> {
     let mut clients = context.rpc_context.home_clients.lock().await;
 
     if !clients.contains_key(address) {
@@ -110,5 +102,8 @@ async fn add_client(context: Arc<DauthContext>, address: &str) -> Result<(), Dau
         );
     }
 
-    Ok(())
+    Ok(clients
+        .get(address)
+        .ok_or(DauthError::ClientError("Client not found".to_string()))?
+        .clone())
 }
