@@ -8,3 +8,4 @@ pub mod kseafs;
 pub mod tasks;
 pub mod user_infos;
 pub mod utilities;
+pub mod vector_state;
