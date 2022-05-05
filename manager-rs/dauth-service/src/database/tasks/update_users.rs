@@ -62,7 +62,7 @@ pub async fn get_user_ids(
 }
 
 /// Gets all backup network ids and sqn slices for a given user id.
-pub async fn get_backup_network_ids(
+pub async fn get_user_data(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
 ) -> Result<Vec<(String, u32)>, DauthError> {
@@ -213,7 +213,7 @@ mod tests {
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        tasks::update_users::get_backup_network_ids(&mut transaction, user_id)
+        tasks::update_users::get_user_data(&mut transaction, user_id)
             .await
             .unwrap();
     }
