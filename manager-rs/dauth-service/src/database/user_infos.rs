@@ -8,10 +8,12 @@ use crate::data::error::DauthError;
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS user_info_table (
-            user_info_id TEST PRIMARY KEY,
+            user_info_id TEXT NOT NULL,
             user_info_k BLOB NOT NULL,
             user_info_opc BLOB NOT NULL,
-            user_info_sqn_max BLOB NOT NULL
+            user_info_sqn_max BLOB NOT NULL,
+            user_info_sqn_slice INT NOT NULL,
+            PRIMARY KEY (user_info_id, user_info_sqn_slice)
         );",
     )
     .execute(pool)
@@ -25,12 +27,14 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &Id,
+    sqn_slice: u32,
 ) -> Result<SqliteRow, DauthError> {
     Ok(sqlx::query(
         "SELECT * FROM user_info_table
-        WHERE user_info_id=$1;",
+        WHERE (user_info_id,user_info_sqn_slice)=($1,$2);",
     )
     .bind(user_id)
+    .bind(sqn_slice)
     .fetch_one(transaction)
     .await?)
 }
@@ -42,15 +46,17 @@ pub async fn upsert(
     k: &[u8],
     opc: &[u8],
     sqn_max: &[u8],
+    sqn_slice: u32,
 ) -> Result<(), DauthError> {
     sqlx::query(
         "REPLACE INTO user_info_table
-        VALUES ($1,$2,$3,$4);",
+        VALUES ($1,$2,$3,$4,$5);",
     )
     .bind(user_id)
     .bind(k)
     .bind(opc)
     .bind(sqn_max)
+    .bind(sqn_slice)
     .execute(transaction)
     .await?;
 
@@ -127,6 +133,7 @@ mod tests {
                     &[section * num_rows + row; K_LENGTH],
                     &[section * num_rows + row; OPC_LENGTH],
                     &[section * num_rows + row; SQN_LENGTH],
+                    0,
                 )
                 .await
                 .unwrap();
@@ -153,6 +160,7 @@ mod tests {
                     &[section * num_rows + row; K_LENGTH],
                     &[section * num_rows + row; OPC_LENGTH],
                     &[section * num_rows + row; SQN_LENGTH],
+                    0,
                 )
                 .await
                 .unwrap();
@@ -166,6 +174,7 @@ mod tests {
                 let res = user_infos::get(
                     &mut transaction,
                     &format!("user_info_{}", section * num_rows + row),
+                    0,
                 )
                 .await
                 .unwrap();
@@ -209,6 +218,7 @@ mod tests {
                     &[section * num_rows + row; K_LENGTH],
                     &[section * num_rows + row; OPC_LENGTH],
                     &[section * num_rows + row; SQN_LENGTH],
+                    0,
                 )
                 .await
                 .unwrap();
@@ -233,6 +243,7 @@ mod tests {
                 assert!(user_infos::get(
                     &mut transaction,
                     &format!("user_info_{}", section * num_rows + row),
+                    0,
                 )
                 .await
                 .is_err());
@@ -260,6 +271,7 @@ mod tests {
                     &[section * num_rows + row; K_LENGTH],
                     &[section * num_rows + row; OPC_LENGTH],
                     &[section * num_rows + row; SQN_LENGTH],
+                    0,
                 )
                 .await
                 .unwrap();
@@ -273,6 +285,7 @@ mod tests {
                 let res = user_infos::get(
                     &mut transaction,
                     &format!("user_info_{}", section * num_rows + row),
+                    0,
                 )
                 .await
                 .unwrap();
@@ -306,6 +319,7 @@ mod tests {
                     &[section * num_rows + row + 1; K_LENGTH],
                     &[section * num_rows + row + 2; OPC_LENGTH],
                     &[section * num_rows + row + 3; SQN_LENGTH],
+                    0,
                 )
                 .await
                 .unwrap();
@@ -319,6 +333,7 @@ mod tests {
                 let res = user_infos::get(
                     &mut transaction,
                     &format!("user_info_{}", section * num_rows + row),
+                    0,
                 )
                 .await
                 .unwrap();

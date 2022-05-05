@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use crate::data::context::DauthContext;
-use crate::data::vector::AuthVectorReq;
 use crate::manager;
 use crate::rpc::dauth::local::aka_confirm_resp;
 use crate::rpc::dauth::local::local_authentication_server::LocalAuthentication;
@@ -21,19 +20,26 @@ impl LocalAuthentication for LocalAuthenticationHandler {
     ) -> Result<tonic::Response<AkaVectorResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        let av_request: AuthVectorReq;
-        match AuthVectorReq::from_req(request.into_inner()) {
-            Ok(req) => av_request = req,
+        let content = request.into_inner();
+        let user_id: String;
+        match std::str::from_utf8(content.user_id.as_slice()) {
+            Ok(res) => user_id = res.to_string(),
             Err(e) => return Err(tonic::Status::new(tonic::Code::Aborted, e.to_string())),
         }
 
-        match manager::find_vector(self.context.clone(), &av_request).await {
+        match manager::find_vector(
+            self.context.clone(),
+            &user_id,
+            &self.context.local_context.id,
+        )
+        .await
+        {
             Ok(av_result) => {
                 tracing::info!("Returning result: {:?}", av_result);
                 Ok(tonic::Response::new(av_result.to_resp()))
             }
             Err(e) => {
-                tracing::error!("Error while handling request for {:?}: {}", av_request, e);
+                tracing::error!("Error while handling request: {}", e);
                 Err(tonic::Status::new(tonic::Code::Aborted, e.to_string()))
             }
         }

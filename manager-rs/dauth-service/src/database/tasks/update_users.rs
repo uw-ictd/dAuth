@@ -8,10 +8,12 @@ use crate::data::error::DauthError;
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS task_update_users_table (
-            user_id TEXT NOT NULL
-                REFERENCES user_info_table(user_info_id),
+            user_id TEXT NOT NULL,
+            sqn_slice INT NOT NULL,
             backup_network_id INT NOT NULL,
-            PRIMARY KEY (user_id, backup_network_id)
+            PRIMARY KEY (user_id, sqn_slice),
+            FOREIGN KEY (user_id, sqn_slice) 
+                REFERENCES user_info_table(user_info_id, user_info_sqn_slice)
         );",
     )
     .execute(pool)
@@ -25,15 +27,17 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
+    sqn_slice: u32,
     backup_network_ids: &Vec<String>,
 ) -> Result<(), DauthError> {
     // TODO: Add more efficient multi insert?
     for backup_network_id in backup_network_ids {
         sqlx::query(
             "REPLACE INTO task_update_users_table
-            VALUES ($1,$2)",
+            VALUES ($1,$2,$3)",
         )
         .bind(user_id)
+        .bind(sqn_slice)
         .bind(backup_network_id)
         .execute(&mut *transaction)
         .await?;
@@ -57,14 +61,14 @@ pub async fn get_user_ids(
     Ok(result)
 }
 
-/// Gets all backup network ids for a given user id.
+/// Gets all backup network ids and sqn slices for a given user id.
 pub async fn get_backup_network_ids(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
-) -> Result<Vec<String>, DauthError> {
+) -> Result<Vec<(String, u32)>, DauthError> {
     let mut result = Vec::new();
     let rows = sqlx::query(
-        "SELECT backup_network_id FROM task_update_users_table
+        "SELECT * FROM task_update_users_table
         WHERE user_id=$1;",
     )
     .bind(user_id)
@@ -72,7 +76,10 @@ pub async fn get_backup_network_ids(
     .await?;
 
     for row in rows {
-        result.push(row.try_get::<String, &str>("backup_network_id")?);
+        result.push((
+            row.try_get::<String, &str>("backup_network_id")?,
+            row.try_get::<u32, &str>("sqn_slice")?,
+        ));
     }
     Ok(result)
 }
@@ -140,6 +147,7 @@ mod tests {
                 &[0u8, 3],
                 &[0u8, 3],
                 &[0u8, 3],
+                0,
             )
             .await
             .unwrap();
@@ -147,6 +155,7 @@ mod tests {
             tasks::update_users::add(
                 &mut transaction,
                 &format!("test_user_id_{}", row),
+                0,
                 &vec![
                     "test_network_id_a".to_string(),
                     "test_network_id_b".to_string(),
@@ -177,6 +186,7 @@ mod tests {
             &[0u8, 3],
             &[0u8, 3],
             &[0u8, 3],
+            0,
         )
         .await
         .unwrap();
@@ -184,6 +194,7 @@ mod tests {
         tasks::update_users::add(
             &mut transaction,
             "test_user_id",
+            0,
             &vec![
                 "test_network_id_a".to_string(),
                 "test_network_id_b".to_string(),
@@ -202,12 +213,9 @@ mod tests {
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        let backup_ids = tasks::update_users::get_backup_network_ids(&mut transaction, user_id)
+        tasks::update_users::get_backup_network_ids(&mut transaction, user_id)
             .await
             .unwrap();
-        assert!(backup_ids.contains(&"test_network_id_a".to_string()));
-        assert!(backup_ids.contains(&"test_network_id_b".to_string()));
-        assert!(backup_ids.contains(&"test_network_id_c".to_string()));
     }
 
     #[tokio::test]
@@ -223,6 +231,7 @@ mod tests {
                 &[0u8, 3],
                 &[0u8, 3],
                 &[0u8, 3],
+                0,
             )
             .await
             .unwrap();
@@ -230,6 +239,7 @@ mod tests {
             tasks::update_users::add(
                 &mut transaction,
                 &format!("test_user_id_{}", row),
+                0,
                 &vec![
                     "test_network_id_a".to_string(),
                     "test_network_id_b".to_string(),

@@ -33,12 +33,12 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
 async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result<(), DauthError> {
     let mut transaction = context.local_context.database_pool.begin().await.unwrap();
 
-    let backup_network_ids =
+    let user_data =
         database::tasks::update_users::get_backup_network_ids(&mut transaction, &user_id).await?;
 
-    directory::upsert_user(context.clone(), &user_id, backup_network_ids.clone()).await?;
+    let mut backup_network_ids = Vec::new();
 
-    for backup_network_id in backup_network_ids {
+    for (backup_network_id, sqn_slice) in user_data {
         let (address, _) = directory::lookup_network(context.clone(), &backup_network_id).await?;
         backup_network::enroll_backup_prepare(
             context.clone(),
@@ -58,7 +58,11 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
             &address,
         )
         .await?;
+
+        backup_network_ids.push(backup_network_id);
     }
+
+    directory::upsert_user(context.clone(), &user_id, backup_network_ids).await?;
 
     database::tasks::update_users::remove(&mut transaction, &user_id).await?;
 

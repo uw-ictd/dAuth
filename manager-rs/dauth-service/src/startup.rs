@@ -56,12 +56,14 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             &user_info.k,
             &user_info.opc,
             &user_info.sqn_max,
+            user_info.sqn_slice,
         )
         .await?;
 
         database::tasks::update_users::add(
             &mut transaction,
             &user_id,
+            user_info.sqn_slice,
             &user_info_config.backup_network_ids,
         )
         .await?;

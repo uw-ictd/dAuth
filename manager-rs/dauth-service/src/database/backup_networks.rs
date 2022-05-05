@@ -1,5 +1,5 @@
 use sqlx::sqlite::{SqlitePool, SqliteRow};
-use sqlx::Error as SqlxError;
+use sqlx::{Error as SqlxError, Row};
 use sqlx::{Sqlite, Transaction};
 
 use crate::data::error::DauthError;
@@ -56,6 +56,23 @@ pub async fn get(
     .bind(backup_network_id)
     .fetch_one(transaction)
     .await?)
+}
+
+/// Gets the backup info for a given network and user id
+pub async fn get_slice(
+    transaction: &mut Transaction<'_, Sqlite>,
+    user_id: &str,
+    backup_network_id: &str,
+) -> Result<u32, SqlxError> {
+    Ok(sqlx::query(
+        "SELECT seq_num_slice FROM backup_networks_table
+        WHERE (user_id,backup_network_id)=($1,$2);",
+    )
+    .bind(user_id)
+    .bind(backup_network_id)
+    .fetch_one(transaction)
+    .await?
+    .try_get::<u32, &str>("seq_num_slice")?)
 }
 
 /// Removes the network as a backup for this network

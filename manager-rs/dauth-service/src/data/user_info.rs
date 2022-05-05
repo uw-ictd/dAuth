@@ -6,6 +6,7 @@ pub struct UserInfo {
     pub k: K,
     pub opc: Opc,
     pub sqn_max: Sqn,
+    pub sqn_slice: u32,
 }
 
 impl UserInfo {
@@ -87,6 +88,7 @@ mod tests {
             k: [0; auth_vector::constants::K_LENGTH],
             opc: [0; auth_vector::constants::OPC_LENGTH],
             sqn_max: v1,
+            sqn_slice: 0,
         };
 
         ui.increment_sqn(amount);
