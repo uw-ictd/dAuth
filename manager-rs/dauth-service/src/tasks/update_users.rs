@@ -102,8 +102,13 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
         .await?;
 
         let mut transaction = context.local_context.database_pool.begin().await?;
-        database::backup_networks::add(&mut transaction, user_id, backup_network_id, *seqnum_slice)
-            .await?;
+        database::backup_networks::upsert(
+            &mut transaction,
+            user_id,
+            backup_network_id,
+            *seqnum_slice,
+        )
+        .await?;
         for vector in vectors {
             database::vector_state::add(
                 &mut transaction,

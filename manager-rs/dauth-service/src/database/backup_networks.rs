@@ -22,15 +22,16 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 
 /* Queries */
 
-/// Adds a network as a backup for the user id and seqnum slice
-pub async fn add(
+/// Adds a network as a backup for the user id and seqnum slice.
+/// Changes seqnum slice if user/network pair exists.
+pub async fn upsert(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     backup_network_id: &str,
     seqnum_slice: u32,
 ) -> Result<(), SqlxError> {
     sqlx::query(
-        "INSERT INTO backup_networks_table
+        "REPLACE INTO backup_networks_table
         VALUES ($1,$2,$3)",
     )
     .bind(user_id)
@@ -128,7 +129,7 @@ mod tests {
 
     /// Test that insert works
     #[tokio::test]
-    async fn test_add() {
+    async fn test_upsert() {
         let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
@@ -138,7 +139,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                backup_networks::add(
+                backup_networks::upsert(
                     &mut transaction,
                     &format!("test_user_id_{}", row),
                     &format!("test_network_id_{}", section),
@@ -163,7 +164,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                backup_networks::add(
+                backup_networks::upsert(
                     &mut transaction,
                     &format!("test_user_id_{}", row),
                     &format!("test_network_id_{}", section),
@@ -205,7 +206,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                backup_networks::add(
+                backup_networks::upsert(
                     &mut transaction,
                     &format!("test_user_id_{}", row),
                     &format!("test_network_id_{}", section),
