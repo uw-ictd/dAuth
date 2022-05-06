@@ -1,4 +1,3 @@
-use sqlx::Row;
 use std::sync::Arc;
 
 use crate::data::{context::DirectoryContext, error::DirectoryError};
@@ -54,8 +53,7 @@ pub async fn lookup_user(
     tracing::info!("Looup user called: {:?}", user_id);
 
     let mut transaction = context.database_pool.begin().await?;
-    let row = database::users::get(&mut transaction, user_id).await?;
-    let home_network_id = row.try_get::<String, &str>("home_network_id")?;
+    let home_network_id = database::users::get(&mut transaction, user_id).await?;
 
     let backup_network_ids = database::backups::get(&mut transaction, user_id).await?;
     transaction.commit().await?;
@@ -83,8 +81,8 @@ pub async fn upsert_user(
 
     let mut transaction = context.database_pool.begin().await?;
 
-    if let Ok(row) = database::users::get(&mut transaction, user_id).await {
-        if home_network_id == row.try_get::<String, &str>("home_network_id")? {
+    if let Ok(network_id) = database::users::get(&mut transaction, user_id).await {
+        if home_network_id == network_id {
             database::backups::remove(&mut transaction, user_id).await?;
         } else {
             return Err(DirectoryError::InvalidAccess(
