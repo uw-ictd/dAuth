@@ -42,20 +42,20 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
         database::tasks::update_users::get_user_data(&mut transaction, &user_id).await?;
 
     let mut backup_network_ids = Vec::new();
-    let mut vectors_map: HashMap<String, Vec<AuthVectorRes>> = HashMap::new();
-    let mut shares_map: HashMap<String, Vec<(HresStar, Kseaf)>> = HashMap::new();
+    let mut vectors_map = HashMap::new();
+    let mut shares_map = HashMap::new();
 
-    // setup data structures
     for (backup_network_id, _) in &user_data {
         backup_network_ids.push(backup_network_id.clone());
         vectors_map.insert(backup_network_id.clone(), Vec::new());
         shares_map.insert(backup_network_id.clone(), Vec::new());
     }
 
-    // TODO: add to config
+    directory::upsert_user(context.clone(), &user_id, backup_network_ids.clone()).await?;
+
     let num_vectors = 10;
+
     for _ in 0..num_vectors {
-        // build vectors and shares
         for (backup_network_id, sqn_slice) in &user_data {
             let vector =
                 manager::generate_auth_vector(context.clone(), user_id, *sqn_slice).await?;
@@ -79,11 +79,12 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
             }
 
             if !shares.is_empty() {
-                tracing::warn!("Unused shares!")
+                tracing::warn!("{} unused share(s) after share generation", shares.len())
             }
         }
     }
 
+    // TODO: Handle cleanup after failure
     for backup_network_id in &backup_network_ids {
         let (address, _) = directory::lookup_network(context.clone(), &backup_network_id).await?;
 
@@ -94,8 +95,6 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
             .get(backup_network_id)
             .ok_or_else(|| DauthError::DataError("Failed to get shares".to_string()))?;
 
-        // TODO: Add to network tables and vector state!
-
         backup_network::enroll_backup_prepare(
             context.clone(),
             user_id,
@@ -104,7 +103,6 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
         )
         .await?;
 
-        // TODO: Add vector/key share generation
         backup_network::enroll_backup_commit(
             context.clone(),
             backup_network_id,
@@ -115,8 +113,6 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
         )
         .await?;
     }
-
-    directory::upsert_user(context.clone(), &user_id, backup_network_ids).await?;
 
     database::tasks::update_users::remove(&mut transaction, &user_id).await?;
 
