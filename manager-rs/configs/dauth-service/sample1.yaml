@@ -24,7 +24,7 @@ users: {
   "imsi-901700000000001": {
     "k": "465B5CE8B199B49FAA5F0A2EE238A6BC",
     "opc": "E8ED289DEBA952E4283B54E88E6183CA",
-    "sqn_max": "32",
+    "sqn_max": "33",
     "sqn_slice": 1,
     "backup_network_ids": [
       "sample-network-2"

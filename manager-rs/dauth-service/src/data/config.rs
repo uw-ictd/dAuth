@@ -48,7 +48,7 @@ impl UserInfoConfig {
             k,
             opc,
             sqn_max,
-            sqn_slice: self.sqn_slice,
+            sqn_slice: self.sqn_slice % 32,
         })
     }
 }
