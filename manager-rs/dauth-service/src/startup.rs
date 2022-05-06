@@ -48,17 +48,22 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
     });
 
     for (user_id, user_info_config) in config.users {
-        let user_info = user_info_config.to_user_info()?;
-
-        tracing::info!("inserting user info: {:?} - {:?}", user_id, user_info);
+        tracing::info!(
+            "inserting user info: {:?} - {:?}",
+            user_id,
+            user_info_config
+        );
 
         let mut transaction = context.local_context.database_pool.begin().await?;
         database::user_infos::upsert(
             &mut transaction,
             &user_id,
-            &user_info.k,
-            &user_info.opc,
-            &user_info.sqn_max,
+            &user_info_config.get_k()?,
+            &user_info_config.get_opc()?,
+            *user_info_config
+                .sqn_slice_max
+                .get(&0)
+                .ok_or(DauthError::ConfigError("No home network slice".to_string()))?,
             0, // home network
         )
         .await?;
@@ -72,21 +77,27 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             )));
         }
 
-        for (backup_network_id, sqn_slice) in user_info_config.backup_network_ids {
+        for (backup_network_id, sqn_slice) in &user_info_config.backup_network_ids {
             database::user_infos::upsert(
                 &mut transaction,
                 &user_id,
-                &user_info.k,
-                &user_info.opc,
-                &user_info.sqn_max,
-                sqn_slice,
+                &user_info_config.get_k()?,
+                &user_info_config.get_opc()?,
+                *user_info_config
+                    .sqn_slice_max
+                    .get(&0)
+                    .ok_or(DauthError::ConfigError(format!(
+                        "Missing key slice for {}",
+                        sqn_slice
+                    )))?,
+                *sqn_slice,
             )
             .await?;
 
             database::tasks::update_users::add(
                 &mut transaction,
                 &user_id,
-                sqn_slice,
+                *sqn_slice,
                 &backup_network_id,
             )
             .await?;

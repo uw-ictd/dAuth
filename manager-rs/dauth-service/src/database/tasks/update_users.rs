@@ -138,16 +138,18 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            user_infos::upsert(
-                &mut transaction,
-                &format!("test_user_id_{}", row),
-                &[0u8, 3],
-                &[0u8, 3],
-                &[0u8, 3],
-                0,
-            )
-            .await
-            .unwrap();
+            for sqn_max in 0..3 {
+                user_infos::upsert(
+                    &mut transaction,
+                    &format!("test_user_id_{}", row),
+                    &[0u8, 3],
+                    &[0u8, 3],
+                    sqn_max,
+                    sqn_max as u32,
+                )
+                .await
+                .unwrap();
+            }
 
             tasks::update_users::add(
                 &mut transaction,
@@ -189,16 +191,18 @@ mod tests {
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        user_infos::upsert(
-            &mut transaction,
-            &"test_user_id".to_string(),
-            &[0u8, 3],
-            &[0u8, 3],
-            &[0u8, 3],
-            0,
-        )
-        .await
-        .unwrap();
+        for sqn_max in 0..3 {
+            user_infos::upsert(
+                &mut transaction,
+                &"test_user_id".to_string(),
+                &[0u8, 3],
+                &[0u8, 3],
+                sqn_max,
+                sqn_max as u32,
+            )
+            .await
+            .unwrap();
+        }
 
         tasks::update_users::add(&mut transaction, "test_user_id", 0, "test_network_id_a")
             .await
@@ -231,16 +235,18 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            user_infos::upsert(
-                &mut transaction,
-                &format!("test_user_id_{}", row),
-                &[0u8, 3],
-                &[0u8, 3],
-                &[0u8, 3],
-                0,
-            )
-            .await
-            .unwrap();
+            for sqn_max in 0..3 {
+                user_infos::upsert(
+                    &mut transaction,
+                    &format!("test_user_id_{}", row),
+                    &[0u8, 3],
+                    &[0u8, 3],
+                    sqn_max,
+                    sqn_max as u32,
+                )
+                .await
+                .unwrap();
+            }
 
             tasks::update_users::add(
                 &mut transaction,

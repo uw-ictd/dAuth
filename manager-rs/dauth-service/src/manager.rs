@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
-use auth_vector;
+use auth_vector::{self, constants::SQN_LENGTH};
 
 use crate::data::{
     context::DauthContext,
     error::DauthError,
-    utilities,
     vector::{AuthVectorReq, AuthVectorRes},
 };
 use crate::database;
@@ -81,24 +80,27 @@ pub async fn generate_auth_vector(
     tracing::info!("User found: {:?}", user_info);
 
     // generate vector, then store new sqn max in the database
-    let auth_vector_data =
-        auth_vector::generate_vector(&user_info.k, &user_info.opc, &user_info.sqn_max);
-    user_info.increment_sqn(context.local_context.num_sqn_slices as u64);
+    let auth_vector_data = auth_vector::generate_vector(
+        &user_info.k,
+        &user_info.opc,
+        &user_info.sqn.to_be_bytes()[..SQN_LENGTH].try_into()?,
+    );
+
+    user_info.sqn += context.local_context.num_sqn_slices as u64;
+
     database::user_infos::upsert(
         &mut transaction,
         &user_id.to_string(),
         &user_info.k,
         &user_info.opc,
-        &user_info.sqn_max,
+        user_info.sqn,
         sqn_slice,
     )
     .await?;
 
-    let seqnum = utilities::convert_sqn_bytes_to_int(&user_info.sqn_max)?;
-
     let av_response = AuthVectorRes {
         user_id: user_id.to_string(),
-        seqnum,
+        seqnum: user_info.sqn as i64,
         rand: auth_vector_data.rand,
         autn: auth_vector_data.autn,
         xres_star_hash: auth_vector_data.xres_star_hash,

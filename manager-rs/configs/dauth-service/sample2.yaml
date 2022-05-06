@@ -31,10 +31,16 @@ users: {
   "imsi-901700000000002": {
     "k": "465B5CE8B199B49FAA5F0A2EE238A6BC",
     "opc": "E8ED289DEBA952E4283B54E88E6183CA",
-    "sqn_max": "33",
-    "sqn_slice": 1,
-    "backup_network_ids": [
-      "sample-network-1"
-    ]
+
+    # Mapping of sqn slice to max sqn for that slice
+    "sqn_slice_max": {
+      0: 32,
+      1: 33
+    },
+
+    # Mapping of network id to sqn slice
+    "backup_network_ids": {
+      "sample-network-1": 1
+    }
   }
 }

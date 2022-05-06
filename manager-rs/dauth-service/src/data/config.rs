@@ -30,21 +30,23 @@ pub struct DauthConfig {
 pub struct UserInfoConfig {
     pub k: String,
     pub opc: String,
-    pub sqn_max: String,
+    pub sqn_slice_max: HashMap<u32, u64>,
     pub backup_network_ids: HashMap<String, u32>,
 }
 
 impl UserInfoConfig {
     /// Generates a user info object with byte arrays
-    pub fn to_user_info(&self) -> Result<UserInfo, DauthError> {
-        let k: K = utilities::convert_hex_string_to_byte_vec_with_length(&self.k, K_LENGTH)?[..]
-            .try_into()?;
-        let opc: Opc =
+    pub fn get_k(&self) -> Result<K, DauthError> {
+        Ok(
+            utilities::convert_hex_string_to_byte_vec_with_length(&self.k, K_LENGTH)?[..]
+                .try_into()?,
+        )
+    }
+    /// Generates a user info object with byte arrays
+    pub fn get_opc(&self) -> Result<Opc, DauthError> {
+        Ok(
             utilities::convert_hex_string_to_byte_vec_with_length(&self.opc, OPC_LENGTH)?[..]
-                .try_into()?;
-        let sqn_max: Sqn =
-            utilities::convert_int_string_to_byte_vec_with_length(&self.sqn_max, SQN_LENGTH)?[..]
-                .try_into()?;
-        Ok(UserInfo { k, opc, sqn_max })
+                .try_into()?,
+        )
     }
 }
