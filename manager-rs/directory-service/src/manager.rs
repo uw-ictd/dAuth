@@ -39,12 +39,10 @@ pub async fn lookup_network(
     tracing::info!("Looup network called: {:?}", network_id);
 
     let mut transaction = context.database_pool.begin().await?;
-    let row = database::networks::get(&mut transaction, network_id).await?;
-    let address = row.try_get::<String, &str>("address")?;
-    let public_key = row.try_get::<Vec<u8>, &str>("public_key")?;
+    let res = database::networks::get(&mut transaction, network_id).await?;
     transaction.commit().await?;
 
-    Ok((address, public_key))
+    Ok(res)
 }
 
 /// Looks up a user by id.
