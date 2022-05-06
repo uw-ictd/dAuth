@@ -53,8 +53,27 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
 
     directory::upsert_user(context.clone(), &user_id, backup_network_ids.clone()).await?;
 
-    for _ in 0..context.local_context.max_backup_vectors {
-        for (backup_network_id, sqn_slice) in &user_data {
+    for (backup_network_id, sqn_slice) in &user_data {
+        let mut transaction = context.local_context.database_pool.begin().await.unwrap();
+        let num_existing_vectors =
+            database::vector_state::get_all_by_id(&mut transaction, user_id, backup_network_id)
+                .await?
+                .len() as u32;
+        transaction.commit().await.unwrap();
+
+        if num_existing_vectors > 0 {
+            tracing::info!(
+                "Found {} existing vector(s) for {} on {}",
+                num_existing_vectors,
+                user_id,
+                backup_network_id
+            );
+        }
+
+        for _ in 0..std::cmp::max(
+            0,
+            context.local_context.max_backup_vectors - num_existing_vectors,
+        ) {
             let vector =
                 manager::generate_auth_vector(context.clone(), user_id, *sqn_slice).await?;
             let mut shares =
@@ -113,6 +132,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
             database::vector_state::add(
                 &mut transaction,
                 &vector.xres_star_hash,
+                user_id,
                 backup_network_id,
             )
             .await?;

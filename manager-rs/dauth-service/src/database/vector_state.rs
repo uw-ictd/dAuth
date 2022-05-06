@@ -1,3 +1,4 @@
+use auth_vector::types::HresStar;
 use sqlx::sqlite::SqlitePool;
 use sqlx::{Row, Sqlite, Transaction};
 
@@ -8,6 +9,7 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS vector_state_table (
             xres_star_hash BLOB PRIMARY KEY,
+            user_id TEXT NOT NULL,
             backup_network_id TEXT NOT NULL
         );",
     )
@@ -23,13 +25,15 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
+    user_id: &str,
     backup_network_id: &str,
 ) -> Result<(), DauthError> {
     sqlx::query(
         "INSERT INTO vector_state_table
-        VALUES ($1,$2)",
+        VALUES ($1,$2,$3)",
     )
     .bind(xres_star_hash)
+    .bind(user_id)
     .bind(backup_network_id)
     .execute(transaction)
     .await?;
@@ -50,6 +54,28 @@ pub async fn get(
     .fetch_one(transaction)
     .await?
     .try_get::<String, &str>("backup_network_id")?)
+}
+
+/// Returns the set of xres* hashes owned by the network for a given user.
+pub async fn get_all_by_id(
+    transaction: &mut Transaction<'_, Sqlite>,
+    user_id: &str,
+    backup_network_id: &str,
+) -> Result<Vec<Vec<u8>>, DauthError> {
+    let res = sqlx::query(
+        "SELECT * FROM vector_state_table
+        WHERE (user_id,backup_network_id)=($1,$2);",
+    )
+    .bind(user_id)
+    .bind(backup_network_id)
+    .fetch_all(transaction)
+    .await?;
+
+    let mut hashes = Vec::new();
+    for row in res {
+        hashes.push(row.try_get::<Vec<u8>, &str>("backup_network_id")?)
+    }
+    Ok(hashes)
 }
 
 /// Deletes a vector reference if found.
@@ -111,6 +137,7 @@ mod tests {
             vector_state::add(
                 &mut transaction,
                 &[row as u8; 1],
+                "test_user_id",
                 &format!("test_backup_network_{}", row),
             )
             .await
@@ -129,6 +156,7 @@ mod tests {
             vector_state::add(
                 &mut transaction,
                 &[row as u8; 1],
+                "test_user_id",
                 &format!("test_backup_network_{}", row),
             )
             .await
@@ -147,6 +175,40 @@ mod tests {
         }
         transaction.commit().await.unwrap();
     }
+    #[tokio::test]
+    async fn test_get_all() {
+        let (pool, _dir) = init().await;
+        let num_rows = 10;
+
+        let mut transaction = pool.begin().await.unwrap();
+        let res =
+            vector_state::get_all_by_id(&mut transaction, "test_user_id", "test_backup_network_id")
+                .await
+                .unwrap();
+        assert_eq!(res.len(), 0);
+        transaction.commit().await.unwrap();
+
+        let mut transaction = pool.begin().await.unwrap();
+        for row in 0..num_rows {
+            vector_state::add(
+                &mut transaction,
+                &[row as u8; 1],
+                "test_user_id",
+                "test_backup_network_id",
+            )
+            .await
+            .unwrap();
+        }
+        transaction.commit().await.unwrap();
+
+        let mut transaction = pool.begin().await.unwrap();
+        let res =
+            vector_state::get_all_by_id(&mut transaction, "test_user_id", "test_backup_network_id")
+                .await
+                .unwrap();
+        assert_eq!(res.len(), num_rows);
+        transaction.commit().await.unwrap();
+    }
 
     #[tokio::test]
     async fn test_remove() {
@@ -158,6 +220,7 @@ mod tests {
             vector_state::add(
                 &mut transaction,
                 &[row as u8; 1],
+                "test_user_id",
                 &format!("test_backup_network_{}", row),
             )
             .await
