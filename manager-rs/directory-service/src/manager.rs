@@ -59,10 +59,7 @@ pub async fn lookup_user(
     let row = database::users::get(&mut transaction, user_id).await?;
     let home_network_id = row.try_get::<String, &str>("home_network_id")?;
 
-    let mut backup_network_ids = Vec::new();
-    for row in database::backups::get(&mut transaction, user_id).await? {
-        backup_network_ids.push(row.try_get::<String, &str>("backup_network_id")?)
-    }
+    let backup_network_ids = database::backups::get(&mut transaction, user_id).await?;
     transaction.commit().await?;
 
     Ok((home_network_id, backup_network_ids))
