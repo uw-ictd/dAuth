@@ -81,21 +81,21 @@ pub async fn enroll_backup_commit(
     context: Arc<DauthContext>,
     backup_network_id: &str,
     user_id: &str,
-    vectors: Vec<AuthVectorRes>,
-    key_shares: Vec<(HresStar, Kseaf)>,
+    vectors: &Vec<AuthVectorRes>,
+    key_shares: &Vec<(HresStar, Kseaf)>,
     address: &str,
 ) -> Result<(), DauthError> {
     let mut dvectors = Vec::new();
     let mut dshares = Vec::new();
 
-    for vector in &vectors {
+    for vector in vectors {
         dvectors.push(build_delegated_vector(
             context.clone(),
             vector,
             backup_network_id,
         ))
     }
-    for (xres_star_hash, confirmation_share) in &key_shares {
+    for (xres_star_hash, confirmation_share) in key_shares {
         dshares.push(build_delegated_share(
             context.clone(),
             xres_star_hash,
