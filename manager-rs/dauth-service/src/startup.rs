@@ -29,6 +29,7 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             id: config.id,
             database_pool: pool,
             signing_keys: keys,
+            num_sqn_slices: config.num_sqn_slices,
             max_backup_vectors: config.max_backup_vectors,
         },
         rpc_context: RpcContext {
@@ -47,7 +48,9 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
     });
 
     for (user_id, user_info_config) in config.users {
-        let user_info = user_info_config.to_user_info()?;
+        let mut user_info = user_info_config.to_user_info()?;
+        user_info.sqn_slice %= context.local_context.num_sqn_slices;
+
         tracing::info!("inserting user info: {:?} - {:?}", user_id, user_info);
 
         let mut transaction = context.local_context.database_pool.begin().await?;

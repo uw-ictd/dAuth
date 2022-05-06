@@ -23,6 +23,7 @@ pub struct LocalContext {
     pub id: String,
     pub database_pool: SqlitePool,
     pub signing_keys: Keypair,
+    pub num_sqn_slices: u32,
     pub max_backup_vectors: u32,
 }
 

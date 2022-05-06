@@ -19,6 +19,10 @@ task_startup_delay: 1.0
 # Interval in seconds between checking for new tasks
 task_interval: 1.0
 
+# The number of vector slices possible (also determines max backup networks)
+# Slice 0 is always reserved for the home network
+num_sqn_slices: 32
+
 # Max number of auth vectors a backup network should have at one time
 max_backup_vectors: 10
 

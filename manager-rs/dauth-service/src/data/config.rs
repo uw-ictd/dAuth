@@ -18,6 +18,7 @@ pub struct DauthConfig {
     pub directory_addr: String,
     pub ed25519_keyfile_path: String,
     pub database_path: String,
+    pub num_sqn_slices: u32,
     pub max_backup_vectors: u32,
     pub task_startup_delay: f64,
     pub task_interval: f64,
@@ -49,7 +50,7 @@ impl UserInfoConfig {
             k,
             opc,
             sqn_max,
-            sqn_slice: self.sqn_slice % 32,
+            sqn_slice: self.sqn_slice,
         })
     }
 }

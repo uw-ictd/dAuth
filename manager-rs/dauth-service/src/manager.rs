@@ -83,7 +83,7 @@ pub async fn generate_auth_vector(
     // generate vector, then store new sqn max in the database
     let auth_vector_data =
         auth_vector::generate_vector(&user_info.k, &user_info.opc, &user_info.sqn_max);
-    user_info.increment_sqn(32);
+    user_info.increment_sqn(context.local_context.num_sqn_slices as u64);
     database::user_infos::upsert(
         &mut transaction,
         &user_id.to_string(),
