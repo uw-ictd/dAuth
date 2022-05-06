@@ -18,6 +18,7 @@ pub struct DauthConfig {
     pub directory_addr: String,
     pub ed25519_keyfile_path: String,
     pub database_path: String,
+    pub max_backup_vectors: u32,
     pub task_startup_delay: f64,
     pub task_interval: f64,
 }

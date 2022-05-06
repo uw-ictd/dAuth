@@ -14,10 +14,13 @@ ed25519_keyfile_path: "./out/sample-network-1/dauth_service/ed25519_keys"
 database_path: "./out/sample-network-1/dauth_service/sqlite1.db"
 
 # Delay in seconds before tasks thread begins executing
-task_startup_delay: 5.0
+task_startup_delay: 1.0
 
 # Interval in seconds between checking for new tasks
-task_interval: 10.0
+task_interval: 1.0
+
+# Max number of auth vectors a backup network should have at one time
+max_backup_vectors: 10
 
 # The set of users for this network (for testing)
 users: {

@@ -53,9 +53,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
 
     directory::upsert_user(context.clone(), &user_id, backup_network_ids.clone()).await?;
 
-    let num_vectors = 10;
-
-    for _ in 0..num_vectors {
+    for _ in 0..context.local_context.max_backup_vectors {
         for (backup_network_id, sqn_slice) in &user_data {
             let vector =
                 manager::generate_auth_vector(context.clone(), user_id, *sqn_slice).await?;
@@ -64,17 +62,17 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
 
             vectors_map
                 .get_mut(backup_network_id)
-                .ok_or_else(|| DauthError::DataError("Vectors map error".to_string()))?
+                .ok_or(DauthError::DataError("Vectors map error".to_string()))?
                 .push(vector);
 
             for other_id in &backup_network_ids {
                 if other_id != backup_network_id {
                     shares_map
                         .get_mut(other_id)
-                        .ok_or_else(|| DauthError::DataError("Shares map error".to_string()))?
-                        .push(shares.pop().ok_or_else(|| {
-                            DauthError::DataError("Shares list out of shares".to_string())
-                        })?);
+                        .ok_or(DauthError::DataError("Shares map error".to_string()))?
+                        .push(shares.pop().ok_or(DauthError::DataError(
+                            "Shares list out of shares".to_string(),
+                        ))?);
                 }
             }
 
@@ -90,10 +88,10 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
 
         let vectors = vectors_map
             .get(backup_network_id)
-            .ok_or_else(|| DauthError::DataError("Failed to get vectors".to_string()))?;
+            .ok_or(DauthError::DataError("Failed to get vectors".to_string()))?;
         let shares = shares_map
             .get(backup_network_id)
-            .ok_or_else(|| DauthError::DataError("Failed to get shares".to_string()))?;
+            .ok_or(DauthError::DataError("Failed to get shares".to_string()))?;
 
         backup_network::enroll_backup_prepare(
             context.clone(),

@@ -29,6 +29,7 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             id: config.id,
             database_pool: pool,
             signing_keys: keys,
+            max_backup_vectors: config.max_backup_vectors,
         },
         rpc_context: RpcContext {
             host_addr: config.host_addr,
