@@ -28,20 +28,17 @@ pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     sqn_slice: u32,
-    backup_network_ids: &Vec<String>,
+    backup_network_id: &str,
 ) -> Result<(), DauthError> {
-    // TODO: Add more efficient multi insert?
-    for backup_network_id in backup_network_ids {
-        sqlx::query(
-            "REPLACE INTO task_update_users_table
-            VALUES ($1,$2,$3)",
-        )
-        .bind(user_id)
-        .bind(sqn_slice)
-        .bind(backup_network_id)
-        .execute(&mut *transaction)
-        .await?;
-    }
+    sqlx::query(
+        "REPLACE INTO task_update_users_table
+        VALUES ($1,$2,$3)",
+    )
+    .bind(user_id)
+    .bind(sqn_slice)
+    .bind(backup_network_id)
+    .execute(&mut *transaction)
+    .await?;
 
     Ok(())
 }
@@ -156,11 +153,23 @@ mod tests {
                 &mut transaction,
                 &format!("test_user_id_{}", row),
                 0,
-                &vec![
-                    "test_network_id_a".to_string(),
-                    "test_network_id_b".to_string(),
-                    "test_network_id_c".to_string(),
-                ],
+                "test_network_id_a",
+            )
+            .await
+            .unwrap();
+            tasks::update_users::add(
+                &mut transaction,
+                &format!("test_user_id_{}", row),
+                1,
+                "test_network_id_b",
+            )
+            .await
+            .unwrap();
+            tasks::update_users::add(
+                &mut transaction,
+                &format!("test_user_id_{}", row),
+                2,
+                "test_network_id_c",
             )
             .await
             .unwrap();
@@ -191,18 +200,15 @@ mod tests {
         .await
         .unwrap();
 
-        tasks::update_users::add(
-            &mut transaction,
-            "test_user_id",
-            0,
-            &vec![
-                "test_network_id_a".to_string(),
-                "test_network_id_b".to_string(),
-                "test_network_id_c".to_string(),
-            ],
-        )
-        .await
-        .unwrap();
+        tasks::update_users::add(&mut transaction, "test_user_id", 0, "test_network_id_a")
+            .await
+            .unwrap();
+        tasks::update_users::add(&mut transaction, "test_user_id", 1, "test_network_id_b")
+            .await
+            .unwrap();
+        tasks::update_users::add(&mut transaction, "test_user_id", 2, "test_network_id_c")
+            .await
+            .unwrap();
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
@@ -240,11 +246,23 @@ mod tests {
                 &mut transaction,
                 &format!("test_user_id_{}", row),
                 0,
-                &vec![
-                    "test_network_id_a".to_string(),
-                    "test_network_id_b".to_string(),
-                    "test_network_id_c".to_string(),
-                ],
+                "test_network_id_a",
+            )
+            .await
+            .unwrap();
+            tasks::update_users::add(
+                &mut transaction,
+                &format!("test_user_id_{}", row),
+                1,
+                "test_network_id_b",
+            )
+            .await
+            .unwrap();
+            tasks::update_users::add(
+                &mut transaction,
+                &format!("test_user_id_{}", row),
+                2,
+                "test_network_id_c",
             )
             .await
             .unwrap();

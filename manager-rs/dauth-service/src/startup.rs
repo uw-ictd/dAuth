@@ -48,8 +48,7 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
     });
 
     for (user_id, user_info_config) in config.users {
-        let mut user_info = user_info_config.to_user_info()?;
-        user_info.sqn_slice %= context.local_context.num_sqn_slices;
+        let user_info = user_info_config.to_user_info()?;
 
         tracing::info!("inserting user info: {:?} - {:?}", user_id, user_info);
 
@@ -60,17 +59,39 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             &user_info.k,
             &user_info.opc,
             &user_info.sqn_max,
-            user_info.sqn_slice,
+            0, // home network
         )
         .await?;
 
-        database::tasks::update_users::add(
-            &mut transaction,
-            &user_id,
-            user_info.sqn_slice,
-            &user_info_config.backup_network_ids,
-        )
-        .await?;
+        if user_info_config.backup_network_ids.len() as u32 - 1
+            > context.local_context.num_sqn_slices
+        {
+            return Err(DauthError::ConfigError(format!(
+                "Not enough slices for all backup networks: {}",
+                user_id
+            )));
+        }
+
+        for (backup_network_id, sqn_slice) in user_info_config.backup_network_ids {
+            database::user_infos::upsert(
+                &mut transaction,
+                &user_id,
+                &user_info.k,
+                &user_info.opc,
+                &user_info.sqn_max,
+                sqn_slice,
+            )
+            .await?;
+
+            database::tasks::update_users::add(
+                &mut transaction,
+                &user_id,
+                sqn_slice,
+                &backup_network_id,
+            )
+            .await?;
+        }
+
         transaction.commit().await?;
     }
 

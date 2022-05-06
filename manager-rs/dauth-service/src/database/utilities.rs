@@ -41,7 +41,6 @@ impl DauthDataUtilities for SqliteRow {
             sqn_max: self
                 .try_get::<&[u8], &str>("user_info_sqn_max")?
                 .try_into()?,
-            sqn_slice: self.try_get::<u32, &str>("user_info_sqn_slice")?,
         })
     }
 

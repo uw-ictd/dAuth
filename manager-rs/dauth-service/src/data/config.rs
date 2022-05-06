@@ -31,8 +31,7 @@ pub struct UserInfoConfig {
     pub k: String,
     pub opc: String,
     pub sqn_max: String,
-    pub sqn_slice: u32,
-    pub backup_network_ids: Vec<String>,
+    pub backup_network_ids: HashMap<String, u32>,
 }
 
 impl UserInfoConfig {
@@ -46,11 +45,6 @@ impl UserInfoConfig {
         let sqn_max: Sqn =
             utilities::convert_int_string_to_byte_vec_with_length(&self.sqn_max, SQN_LENGTH)?[..]
                 .try_into()?;
-        Ok(UserInfo {
-            k,
-            opc,
-            sqn_max,
-            sqn_slice: self.sqn_slice,
-        })
+        Ok(UserInfo { k, opc, sqn_max })
     }
 }
