@@ -27,7 +27,7 @@ pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     backup_network_id: &str,
-    seqnum_slice: i32,
+    seqnum_slice: u32,
 ) -> Result<(), SqlxError> {
     sqlx::query(
         "INSERT INTO backup_networks_table
@@ -187,7 +187,7 @@ mod tests {
                 .await
                 .unwrap();
 
-                assert_eq!(section, res.get_unchecked::<i32, &str>("seq_num_slice"));
+                assert_eq!(section, res.get_unchecked::<u32, &str>("seq_num_slice"));
             }
         }
         transaction.commit().await.unwrap();

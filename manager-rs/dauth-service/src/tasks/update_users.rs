@@ -37,9 +37,9 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
 /// Then, enrolls each of the backup networks.
 async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result<(), DauthError> {
     let mut transaction = context.local_context.database_pool.begin().await.unwrap();
-
     let user_data =
         database::tasks::update_users::get_user_data(&mut transaction, &user_id).await?;
+    transaction.commit().await.unwrap();
 
     let mut backup_network_ids = Vec::new();
     let mut vectors_map = HashMap::new();
@@ -85,7 +85,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
     }
 
     // TODO: Handle cleanup after failure
-    for backup_network_id in &backup_network_ids {
+    for (backup_network_id, seqnum_slice) in &user_data {
         let (address, _) = directory::lookup_network(context.clone(), &backup_network_id).await?;
 
         let vectors = vectors_map
@@ -103,6 +103,19 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
         )
         .await?;
 
+        let mut transaction = context.local_context.database_pool.begin().await?;
+        database::backup_networks::add(&mut transaction, user_id, backup_network_id, *seqnum_slice)
+            .await?;
+        for vector in vectors {
+            database::vector_state::add(
+                &mut transaction,
+                &vector.xres_star_hash,
+                backup_network_id,
+            )
+            .await?;
+        }
+        transaction.commit().await?;
+
         backup_network::enroll_backup_commit(
             context.clone(),
             backup_network_id,
@@ -114,9 +127,10 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
         .await?;
     }
 
+    let mut transaction = context.local_context.database_pool.begin().await?;
     database::tasks::update_users::remove(&mut transaction, &user_id).await?;
+    transaction.commit().await?;
 
-    transaction.commit().await.unwrap();
     Ok(())
 }
 
