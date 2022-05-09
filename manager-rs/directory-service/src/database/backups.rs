@@ -1,6 +1,5 @@
-use sqlx::sqlite::{SqlitePool, SqliteRow};
-use sqlx::Error as SqlxError;
-use sqlx::{Sqlite, Transaction};
+use sqlx::sqlite::SqlitePool;
+use sqlx::{Row, Sqlite, Transaction};
 
 use crate::data::error::DirectoryError;
 
@@ -28,7 +27,7 @@ pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     backup_network_id: &str,
-) -> Result<(), SqlxError> {
+) -> Result<(), DirectoryError> {
     sqlx::query(
         "INSERT INTO backups_directory_table
         VALUES ($1,$2)",
@@ -45,21 +44,27 @@ pub async fn add(
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
-) -> Result<Vec<SqliteRow>, SqlxError> {
-    Ok(sqlx::query(
+) -> Result<Vec<String>, DirectoryError> {
+    let rows = sqlx::query(
         "SELECT * FROM backups_directory_table
         WHERE user_id=$1;",
     )
     .bind(user_id)
     .fetch_all(transaction)
-    .await?)
+    .await?;
+
+    let mut res = Vec::new();
+    for row in rows {
+        res.push(row.get_unchecked::<String, &str>("backup_network_id"))
+    }
+    Ok(res)
 }
 
 /// Removes all backup networks for a user.
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
-) -> Result<(), SqlxError> {
+) -> Result<(), DirectoryError> {
     sqlx::query(
         "DELETE FROM backups_directory_table
         WHERE user_id=$1",
@@ -77,7 +82,7 @@ pub async fn remove(
 mod tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
-    use sqlx::{Row, SqlitePool};
+    use sqlx::SqlitePool;
     use tempfile::{tempdir, TempDir};
 
     use crate::database::{backups, general, networks, users};
@@ -187,17 +192,9 @@ mod tests {
             .await
             .unwrap();
 
-        let mut xres = Vec::new();
-
         for i in 0..num_rows {
-            xres.push(format!("test_network_id_{}", i));
+            assert!(res.contains(&format!("test_network_id_{}", i)));
         }
-
-        for row in res {
-            xres.retain(|x| x != row.get_unchecked::<&str, &str>("backup_network_id"));
-        }
-
-        assert!(xres.is_empty());
 
         transaction.commit().await.unwrap();
     }

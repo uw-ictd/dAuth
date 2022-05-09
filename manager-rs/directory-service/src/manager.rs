@@ -1,4 +1,3 @@
-use sqlx::Row;
 use std::sync::Arc;
 
 use crate::data::{context::DirectoryContext, error::DirectoryError};
@@ -39,12 +38,10 @@ pub async fn lookup_network(
     tracing::info!("Looup network called: {:?}", network_id);
 
     let mut transaction = context.database_pool.begin().await?;
-    let row = database::networks::get(&mut transaction, network_id).await?;
-    let address = row.try_get::<String, &str>("address")?;
-    let public_key = row.try_get::<Vec<u8>, &str>("public_key")?;
+    let res = database::networks::get(&mut transaction, network_id).await?;
     transaction.commit().await?;
 
-    Ok((address, public_key))
+    Ok(res)
 }
 
 /// Looks up a user by id.
@@ -56,13 +53,9 @@ pub async fn lookup_user(
     tracing::info!("Looup user called: {:?}", user_id);
 
     let mut transaction = context.database_pool.begin().await?;
-    let row = database::users::get(&mut transaction, user_id).await?;
-    let home_network_id = row.try_get::<String, &str>("home_network_id")?;
+    let home_network_id = database::users::get(&mut transaction, user_id).await?;
 
-    let mut backup_network_ids = Vec::new();
-    for row in database::backups::get(&mut transaction, user_id).await? {
-        backup_network_ids.push(row.try_get::<String, &str>("backup_network_id")?)
-    }
+    let backup_network_ids = database::backups::get(&mut transaction, user_id).await?;
     transaction.commit().await?;
 
     Ok((home_network_id, backup_network_ids))
@@ -88,8 +81,8 @@ pub async fn upsert_user(
 
     let mut transaction = context.database_pool.begin().await?;
 
-    if let Ok(row) = database::users::get(&mut transaction, user_id).await {
-        if home_network_id == row.try_get::<String, &str>("home_network_id")? {
+    if let Ok(network_id) = database::users::get(&mut transaction, user_id).await {
+        if home_network_id == network_id {
             database::backups::remove(&mut transaction, user_id).await?;
         } else {
             return Err(DirectoryError::InvalidAccess(

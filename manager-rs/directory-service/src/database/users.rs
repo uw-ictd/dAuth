@@ -1,6 +1,5 @@
-use sqlx::sqlite::{SqlitePool, SqliteRow};
-use sqlx::Error as SqlxError;
-use sqlx::{Sqlite, Transaction};
+use sqlx::sqlite::SqlitePool;
+use sqlx::{Row, Sqlite, Transaction};
 
 use crate::data::error::DirectoryError;
 
@@ -26,7 +25,7 @@ pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     home_network_id: &str,
-) -> Result<(), SqlxError> {
+) -> Result<(), DirectoryError> {
     sqlx::query(
         "INSERT INTO users_directory_table
         VALUES ($1,$2)",
@@ -43,14 +42,16 @@ pub async fn add(
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
-) -> Result<SqliteRow, SqlxError> {
-    Ok(sqlx::query(
+) -> Result<String, DirectoryError> {
+    let row = sqlx::query(
         "SELECT * FROM users_directory_table
         WHERE user_id=$1;",
     )
     .bind(user_id)
     .fetch_one(transaction)
-    .await?)
+    .await?;
+
+    Ok(row.try_get::<String, &str>("home_network_id")?)
 }
 
 /* Testing */
@@ -59,7 +60,7 @@ pub async fn get(
 mod tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
-    use sqlx::{Row, SqlitePool};
+    use sqlx::SqlitePool;
     use tempfile::{tempdir, TempDir};
 
     use crate::database::{general, networks, users};
@@ -146,14 +147,11 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            let res = users::get(&mut transaction, &format!("test_user_id_{}", row))
+            let home_network_id = users::get(&mut transaction, &format!("test_user_id_{}", row))
                 .await
                 .unwrap();
 
-            assert_eq!(
-                "test_home_network_id",
-                res.get_unchecked::<&str, &str>("home_network_id")
-            );
+            assert_eq!("test_home_network_id", home_network_id);
         }
         transaction.commit().await.unwrap();
     }
