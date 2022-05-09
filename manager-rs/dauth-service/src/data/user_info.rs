@@ -5,5 +5,5 @@ use auth_vector::types::{Opc, K};
 pub struct UserInfo {
     pub k: K,
     pub opc: Opc,
-    pub sqn: u64,
+    pub sqn: i64,
 }

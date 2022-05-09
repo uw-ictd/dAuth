@@ -68,7 +68,7 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
         )
         .await?;
 
-        if user_info_config.backup_network_ids.len() as u32 - 1
+        if user_info_config.backup_network_ids.len() as i64 - 1
             > context.local_context.num_sqn_slices
         {
             return Err(DauthError::ConfigError(format!(

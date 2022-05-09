@@ -1,4 +1,3 @@
-use auth_vector::types::HresStar;
 use sqlx::sqlite::SqlitePool;
 use sqlx::{Row, Sqlite, Transaction};
 
@@ -71,9 +70,9 @@ pub async fn get_all_by_id(
     .fetch_all(transaction)
     .await?;
 
-    let mut hashes = Vec::new();
+    let mut hashes = Vec::with_capacity(res.len());
     for row in res {
-        hashes.push(row.try_get::<Vec<u8>, &str>("backup_network_id")?)
+        hashes.push(row.try_get::<Vec<u8>, &str>("xres_star_hash")?)
     }
     Ok(hashes)
 }

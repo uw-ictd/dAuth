@@ -13,7 +13,7 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
             backup_network_id INT NOT NULL,
             PRIMARY KEY (user_id, sqn_slice),
             FOREIGN KEY (user_id, sqn_slice) 
-                REFERENCES user_info_table(user_info_id, user_info_sqn_slice)
+                REFERENCES user_info_table(id, sqn_slice)
         );",
     )
     .execute(pool)
@@ -27,7 +27,7 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
-    sqn_slice: u32,
+    sqn_slice: i64,
     backup_network_id: &str,
 ) -> Result<(), DauthError> {
     sqlx::query(
@@ -62,7 +62,7 @@ pub async fn get_user_ids(
 pub async fn get_user_data(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
-) -> Result<Vec<(String, u32)>, DauthError> {
+) -> Result<Vec<(String, i64)>, DauthError> {
     let mut result = Vec::new();
     let rows = sqlx::query(
         "SELECT * FROM task_update_users_table
@@ -75,7 +75,7 @@ pub async fn get_user_data(
     for row in rows {
         result.push((
             row.try_get::<String, &str>("backup_network_id")?,
-            row.try_get::<u32, &str>("sqn_slice")?,
+            row.try_get::<i64, &str>("sqn_slice")?,
         ));
     }
     Ok(result)
@@ -145,7 +145,7 @@ mod tests {
                     &[0u8, 3],
                     &[0u8, 3],
                     sqn_max,
-                    sqn_max as u32,
+                    sqn_max,
                 )
                 .await
                 .unwrap();
@@ -198,7 +198,7 @@ mod tests {
                 &[0u8, 3],
                 &[0u8, 3],
                 sqn_max,
-                sqn_max as u32,
+                sqn_max,
             )
             .await
             .unwrap();
@@ -242,7 +242,7 @@ mod tests {
                     &[0u8, 3],
                     &[0u8, 3],
                     sqn_max,
-                    sqn_max as u32,
+                    sqn_max,
                 )
                 .await
                 .unwrap();

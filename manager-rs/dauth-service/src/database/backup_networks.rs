@@ -28,7 +28,7 @@ pub async fn upsert(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     backup_network_id: &str,
-    seqnum_slice: u32,
+    seqnum_slice: i64,
 ) -> Result<(), SqlxError> {
     sqlx::query(
         "REPLACE INTO backup_networks_table
@@ -64,7 +64,7 @@ pub async fn get_slice(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     backup_network_id: &str,
-) -> Result<u32, SqlxError> {
+) -> Result<i64, SqlxError> {
     Ok(sqlx::query(
         "SELECT seq_num_slice FROM backup_networks_table
         WHERE (user_id,backup_network_id)=($1,$2);",
@@ -73,7 +73,7 @@ pub async fn get_slice(
     .bind(backup_network_id)
     .fetch_one(transaction)
     .await?
-    .try_get::<u32, &str>("seq_num_slice")?)
+    .try_get::<i64, &str>("seq_num_slice")?)
 }
 
 /// Removes the network as a backup for this network
@@ -188,7 +188,7 @@ mod tests {
                 .await
                 .unwrap();
 
-                assert_eq!(section, res.get_unchecked::<u32, &str>("seq_num_slice"));
+                assert_eq!(section, res.get_unchecked::<i64, &str>("seq_num_slice"));
             }
         }
         transaction.commit().await.unwrap();

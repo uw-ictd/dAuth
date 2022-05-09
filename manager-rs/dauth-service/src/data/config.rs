@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use auth_vector::{
-    constants::{K_LENGTH, OPC_LENGTH, SQN_LENGTH},
-    types::{Opc, Sqn, K},
+    constants::{K_LENGTH, OPC_LENGTH},
+    types::{Opc, K},
 };
 
-use crate::data::{error::DauthError, user_info::UserInfo, utilities};
+use crate::data::{error::DauthError, utilities};
 
 /// Holds all configuration data from a corresponding YAML file
 #[derive(Serialize, Deserialize, Debug)]
@@ -18,8 +18,8 @@ pub struct DauthConfig {
     pub directory_addr: String,
     pub ed25519_keyfile_path: String,
     pub database_path: String,
-    pub num_sqn_slices: u32,
-    pub max_backup_vectors: u32,
+    pub num_sqn_slices: i64,
+    pub max_backup_vectors: i64,
     pub task_startup_delay: f64,
     pub task_interval: f64,
 }
@@ -30,8 +30,8 @@ pub struct DauthConfig {
 pub struct UserInfoConfig {
     pub k: String,
     pub opc: String,
-    pub sqn_slice_max: HashMap<u32, u64>,
-    pub backup_network_ids: HashMap<String, u32>,
+    pub sqn_slice_max: HashMap<i64, i64>,
+    pub backup_network_ids: HashMap<String, i64>,
 }
 
 impl UserInfoConfig {

@@ -8,12 +8,12 @@ use crate::data::error::DauthError;
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS user_info_table (
-            user_info_id TEXT NOT NULL,
-            user_info_k BLOB NOT NULL,
-            user_info_opc BLOB NOT NULL,
-            user_info_sqn_max INT NOT NULL,
-            user_info_sqn_slice INT NOT NULL,
-            PRIMARY KEY (user_info_id, user_info_sqn_slice)
+            id TEXT NOT NULL,
+            k BLOB NOT NULL,
+            opc BLOB NOT NULL,
+            sqn_max INT NOT NULL,
+            sqn_slice INT NOT NULL,
+            PRIMARY KEY (id, sqn_slice)
         );",
     )
     .execute(pool)
@@ -27,11 +27,11 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &Id,
-    sqn_slice: u32,
+    sqn_slice: i64,
 ) -> Result<SqliteRow, DauthError> {
     Ok(sqlx::query(
         "SELECT * FROM user_info_table
-        WHERE (user_info_id,user_info_sqn_slice)=($1,$2);",
+        WHERE (id,sqn_slice)=($1,$2);",
     )
     .bind(user_id)
     .bind(sqn_slice)
@@ -45,8 +45,8 @@ pub async fn upsert(
     user_id: &Id,
     k: &[u8],
     opc: &[u8],
-    sqn_max: u64,
-    sqn_slice: u32,
+    sqn_max: i64,
+    sqn_slice: i64,
 ) -> Result<(), DauthError> {
     sqlx::query(
         "REPLACE INTO user_info_table
@@ -55,7 +55,7 @@ pub async fn upsert(
     .bind(user_id)
     .bind(k)
     .bind(opc)
-    .bind(sqn_max as i64)
+    .bind(sqn_max)
     .bind(sqn_slice)
     .execute(transaction)
     .await?;
@@ -70,7 +70,7 @@ pub async fn remove(
 ) -> Result<(), DauthError> {
     sqlx::query(
         "DELETE FROM user_info_table
-        WHERE user_info_id=$1",
+        WHERE id=$1",
     )
     .bind(user_id)
     .execute(transaction)
@@ -88,7 +88,7 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::{tempdir, TempDir};
 
-    use auth_vector::constants::{K_LENGTH, OPC_LENGTH, SQN_LENGTH};
+    use auth_vector::constants::{K_LENGTH, OPC_LENGTH};
 
     use crate::database::{general, user_infos};
 
@@ -132,7 +132,7 @@ mod tests {
                     &format!("user_info_{}", section * num_rows + row),
                     &[section * num_rows + row; K_LENGTH],
                     &[section * num_rows + row; OPC_LENGTH],
-                    (section * num_rows + row) as u64,
+                    (section * num_rows + row) as i64,
                     0,
                 )
                 .await
@@ -159,7 +159,7 @@ mod tests {
                     &format!("user_info_{}", section * num_rows + row),
                     &[section * num_rows + row; K_LENGTH],
                     &[section * num_rows + row; OPC_LENGTH],
-                    (section * num_rows + row) as u64,
+                    (section * num_rows + row) as i64,
                     0,
                 )
                 .await
@@ -181,19 +181,19 @@ mod tests {
 
                 assert_eq!(
                     format!("user_info_{}", section * num_rows + row),
-                    res.get_unchecked::<&str, &str>("user_info_id")
+                    res.get_unchecked::<&str, &str>("id")
                 );
                 assert_eq!(
                     &[section * num_rows + row; K_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("user_info_k")
+                    res.get_unchecked::<&[u8], &str>("k")
                 );
                 assert_eq!(
                     &[section * num_rows + row; OPC_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("user_info_opc")
+                    res.get_unchecked::<&[u8], &str>("opc")
                 );
                 assert_eq!(
-                    (section * num_rows + row) as u64,
-                    res.get_unchecked::<i64, &str>("user_info_sqn_max") as u64
+                    (section * num_rows + row) as i64,
+                    res.get_unchecked::<i64, &str>("sqn_max")
                 );
             }
         }
@@ -217,7 +217,7 @@ mod tests {
                     &format!("user_info_{}", section * num_rows + row),
                     &[section * num_rows + row; K_LENGTH],
                     &[section * num_rows + row; OPC_LENGTH],
-                    (section * num_rows + row) as u64,
+                    (section * num_rows + row) as i64,
                     0,
                 )
                 .await
@@ -292,19 +292,19 @@ mod tests {
 
                 assert_eq!(
                     format!("user_info_{}", section * num_rows + row),
-                    res.get_unchecked::<&str, &str>("user_info_id")
+                    res.get_unchecked::<&str, &str>("id")
                 );
                 assert_eq!(
                     &[section * num_rows + row; K_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("user_info_k")
+                    res.get_unchecked::<&[u8], &str>("k")
                 );
                 assert_eq!(
                     &[section * num_rows + row; OPC_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("user_info_opc")
+                    res.get_unchecked::<&[u8], &str>("opc")
                 );
                 assert_eq!(
                     1,
-                    res.get_unchecked::<i64, &str>("user_info_sqn_max") as u64
+                    res.get_unchecked::<i64, &str>("sqn_max")
                 );
             }
         }
@@ -340,35 +340,35 @@ mod tests {
 
                 assert_eq!(
                     format!("user_info_{}", section * num_rows + row),
-                    res.get_unchecked::<&str, &str>("user_info_id")
+                    res.get_unchecked::<&str, &str>("id")
                 );
 
                 // old values
                 assert_ne!(
                     &[section * num_rows + row; K_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("user_info_k")
+                    res.get_unchecked::<&[u8], &str>("k")
                 );
                 assert_ne!(
                     &[section * num_rows + row; OPC_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("user_info_opc")
+                    res.get_unchecked::<&[u8], &str>("opc")
                 );
                 assert_ne!(
                     1,
-                    res.get_unchecked::<i64, &str>("user_info_sqn_max") as u64
+                    res.get_unchecked::<i64, &str>("sqn_max")
                 );
 
                 // new values
                 assert_eq!(
                     &[section * num_rows + row + 1; K_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("user_info_k")
+                    res.get_unchecked::<&[u8], &str>("k")
                 );
                 assert_eq!(
                     &[section * num_rows + row + 2; OPC_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("user_info_opc")
+                    res.get_unchecked::<&[u8], &str>("opc")
                 );
                 assert_eq!(
                     2,
-                    res.get_unchecked::<i64, &str>("user_info_sqn_max") as u64
+                    res.get_unchecked::<i64, &str>("sqn_max")
                 );
             }
         }

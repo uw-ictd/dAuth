@@ -58,7 +58,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
         let num_existing_vectors =
             database::vector_state::get_all_by_id(&mut transaction, user_id, backup_network_id)
                 .await?
-                .len() as u32;
+                .len() as i64;
         transaction.commit().await.unwrap();
 
         if num_existing_vectors > 0 {

@@ -66,7 +66,7 @@ pub async fn find_vector(
 pub async fn generate_auth_vector(
     context: Arc<DauthContext>,
     user_id: &str,
-    sqn_slice: u32,
+    sqn_slice: i64,
 ) -> Result<AuthVectorRes, DauthError> {
     tracing::info!("Generating new vector: {}:{}", user_id, sqn_slice);
 
@@ -86,7 +86,7 @@ pub async fn generate_auth_vector(
         &user_info.sqn.to_be_bytes()[..SQN_LENGTH].try_into()?,
     );
 
-    user_info.sqn += context.local_context.num_sqn_slices as u64;
+    user_info.sqn += context.local_context.num_sqn_slices;
 
     database::user_infos::upsert(
         &mut transaction,
@@ -100,7 +100,7 @@ pub async fn generate_auth_vector(
 
     let av_response = AuthVectorRes {
         user_id: user_id.to_string(),
-        seqnum: user_info.sqn as i64,
+        seqnum: user_info.sqn,
         rand: auth_vector_data.rand,
         autn: auth_vector_data.autn,
         xres_star_hash: auth_vector_data.xres_star_hash,
@@ -361,7 +361,7 @@ pub async fn get_sqn_slice(
     context: Arc<DauthContext>,
     user_id: &str,
     network_id: &str,
-) -> Result<u32, DauthError> {
+) -> Result<i64, DauthError> {
     if network_id == context.local_context.id {
         Ok(0)
     } else {
