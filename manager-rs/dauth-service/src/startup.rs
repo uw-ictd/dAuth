@@ -29,6 +29,8 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             id: config.id,
             database_pool: pool,
             signing_keys: keys,
+            num_sqn_slices: config.num_sqn_slices,
+            max_backup_vectors: config.max_backup_vectors,
         },
         rpc_context: RpcContext {
             host_addr: config.host_addr,
@@ -46,25 +48,61 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
     });
 
     for (user_id, user_info_config) in config.users {
-        let user_info = user_info_config.to_user_info()?;
-        tracing::info!("inserting user info: {:?} - {:?}", user_id, user_info);
+        tracing::info!(
+            "inserting user info: {:?} - {:?}",
+            user_id,
+            user_info_config
+        );
 
         let mut transaction = context.local_context.database_pool.begin().await?;
         database::user_infos::upsert(
             &mut transaction,
             &user_id,
-            &user_info.k,
-            &user_info.opc,
-            &user_info.sqn_max,
+            &user_info_config.get_k()?,
+            &user_info_config.get_opc()?,
+            *user_info_config
+                .sqn_slice_max
+                .get(&0)
+                .ok_or(DauthError::ConfigError("No home network slice".to_string()))?,
+            0, // home network
         )
         .await?;
 
-        database::tasks::update_users::add(
-            &mut transaction,
-            &user_id,
-            &user_info_config.backup_network_ids,
-        )
-        .await?;
+        if user_info_config.backup_network_ids.len() as i64 - 1
+            > context.local_context.num_sqn_slices
+        {
+            return Err(DauthError::ConfigError(format!(
+                "Not enough slices for all backup networks: {}",
+                user_id
+            )));
+        }
+
+        for (backup_network_id, sqn_slice) in &user_info_config.backup_network_ids {
+            database::user_infos::upsert(
+                &mut transaction,
+                &user_id,
+                &user_info_config.get_k()?,
+                &user_info_config.get_opc()?,
+                *user_info_config
+                    .sqn_slice_max
+                    .get(&0)
+                    .ok_or(DauthError::ConfigError(format!(
+                        "Missing key slice for {}",
+                        sqn_slice
+                    )))?,
+                *sqn_slice,
+            )
+            .await?;
+
+            database::tasks::update_users::add(
+                &mut transaction,
+                &user_id,
+                *sqn_slice,
+                &backup_network_id,
+            )
+            .await?;
+        }
+
         transaction.commit().await?;
     }
 

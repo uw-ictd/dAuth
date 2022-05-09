@@ -28,7 +28,7 @@ pub async fn add(
     home_network_id: &str,
 ) -> Result<(), SqlxError> {
     sqlx::query(
-        "INSERT INTO backup_users_table
+        "REPLACE INTO backup_users_table
         VALUES ($1,$2)",
     )
     .bind(user_id)

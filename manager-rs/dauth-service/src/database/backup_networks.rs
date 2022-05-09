@@ -1,5 +1,5 @@
 use sqlx::sqlite::{SqlitePool, SqliteRow};
-use sqlx::Error as SqlxError;
+use sqlx::{Error as SqlxError, Row};
 use sqlx::{Sqlite, Transaction};
 
 use crate::data::error::DauthError;
@@ -22,15 +22,16 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 
 /* Queries */
 
-/// Adds a network as a backup for the user id and seqnum slice
-pub async fn add(
+/// Adds a network as a backup for the user id and seqnum slice.
+/// Changes seqnum slice if user/network pair exists.
+pub async fn upsert(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     backup_network_id: &str,
-    seqnum_slice: i32,
+    seqnum_slice: i64,
 ) -> Result<(), SqlxError> {
     sqlx::query(
-        "INSERT INTO backup_networks_table
+        "REPLACE INTO backup_networks_table
         VALUES ($1,$2,$3)",
     )
     .bind(user_id)
@@ -56,6 +57,23 @@ pub async fn get(
     .bind(backup_network_id)
     .fetch_one(transaction)
     .await?)
+}
+
+/// Gets the backup info for a given network and user id
+pub async fn get_slice(
+    transaction: &mut Transaction<'_, Sqlite>,
+    user_id: &str,
+    backup_network_id: &str,
+) -> Result<i64, SqlxError> {
+    Ok(sqlx::query(
+        "SELECT seq_num_slice FROM backup_networks_table
+        WHERE (user_id,backup_network_id)=($1,$2);",
+    )
+    .bind(user_id)
+    .bind(backup_network_id)
+    .fetch_one(transaction)
+    .await?
+    .try_get::<i64, &str>("seq_num_slice")?)
 }
 
 /// Removes the network as a backup for this network
@@ -111,7 +129,7 @@ mod tests {
 
     /// Test that insert works
     #[tokio::test]
-    async fn test_add() {
+    async fn test_upsert() {
         let (pool, _dir) = init().await;
 
         let mut transaction = pool.begin().await.unwrap();
@@ -121,7 +139,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                backup_networks::add(
+                backup_networks::upsert(
                     &mut transaction,
                     &format!("test_user_id_{}", row),
                     &format!("test_network_id_{}", section),
@@ -146,7 +164,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                backup_networks::add(
+                backup_networks::upsert(
                     &mut transaction,
                     &format!("test_user_id_{}", row),
                     &format!("test_network_id_{}", section),
@@ -170,7 +188,7 @@ mod tests {
                 .await
                 .unwrap();
 
-                assert_eq!(section, res.get_unchecked::<i32, &str>("seq_num_slice"));
+                assert_eq!(section, res.get_unchecked::<i64, &str>("seq_num_slice"));
             }
         }
         transaction.commit().await.unwrap();
@@ -188,7 +206,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                backup_networks::add(
+                backup_networks::upsert(
                     &mut transaction,
                     &format!("test_user_id_{}", row),
                     &format!("test_network_id_{}", section),

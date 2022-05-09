@@ -5,7 +5,6 @@ use auth_vector::types::ResStar;
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
 use crate::data::signing::{self, SignPayloadType};
-use crate::data::vector::AuthVectorReq;
 use crate::manager;
 use crate::rpc::dauth::common::AuthVector5G;
 use crate::rpc::dauth::remote::delegated_auth_vector5_g;
@@ -98,9 +97,9 @@ impl HomeNetworkHandler {
 
             let av_result = manager::generate_auth_vector(
                 context.clone(),
-                &AuthVectorReq {
-                    user_id: user_id.to_string(),
-                },
+                &user_id,
+                manager::get_sqn_slice(context.clone(), &user_id, &payload.serving_network_id)
+                    .await?,
             )
             .await?;
 

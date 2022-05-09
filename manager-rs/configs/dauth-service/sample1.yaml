@@ -14,19 +14,33 @@ ed25519_keyfile_path: "./out/sample-network-1/dauth_service/ed25519_keys"
 database_path: "./out/sample-network-1/dauth_service/sqlite1.db"
 
 # Delay in seconds before tasks thread begins executing
-task_startup_delay: 5.0
+task_startup_delay: 1.0
 
 # Interval in seconds between checking for new tasks
-task_interval: 10.0
+task_interval: 1.0
+
+# The number of vector slices possible (also determines max backup networks)
+# Slice 0 is always reserved for the home network
+num_sqn_slices: 32
+
+# Max number of auth vectors a backup network should have at one time
+max_backup_vectors: 10
 
 # The set of users for this network (for testing)
 users: {
   "imsi-901700000000001": {
     "k": "465B5CE8B199B49FAA5F0A2EE238A6BC",
     "opc": "E8ED289DEBA952E4283B54E88E6183CA",
-    "sqn_max": "32",
-    "backup_network_ids": [
-      "sample-network-2"
-    ]
+
+    # Mapping of sqn slice to max sqn for that slice
+    "sqn_slice_max": {
+      0: 32,
+      1: 33
+    },
+
+    # Mapping of network id to sqn slice
+    "backup_network_ids": {
+      "sample-network-2": 1
+    }
   }
 }
