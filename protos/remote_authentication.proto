@@ -57,10 +57,32 @@ message DelegatedConfirmationShare {
 service HomeNetwork {
     // Provides an auth vector requested from a different serving network if the
     // network is of sufficient reputation.
+    //
+    // Called by a serving network
     rpc GetAuthVector(GetHomeAuthVectorReq) returns (GetHomeAuthVectorResp);
 
     // Report an auth vector used
+    //
+    // Called by a serving network
     rpc GetConfirmKey(GetHomeConfirmKeyReq) returns (GetHomeConfirmKeyResp);
+
+    // Report to the home network from a backup network that a serving network
+    // requested to authenticate the particular user user.
+    //
+    // Called by a backup network
+    //
+    // Once received the home network needs to replace key shares in all
+    // relevant backup networks.
+    rpc ReportAuthConsumed(ReportHomeAuthConsumedReq) returns (ReportHomeAuthConsumedResp);
+
+    // Report to the home network from a backup network that a serving network
+    // requested key material for a particular user user.
+    //
+    // Called by a backup network
+    //
+    // Once received the home network needs to replace key shares in all other
+    // relevant backup networks.
+    rpc ReportKeyShareConsumed(ReportHomeKeyShareConsumedReq) returns (ReportHomeKeyShareConsumedResp);
 }
 
 message GetHomeAuthVectorReq {
@@ -110,6 +132,29 @@ message GetHomeConfirmKeyResp {
     bytes kseaf = 1;
 }
 
+message ReportHomeAuthConsumedReq {
+    // The signed auth request from the serving network that was given an auth
+    // tuple.
+    SignedMessage backup_auth_vector_req = 1;
+}
+
+message ReportHomeAuthConsumedResp {
+    // New key material to replace what was used up in the previous
+    // authentication
+    DelegatedAuthVector5G vector = 1;
+}
+
+message ReportHomeKeyShareConsumedReq {
+    // The signed key request from the serving network sent sent to the backup
+    // network.
+    SignedMessage get_key_share_req = 1;
+}
+
+message ReportHomeKeyShareConsumedResp {
+    // New key material to replace what was used up in the previous
+    // authentication
+    DelegatedConfirmationShare share = 1;
+}
 
 service BackupNetwork {
     // Get this network's permission to use them as a backup.
@@ -136,6 +181,13 @@ service BackupNetwork {
     // Called from a serving network after authenticating the UE to begin
     // communication.
     rpc GetKeyShare(GetKeyShareReq) returns (GetKeyShareResp);
+
+    // Request to replace/refresh key shares that have been used up, either by
+    // their corresponding auth being consumed or other backup networks using
+    // other shares of the key.
+    //
+    // Called proactively from the home network.
+    rpc ReplaceKeyShare(ReplaceShareReq) returns (ReplaceShareResp);
 
     // Courtesy notification that this network should no longer backup a given
     // UE.
@@ -245,6 +297,20 @@ message GetKeyShareReq {
 message GetKeyShareResp {
     // A threshold share of the k_seaf provided after confirmed authentication.
     DelegatedConfirmationShare share = 1;
+}
+
+message ReplaceShareReq {
+    // The new confirmation share.
+    DelegatedConfirmationShare new_share = 1;
+
+    // The hashed xres_star corresponding to the replaced key share that is no
+    // longer valid.
+    bytes replaced_share_xres_star_hash = 2;
+}
+
+message ReplaceShareResp {
+    // The response has no fields for now, but is reserved for future use.
+    reserved 1 to 15;
 }
 
 
