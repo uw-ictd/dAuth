@@ -4,6 +4,9 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use tonic::transport::Channel;
 
+use auth_vector::types::Rand;
+
+use crate::data::state::AuthState;
 use crate::rpc::dauth::directory::directory_client::DirectoryClient;
 use crate::rpc::dauth::remote::{
     backup_network_client::BackupNetworkClient, home_network_client::HomeNetworkClient,
@@ -14,6 +17,7 @@ use crate::rpc::dauth::remote::{
 #[derive(Debug)]
 pub struct DauthContext {
     pub local_context: LocalContext,
+    pub backup_context: BackupContext,
     pub rpc_context: RpcContext,
     pub tasks_context: TasksContext,
 }
@@ -25,6 +29,11 @@ pub struct LocalContext {
     pub signing_keys: Keypair,
     pub num_sqn_slices: i64,
     pub max_backup_vectors: i64,
+}
+
+#[derive(Debug)]
+pub struct BackupContext {
+    pub auth_states: tokio::sync::Mutex<HashMap<String, AuthState>>,
 }
 
 #[derive(Debug)]

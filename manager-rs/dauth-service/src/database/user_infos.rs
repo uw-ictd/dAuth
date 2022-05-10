@@ -302,10 +302,7 @@ mod tests {
                     &[section * num_rows + row; OPC_LENGTH],
                     res.get_unchecked::<&[u8], &str>("opc")
                 );
-                assert_eq!(
-                    1,
-                    res.get_unchecked::<i64, &str>("sqn_max")
-                );
+                assert_eq!(1, res.get_unchecked::<i64, &str>("sqn_max"));
             }
         }
         transaction.commit().await.unwrap();
@@ -352,10 +349,7 @@ mod tests {
                     &[section * num_rows + row; OPC_LENGTH],
                     res.get_unchecked::<&[u8], &str>("opc")
                 );
-                assert_ne!(
-                    1,
-                    res.get_unchecked::<i64, &str>("sqn_max")
-                );
+                assert_ne!(1, res.get_unchecked::<i64, &str>("sqn_max"));
 
                 // new values
                 assert_eq!(
@@ -366,10 +360,7 @@ mod tests {
                     &[section * num_rows + row + 2; OPC_LENGTH],
                     res.get_unchecked::<&[u8], &str>("opc")
                 );
-                assert_eq!(
-                    2,
-                    res.get_unchecked::<i64, &str>("sqn_max")
-                );
+                assert_eq!(2, res.get_unchecked::<i64, &str>("sqn_max"));
             }
         }
         transaction.commit().await.unwrap();
