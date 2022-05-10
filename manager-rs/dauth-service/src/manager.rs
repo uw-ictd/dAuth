@@ -186,7 +186,8 @@ pub async fn confirm_auth_vector(
 
                 for backup_network_id in backup_network_ids {
                     let (backup_address, _) =
-                        clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
+                        clients::directory::lookup_network(context.clone(), &backup_network_id)
+                            .await?;
                     match clients::backup_network::get_key_share(
                         context.clone(),
                         &xres_star_hash,
