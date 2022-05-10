@@ -63,7 +63,7 @@ pub async fn find_vector(
                         user_id.to_string(),
                         AuthState {
                             rand: vector.rand.clone(),
-                            source: AuthSource::HomeNetwork,
+                            source: AuthSource::BackupNetwork,
                         },
                     );
                     return Ok(vector);

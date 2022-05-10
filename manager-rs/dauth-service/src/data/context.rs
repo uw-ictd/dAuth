@@ -4,8 +4,6 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use tonic::transport::Channel;
 
-use auth_vector::types::Rand;
-
 use crate::data::state::AuthState;
 use crate::rpc::dauth::directory::directory_client::DirectoryClient;
 use crate::rpc::dauth::remote::{
