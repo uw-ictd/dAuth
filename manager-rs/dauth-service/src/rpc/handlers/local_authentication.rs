@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
+use auth_vector::types::Kseaf;
+
 use crate::data::context::DauthContext;
+use crate::data::error::DauthError;
 use crate::manager;
 use crate::rpc::dauth::local::aka_confirm_resp;
 use crate::rpc::dauth::local::local_authentication_server::LocalAuthentication;
@@ -53,24 +56,26 @@ impl LocalAuthentication for LocalAuthenticationHandler {
     ) -> Result<tonic::Response<AkaConfirmResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        let res_star = request.into_inner().res_star;
-        let res_star: auth_vector::types::ResStar =
-            res_star.try_into().or_else(|_e: Vec<u8>| {
-                Err(tonic::Status::new(
-                    tonic::Code::OutOfRange,
-                    "Unable to parse res_star",
-                ))
-            })?;
+        match self.confirm_auth_hlp(request.into_inner()).await {
+            Ok(kseaf) => {
+                let response_payload = AkaConfirmResp {
+                    error: aka_confirm_resp::ErrorKind::NoError as i32,
+                    kseaf: kseaf.to_vec(),
+                };
 
-        let kseaf = manager::confirm_auth_vector(self.context.clone(), res_star)
-            .await
-            .or_else(|e| Err(tonic::Status::new(tonic::Code::NotFound, e.to_string())))?;
+                Ok(tonic::Response::new(response_payload))
+            }
+            Err(e) => Err(tonic::Status::new(tonic::Code::NotFound, e.to_string())),
+        }
+    }
+}
 
-        let response_payload = AkaConfirmResp {
-            error: aka_confirm_resp::ErrorKind::NoError as i32,
-            kseaf: kseaf.to_vec(),
-        };
+impl LocalAuthenticationHandler {
+    async fn confirm_auth_hlp(&self, payload: AkaConfirmReq) -> Result<Kseaf, DauthError> {
+        let user_id = std::str::from_utf8(payload.user_id.as_slice())?.to_string();
 
-        Ok(tonic::Response::new(response_payload))
+        let res_star: auth_vector::types::ResStar = payload.res_star[..].try_into()?;
+
+        Ok(manager::confirm_auth_vector(self.context.clone(), &user_id, res_star).await?)
     }
 }

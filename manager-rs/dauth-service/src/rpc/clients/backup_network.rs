@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use auth_vector::types::{HresStar, Kseaf};
+use auth_vector::types::{HresStar, Kseaf, ResStar};
 use tonic::transport::Channel;
 
 use crate::data::context::DauthContext;
@@ -169,10 +169,10 @@ pub async fn get_auth_vector(
 pub async fn get_key_share(
     context: Arc<DauthContext>,
     xres_star_hash: HresStar,
-    res_star: Kseaf,
-    address: &str,
+    res_star: ResStar,
+    address: String,
 ) -> Result<Kseaf, DauthError> {
-    let mut client = get_client(context.clone(), address).await?;
+    let mut client = get_client(context.clone(), &address).await?;
 
     let response = client
         .get_key_share(GetKeyShareReq {

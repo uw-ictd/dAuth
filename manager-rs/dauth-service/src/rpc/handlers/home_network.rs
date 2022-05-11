@@ -136,7 +136,7 @@ impl HomeNetworkHandler {
         if let SignPayloadType::GetHomeConfirmKeyReq(payload) = verify_result {
             let res_star: ResStar = payload.res_star.as_slice().try_into()?;
 
-            let kseaf = manager::confirm_auth_vector(context, res_star).await?;
+            let kseaf = manager::get_confirm_key(context, res_star).await?;
 
             Ok(tonic::Response::new(GetHomeConfirmKeyResp {
                 kseaf: kseaf.to_vec(),
