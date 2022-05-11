@@ -56,12 +56,7 @@ impl LocalAuthentication for LocalAuthenticationHandler {
     ) -> Result<tonic::Response<AkaConfirmResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        match LocalAuthenticationHandler::confirm_auth_hlp(
-            self.context.clone(),
-            request.into_inner(),
-        )
-        .await
-        {
+        match self.confirm_auth_hlp(request.into_inner()).await {
             Ok(kseaf) => {
                 let response_payload = AkaConfirmResp {
                     error: aka_confirm_resp::ErrorKind::NoError as i32,
@@ -76,14 +71,11 @@ impl LocalAuthentication for LocalAuthenticationHandler {
 }
 
 impl LocalAuthenticationHandler {
-    async fn confirm_auth_hlp(
-        context: Arc<DauthContext>,
-        payload: AkaConfirmReq,
-    ) -> Result<Kseaf, DauthError> {
+    async fn confirm_auth_hlp(&self, payload: AkaConfirmReq) -> Result<Kseaf, DauthError> {
         let user_id = std::str::from_utf8(payload.user_id.as_slice())?.to_string();
 
         let res_star: auth_vector::types::ResStar = payload.res_star[..].try_into()?;
 
-        Ok(manager::confirm_auth_vector(context, &user_id, res_star).await?)
+        Ok(manager::confirm_auth_vector(self.context.clone(), &user_id, res_star).await?)
     }
 }

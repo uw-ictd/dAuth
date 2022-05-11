@@ -199,15 +199,12 @@ pub async fn confirm_auth_vector(
                 }
 
                 for resp in responses {
-                    match resp.await
-                    {
+                    match resp.await {
                         Ok(key_share) => {
                             key_shares.push(key_share);
                         }
                         Err(e) => {
-                            tracing::warn!(
-                                "Failed to get key share: {}", e
-                            )
+                            tracing::warn!("Failed to get key share: {}", e)
                         }
                     }
                 }
