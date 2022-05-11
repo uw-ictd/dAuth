@@ -168,11 +168,11 @@ pub async fn get_auth_vector(
 /// Get a key share from one of a user's backup networks.
 pub async fn get_key_share(
     context: Arc<DauthContext>,
-    xres_star_hash: &HresStar,
-    res_star: &ResStar,
-    address: &str,
+    xres_star_hash: HresStar,
+    res_star: ResStar,
+    address: String,
 ) -> Result<Kseaf, DauthError> {
-    let mut client = get_client(context.clone(), address).await?;
+    let mut client = get_client(context.clone(), &address).await?;
 
     let response = client
         .get_key_share(GetKeyShareReq {

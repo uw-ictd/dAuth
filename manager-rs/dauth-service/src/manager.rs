@@ -183,27 +183,30 @@ pub async fn confirm_auth_vector(
                 tracing::info!("Auth started from backup network");
 
                 let mut key_shares = Vec::with_capacity(backup_network_ids.len());
+                let mut responses = Vec::with_capacity(backup_network_ids.len());
 
                 for backup_network_id in backup_network_ids {
                     let (backup_address, _) =
                         clients::directory::lookup_network(context.clone(), &backup_network_id)
                             .await?;
-                    match clients::backup_network::get_key_share(
+
+                    responses.push(tokio::spawn(clients::backup_network::get_key_share(
                         context.clone(),
-                        &xres_star_hash,
-                        &res_star,
-                        &backup_address,
-                    )
-                    .await
+                        xres_star_hash.clone(),
+                        res_star.clone(),
+                        backup_address.to_string(),
+                    )));
+                }
+
+                for resp in responses {
+                    match resp.await
                     {
                         Ok(key_share) => {
                             key_shares.push(key_share);
                         }
                         Err(e) => {
                             tracing::warn!(
-                                "Failed to get key share from {}: {}",
-                                backup_network_id,
-                                e
+                                "Failed to get key share: {}", e
                             )
                         }
                     }
