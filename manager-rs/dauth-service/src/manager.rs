@@ -431,8 +431,6 @@ pub async fn get_key_share(
         tracing::info!("Vector not found on this network: {:?}", xres_star_hash);
     }
 
-    database::key_shares::remove(&mut transaction, xres_star_hash).await?;
-
     transaction.commit().await?;
     Ok(key_share)
 }
