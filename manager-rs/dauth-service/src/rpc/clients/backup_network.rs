@@ -206,6 +206,17 @@ pub async fn get_key_share(
     }
 }
 
+/// Requests for a key share be removed and for a new key share
+/// to be stored.
+pub async fn replace_key_share(
+    context: Arc<DauthContext>,
+    old_xres_star_hash: &HresStar,
+    new_xres_star_hash: &HresStar,
+    new_key_share: &Kseaf,
+) -> Result<(), DauthError> {
+    todo!()
+}
+
 /// Withdraws backup status from a backup network.
 pub async fn withdraw_backup(
     context: Arc<DauthContext>,

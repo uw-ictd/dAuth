@@ -11,7 +11,7 @@ use crate::rpc::dauth::remote::delegated_auth_vector5_g;
 use crate::rpc::dauth::remote::home_network_server::HomeNetwork;
 use crate::rpc::dauth::remote::{
     DelegatedAuthVector5G, GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq,
-    GetHomeConfirmKeyResp,
+    GetHomeConfirmKeyResp, ReportHomeAuthConsumedReq, ReportHomeAuthConsumedResp, ReportHomeKeyShareConsumedReq, ReportHomeKeyShareConsumedResp,
 };
 
 pub struct HomeNetworkHandler {
@@ -82,6 +82,24 @@ impl HomeNetwork for HomeNetworkHandler {
                 format!("Error while handling request: {}", e),
             )),
         }
+    }
+
+    /// Remote request to report an auth vector as used.
+    /// Sends a replacement vector in return.
+    async fn report_auth_consumed(
+        &self,
+        request: tonic::Request<ReportHomeAuthConsumedReq>,
+    ) -> Result<tonic::Response<ReportHomeAuthConsumedResp>, tonic::Status> {
+        todo!()
+    }
+
+    /// Remote request to report a key share as used.
+    /// Sends a replacement key share in return.
+    async fn report_key_share_consumed(
+        &self,
+        request: tonic::Request<ReportHomeKeyShareConsumedReq>,
+    ) -> Result<tonic::Response<ReportHomeKeyShareConsumedResp>, tonic::Status> {
+        todo!()
     }
 }
 

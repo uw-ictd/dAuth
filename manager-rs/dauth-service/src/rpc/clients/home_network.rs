@@ -87,6 +87,26 @@ pub async fn get_confirm_key(
     Ok(response.kseaf[..].try_into()?)
 }
 
+/// Reports an auth vector as used to the home network.
+/// Sends the original signed request for the auth vector as
+/// proof of the auth vector request.
+async fn report_auth_consumed(
+    context: Arc<DauthContext>,
+    original_request: Vec<u8>,
+) -> Result<AuthVectorRes, DauthError> {
+    todo!()
+}
+
+/// Reports a key share as used to the home network.
+/// Sends the original signed request for the auth vector as
+/// proof of the auth vector request.
+async fn report_key_share_consumed(
+    context: Arc<DauthContext>,
+    original_request: Vec<u8>,
+) -> Result<(HresStar, Kseaf), DauthError> {
+    todo!()
+}
+
 /// Returns a client to the service at the provided address.
 /// Builds and caches a client if one does not exist.
 async fn get_client(

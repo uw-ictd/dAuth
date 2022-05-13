@@ -13,6 +13,7 @@ use crate::rpc::dauth::remote::{
     EnrollBackupCommitResp, EnrollBackupPrepareReq, EnrollBackupPrepareResp, FloodVectorReq,
     FloodVectorResp, GetBackupAuthVectorReq, GetBackupAuthVectorResp, GetKeyShareReq,
     GetKeyShareResp, WithdrawBackupReq, WithdrawBackupResp, WithdrawSharesReq, WithdrawSharesResp,
+    ReplaceShareReq, ReplaceShareResp,
 };
 
 pub struct BackupNetworkHandler {
@@ -139,6 +140,13 @@ impl BackupNetwork for BackupNetworkHandler {
                 format!("Error while handling request: {}", e),
             )),
         }
+    }
+
+    async fn replace_key_share(
+        &self,
+        request: tonic::Request<ReplaceShareReq>,
+    ) -> Result<tonic::Response<ReplaceShareResp>, tonic::Status> {
+        todo!()
     }
 
     /// Removes the requested user id as a backup on this network.
