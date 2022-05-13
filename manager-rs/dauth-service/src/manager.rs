@@ -398,7 +398,6 @@ pub async fn store_key_shares(
     Ok(())
 }
 
-
 /// Replace the old key share if found.
 /// Adds the new kay share.
 pub async fn replace_key_shares(
@@ -407,13 +406,17 @@ pub async fn replace_key_shares(
     new_xres_star_hash: &auth_vector::types::HresStar,
     new_key_share: &auth_vector::types::Kseaf,
 ) -> Result<(), DauthError> {
-    tracing::info!("Replacing key share: {:?} => {:?}", old_xres_star_hash, new_xres_star_hash);
+    tracing::info!(
+        "Replacing key share: {:?} => {:?}",
+        old_xres_star_hash,
+        new_xres_star_hash
+    );
 
     let mut transaction = context.local_context.database_pool.begin().await?;
 
     database::key_shares::remove(&mut transaction, old_xres_star_hash).await?;
     database::key_shares::add(&mut transaction, new_xres_star_hash, new_key_share).await?;
-        
+
     transaction.commit().await?;
 
     Ok(())

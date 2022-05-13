@@ -11,7 +11,8 @@ use crate::rpc::dauth::remote::delegated_auth_vector5_g;
 use crate::rpc::dauth::remote::home_network_server::HomeNetwork;
 use crate::rpc::dauth::remote::{
     DelegatedAuthVector5G, GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq,
-    GetHomeConfirmKeyResp, ReportHomeAuthConsumedReq, ReportHomeAuthConsumedResp, ReportHomeKeyShareConsumedReq, ReportHomeKeyShareConsumedResp,
+    GetHomeConfirmKeyResp, ReportHomeAuthConsumedReq, ReportHomeAuthConsumedResp,
+    ReportHomeKeyShareConsumedReq, ReportHomeKeyShareConsumedResp,
 };
 
 pub struct HomeNetworkHandler {

@@ -14,8 +14,8 @@ use crate::rpc::dauth::remote::{
     DelegatedAuthVector5G, DelegatedConfirmationShare, EnrollBackupCommitReq,
     EnrollBackupCommitResp, EnrollBackupPrepareReq, EnrollBackupPrepareResp, FloodVectorReq,
     FloodVectorResp, GetBackupAuthVectorReq, GetBackupAuthVectorResp, GetKeyShareReq,
-    GetKeyShareResp, WithdrawBackupReq, WithdrawBackupResp, WithdrawSharesReq, WithdrawSharesResp,
-    ReplaceShareReq, ReplaceShareResp,
+    GetKeyShareResp, ReplaceShareReq, ReplaceShareResp, WithdrawBackupReq, WithdrawBackupResp,
+    WithdrawSharesReq, WithdrawSharesResp,
 };
 
 pub struct BackupNetworkHandler {
@@ -148,7 +148,12 @@ impl BackupNetwork for BackupNetworkHandler {
         &self,
         request: tonic::Request<ReplaceShareReq>,
     ) -> Result<tonic::Response<ReplaceShareResp>, tonic::Status> {
-        match BackupNetworkHandler::replace_key_share_hlp(self.context.clone(), request.into_inner()).await {
+        match BackupNetworkHandler::replace_key_share_hlp(
+            self.context.clone(),
+            request.into_inner(),
+        )
+        .await
+        {
             Ok(result) => Ok(result),
             Err(e) => Err(tonic::Status::new(
                 tonic::Code::Aborted,
@@ -501,14 +506,20 @@ impl BackupNetworkHandler {
             .new_share
             .ok_or(DauthError::DataError("No new share received".to_string()))?;
 
-        let old_xres_star_hash: HresStar = request
-            .replaced_share_xres_star_hash[..].try_into()?;
+        let old_xres_star_hash: HresStar = request.replaced_share_xres_star_hash[..].try_into()?;
 
-        let (new_xres_star_hash, new_key_share) = BackupNetworkHandler::handle_key_share(context.clone(), dshare).await?;
+        let (new_xres_star_hash, new_key_share) =
+            BackupNetworkHandler::handle_key_share(context.clone(), dshare).await?;
 
-        manager::replace_key_shares(context, &old_xres_star_hash, &new_xres_star_hash, &new_key_share).await?;
+        manager::replace_key_shares(
+            context,
+            &old_xres_star_hash,
+            &new_xres_star_hash,
+            &new_key_share,
+        )
+        .await?;
 
-        Ok(tonic::Response::new(ReplaceShareResp{ }))
+        Ok(tonic::Response::new(ReplaceShareResp {}))
     }
 
     async fn withdraw_backup_hlp(
