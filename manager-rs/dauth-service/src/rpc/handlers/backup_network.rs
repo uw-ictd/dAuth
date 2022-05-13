@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use auth_vector::types::HresStar;
+
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
 use crate::data::signing::{self, SignPayloadType};
@@ -146,7 +148,13 @@ impl BackupNetwork for BackupNetworkHandler {
         &self,
         request: tonic::Request<ReplaceShareReq>,
     ) -> Result<tonic::Response<ReplaceShareResp>, tonic::Status> {
-        todo!()
+        match BackupNetworkHandler::replace_key_share_hlp(self.context.clone(), request.into_inner()).await {
+            Ok(result) => Ok(result),
+            Err(e) => Err(tonic::Status::new(
+                tonic::Code::Aborted,
+                format!("Error while handling request: {}", e),
+            )),
+        }
     }
 
     /// Removes the requested user id as a backup on this network.
@@ -483,6 +491,24 @@ impl BackupNetworkHandler {
                 verify_result
             )))
         }
+    }
+
+    async fn replace_key_share_hlp(
+        context: Arc<DauthContext>,
+        request: ReplaceShareReq,
+    ) -> Result<tonic::Response<ReplaceShareResp>, DauthError> {
+        let dshare = request
+            .new_share
+            .ok_or(DauthError::DataError("No new share received".to_string()))?;
+
+        let old_xres_star_hash: HresStar = request
+            .replaced_share_xres_star_hash[..].try_into()?;
+
+        let (new_xres_star_hash, new_key_share) = BackupNetworkHandler::handle_key_share(context.clone(), dshare).await?;
+
+        manager::replace_key_shares(context, &old_xres_star_hash, &new_xres_star_hash, &new_key_share).await?;
+
+        Ok(tonic::Response::new(ReplaceShareResp{ }))
     }
 
     async fn withdraw_backup_hlp(
