@@ -336,6 +336,90 @@ pub async fn next_backup_auth_vector(
     Ok(vector)
 }
 
+pub async fn auth_vector_used(
+    context: Arc<DauthContext>,
+    backup_network_id: &str,
+    xres_star_hash: &auth_vector::types::HresStar,
+) -> Result<AuthVectorRes, DauthError> {
+    tracing::info!(
+        "Auth vector used on {:?}: {:?}",
+        backup_network_id,
+        xres_star_hash
+    );
+
+    let mut transaction = context.local_context.database_pool.begin().await?;
+    let (owning_network_id, user_id) =
+        database::vector_state::get(&mut transaction, xres_star_hash).await?;
+
+    if owning_network_id != backup_network_id {
+        return Err(DauthError::DataError("Not the owning network".to_string()));
+    }
+
+    database::vector_state::remove(&mut transaction, xres_star_hash).await?;
+
+    let sqn_slice =
+        database::backup_networks::get_slice(&mut transaction, &user_id, backup_network_id).await?;
+
+    let mut user_info =
+        database::user_infos::get(&mut transaction, &user_id.to_string(), sqn_slice)
+            .await?
+            .to_user_info()?;
+
+    let auth_vector_data = auth_vector::generate_vector(
+        &user_info.k,
+        &user_info.opc,
+        &user_info.sqn.to_be_bytes()[..SQN_LENGTH].try_into()?,
+    );
+
+    user_info.sqn += context.local_context.num_sqn_slices;
+
+    database::user_infos::upsert(
+        &mut transaction,
+        &user_id.to_string(),
+        &user_info.k,
+        &user_info.opc,
+        user_info.sqn,
+        sqn_slice,
+    )
+    .await?;
+
+    database::vector_state::add(
+        &mut transaction,
+        &auth_vector_data.xres_star_hash,
+        &user_id,
+        backup_network_id,
+    )
+    .await?;
+
+    let (_, mut backup_networks) =
+        clients::directory::lookup_user(context.clone(), &user_id).await?;
+    backup_networks.retain(|id| id != backup_network_id);
+
+    let mut key_shares = generate_key_shares(
+        context.clone(),
+        &auth_vector_data.kseaf,
+        backup_networks.len(),
+    )?;
+
+    for id in backup_networks {
+        let key_share = key_shares.pop().ok_or(DauthError::DataError(
+            "Failed to generate all key shares".to_string(),
+        ))?;
+        database::tasks::replace_key_shares::add(&mut transaction, &id, xres_star_hash, &key_share)
+            .await?;
+    }
+
+    transaction.commit().await?;
+
+    Ok(AuthVectorRes {
+        user_id: user_id.to_string(),
+        seqnum: user_info.sqn,
+        rand: auth_vector_data.rand,
+        autn: auth_vector_data.autn,
+        xres_star_hash: auth_vector_data.xres_star_hash,
+    })
+}
+
 /// Sets the provided user id as a being backed up by this network.
 pub async fn set_backup_user(
     context: Arc<DauthContext>,
@@ -503,4 +587,13 @@ fn validate_xres_star_hash(
     } else {
         Ok(())
     }
+}
+
+/// Placeholder function
+fn generate_key_shares(
+    context: Arc<DauthContext>,
+    kseaf: &auth_vector::types::Kseaf,
+    num_keys: usize,
+) -> Result<Vec<auth_vector::types::Kseaf>, DauthError> {
+    Ok(vec![[0u8; auth_vector::constants::KSEAF_LENGTH]; num_keys])
 }

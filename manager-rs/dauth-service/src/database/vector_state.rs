@@ -40,19 +40,23 @@ pub async fn add(
     Ok(())
 }
 
-/// Returns the owning network of the auth vector.
+/// Returns the owning network and user id of the auth vector.
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
-) -> Result<String, DauthError> {
-    Ok(sqlx::query(
+) -> Result<(String, String), DauthError> {
+    let row = sqlx::query(
         "SELECT * FROM vector_state_table
         WHERE xres_star_hash=$1;",
     )
     .bind(xres_star_hash)
     .fetch_one(transaction)
-    .await?
-    .try_get::<String, &str>("backup_network_id")?)
+    .await?;
+
+    Ok((
+        row.try_get::<String, &str>("backup_network_id")?,
+        row.try_get::<String, &str>("user_id")?,
+    ))
 }
 
 /// Returns the set of xres* hashes owned by the network for a given user.
@@ -168,7 +172,8 @@ mod tests {
             assert_eq!(
                 vector_state::get(&mut transaction, &[row as u8; 1],)
                     .await
-                    .unwrap(),
+                    .unwrap()
+                    .0,
                 format!("test_backup_network_{}", row)
             );
         }
@@ -232,7 +237,8 @@ mod tests {
             assert_eq!(
                 vector_state::get(&mut transaction, &[row as u8; 1],)
                     .await
-                    .unwrap(),
+                    .unwrap()
+                    .0,
                 format!("test_backup_network_{}", row)
             );
         }

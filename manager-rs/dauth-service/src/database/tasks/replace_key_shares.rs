@@ -49,14 +49,10 @@ pub async fn add(
 }
 
 /// Gets all pending key share replaces.
-pub async fn get(
-    transaction: &mut Transaction<'_, Sqlite>,
-) -> Result<Vec<GetResult>, DauthError> {
-    let rows = sqlx::query(
-        "SELECT * FROM replace_key_share_task_table",
-    )
-    .fetch_all(transaction)
-    .await?;
+pub async fn get(transaction: &mut Transaction<'_, Sqlite>) -> Result<Vec<GetResult>, DauthError> {
+    let rows = sqlx::query("SELECT * FROM replace_key_share_task_table")
+        .fetch_all(transaction)
+        .await?;
 
     let mut res = Vec::with_capacity(rows.len());
     for row in rows {
@@ -123,11 +119,14 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            tasks::replace_key_shares::add(&mut transaction, 
-                &format!("test_backup_network_{}", row), 
+            tasks::replace_key_shares::add(
+                &mut transaction,
+                &format!("test_backup_network_{}", row),
                 &vec![row as u8],
                 &vec![0u8],
-            ).await.unwrap()
+            )
+            .await
+            .unwrap()
         }
         transaction.commit().await.unwrap();
     }
@@ -141,17 +140,23 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            tasks::replace_key_shares::add(&mut transaction, 
-                &format!("test_backup_network_{}", row), 
+            tasks::replace_key_shares::add(
+                &mut transaction,
+                &format!("test_backup_network_{}", row),
                 &vec![row as u8],
                 &vec![0u8],
-            ).await.unwrap();
+            )
+            .await
+            .unwrap();
             names.push(format!("test_backup_network_{}", row));
         }
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        for res in tasks::replace_key_shares::get(&mut transaction).await.unwrap() {
+        for res in tasks::replace_key_shares::get(&mut transaction)
+            .await
+            .unwrap()
+        {
             assert!(names.contains(&res.backup_network_id));
         }
         transaction.commit().await.unwrap();
@@ -166,32 +171,47 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            tasks::replace_key_shares::add(&mut transaction, 
-                &format!("test_backup_network_{}", row), 
+            tasks::replace_key_shares::add(
+                &mut transaction,
+                &format!("test_backup_network_{}", row),
                 &vec![row as u8],
                 &vec![0u8],
-            ).await.unwrap();
+            )
+            .await
+            .unwrap();
             names.push(format!("test_backup_network_{}", row));
         }
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        for res in tasks::replace_key_shares::get(&mut transaction).await.unwrap() {
+        for res in tasks::replace_key_shares::get(&mut transaction)
+            .await
+            .unwrap()
+        {
             assert!(names.contains(&res.backup_network_id));
         }
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            tasks::replace_key_shares::remove(&mut transaction, 
-                &format!("test_backup_network_{}", row), 
+            tasks::replace_key_shares::remove(
+                &mut transaction,
+                &format!("test_backup_network_{}", row),
                 &vec![row as u8],
-            ).await.unwrap();
+            )
+            .await
+            .unwrap();
         }
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        assert!(tasks::replace_key_shares::get(&mut transaction).await.unwrap().len() == 0);
+        assert!(
+            tasks::replace_key_shares::get(&mut transaction)
+                .await
+                .unwrap()
+                .len()
+                == 0
+        );
         transaction.commit().await.unwrap();
     }
 }
