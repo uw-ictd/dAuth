@@ -137,6 +137,15 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
             )
             .await?;
         }
+        for (xres_star_hash, _) in shares {
+            database::key_share_state::add(
+                &mut transaction,
+                xres_star_hash,
+                user_id,
+                backup_network_id,
+            )
+            .await?;
+        }
         transaction.commit().await?;
 
         backup_network::enroll_backup_commit(
