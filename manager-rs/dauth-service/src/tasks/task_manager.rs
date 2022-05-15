@@ -39,6 +39,9 @@ async fn run(context: Arc<DauthContext>) -> Result<(), DauthError> {
             tasks.push(tokio::spawn(tasks::replace_key_shares::run_task(
                 context.clone(),
             )));
+            tasks.push(tokio::spawn(tasks::report_auth_vectors::run_task(
+                context.clone(),
+            )));
             tasks.push(tokio::spawn(tasks::report_key_shares::run_task(
                 context.clone(),
             )));

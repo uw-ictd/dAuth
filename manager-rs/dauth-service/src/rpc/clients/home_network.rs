@@ -99,10 +99,9 @@ pub async fn report_auth_consumed(
     context: Arc<DauthContext>,
     xres_star_hash: &HresStar,
     user_id: &str,
-    original_request: Vec<u8>,
+    original_request: &Vec<u8>,
     address: &str,
 ) -> Result<AuthVectorRes, DauthError> {
-    // TODO: Delete auths during report, add to task to report to home network.
     let mut client = get_client(context.clone(), address).await?;
 
     let signed_message = SignedMessage::decode(&original_request[..])?;

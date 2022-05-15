@@ -219,7 +219,7 @@ pub async fn get_confirm_key(
 }
 
 // Store a new auth vector as a backup.
-pub async fn _store_backup_auth_vector(
+pub async fn store_backup_auth_vector(
     context: Arc<DauthContext>,
     av_result: &AuthVectorRes,
 ) -> Result<(), DauthError> {
@@ -291,12 +291,13 @@ pub async fn store_backup_flood_vector(
     Ok(())
 }
 
-/// Removes and returns the next backup auth vector.
+/// Returns the next backup auth vector.
 /// Checks flood vectors first, then auth vector.
 /// Returns auth vector with lowest sequence number.
 pub async fn next_backup_auth_vector(
     context: Arc<DauthContext>,
     av_request: &AuthVectorReq,
+    signed_request_bytes: &Vec<u8>,
 ) -> Result<AuthVectorRes, DauthError> {
     tracing::info!("Vector next: {:?}", av_request);
 
@@ -313,6 +314,14 @@ pub async fn next_backup_auth_vector(
             .await?
             .to_auth_vector()?;
     };
+
+    database::tasks::report_auth_vectors::add(
+        &mut transaction,
+        &vector.xres_star_hash,
+        &vector.user_id,
+        signed_request_bytes,
+    )
+    .await?;
 
     transaction.commit().await?;
 

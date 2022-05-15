@@ -78,17 +78,17 @@ pub async fn get_by_hash(
     .await?)
 }
 
-/// Removes the vector with the (id, seqnum) pair.
+/// Removes the vector with the (user_id, seqnum) pair.
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
-    id: &str,
+    user_id: &str,
     seqnum: i64,
 ) -> Result<(), DauthError> {
     sqlx::query(
         "DELETE FROM auth_vector_table
         WHERE (user_id,seqnum)=($1,$2)",
     )
-    .bind(id)
+    .bind(user_id)
     .bind(seqnum)
     .execute(transaction)
     .await?;

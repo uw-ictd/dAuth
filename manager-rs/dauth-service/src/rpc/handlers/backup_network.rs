@@ -89,12 +89,18 @@ impl BackupNetwork for BackupNetworkHandler {
     ) -> Result<tonic::Response<GetBackupAuthVectorResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        // TODO: Handle retry case? Auth vector is removed from database
-
         let message = request
             .into_inner()
             .message
             .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
+
+        let mut signed_request_bytes = Vec::new();
+        message.encode(&mut signed_request_bytes).or_else(|e| {
+            Err(tonic::Status::new(
+                tonic::Code::Aborted,
+                format!("Failed to encode message: {}", e),
+            ))
+        })?;
 
         let verify_result = signing::verify_message(self.context.clone(), &message)
             .await
@@ -105,8 +111,12 @@ impl BackupNetwork for BackupNetworkHandler {
                 ))
             })?;
 
-        match BackupNetworkHandler::get_backup_auth_vector_hlp(self.context.clone(), verify_result)
-            .await
+        match BackupNetworkHandler::get_backup_auth_vector_hlp(
+            self.context.clone(),
+            verify_result,
+            &signed_request_bytes,
+        )
+        .await
         {
             Ok(result) => Ok(result),
             Err(e) => Err(tonic::Status::new(
@@ -122,9 +132,6 @@ impl BackupNetwork for BackupNetworkHandler {
         request: tonic::Request<GetKeyShareReq>,
     ) -> Result<tonic::Response<GetKeyShareResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
-
-        // TODO: Need to alert home network
-        // TODO: Handle retry case? Key share is removed from database
 
         let message = request
             .into_inner()
@@ -372,6 +379,7 @@ impl BackupNetworkHandler {
     async fn get_backup_auth_vector_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
+        signed_request_bytes: &Vec<u8>,
     ) -> Result<tonic::Response<GetBackupAuthVectorResp>, DauthError> {
         if let SignPayloadType::GetBackupAuthVectorReq(payload) = verify_result {
             let user_id = std::str::from_utf8(payload.user_id.as_slice())?.to_string();
@@ -381,6 +389,7 @@ impl BackupNetworkHandler {
                 &AuthVectorReq {
                     user_id: user_id.to_string(),
                 },
+                signed_request_bytes,
             )
             .await?;
 
