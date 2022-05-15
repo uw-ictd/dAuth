@@ -50,7 +50,7 @@ pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
     backup_network_id: &str,
-) -> Result<(String,Rand), DauthError> {
+) -> Result<(String, Rand), DauthError> {
     let row = sqlx::query(
         "SELECT * FROM key_share_state_table
         WHERE (xres_star_hash,backup_network_id)=($1,$2)",
