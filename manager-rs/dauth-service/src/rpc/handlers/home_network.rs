@@ -118,7 +118,7 @@ impl HomeNetwork for HomeNetworkHandler {
             })?;
 
         // TODO: Verify the message further
-        // The above will verify that it has been signed appropriatly, but nothing else
+        // The above will verify that it has been signed appropriately, but nothing else
         match HomeNetworkHandler::report_key_share_consumed_hlp(
             self.context.clone(),
             &content.backup_network_id,
@@ -207,6 +207,7 @@ impl HomeNetworkHandler {
         if let SignPayloadType::GetKeyShareReq(payload) = verify_result {
             manager::key_share_used(
                 context,
+                &payload.res_star[..].try_into()?,
                 &payload.hash_xres_star[..].try_into()?,
                 backup_network_id,
             )

@@ -4,7 +4,7 @@ use auth_vector::{
     self,
     constants::{KSEAF_LENGTH, SQN_LENGTH},
     data::AuthVectorData,
-    types::{HresStar, Kseaf},
+    types::{HresStar, Kseaf, ResStar},
 };
 use sqlx::{Sqlite, Transaction};
 
@@ -528,9 +528,27 @@ pub async fn remove_key_shares(
 /// by a backup network.
 pub async fn key_share_used(
     context: Arc<DauthContext>,
+    res_star: &ResStar,
     xres_star_hash: &HresStar,
-    network_id: &str,
+    backup_network_id: &str,
 ) -> Result<(), DauthError> {
+    let mut transaction = context.local_context.database_pool.begin().await?;
+
+    let (user_id, rand) =
+        database::key_share_state::get(&mut transaction, xres_star_hash, backup_network_id).await?;
+
+    tracing::info!(
+        "Key share reported used by {} for {}",
+        backup_network_id,
+        user_id
+    );
+
+    validate_xres_star_hash(xres_star_hash, res_star, &rand)?;
+
+    database::key_share_state::remove(&mut transaction, xres_star_hash, backup_network_id).await?;
+
+    transaction.commit().await?;
+
     Ok(())
 }
 
