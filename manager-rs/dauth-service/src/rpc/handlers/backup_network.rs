@@ -401,6 +401,7 @@ impl BackupNetworkHandler {
                 }
                 manager::store_key_shares(
                     context.clone(),
+                    &user_id,
                     processed_shares
                         .into_iter()
                         .flat_map(|share| {

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use auth_vector::{
     self,
-    constants::{KSEAF_LENGTH, SQN_LENGTH},
+    constants::SQN_LENGTH,
     data::AuthVectorData,
     types::{HresStar, Kseaf, ResStar},
 };
@@ -438,6 +438,7 @@ pub async fn remove_backup_user(
 /// Stores a collection of key shares.
 pub async fn store_key_shares(
     context: Arc<DauthContext>,
+    user_id: &str,
     key_shares: Vec<(auth_vector::types::HresStar, auth_vector::types::Kseaf)>,
 ) -> Result<(), DauthError> {
     tracing::info!("Handling multiple key store: {:?}", key_shares);
@@ -445,14 +446,14 @@ pub async fn store_key_shares(
     let mut transaction = context.local_context.database_pool.begin().await?;
 
     for (xres_star_hash, key_share) in key_shares {
-        database::key_shares::add(&mut transaction, &xres_star_hash, &key_share).await?;
+        database::key_shares::add(&mut transaction, &xres_star_hash, user_id, &key_share).await?;
     }
     transaction.commit().await?;
     Ok(())
 }
 
 /// Replace the old key share if found.
-/// Adds the new kay share.
+/// Adds the new key share.
 pub async fn replace_key_shares(
     context: Arc<DauthContext>,
     old_xres_star_hash: &auth_vector::types::HresStar,
@@ -467,8 +468,15 @@ pub async fn replace_key_shares(
 
     let mut transaction = context.local_context.database_pool.begin().await?;
 
+    let user_id = database::key_shares::get_user_id(&mut transaction, old_xres_star_hash).await?;
     database::key_shares::remove(&mut transaction, old_xres_star_hash).await?;
-    database::key_shares::add(&mut transaction, new_xres_star_hash, new_key_share).await?;
+    database::key_shares::add(
+        &mut transaction,
+        new_xres_star_hash,
+        &user_id,
+        new_key_share,
+    )
+    .await?;
 
     transaction.commit().await?;
 
