@@ -8,15 +8,14 @@ use crate::data::error::DauthError;
 use crate::data::signing;
 use crate::data::signing::SignPayloadType;
 use crate::data::vector::AuthVectorRes;
-use crate::rpc::dauth::common::{AuthVector5G, UserIdKind};
+use crate::rpc::utilities;
+use crate::rpc::dauth::common::UserIdKind;
 use crate::rpc::dauth::remote::backup_network_client::BackupNetworkClient;
-use crate::rpc::dauth::remote::{
-    delegated_auth_vector5_g, delegated_confirmation_share, enroll_backup_prepare_req,
+use crate::rpc::dauth::remote::{ enroll_backup_prepare_req,
     flood_vector_req, get_backup_auth_vector_req, get_key_share_req, withdraw_backup_req,
     withdraw_shares_req,
 };
-use crate::rpc::dauth::remote::{
-    DelegatedAuthVector5G, DelegatedConfirmationShare, EnrollBackupCommitReq,
+use crate::rpc::dauth::remote::{ EnrollBackupCommitReq,
     EnrollBackupPrepareReq, FloodVectorReq, GetBackupAuthVectorReq, GetKeyShareReq,
     WithdrawBackupReq, WithdrawSharesReq,
 };
@@ -86,14 +85,14 @@ pub async fn enroll_backup_commit(
     let mut dshares = Vec::new();
 
     for vector in vectors {
-        dvectors.push(build_delegated_vector(
+        dvectors.push(utilities::build_delegated_vector(
             context.clone(),
             vector,
             backup_network_id,
         ))
     }
     for (xres_star_hash, confirmation_share) in key_shares {
-        dshares.push(build_delegated_share(
+        dshares.push(utilities::build_delegated_share(
             context.clone(),
             xres_star_hash,
             confirmation_share,
@@ -290,7 +289,7 @@ pub async fn flood_vector(
                     home_network_id: context.local_context.id.clone(),
                     user_id_kind: UserIdKind::Supi as i32,
                     user_id: user_id.as_bytes().to_vec(),
-                    vector: Some(build_delegated_vector(
+                    vector: Some(utilities::build_delegated_vector(
                         context.clone(),
                         vector,
                         backup_network_id,
@@ -322,45 +321,4 @@ async fn get_client(
         .get(address)
         .ok_or(DauthError::ClientError("Client not found".to_string()))?
         .clone())
-}
-
-fn build_delegated_vector(
-    context: Arc<DauthContext>,
-    vector: &AuthVectorRes,
-    serving_network_id: &str,
-) -> DelegatedAuthVector5G {
-    let payload = delegated_auth_vector5_g::Payload {
-        serving_network_id: serving_network_id.to_string(),
-        v: Some(AuthVector5G {
-            rand: vector.rand.to_vec(),
-            xres_star_hash: vector.xres_star_hash.to_vec(),
-            autn: vector.autn.to_vec(),
-            seqnum: vector.seqnum,
-        }),
-    };
-
-    DelegatedAuthVector5G {
-        message: Some(signing::sign_message(
-            context,
-            SignPayloadType::DelegatedAuthVector5G(payload),
-        )),
-    }
-}
-
-fn build_delegated_share(
-    context: Arc<DauthContext>,
-    xres_star_hash: &HresStar,
-    confirmation_share: &Kseaf,
-) -> DelegatedConfirmationShare {
-    let payload = delegated_confirmation_share::Payload {
-        xres_star_hash: xres_star_hash.to_vec(),
-        confirmation_share: confirmation_share.to_vec(),
-    };
-
-    DelegatedConfirmationShare {
-        message: Some(signing::sign_message(
-            context,
-            SignPayloadType::DelegatedConfirmationShare(payload),
-        )),
-    }
 }
