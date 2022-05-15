@@ -22,10 +22,23 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
         tracing::info!("Nothing to do for update user task");
     } else {
         tracing::info!("Found {} user update(s) pending", user_ids.len());
+
+        let mut tasks = Vec::new();
+
         for user_id in user_ids {
-            if let Err(e) = handle_user_update(context.clone(), &user_id).await {
-                tracing::warn!("Failed to handle user update: {}", e);
-                // move on to next user id
+            tasks.push(tokio::spawn(handle_user_update(context.clone(), user_id)));
+        }
+
+        for task in tasks {
+            match task.await {
+                Ok(task_res) => {
+                    if let Err(e) = task_res {
+                        tracing::warn!("Failed to handle user update: {}", e);
+                    }
+                }
+                Err(je) => {
+                    tracing::warn!("Error while joining: {}", je)
+                }
             }
         }
     }
@@ -34,7 +47,9 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
 
 /// Adds the user and its backup networks to the directory service.
 /// Then, enrolls each of the backup networks.
-async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result<(), DauthError> {
+async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Result<(), DauthError> {
+    let user_id = &user_id;
+
     let mut transaction = context.local_context.database_pool.begin().await.unwrap();
     let user_data =
         database::tasks::update_users::get_user_data(&mut transaction, &user_id).await?;
