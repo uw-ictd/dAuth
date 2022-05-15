@@ -1,3 +1,4 @@
+use auth_vector::types::Rand;
 use sqlx::sqlite::SqlitePool;
 use sqlx::{Row, Sqlite, Transaction};
 
@@ -8,8 +9,9 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS key_share_state_table (
             xres_star_hash BLOB NOT NULL,
-            user_id TEXT NOT NULL,
             backup_network_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            rand BLOB NOT NULL,
             PRIMARY KEY (xres_star_hash, backup_network_id)
         );",
     )
@@ -25,28 +27,30 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
-    user_id: &str,
     backup_network_id: &str,
+    user_id: &str,
+    rand: &[u8],
 ) -> Result<(), DauthError> {
     sqlx::query(
         "INSERT INTO key_share_state_table
-        VALUES ($1,$2,$3)",
+        VALUES ($1,$2,$3,$4)",
     )
     .bind(xres_star_hash)
-    .bind(user_id)
     .bind(backup_network_id)
+    .bind(user_id)
+    .bind(rand)
     .execute(transaction)
     .await?;
 
     Ok(())
 }
 
-/// Returns the user_id for the key share.
+/// Returns the user_id and rand for the key share.
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
     backup_network_id: &str,
-) -> Result<String, DauthError> {
+) -> Result<(String,Rand), DauthError> {
     let row = sqlx::query(
         "SELECT * FROM key_share_state_table
         WHERE (xres_star_hash,backup_network_id)=($1,$2)",
@@ -56,7 +60,10 @@ pub async fn get(
     .fetch_one(transaction)
     .await?;
 
-    Ok(row.try_get::<String, &str>("user_id")?)
+    Ok((
+        row.try_get::<String, &str>("user_id")?,
+        row.try_get::<Vec<u8>, &str>("rand")?[..].try_into()?,
+    ))
 }
 
 /// Deletes a key share reference if found.
@@ -81,6 +88,7 @@ pub async fn remove(
 
 #[cfg(test)]
 mod tests {
+    use auth_vector::constants::RAND_LENGTH;
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
     use sqlx::SqlitePool;
@@ -120,8 +128,9 @@ mod tests {
             key_share_state::add(
                 &mut transaction,
                 &[row as u8; 1],
-                "test_user_id",
                 &format!("test_backup_network_{}", row),
+                "test_user_id",
+                &[0u8; RAND_LENGTH],
             )
             .await
             .unwrap();
@@ -139,8 +148,9 @@ mod tests {
             key_share_state::add(
                 &mut transaction,
                 &[row as u8; 1],
-                "test_user_id",
                 &format!("test_backup_network_{}", row),
+                "test_user_id",
+                &[0u8; RAND_LENGTH],
             )
             .await
             .unwrap();
@@ -157,7 +167,7 @@ mod tests {
                 )
                 .await
                 .unwrap(),
-                "test_user_id",
+                ("test_user_id".to_string(), [0u8; RAND_LENGTH]),
             );
         }
         transaction.commit().await.unwrap();
@@ -173,8 +183,9 @@ mod tests {
             key_share_state::add(
                 &mut transaction,
                 &[row as u8; 1],
-                "test_user_id",
                 &format!("test_backup_network_{}", row),
+                "test_user_id",
+                &[0u8; RAND_LENGTH],
             )
             .await
             .unwrap();
@@ -191,7 +202,7 @@ mod tests {
                 )
                 .await
                 .unwrap(),
-                "test_user_id",
+                ("test_user_id".to_string(), [0u8; RAND_LENGTH]),
             );
         }
         transaction.commit().await.unwrap();

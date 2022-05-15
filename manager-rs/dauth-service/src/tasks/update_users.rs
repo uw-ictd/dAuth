@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use auth_vector::constants::KSEAF_LENGTH;
-use auth_vector::types::{HresStar, Kseaf};
+use auth_vector::types::{HresStar, Kseaf, Rand};
 
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
@@ -137,23 +137,28 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
             )
             .await?;
         }
-        for (xres_star_hash, _) in shares {
+        for (xres_star_hash, _, rand) in shares {
             database::key_share_state::add(
                 &mut transaction,
                 xres_star_hash,
-                user_id,
                 backup_network_id,
+                user_id,
+                rand,
             )
             .await?;
         }
         transaction.commit().await?;
+
+        // drop rand before sending
+        // TODO: allow backups to have rand? Would allow them to check res
+        let key_shares = shares.into_iter().map(|(xres_star_hash, kseaf, _rand)| { (xres_star_hash.clone(), kseaf.clone())}).collect();
 
         backup_network::enroll_backup_commit(
             context.clone(),
             backup_network_id,
             user_id,
             vectors,
-            shares,
+            &key_shares,
             &address,
         )
         .await?;
@@ -171,11 +176,11 @@ async fn generate_key_shares(
     _context: Arc<DauthContext>,
     vector: &AuthVectorRes,
     num_slices: usize,
-) -> Result<Vec<(HresStar, Kseaf)>, DauthError> {
+) -> Result<Vec<(HresStar, Kseaf, Rand)>, DauthError> {
     let mut slices = Vec::new();
 
     for _ in 0..num_slices {
-        slices.push((vector.xres_star_hash.clone(), [0u8; KSEAF_LENGTH]))
+        slices.push((vector.xres_star_hash.clone(), [0u8; KSEAF_LENGTH], vector.rand.clone()))
     }
 
     Ok(slices)
