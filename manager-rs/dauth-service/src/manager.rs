@@ -368,8 +368,14 @@ pub async fn auth_vector_used(
         let key_share = key_shares.pop().ok_or(DauthError::DataError(
             "Failed to generate all key shares".to_string(),
         ))?;
-        database::tasks::replace_key_shares::add(&mut transaction, &id, xres_star_hash, &key_share)
-            .await?;
+        database::tasks::replace_key_shares::add(
+            &mut transaction,
+            &id,
+            &auth_vector_data.xres_star_hash,
+            xres_star_hash,
+            &key_share,
+        )
+        .await?;
     }
 
     transaction.commit().await?;

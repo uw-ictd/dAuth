@@ -8,6 +8,7 @@ use crate::data::error::DauthError;
 use crate::data::signing;
 use crate::data::signing::SignPayloadType;
 use crate::data::vector::AuthVectorRes;
+use crate::database::tasks::replace_key_shares::ReplaceKeyShareTask;
 use crate::rpc::dauth::common::UserIdKind;
 use crate::rpc::dauth::remote::backup_network_client::BackupNetworkClient;
 use crate::rpc::dauth::remote::{
@@ -209,9 +210,8 @@ pub async fn get_key_share(
 /// to be stored.
 pub async fn replace_key_share(
     context: Arc<DauthContext>,
-    old_xres_star_hash: &HresStar,
-    new_xres_star_hash: &HresStar,
-    new_key_share: &Kseaf,
+    replace: ReplaceKeyShareTask,
+    address: &str,
 ) -> Result<(), DauthError> {
     todo!()
 }

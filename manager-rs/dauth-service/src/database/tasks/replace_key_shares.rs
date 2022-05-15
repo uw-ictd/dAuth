@@ -3,11 +3,12 @@ use sqlx::{FromRow, Sqlite, Transaction};
 
 use crate::data::error::DauthError;
 
-#[derive(FromRow)]
-pub struct GetResult {
-    backup_network_id: String,
-    xres_star_hash: Vec<u8>,
-    key_share: Vec<u8>,
+#[derive(FromRow, Clone)]
+pub struct ReplaceKeyShareTask {
+    pub backup_network_id: String,
+    pub xres_star_hash: Vec<u8>,
+    pub old_xres_star_hash: Vec<u8>,
+    pub key_share: Vec<u8>,
 }
 
 /// Creates the backup networks table if it does not exist already.
@@ -17,6 +18,7 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
         "CREATE TABLE IF NOT EXISTS replace_key_share_task_table (
             backup_network_id TEXT NOT NULL,
             xres_star_hash BLOB NOT NULL,
+            old_xres_star_hash BLOB NOT NULL,
             key_share BLOB NOT NULL,
             PRIMARY KEY (backup_network_id, xres_star_hash)
         );",
@@ -33,14 +35,16 @@ pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     backup_network_id: &str,
     xres_star_hash: &[u8],
+    old_xres_star_hash: &[u8],
     key_share: &[u8],
 ) -> Result<(), DauthError> {
     sqlx::query(
         "INSERT INTO replace_key_share_task_table
-        VALUES ($1,$2,$3)",
+        VALUES ($1,$2,$3,$4)",
     )
     .bind(backup_network_id)
     .bind(xres_star_hash)
+    .bind(old_xres_star_hash)
     .bind(key_share)
     .execute(transaction)
     .await?;
@@ -49,14 +53,16 @@ pub async fn add(
 }
 
 /// Gets all pending key share replaces.
-pub async fn get(transaction: &mut Transaction<'_, Sqlite>) -> Result<Vec<GetResult>, DauthError> {
+pub async fn get(
+    transaction: &mut Transaction<'_, Sqlite>,
+) -> Result<Vec<ReplaceKeyShareTask>, DauthError> {
     let rows = sqlx::query("SELECT * FROM replace_key_share_task_table")
         .fetch_all(transaction)
         .await?;
 
     let mut res = Vec::with_capacity(rows.len());
     for row in rows {
-        res.push(GetResult::from_row(&row)?)
+        res.push(ReplaceKeyShareTask::from_row(&row)?)
     }
     Ok(res)
 }
@@ -123,6 +129,7 @@ mod tests {
                 &mut transaction,
                 &format!("test_backup_network_{}", row),
                 &vec![row as u8],
+                &vec![row as u8],
                 &vec![0u8],
             )
             .await
@@ -143,6 +150,7 @@ mod tests {
             tasks::replace_key_shares::add(
                 &mut transaction,
                 &format!("test_backup_network_{}", row),
+                &vec![row as u8],
                 &vec![row as u8],
                 &vec![0u8],
             )
@@ -174,6 +182,7 @@ mod tests {
             tasks::replace_key_shares::add(
                 &mut transaction,
                 &format!("test_backup_network_{}", row),
+                &vec![row as u8],
                 &vec![row as u8],
                 &vec![0u8],
             )

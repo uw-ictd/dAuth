@@ -33,6 +33,7 @@ pub async fn database_init(database_path: &str) -> Result<SqlitePool, DauthError
     database::backup_users::init_table(&pool).await?;
     database::vector_state::init_table(&pool).await?;
     database::tasks::update_users::init_table(&pool).await?;
+    database::tasks::replace_key_shares::init_table(&pool).await?;
 
     Ok(pool)
 }
