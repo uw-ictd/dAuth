@@ -13,7 +13,7 @@ use crate::rpc::dauth::common::UserIdKind;
 use crate::rpc::dauth::remote::backup_network_client::BackupNetworkClient;
 use crate::rpc::dauth::remote::{
     enroll_backup_prepare_req, flood_vector_req, get_backup_auth_vector_req, get_key_share_req,
-    withdraw_backup_req, withdraw_shares_req,
+    withdraw_backup_req, withdraw_shares_req, ReplaceShareReq,
 };
 use crate::rpc::dauth::remote::{
     EnrollBackupCommitReq, EnrollBackupPrepareReq, FloodVectorReq, GetBackupAuthVectorReq,
@@ -210,10 +210,23 @@ pub async fn get_key_share(
 /// to be stored.
 pub async fn replace_key_share(
     context: Arc<DauthContext>,
-    replace: ReplaceKeyShareTask,
+    replace: &ReplaceKeyShareTask,
     address: &str,
 ) -> Result<(), DauthError> {
-    todo!()
+    let mut client = get_client(context.clone(), address).await?;
+
+    client
+        .replace_key_share(ReplaceShareReq {
+            new_share: Some(utilities::build_delegated_share(
+                context,
+                &replace.xres_star_hash[..].try_into()?,
+                &replace.key_share[..].try_into()?,
+            )),
+            replaced_share_xres_star_hash: replace.old_xres_star_hash.clone(),
+        })
+        .await?;
+
+    Ok(())
 }
 
 /// Withdraws backup status from a backup network.
