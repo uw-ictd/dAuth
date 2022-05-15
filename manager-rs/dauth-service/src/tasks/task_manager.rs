@@ -36,7 +36,9 @@ async fn run(context: Arc<DauthContext>) -> Result<(), DauthError> {
             let mut tasks = Vec::new();
 
             tasks.push(tokio::spawn(tasks::update_users::run_task(context.clone())));
-            tasks.push(tokio::spawn(tasks::replace_key_shares::run_task(context.clone())));
+            tasks.push(tokio::spawn(tasks::replace_key_shares::run_task(
+                context.clone(),
+            )));
 
             for task in tasks {
                 match task.await {
@@ -44,7 +46,7 @@ async fn run(context: Arc<DauthContext>) -> Result<(), DauthError> {
                         if let Err(e) = task_res {
                             tracing::warn!("Error while executing task: {}", e)
                         }
-                    },
+                    }
                     Err(je) => {
                         tracing::warn!("Error while joining: {}", je)
                     }

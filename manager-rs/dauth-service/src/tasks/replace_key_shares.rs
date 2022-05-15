@@ -29,8 +29,7 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
             match task.await {
                 Ok(task_res) => match task_res {
                     Ok(replace) => {
-                        let mut transaction =
-                            context.local_context.database_pool.begin().await?;
+                        let mut transaction = context.local_context.database_pool.begin().await?;
                         database::tasks::replace_key_shares::remove(
                             &mut transaction,
                             &replace.backup_network_id,
@@ -63,12 +62,7 @@ async fn replace_key_share(
     let (address, _) =
         clients::directory::lookup_network(context.clone(), &replace.backup_network_id).await?;
 
-    clients::backup_network::replace_key_share(
-        context,
-        replace.clone(),
-        &address,
-    )
-    .await?;
+    clients::backup_network::replace_key_share(context, replace.clone(), &address).await?;
 
     Ok(replace)
 }
