@@ -36,6 +36,9 @@ pub enum DauthError {
     #[error("Error while decoding message -- {0}")]
     DecodeError(#[from] prost::DecodeError),
 
+    #[error("Error while encoding message -- {0}")]
+    EncodeError(#[from] prost::EncodeError),
+
     #[error("Error while generating shamir share")]
     ShamirShareError(),
 

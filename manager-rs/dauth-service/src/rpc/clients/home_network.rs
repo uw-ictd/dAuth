@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use auth_vector::types::{HresStar, Kseaf, ResStar};
+use prost::Message;
 use tonic::transport::Channel;
 
 use crate::data::context::DauthContext;
@@ -9,7 +10,10 @@ use crate::data::signing::{self, SignPayloadType};
 use crate::data::vector::AuthVectorRes;
 use crate::rpc::dauth::common::UserIdKind;
 use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
-use crate::rpc::dauth::remote::{get_home_auth_vector_req, get_home_confirm_key_req};
+use crate::rpc::dauth::remote::{
+    get_home_auth_vector_req, get_home_confirm_key_req, ReportHomeKeyShareConsumedReq,
+    SignedMessage,
+};
 use crate::rpc::dauth::remote::{GetHomeAuthVectorReq, GetHomeConfirmKeyReq};
 
 /// Get an auth vector from a user's home network.
@@ -90,21 +94,35 @@ pub async fn get_confirm_key(
 /// Reports an auth vector as used to the home network.
 /// Sends the original signed request for the auth vector as
 /// proof of the auth vector request.
-async fn report_auth_consumed(
+pub async fn report_auth_consumed(
     context: Arc<DauthContext>,
     original_request: Vec<u8>,
 ) -> Result<AuthVectorRes, DauthError> {
+    // TODO: Delete auths during report, add to task to report to home network.
     todo!()
 }
 
 /// Reports a key share as used to the home network.
 /// Sends the original signed request for the auth vector as
 /// proof of the auth vector request.
-async fn report_key_share_consumed(
+pub async fn report_key_share_consumed(
     context: Arc<DauthContext>,
-    original_request: Vec<u8>,
-) -> Result<(HresStar, Kseaf), DauthError> {
-    todo!()
+    original_request: &Vec<u8>,
+    address: &str,
+) -> Result<(), DauthError> {
+    let mut client = get_client(context.clone(), address).await?;
+
+    let signed_message = SignedMessage::decode(&original_request[..])?;
+
+    client
+        .report_key_share_consumed(ReportHomeKeyShareConsumedReq {
+            backup_network_id: context.local_context.id.clone(),
+            get_key_share_req: Some(signed_message),
+        })
+        .await?
+        .into_inner();
+
+    Ok(())
 }
 
 /// Returns a client to the service at the provided address.

@@ -483,42 +483,32 @@ pub async fn replace_key_shares(
     Ok(())
 }
 
-/// Removes and returns a key share value.
+/// Returns a key share value corresponding to the xres* hash.
 pub async fn get_key_share(
     context: Arc<DauthContext>,
-    res_star: &auth_vector::types::ResStar,
     xres_star_hash: &auth_vector::types::HresStar,
+    signed_request_bytes: &Vec<u8>,
 ) -> Result<auth_vector::types::Kseaf, DauthError> {
-    tracing::info!(
-        "Handling key share get: {:?} - {:?}",
-        res_star,
-        xres_star_hash,
-    );
-
-    // TODO: Alert home network
+    tracing::info!("Handling key share get: {:?}", xres_star_hash,);
 
     let mut transaction = context.local_context.database_pool.begin().await?;
+
     let key_share = database::key_shares::get(&mut transaction, xres_star_hash)
         .await?
         .to_key_share()?;
 
-    // TODO: Remove this? Remove the vectors instead after successfully reporting to home network
+    let user_id = database::key_shares::get_user_id(&mut transaction, xres_star_hash).await?;
 
-    if let Ok(row) = database::flood_vectors::get_by_hash(&mut transaction, xres_star_hash).await {
-        let vector = row.to_auth_vector()?;
-        validate_xres_star_hash(xres_star_hash, res_star, &vector.rand)?;
-        database::flood_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
-    } else if let Ok(row) =
-        database::auth_vectors::get_by_hash(&mut transaction, xres_star_hash).await
-    {
-        let vector = row.to_auth_vector()?;
-        validate_xres_star_hash(xres_star_hash, res_star, &vector.rand)?;
-        database::auth_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
-    } else {
-        tracing::info!("Vector not found on this network: {:?}", xres_star_hash);
-    }
+    database::tasks::report_key_shares::add(
+        &mut transaction,
+        xres_star_hash,
+        &user_id,
+        signed_request_bytes,
+    )
+    .await?;
 
     transaction.commit().await?;
+
     Ok(key_share)
 }
 

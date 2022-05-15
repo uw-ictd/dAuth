@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use prost::Message;
+
 use auth_vector::types::HresStar;
 
 use crate::data::context::DauthContext;
@@ -9,7 +11,9 @@ use crate::data::vector::{AuthVectorReq, AuthVectorRes};
 use crate::manager;
 use crate::rpc::dauth::common::{AuthVector5G, UserIdKind};
 use crate::rpc::dauth::remote::backup_network_server::BackupNetwork;
-use crate::rpc::dauth::remote::{delegated_auth_vector5_g, delegated_confirmation_share};
+use crate::rpc::dauth::remote::{
+    delegated_auth_vector5_g, delegated_confirmation_share, SignedMessage,
+};
 use crate::rpc::dauth::remote::{
     DelegatedAuthVector5G, DelegatedConfirmationShare, EnrollBackupCommitReq,
     EnrollBackupCommitResp, EnrollBackupPrepareReq, EnrollBackupPrepareResp, FloodVectorReq,
@@ -135,7 +139,9 @@ impl BackupNetwork for BackupNetworkHandler {
                 ))
             })?;
 
-        match BackupNetworkHandler::get_key_share_hlp(self.context.clone(), verify_result).await {
+        match BackupNetworkHandler::get_key_share_hlp(self.context.clone(), verify_result, message)
+            .await
+        {
             Ok(result) => Ok(result),
             Err(e) => Err(tonic::Status::new(
                 tonic::Code::Aborted,
@@ -467,12 +473,16 @@ impl BackupNetworkHandler {
     async fn get_key_share_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
+        message: SignedMessage,
     ) -> Result<tonic::Response<GetKeyShareResp>, DauthError> {
         if let SignPayloadType::GetKeyShareReq(payload) = verify_result {
+            let mut signed_request_bytes = Vec::new();
+            message.encode(&mut signed_request_bytes)?;
+
             let key_share = manager::get_key_share(
                 context.clone(),
-                payload.res_star[..].try_into()?,
                 payload.hash_xres_star[..].try_into()?,
+                &signed_request_bytes,
             )
             .await?;
 
