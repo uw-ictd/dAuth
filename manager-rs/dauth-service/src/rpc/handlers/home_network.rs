@@ -100,7 +100,38 @@ impl HomeNetwork for HomeNetworkHandler {
         &self,
         request: tonic::Request<ReportHomeKeyShareConsumedReq>,
     ) -> Result<tonic::Response<ReportHomeKeyShareConsumedResp>, tonic::Status> {
-        todo!()
+        tracing::info!("Request: {:?}", request);
+
+        let content = request.into_inner();
+
+        let message = content
+            .get_key_share_req
+            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
+
+        let verify_result = signing::verify_message(self.context.clone(), &message)
+            .await
+            .or_else(|e| {
+                Err(tonic::Status::new(
+                    tonic::Code::Unauthenticated,
+                    format!("Failed to verify message: {}", e),
+                ))
+            })?;
+
+        // TODO: Verify the message further
+        // The above will verify that it has been signed appropriatly, but nothing else
+        match HomeNetworkHandler::report_key_share_consumed_hlp(
+            self.context.clone(),
+            &content.backup_network_id,
+            verify_result,
+        )
+        .await
+        {
+            Ok(result) => Ok(result),
+            Err(e) => Err(tonic::Status::new(
+                tonic::Code::Aborted,
+                format!("Error while handling request: {}", e),
+            )),
+        }
     }
 }
 
@@ -159,6 +190,29 @@ impl HomeNetworkHandler {
 
             Ok(tonic::Response::new(GetHomeConfirmKeyResp {
                 kseaf: kseaf.to_vec(),
+            }))
+        } else {
+            Err(DauthError::InvalidMessageError(format!(
+                "Incorrect message type: {:?}",
+                verify_result
+            )))
+        }
+    }
+
+    async fn report_key_share_consumed_hlp(
+        context: Arc<DauthContext>,
+        backup_network_id: &str,
+        verify_result: SignPayloadType,
+    ) -> Result<tonic::Response<ReportHomeKeyShareConsumedResp>, DauthError> {
+        if let SignPayloadType::GetKeyShareReq(payload) = verify_result {
+            manager::key_share_used(
+                context,
+                &payload.hash_xres_star[..].try_into()?,
+                backup_network_id,
+            )
+            .await?;
+            Ok(tonic::Response::new(ReportHomeKeyShareConsumedResp {
+                share: None, // TODO: requires extra state and generation cases
             }))
         } else {
             Err(DauthError::InvalidMessageError(format!(
