@@ -6,16 +6,14 @@ use crate::database;
 use crate::database::tasks::report_key_shares::ReportKeyShareTask;
 use crate::rpc::clients;
 
-/// Runs the replace key shares task.
-/// If any replacements are queued up, waits for 10 seconds and then calls
-/// the key share replacement rpc.
+/// Runs the report key shares task.
 pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
     let mut transaction = context.local_context.database_pool.begin().await.unwrap();
     let reports = database::tasks::report_key_shares::get(&mut transaction).await?;
     transaction.commit().await.unwrap();
 
     if reports.is_empty() {
-        tracing::info!("Nothing to do for replace key share task");
+        tracing::info!("Nothing to do for report key share task");
     } else {
         tracing::info!("Found {} report key share(s) pending", reports.len());
 
@@ -38,7 +36,7 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
                         transaction.commit().await?;
                     }
                     Err(e) => {
-                        tracing::warn!("Failed to execute replace task: {}", e)
+                        tracing::warn!("Failed to execute report key share task: {}", e)
                     }
                 },
                 Err(je) => {
