@@ -3,6 +3,7 @@ use std::sync::Arc;
 use auth_vector::types::{HresStar, Kseaf};
 
 use crate::data::context::DauthContext;
+use crate::data::error::DauthError;
 use crate::data::signing;
 use crate::data::signing::SignPayloadType;
 use crate::data::vector::AuthVectorRes;
@@ -48,5 +49,58 @@ pub fn build_delegated_share(
             context,
             SignPayloadType::DelegatedConfirmationShare(payload),
         )),
+    }
+}
+
+pub async fn handle_delegated_vector(
+    context: Arc<DauthContext>,
+    dvector: DelegatedAuthVector5G,
+    user_id: &str,
+) -> Result<AuthVectorRes, DauthError> {
+    let verify_result = signing::verify_message(
+        context,
+        &dvector.message.ok_or(DauthError::InvalidMessageError(
+            "Missing content".to_string(),
+        ))?,
+    )
+    .await?;
+
+    if let SignPayloadType::DelegatedAuthVector5G(payload) = verify_result {
+        Ok(AuthVectorRes::from_av5_g(
+            user_id,
+            payload.v.ok_or(DauthError::InvalidMessageError(
+                "Missing content".to_string(),
+            ))?,
+        )?)
+    } else {
+        Err(DauthError::InvalidMessageError(format!(
+            "Incorrect message type: {:?}",
+            verify_result
+        )))
+    }
+}
+
+pub async fn handle_key_share(
+    context: Arc<DauthContext>,
+    dshare: DelegatedConfirmationShare,
+) -> Result<(auth_vector::types::HresStar, auth_vector::types::Kseaf), DauthError> {
+    let verify_result = signing::verify_message(
+        context,
+        &dshare.message.ok_or(DauthError::InvalidMessageError(
+            "Missing content".to_string(),
+        ))?,
+    )
+    .await?;
+
+    if let SignPayloadType::DelegatedConfirmationShare(payload) = verify_result {
+        Ok((
+            payload.xres_star_hash[..].try_into()?,
+            payload.confirmation_share[..].try_into()?,
+        ))
+    } else {
+        Err(DauthError::InvalidMessageError(format!(
+            "Incorrect message type: {:?}",
+            verify_result
+        )))
     }
 }

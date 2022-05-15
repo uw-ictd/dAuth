@@ -110,8 +110,6 @@ impl HomeNetwork for HomeNetworkHandler {
                 ))
             })?;
 
-        // TODO: Verify the message further
-        // The above will verify that it has been signed appropriately, but nothing else
         match HomeNetworkHandler::report_auth_consumed_hlp(
             self.context.clone(),
             content,
@@ -150,8 +148,6 @@ impl HomeNetwork for HomeNetworkHandler {
                 ))
             })?;
 
-        // TODO: Verify the message further
-        // The above will verify that it has been signed appropriately, but nothing else
         match HomeNetworkHandler::report_key_share_consumed_hlp(
             self.context.clone(),
             &content.backup_network_id,
@@ -237,6 +233,7 @@ impl HomeNetworkHandler {
         content: ReportHomeAuthConsumedReq,
         verify_result: SignPayloadType,
     ) -> Result<tonic::Response<ReportHomeAuthConsumedResp>, DauthError> {
+        // TODO: Check the payload further
         if let SignPayloadType::GetBackupAuthVectorReq(_payload) = verify_result {
             Ok(tonic::Response::new(ReportHomeAuthConsumedResp {
                 vector: Some(utilities::build_delegated_vector(
@@ -263,6 +260,7 @@ impl HomeNetworkHandler {
         backup_network_id: &str,
         verify_result: SignPayloadType,
     ) -> Result<tonic::Response<ReportHomeKeyShareConsumedResp>, DauthError> {
+        // TODO: Check the payload further
         if let SignPayloadType::GetKeyShareReq(payload) = verify_result {
             manager::key_share_used(
                 context,

@@ -21,6 +21,7 @@ use crate::rpc::dauth::remote::{
     GetKeyShareResp, ReplaceShareReq, ReplaceShareResp, WithdrawBackupReq, WithdrawBackupResp,
     WithdrawSharesReq, WithdrawSharesResp,
 };
+use crate::rpc::utilities;
 
 pub struct BackupNetworkHandler {
     pub context: Arc<DauthContext>,
@@ -260,62 +261,6 @@ impl BackupNetwork for BackupNetworkHandler {
 
 /// Implementation of all helper functions to reuse/condense error logic
 impl BackupNetworkHandler {
-    /* General helpers */
-    async fn handle_delegated_vector(
-        context: Arc<DauthContext>,
-        dvector: DelegatedAuthVector5G,
-        user_id: &str,
-    ) -> Result<AuthVectorRes, DauthError> {
-        let verify_result = signing::verify_message(
-            context,
-            &dvector.message.ok_or(DauthError::InvalidMessageError(
-                "Missing content".to_string(),
-            ))?,
-        )
-        .await?;
-
-        if let SignPayloadType::DelegatedAuthVector5G(payload) = verify_result {
-            Ok(AuthVectorRes::from_av5_g(
-                user_id,
-                payload.v.ok_or(DauthError::InvalidMessageError(
-                    "Missing content".to_string(),
-                ))?,
-            )?)
-        } else {
-            Err(DauthError::InvalidMessageError(format!(
-                "Incorrect message type: {:?}",
-                verify_result
-            )))
-        }
-    }
-
-    async fn handle_key_share(
-        context: Arc<DauthContext>,
-        dshare: DelegatedConfirmationShare,
-    ) -> Result<(auth_vector::types::HresStar, auth_vector::types::Kseaf), DauthError> {
-        let verify_result = signing::verify_message(
-            context,
-            &dshare.message.ok_or(DauthError::InvalidMessageError(
-                "Missing content".to_string(),
-            ))?,
-        )
-        .await?;
-
-        if let SignPayloadType::DelegatedConfirmationShare(payload) = verify_result {
-            Ok((
-                payload.xres_star_hash[..].try_into()?,
-                payload.confirmation_share[..].try_into()?,
-            ))
-        } else {
-            Err(DauthError::InvalidMessageError(format!(
-                "Incorrect message type: {:?}",
-                verify_result
-            )))
-        }
-    }
-
-    /* Specific helpers */
-
     async fn enroll_backup_prepare_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
@@ -375,12 +320,8 @@ impl BackupNetworkHandler {
                 let mut processed_vectors = Vec::new();
                 for dvector in content.vectors {
                     processed_vectors.push(
-                        BackupNetworkHandler::handle_delegated_vector(
-                            context.clone(),
-                            dvector,
-                            &user_id,
-                        )
-                        .await,
+                        utilities::handle_delegated_vector(context.clone(), dvector, &user_id)
+                            .await,
                     );
                 }
                 manager::store_backup_auth_vectors(
@@ -401,9 +342,8 @@ impl BackupNetworkHandler {
                 // log and skip on error
                 let mut processed_shares = Vec::new();
                 for dshare in content.shares {
-                    processed_shares.push(
-                        BackupNetworkHandler::handle_key_share(context.clone(), dshare).await,
-                    );
+                    processed_shares
+                        .push(utilities::handle_key_share(context.clone(), dshare).await);
                 }
                 manager::store_key_shares(
                     context.clone(),
@@ -520,7 +460,7 @@ impl BackupNetworkHandler {
         let old_xres_star_hash: HresStar = request.replaced_share_xres_star_hash[..].try_into()?;
 
         let (new_xres_star_hash, new_key_share) =
-            BackupNetworkHandler::handle_key_share(context.clone(), dshare).await?;
+            utilities::handle_key_share(context.clone(), dshare).await?;
 
         manager::replace_key_shares(
             context,
@@ -603,8 +543,7 @@ impl BackupNetworkHandler {
 
                     manager::store_backup_flood_vector(
                         context.clone(),
-                        &BackupNetworkHandler::handle_delegated_vector(context, dvector, &user_id)
-                            .await?,
+                        &utilities::handle_delegated_vector(context, dvector, &user_id).await?,
                     )
                     .await?;
 
