@@ -8,17 +8,17 @@ use crate::data::error::DauthError;
 use crate::data::signing;
 use crate::data::signing::SignPayloadType;
 use crate::data::vector::AuthVectorRes;
-use crate::rpc::utilities;
 use crate::rpc::dauth::common::UserIdKind;
 use crate::rpc::dauth::remote::backup_network_client::BackupNetworkClient;
-use crate::rpc::dauth::remote::{ enroll_backup_prepare_req,
-    flood_vector_req, get_backup_auth_vector_req, get_key_share_req, withdraw_backup_req,
-    withdraw_shares_req,
+use crate::rpc::dauth::remote::{
+    enroll_backup_prepare_req, flood_vector_req, get_backup_auth_vector_req, get_key_share_req,
+    withdraw_backup_req, withdraw_shares_req,
 };
-use crate::rpc::dauth::remote::{ EnrollBackupCommitReq,
-    EnrollBackupPrepareReq, FloodVectorReq, GetBackupAuthVectorReq, GetKeyShareReq,
-    WithdrawBackupReq, WithdrawSharesReq,
+use crate::rpc::dauth::remote::{
+    EnrollBackupCommitReq, EnrollBackupPrepareReq, FloodVectorReq, GetBackupAuthVectorReq,
+    GetKeyShareReq, WithdrawBackupReq, WithdrawSharesReq,
 };
+use crate::rpc::utilities;
 
 /// Request a network to become a backup network.
 pub async fn enroll_backup_prepare(
