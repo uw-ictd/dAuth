@@ -136,9 +136,12 @@ message ReportHomeAuthConsumedReq {
     // The backup network that owned the auth vector.
     string backup_network_id = 1;
 
+    // The xres* hash that identifies the auth vector used.
+    bytes hash_xres_star = 2;
+
     // The signed auth request from the serving network that was given an auth
     // tuple.
-    SignedMessage backup_auth_vector_req = 2;
+    SignedMessage backup_auth_vector_req = 3;
 }
 
 message ReportHomeAuthConsumedResp {

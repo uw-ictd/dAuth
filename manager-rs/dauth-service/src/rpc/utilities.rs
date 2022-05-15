@@ -7,12 +7,8 @@ use crate::data::signing;
 use crate::data::signing::SignPayloadType;
 use crate::data::vector::AuthVectorRes;
 use crate::rpc::dauth::common::AuthVector5G;
-use crate::rpc::dauth::remote::{
-    DelegatedAuthVector5G, DelegatedConfirmationShare,
-};
-use crate::rpc::dauth::remote::{
-    delegated_auth_vector5_g, delegated_confirmation_share,
-};
+use crate::rpc::dauth::remote::{delegated_auth_vector5_g, delegated_confirmation_share};
+use crate::rpc::dauth::remote::{DelegatedAuthVector5G, DelegatedConfirmationShare};
 
 pub fn build_delegated_vector(
     context: Arc<DauthContext>,
