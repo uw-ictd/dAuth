@@ -134,7 +134,8 @@ pub async fn report_key_share_consumed(
 
     let signed_message = SignedMessage::decode(&original_request[..])?;
 
-    client
+    // no key share is sent in return yet
+    let _res = client
         .report_key_share_consumed(ReportHomeKeyShareConsumedReq {
             backup_network_id: context.local_context.id.clone(),
             get_key_share_req: Some(signed_message),
