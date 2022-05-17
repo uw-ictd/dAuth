@@ -11,7 +11,6 @@ pub struct ReportKeyShareTask {
 }
 
 /// Creates the backup networks table if it does not exist already.
-/// Contains all networks that are used as a backup for this network
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS report_key_share_task_table (
