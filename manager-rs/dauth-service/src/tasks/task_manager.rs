@@ -25,8 +25,8 @@ async fn run(context: Arc<DauthContext>) -> Result<(), DauthError> {
     startup_delay.tick().await;
 
     let mut interval = tokio::time::interval(context.tasks_context.interval);
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     loop {
-        interval.tick().await;
         tracing::info!("Checking for tasks to run");
 
         // Register with directory before any register-dependent tasks
@@ -59,5 +59,7 @@ async fn run(context: Arc<DauthContext>) -> Result<(), DauthError> {
                 }
             }
         }
+
+        interval.tick().await; // Using delay, will always wait max time
     }
 }
