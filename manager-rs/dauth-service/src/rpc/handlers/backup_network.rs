@@ -1,5 +1,9 @@
 use std::sync::Arc;
 
+use prost::Message;
+
+use auth_vector::types::HresStar;
+
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
 use crate::data::signing::{self, SignPayloadType};
@@ -7,13 +11,17 @@ use crate::data::vector::{AuthVectorReq, AuthVectorRes};
 use crate::manager;
 use crate::rpc::dauth::common::{AuthVector5G, UserIdKind};
 use crate::rpc::dauth::remote::backup_network_server::BackupNetwork;
-use crate::rpc::dauth::remote::{delegated_auth_vector5_g, delegated_confirmation_share};
+use crate::rpc::dauth::remote::{
+    delegated_auth_vector5_g, delegated_confirmation_share, SignedMessage,
+};
 use crate::rpc::dauth::remote::{
     DelegatedAuthVector5G, DelegatedConfirmationShare, EnrollBackupCommitReq,
     EnrollBackupCommitResp, EnrollBackupPrepareReq, EnrollBackupPrepareResp, FloodVectorReq,
     FloodVectorResp, GetBackupAuthVectorReq, GetBackupAuthVectorResp, GetKeyShareReq,
-    GetKeyShareResp, WithdrawBackupReq, WithdrawBackupResp, WithdrawSharesReq, WithdrawSharesResp,
+    GetKeyShareResp, ReplaceShareReq, ReplaceShareResp, WithdrawBackupReq, WithdrawBackupResp,
+    WithdrawSharesReq, WithdrawSharesResp,
 };
+use crate::rpc::utilities;
 
 pub struct BackupNetworkHandler {
     pub context: Arc<DauthContext>,
@@ -81,12 +89,18 @@ impl BackupNetwork for BackupNetworkHandler {
     ) -> Result<tonic::Response<GetBackupAuthVectorResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        // TODO: Handle retry case? Auth vector is removed from database
-
         let message = request
             .into_inner()
             .message
             .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
+
+        let mut signed_request_bytes = Vec::new();
+        message.encode(&mut signed_request_bytes).or_else(|e| {
+            Err(tonic::Status::new(
+                tonic::Code::Aborted,
+                format!("Failed to encode message: {}", e),
+            ))
+        })?;
 
         let verify_result = signing::verify_message(self.context.clone(), &message)
             .await
@@ -97,8 +111,12 @@ impl BackupNetwork for BackupNetworkHandler {
                 ))
             })?;
 
-        match BackupNetworkHandler::get_backup_auth_vector_hlp(self.context.clone(), verify_result)
-            .await
+        match BackupNetworkHandler::get_backup_auth_vector_hlp(
+            self.context.clone(),
+            verify_result,
+            &signed_request_bytes,
+        )
+        .await
         {
             Ok(result) => Ok(result),
             Err(e) => Err(tonic::Status::new(
@@ -115,9 +133,6 @@ impl BackupNetwork for BackupNetworkHandler {
     ) -> Result<tonic::Response<GetKeyShareResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        // TODO: Need to alert home network
-        // TODO: Handle retry case? Key share is removed from database
-
         let message = request
             .into_inner()
             .message
@@ -132,7 +147,27 @@ impl BackupNetwork for BackupNetworkHandler {
                 ))
             })?;
 
-        match BackupNetworkHandler::get_key_share_hlp(self.context.clone(), verify_result).await {
+        match BackupNetworkHandler::get_key_share_hlp(self.context.clone(), verify_result, message)
+            .await
+        {
+            Ok(result) => Ok(result),
+            Err(e) => Err(tonic::Status::new(
+                tonic::Code::Aborted,
+                format!("Error while handling request: {}", e),
+            )),
+        }
+    }
+
+    async fn replace_key_share(
+        &self,
+        request: tonic::Request<ReplaceShareReq>,
+    ) -> Result<tonic::Response<ReplaceShareResp>, tonic::Status> {
+        match BackupNetworkHandler::replace_key_share_hlp(
+            self.context.clone(),
+            request.into_inner(),
+        )
+        .await
+        {
             Ok(result) => Ok(result),
             Err(e) => Err(tonic::Status::new(
                 tonic::Code::Aborted,
@@ -233,62 +268,6 @@ impl BackupNetwork for BackupNetworkHandler {
 
 /// Implementation of all helper functions to reuse/condense error logic
 impl BackupNetworkHandler {
-    /* General helpers */
-    async fn handle_delegated_vector(
-        context: Arc<DauthContext>,
-        dvector: DelegatedAuthVector5G,
-        user_id: &str,
-    ) -> Result<AuthVectorRes, DauthError> {
-        let verify_result = signing::verify_message(
-            context,
-            &dvector.message.ok_or(DauthError::InvalidMessageError(
-                "Missing content".to_string(),
-            ))?,
-        )
-        .await?;
-
-        if let SignPayloadType::DelegatedAuthVector5G(payload) = verify_result {
-            Ok(AuthVectorRes::from_av5_g(
-                user_id,
-                payload.v.ok_or(DauthError::InvalidMessageError(
-                    "Missing content".to_string(),
-                ))?,
-            )?)
-        } else {
-            Err(DauthError::InvalidMessageError(format!(
-                "Incorrect message type: {:?}",
-                verify_result
-            )))
-        }
-    }
-
-    async fn handle_key_share(
-        context: Arc<DauthContext>,
-        dshare: DelegatedConfirmationShare,
-    ) -> Result<(auth_vector::types::HresStar, auth_vector::types::Kseaf), DauthError> {
-        let verify_result = signing::verify_message(
-            context,
-            &dshare.message.ok_or(DauthError::InvalidMessageError(
-                "Missing content".to_string(),
-            ))?,
-        )
-        .await?;
-
-        if let SignPayloadType::DelegatedConfirmationShare(payload) = verify_result {
-            Ok((
-                payload.xres_star_hash[..].try_into()?,
-                payload.confirmation_share[..].try_into()?,
-            ))
-        } else {
-            Err(DauthError::InvalidMessageError(format!(
-                "Incorrect message type: {:?}",
-                verify_result
-            )))
-        }
-    }
-
-    /* Specific helpers */
-
     async fn enroll_backup_prepare_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
@@ -348,12 +327,8 @@ impl BackupNetworkHandler {
                 let mut processed_vectors = Vec::new();
                 for dvector in content.vectors {
                     processed_vectors.push(
-                        BackupNetworkHandler::handle_delegated_vector(
-                            context.clone(),
-                            dvector,
-                            &user_id,
-                        )
-                        .await,
+                        utilities::handle_delegated_vector(context.clone(), dvector, &user_id)
+                            .await,
                     );
                 }
                 manager::store_backup_auth_vectors(
@@ -374,12 +349,12 @@ impl BackupNetworkHandler {
                 // log and skip on error
                 let mut processed_shares = Vec::new();
                 for dshare in content.shares {
-                    processed_shares.push(
-                        BackupNetworkHandler::handle_key_share(context.clone(), dshare).await,
-                    );
+                    processed_shares
+                        .push(utilities::handle_key_share(context.clone(), dshare).await);
                 }
                 manager::store_key_shares(
                     context.clone(),
+                    &user_id,
                     processed_shares
                         .into_iter()
                         .flat_map(|share| {
@@ -404,6 +379,7 @@ impl BackupNetworkHandler {
     async fn get_backup_auth_vector_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
+        signed_request_bytes: &Vec<u8>,
     ) -> Result<tonic::Response<GetBackupAuthVectorResp>, DauthError> {
         if let SignPayloadType::GetBackupAuthVectorReq(payload) = verify_result {
             let user_id = std::str::from_utf8(payload.user_id.as_slice())?.to_string();
@@ -413,6 +389,7 @@ impl BackupNetworkHandler {
                 &AuthVectorReq {
                     user_id: user_id.to_string(),
                 },
+                signed_request_bytes,
             )
             .await?;
 
@@ -445,12 +422,16 @@ impl BackupNetworkHandler {
     async fn get_key_share_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
+        message: SignedMessage,
     ) -> Result<tonic::Response<GetKeyShareResp>, DauthError> {
         if let SignPayloadType::GetKeyShareReq(payload) = verify_result {
+            let mut signed_request_bytes = Vec::new();
+            message.encode(&mut signed_request_bytes)?;
+
             let key_share = manager::get_key_share(
                 context.clone(),
-                payload.res_star[..].try_into()?,
                 payload.hash_xres_star[..].try_into()?,
+                &signed_request_bytes,
             )
             .await?;
 
@@ -475,6 +456,30 @@ impl BackupNetworkHandler {
                 verify_result
             )))
         }
+    }
+
+    async fn replace_key_share_hlp(
+        context: Arc<DauthContext>,
+        request: ReplaceShareReq,
+    ) -> Result<tonic::Response<ReplaceShareResp>, DauthError> {
+        let dshare = request
+            .new_share
+            .ok_or(DauthError::DataError("No new share received".to_string()))?;
+
+        let old_xres_star_hash: HresStar = request.replaced_share_xres_star_hash[..].try_into()?;
+
+        let (new_xres_star_hash, new_key_share) =
+            utilities::handle_key_share(context.clone(), dshare).await?;
+
+        manager::replace_key_shares(
+            context,
+            &old_xres_star_hash,
+            &new_xres_star_hash,
+            &new_key_share,
+        )
+        .await?;
+
+        Ok(tonic::Response::new(ReplaceShareResp {}))
     }
 
     async fn withdraw_backup_hlp(
@@ -547,8 +552,7 @@ impl BackupNetworkHandler {
 
                     manager::store_backup_flood_vector(
                         context.clone(),
-                        &BackupNetworkHandler::handle_delegated_vector(context, dvector, &user_id)
-                            .await?,
+                        &utilities::handle_delegated_vector(context, dvector, &user_id).await?,
                     )
                     .await?;
 

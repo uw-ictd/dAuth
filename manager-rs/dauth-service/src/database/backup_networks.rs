@@ -59,7 +59,7 @@ pub async fn get(
     .await?)
 }
 
-/// Gets the backup info for a given network and user id
+/// Gets the seqnum slice for a given network and user id
 pub async fn get_slice(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,

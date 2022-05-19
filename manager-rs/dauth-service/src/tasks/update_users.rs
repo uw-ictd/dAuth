@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use auth_vector::constants::KSEAF_LENGTH;
-use auth_vector::types::{HresStar, Kseaf};
+use auth_vector::types::{HresStar, Kseaf, Rand};
 
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
@@ -23,10 +22,23 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
         tracing::info!("Nothing to do for update user task");
     } else {
         tracing::info!("Found {} user update(s) pending", user_ids.len());
+
+        let mut tasks = Vec::new();
+
         for user_id in user_ids {
-            if let Err(e) = handle_user_update(context.clone(), &user_id).await {
-                tracing::warn!("Failed to handle user update: {}", e);
-                // move on to next user id
+            tasks.push(tokio::spawn(handle_user_update(context.clone(), user_id)));
+        }
+
+        for task in tasks {
+            match task.await {
+                Ok(task_res) => {
+                    if let Err(e) = task_res {
+                        tracing::warn!("Failed to handle user update: {}", e);
+                    }
+                }
+                Err(je) => {
+                    tracing::warn!("Error while joining: {}", je)
+                }
             }
         }
     }
@@ -35,11 +47,12 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
 
 /// Adds the user and its backup networks to the directory service.
 /// Then, enrolls each of the backup networks.
-async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result<(), DauthError> {
+async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Result<(), DauthError> {
+    let user_id = &user_id;
+
     let mut transaction = context.local_context.database_pool.begin().await.unwrap();
     let user_data =
         database::tasks::update_users::get_user_data(&mut transaction, &user_id).await?;
-    transaction.commit().await.unwrap();
 
     let mut backup_network_ids = Vec::new();
     let mut vectors_map = HashMap::new();
@@ -53,13 +66,12 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
 
     directory::upsert_user(context.clone(), &user_id, backup_network_ids.clone()).await?;
 
+    /* create vectors and shares */
     for (backup_network_id, sqn_slice) in &user_data {
-        let mut transaction = context.local_context.database_pool.begin().await.unwrap();
         let num_existing_vectors =
             database::vector_state::get_all_by_id(&mut transaction, user_id, backup_network_id)
                 .await?
                 .len() as i64;
-        transaction.commit().await.unwrap();
 
         if num_existing_vectors > 0 {
             tracing::info!(
@@ -70,19 +82,35 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
             );
         }
 
+        // for each vector (up to max), build a new vector and set of key shares
         for _ in 0..std::cmp::max(
             0,
             context.local_context.max_backup_vectors - num_existing_vectors,
         ) {
-            let vector =
-                manager::generate_auth_vector(context.clone(), user_id, *sqn_slice).await?;
-            let mut shares =
-                generate_key_shares(context.clone(), &vector, backup_network_ids.len() - 1).await?;
+            let (vector, seqnum) =
+                manager::build_auth_vector(context.clone(), &mut transaction, user_id, *sqn_slice)
+                    .await?;
+
+            let (xres_star_hash, rand) = (vector.xres_star_hash.clone(), vector.rand.clone());
+            let mut shares: Vec<(HresStar, Kseaf, Rand)> = manager::generate_key_shares(
+                context.clone(),
+                &vector.kseaf,
+                backup_network_ids.len() - 1,
+            )?
+            .into_iter()
+            .map(|key_share| (xres_star_hash, key_share, rand))
+            .collect();
 
             vectors_map
                 .get_mut(backup_network_id)
                 .ok_or(DauthError::DataError("Vectors map error".to_string()))?
-                .push(vector);
+                .push(AuthVectorRes {
+                    user_id: user_id.to_string(),
+                    seqnum,
+                    rand: vector.rand,
+                    autn: vector.autn,
+                    xres_star_hash: vector.xres_star_hash,
+                });
 
             for other_id in &backup_network_ids {
                 if other_id != backup_network_id {
@@ -101,7 +129,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
         }
     }
 
-    // TODO: Handle cleanup after failure
+    /* enroll backups */
     for (backup_network_id, seqnum_slice) in &user_data {
         let (address, _) = directory::lookup_network(context.clone(), &backup_network_id).await?;
 
@@ -120,7 +148,6 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
         )
         .await?;
 
-        let mut transaction = context.local_context.database_pool.begin().await?;
         database::backup_networks::upsert(
             &mut transaction,
             user_id,
@@ -137,37 +164,37 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: &str) -> Result
             )
             .await?;
         }
-        transaction.commit().await?;
+        for (xres_star_hash, _, rand) in shares {
+            database::key_share_state::add(
+                &mut transaction,
+                xres_star_hash,
+                backup_network_id,
+                user_id,
+                rand,
+            )
+            .await?;
+        }
+
+        // drop rand before sending
+        // TODO: allow backups to have rand? Would allow them to check res
+        let key_shares = shares
+            .into_iter()
+            .map(|(xres_star_hash, kseaf, _rand)| (xres_star_hash.clone(), kseaf.clone()))
+            .collect();
 
         backup_network::enroll_backup_commit(
             context.clone(),
             backup_network_id,
             user_id,
-            vectors,
-            shares,
+            &vectors,
+            &key_shares,
             &address,
         )
         .await?;
     }
 
-    let mut transaction = context.local_context.database_pool.begin().await?;
     database::tasks::update_users::remove(&mut transaction, &user_id).await?;
-    transaction.commit().await?;
+    transaction.commit().await?; // TODO: confirm a transaction this long is okay
 
     Ok(())
-}
-
-/// Placeholder function for generating key shares
-async fn generate_key_shares(
-    _context: Arc<DauthContext>,
-    vector: &AuthVectorRes,
-    num_slices: usize,
-) -> Result<Vec<(HresStar, Kseaf)>, DauthError> {
-    let mut slices = Vec::new();
-
-    for _ in 0..num_slices {
-        slices.push((vector.xres_star_hash.clone(), [0u8; KSEAF_LENGTH]))
-    }
-
-    Ok(slices)
 }

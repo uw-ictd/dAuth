@@ -1,6 +1,12 @@
 use std::sync::Arc;
 
-use auth_vector::{self, constants::SQN_LENGTH};
+use auth_vector::{
+    self,
+    constants::SQN_LENGTH,
+    data::AuthVectorData,
+    types::{HresStar, Kseaf, ResStar},
+};
+use sqlx::{Sqlite, Transaction};
 
 use crate::data::{
     context::DauthContext,
@@ -87,35 +93,12 @@ pub async fn generate_auth_vector(
 
     let mut transaction = context.local_context.database_pool.begin().await?;
 
-    let mut user_info =
-        database::user_infos::get(&mut transaction, &user_id.to_string(), sqn_slice)
-            .await?
-            .to_user_info()?;
-
-    tracing::info!("User found: {:?}", user_info);
-
-    // generate vector, then store new sqn max in the database
-    let auth_vector_data = auth_vector::generate_vector(
-        &user_info.k,
-        &user_info.opc,
-        &user_info.sqn.to_be_bytes()[..SQN_LENGTH].try_into()?,
-    );
-
-    user_info.sqn += context.local_context.num_sqn_slices;
-
-    database::user_infos::upsert(
-        &mut transaction,
-        &user_id.to_string(),
-        &user_info.k,
-        &user_info.opc,
-        user_info.sqn,
-        sqn_slice,
-    )
-    .await?;
+    let (auth_vector_data, seqnum) =
+        build_auth_vector(context.clone(), &mut transaction, &user_id, 0).await?;
 
     let av_response = AuthVectorRes {
         user_id: user_id.to_string(),
-        seqnum: user_info.sqn,
+        seqnum,
         rand: auth_vector_data.rand,
         autn: auth_vector_data.autn,
         xres_star_hash: auth_vector_data.xres_star_hash,
@@ -236,7 +219,7 @@ pub async fn get_confirm_key(
 }
 
 // Store a new auth vector as a backup.
-pub async fn _store_backup_auth_vector(
+pub async fn store_backup_auth_vector(
     context: Arc<DauthContext>,
     av_result: &AuthVectorRes,
 ) -> Result<(), DauthError> {
@@ -308,12 +291,13 @@ pub async fn store_backup_flood_vector(
     Ok(())
 }
 
-/// Removes and returns the next backup auth vector.
+/// Returns the next backup auth vector.
 /// Checks flood vectors first, then auth vector.
 /// Returns auth vector with lowest sequence number.
 pub async fn next_backup_auth_vector(
     context: Arc<DauthContext>,
     av_request: &AuthVectorReq,
+    signed_request_bytes: &Vec<u8>,
 ) -> Result<AuthVectorRes, DauthError> {
     tracing::info!("Vector next: {:?}", av_request);
 
@@ -331,9 +315,87 @@ pub async fn next_backup_auth_vector(
             .to_auth_vector()?;
     };
 
+    database::tasks::report_auth_vectors::add(
+        &mut transaction,
+        &vector.xres_star_hash,
+        &vector.user_id,
+        signed_request_bytes,
+    )
+    .await?;
+
     transaction.commit().await?;
 
     Ok(vector)
+}
+
+pub async fn auth_vector_used(
+    context: Arc<DauthContext>,
+    backup_network_id: &str,
+    xres_star_hash: &auth_vector::types::HresStar,
+) -> Result<AuthVectorRes, DauthError> {
+    tracing::info!(
+        "Auth vector used on {:?}: {:?}",
+        backup_network_id,
+        xres_star_hash
+    );
+
+    let mut transaction = context.local_context.database_pool.begin().await?;
+    let (owning_network_id, user_id) =
+        database::vector_state::get(&mut transaction, xres_star_hash).await?;
+
+    if owning_network_id != backup_network_id {
+        return Err(DauthError::DataError("Not the owning network".to_string()));
+    }
+
+    database::vector_state::remove(&mut transaction, xres_star_hash).await?;
+
+    let seqnum_slice =
+        database::backup_networks::get_slice(&mut transaction, &user_id, backup_network_id).await?;
+
+    let (auth_vector_data, seqnum) =
+        build_auth_vector(context.clone(), &mut transaction, &user_id, seqnum_slice).await?;
+
+    database::vector_state::add(
+        &mut transaction,
+        &auth_vector_data.xres_star_hash,
+        &user_id,
+        backup_network_id,
+    )
+    .await?;
+
+    let (_, mut backup_networks) =
+        clients::directory::lookup_user(context.clone(), &user_id).await?;
+    backup_networks.retain(|id| id != backup_network_id);
+
+    let mut key_shares = generate_key_shares(
+        context.clone(),
+        &auth_vector_data.kseaf,
+        backup_networks.len(),
+    )?;
+
+    for id in backup_networks {
+        let key_share = key_shares.pop().ok_or(DauthError::DataError(
+            "Failed to generate all key shares".to_string(),
+        ))?;
+        database::tasks::replace_key_shares::add(
+            &mut transaction,
+            &id,
+            &auth_vector_data.xres_star_hash,
+            xres_star_hash,
+            &key_share,
+        )
+        .await?;
+    }
+
+    transaction.commit().await?;
+
+    Ok(AuthVectorRes {
+        user_id: user_id.to_string(),
+        seqnum,
+        rand: auth_vector_data.rand,
+        autn: auth_vector_data.autn,
+        xres_star_hash: auth_vector_data.xres_star_hash,
+    })
 }
 
 /// Sets the provided user id as a being backed up by this network.
@@ -382,9 +444,10 @@ pub async fn remove_backup_user(
     Ok(())
 }
 
-// Stores a collection of key shares.
+/// Stores a collection of key shares.
 pub async fn store_key_shares(
     context: Arc<DauthContext>,
+    user_id: &str,
     key_shares: Vec<(auth_vector::types::HresStar, auth_vector::types::Kseaf)>,
 ) -> Result<(), DauthError> {
     tracing::info!("Handling multiple key store: {:?}", key_shares);
@@ -392,48 +455,69 @@ pub async fn store_key_shares(
     let mut transaction = context.local_context.database_pool.begin().await?;
 
     for (xres_star_hash, key_share) in key_shares {
-        database::key_shares::add(&mut transaction, &xres_star_hash, &key_share).await?;
+        database::key_shares::add(&mut transaction, &xres_star_hash, user_id, &key_share).await?;
     }
     transaction.commit().await?;
     Ok(())
 }
 
-/// Removes and returns a key share value.
-pub async fn get_key_share(
+/// Replace the old key share if found.
+/// Adds the new key share.
+pub async fn replace_key_shares(
     context: Arc<DauthContext>,
-    res_star: &auth_vector::types::ResStar,
-    xres_star_hash: &auth_vector::types::HresStar,
-) -> Result<auth_vector::types::Kseaf, DauthError> {
+    old_xres_star_hash: &auth_vector::types::HresStar,
+    new_xres_star_hash: &auth_vector::types::HresStar,
+    new_key_share: &auth_vector::types::Kseaf,
+) -> Result<(), DauthError> {
     tracing::info!(
-        "Handling key share get: {:?} - {:?}",
-        res_star,
-        xres_star_hash,
+        "Replacing key share: {:?} => {:?}",
+        old_xres_star_hash,
+        new_xres_star_hash
     );
 
-    // TODO: Alert home network
+    let mut transaction = context.local_context.database_pool.begin().await?;
+
+    let user_id = database::key_shares::get_user_id(&mut transaction, old_xres_star_hash).await?;
+    database::key_shares::remove(&mut transaction, old_xres_star_hash).await?;
+    database::key_shares::add(
+        &mut transaction,
+        new_xres_star_hash,
+        &user_id,
+        new_key_share,
+    )
+    .await?;
+
+    transaction.commit().await?;
+
+    Ok(())
+}
+
+/// Returns a key share value corresponding to the xres* hash.
+pub async fn get_key_share(
+    context: Arc<DauthContext>,
+    xres_star_hash: &auth_vector::types::HresStar,
+    signed_request_bytes: &Vec<u8>,
+) -> Result<auth_vector::types::Kseaf, DauthError> {
+    tracing::info!("Handling key share get: {:?}", xres_star_hash,);
 
     let mut transaction = context.local_context.database_pool.begin().await?;
+
     let key_share = database::key_shares::get(&mut transaction, xres_star_hash)
         .await?
         .to_key_share()?;
 
-    if let Ok(row) = database::flood_vectors::get_by_hash(&mut transaction, xres_star_hash).await {
-        let vector = row.to_auth_vector()?;
-        validate_xres_star_hash(xres_star_hash, res_star, &vector.rand)?;
-        database::flood_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
-    } else if let Ok(row) =
-        database::auth_vectors::get_by_hash(&mut transaction, xres_star_hash).await
-    {
-        let vector = row.to_auth_vector()?;
-        validate_xres_star_hash(xres_star_hash, res_star, &vector.rand)?;
-        database::auth_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
-    } else {
-        tracing::info!("Vector not found on this network: {:?}", xres_star_hash);
-    }
+    let user_id = database::key_shares::get_user_id(&mut transaction, xres_star_hash).await?;
 
-    database::key_shares::remove(&mut transaction, xres_star_hash).await?;
+    database::tasks::report_key_shares::add(
+        &mut transaction,
+        xres_star_hash,
+        &user_id,
+        signed_request_bytes,
+    )
+    .await?;
 
     transaction.commit().await?;
+
     Ok(key_share)
 }
 
@@ -451,6 +535,82 @@ pub async fn remove_key_shares(
     }
     transaction.commit().await?;
     Ok(())
+}
+
+/// Handles a key share that was generated by this network and used
+/// by a backup network.
+pub async fn key_share_used(
+    context: Arc<DauthContext>,
+    res_star: &ResStar,
+    xres_star_hash: &HresStar,
+    backup_network_id: &str,
+) -> Result<(), DauthError> {
+    let mut transaction = context.local_context.database_pool.begin().await?;
+
+    let (user_id, rand) =
+        database::key_share_state::get(&mut transaction, xres_star_hash, backup_network_id).await?;
+
+    tracing::info!(
+        "Key share reported used by {} for {}",
+        backup_network_id,
+        user_id
+    );
+
+    validate_xres_star_hash(xres_star_hash, res_star, &rand)?;
+
+    database::key_share_state::remove(&mut transaction, xres_star_hash, backup_network_id).await?;
+
+    transaction.commit().await?;
+
+    Ok(())
+}
+
+/// Builds an auth vector and updates the user state.
+/// Returns the auth vector seqnum values.
+pub async fn build_auth_vector(
+    context: Arc<DauthContext>,
+    transaction: &mut Transaction<'_, Sqlite>,
+    user_id: &str,
+    sqn_slice: i64,
+) -> Result<(AuthVectorData, i64), DauthError> {
+    let mut user_info = database::user_infos::get(transaction, &user_id.to_string(), sqn_slice)
+        .await?
+        .to_user_info()?;
+
+    let auth_vector_data = auth_vector::generate_vector(
+        &user_info.k,
+        &user_info.opc,
+        &user_info.sqn.to_be_bytes()[..SQN_LENGTH].try_into()?,
+    );
+
+    user_info.sqn += context.local_context.num_sqn_slices;
+
+    database::user_infos::upsert(
+        transaction,
+        &user_id.to_string(),
+        &user_info.k,
+        &user_info.opc,
+        user_info.sqn,
+        sqn_slice,
+    )
+    .await?;
+
+    Ok((auth_vector_data, user_info.sqn))
+}
+
+/// Placeholder function for generating key shares.
+pub fn generate_key_shares(
+    _context: Arc<DauthContext>,
+    kseaf: &Kseaf,
+    num_slices: usize,
+) -> Result<Vec<Kseaf>, DauthError> {
+    let mut slices = Vec::new();
+
+    for _ in 0..num_slices {
+        slices.push(kseaf.clone())
+    }
+
+    Ok(slices)
 }
 
 pub async fn get_sqn_slice(

@@ -1,15 +1,18 @@
+use auth_vector::types::Rand;
 use sqlx::sqlite::SqlitePool;
 use sqlx::{Row, Sqlite, Transaction};
 
 use crate::data::error::DauthError;
 
-/// Creates the vector state table if it does not exist already.
+/// Creates the key share state table if it does not exist already.
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
-        "CREATE TABLE IF NOT EXISTS vector_state_table (
-            xres_star_hash BLOB PRIMARY KEY,
+        "CREATE TABLE IF NOT EXISTS key_share_state_table (
+            xres_star_hash BLOB NOT NULL,
+            backup_network_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
-            backup_network_id TEXT NOT NULL
+            rand BLOB NOT NULL,
+            PRIMARY KEY (xres_star_hash, backup_network_id)
         );",
     )
     .execute(pool)
@@ -19,78 +22,62 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 
 /* Queries */
 
-/// Adds the auth vector as owned by the backup network.
-/// Use xres* hash as the reference for the auth vector.
+/// Adds the key share as owned by the backup network.
+/// Use xres* hash and the backup network id as the reference.
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
-    user_id: &str,
     backup_network_id: &str,
+    user_id: &str,
+    rand: &[u8],
 ) -> Result<(), DauthError> {
     sqlx::query(
-        "INSERT INTO vector_state_table
-        VALUES ($1,$2,$3)",
+        "INSERT INTO key_share_state_table
+        VALUES ($1,$2,$3,$4)",
     )
     .bind(xres_star_hash)
-    .bind(user_id)
     .bind(backup_network_id)
+    .bind(user_id)
+    .bind(rand)
     .execute(transaction)
     .await?;
 
     Ok(())
 }
 
-/// Returns the owning network and user id of the auth vector.
+/// Returns the user_id and rand for the key share.
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
-) -> Result<(String, String), DauthError> {
+    backup_network_id: &str,
+) -> Result<(String, Rand), DauthError> {
     let row = sqlx::query(
-        "SELECT * FROM vector_state_table
-        WHERE xres_star_hash=$1;",
+        "SELECT * FROM key_share_state_table
+        WHERE (xres_star_hash,backup_network_id)=($1,$2)",
     )
     .bind(xres_star_hash)
+    .bind(backup_network_id)
     .fetch_one(transaction)
     .await?;
 
     Ok((
-        row.try_get::<String, &str>("backup_network_id")?,
         row.try_get::<String, &str>("user_id")?,
+        row.try_get::<Vec<u8>, &str>("rand")?[..].try_into()?,
     ))
 }
 
-/// Returns the set of xres* hashes owned by the network for a given user.
-pub async fn get_all_by_id(
-    transaction: &mut Transaction<'_, Sqlite>,
-    user_id: &str,
-    backup_network_id: &str,
-) -> Result<Vec<Vec<u8>>, DauthError> {
-    let res = sqlx::query(
-        "SELECT * FROM vector_state_table
-        WHERE (user_id,backup_network_id)=($1,$2);",
-    )
-    .bind(user_id)
-    .bind(backup_network_id)
-    .fetch_all(transaction)
-    .await?;
-
-    let mut hashes = Vec::with_capacity(res.len());
-    for row in res {
-        hashes.push(row.try_get::<Vec<u8>, &str>("xres_star_hash")?)
-    }
-    Ok(hashes)
-}
-
-/// Deletes a vector reference if found.
+/// Deletes a key share reference if found.
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
+    backup_network_id: &str,
 ) -> Result<(), DauthError> {
     sqlx::query(
-        "DELETE FROM vector_state_table
-        WHERE xres_star_hash=$1",
+        "DELETE FROM key_share_state_table
+        WHERE (xres_star_hash,backup_network_id)=($1,$2)",
     )
     .bind(xres_star_hash)
+    .bind(backup_network_id)
     .execute(transaction)
     .await?;
 
@@ -101,12 +88,13 @@ pub async fn remove(
 
 #[cfg(test)]
 mod tests {
+    use auth_vector::constants::RAND_LENGTH;
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
     use sqlx::SqlitePool;
     use tempfile::{tempdir, TempDir};
 
-    use crate::database::{general, vector_state};
+    use crate::database::{general, key_share_state};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -120,7 +108,7 @@ mod tests {
         println!("Building temporary db: {}", path);
 
         let pool = general::build_pool(&path).await.unwrap();
-        vector_state::init_table(&pool).await.unwrap();
+        key_share_state::init_table(&pool).await.unwrap();
 
         (pool, dir)
     }
@@ -137,11 +125,12 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            vector_state::add(
+            key_share_state::add(
                 &mut transaction,
                 &[row as u8; 1],
-                "test_user_id",
                 &format!("test_backup_network_{}", row),
+                "test_user_id",
+                &[0u8; RAND_LENGTH],
             )
             .await
             .unwrap();
@@ -156,11 +145,12 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            vector_state::add(
+            key_share_state::add(
                 &mut transaction,
                 &[row as u8; 1],
-                "test_user_id",
                 &format!("test_backup_network_{}", row),
+                "test_user_id",
+                &[0u8; RAND_LENGTH],
             )
             .await
             .unwrap();
@@ -170,47 +160,16 @@ mod tests {
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
             assert_eq!(
-                vector_state::get(&mut transaction, &[row as u8; 1],)
-                    .await
-                    .unwrap()
-                    .0,
-                format!("test_backup_network_{}", row)
+                key_share_state::get(
+                    &mut transaction,
+                    &[row as u8; 1],
+                    &format!("test_backup_network_{}", row),
+                )
+                .await
+                .unwrap(),
+                ("test_user_id".to_string(), [0u8; RAND_LENGTH]),
             );
         }
-        transaction.commit().await.unwrap();
-    }
-    #[tokio::test]
-    async fn test_get_all() {
-        let (pool, _dir) = init().await;
-        let num_rows = 10;
-
-        let mut transaction = pool.begin().await.unwrap();
-        let res =
-            vector_state::get_all_by_id(&mut transaction, "test_user_id", "test_backup_network_id")
-                .await
-                .unwrap();
-        assert_eq!(res.len(), 0);
-        transaction.commit().await.unwrap();
-
-        let mut transaction = pool.begin().await.unwrap();
-        for row in 0..num_rows {
-            vector_state::add(
-                &mut transaction,
-                &[row as u8; 1],
-                "test_user_id",
-                "test_backup_network_id",
-            )
-            .await
-            .unwrap();
-        }
-        transaction.commit().await.unwrap();
-
-        let mut transaction = pool.begin().await.unwrap();
-        let res =
-            vector_state::get_all_by_id(&mut transaction, "test_user_id", "test_backup_network_id")
-                .await
-                .unwrap();
-        assert_eq!(res.len(), num_rows);
         transaction.commit().await.unwrap();
     }
 
@@ -221,11 +180,12 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            vector_state::add(
+            key_share_state::add(
                 &mut transaction,
                 &[row as u8; 1],
-                "test_user_id",
                 &format!("test_backup_network_{}", row),
+                "test_user_id",
+                &[0u8; RAND_LENGTH],
             )
             .await
             .unwrap();
@@ -235,28 +195,39 @@ mod tests {
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
             assert_eq!(
-                vector_state::get(&mut transaction, &[row as u8; 1],)
-                    .await
-                    .unwrap()
-                    .0,
-                format!("test_backup_network_{}", row)
+                key_share_state::get(
+                    &mut transaction,
+                    &[row as u8; 1],
+                    &format!("test_backup_network_{}", row),
+                )
+                .await
+                .unwrap(),
+                ("test_user_id".to_string(), [0u8; RAND_LENGTH]),
             );
         }
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            vector_state::remove(&mut transaction, &[row as u8; 1])
-                .await
-                .unwrap();
+            key_share_state::remove(
+                &mut transaction,
+                &[row as u8; 1],
+                &format!("test_backup_network_{}", row),
+            )
+            .await
+            .unwrap();
         }
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            assert!(vector_state::get(&mut transaction, &[row as u8; 1],)
-                .await
-                .is_err());
+            assert!(key_share_state::get(
+                &mut transaction,
+                &[row as u8; 1],
+                &format!("test_backup_network_{}", row),
+            )
+            .await
+            .is_err());
         }
         transaction.commit().await.unwrap();
     }

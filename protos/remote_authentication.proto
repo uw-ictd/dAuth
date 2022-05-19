@@ -133,9 +133,15 @@ message GetHomeConfirmKeyResp {
 }
 
 message ReportHomeAuthConsumedReq {
+    // The backup network that owned the auth vector.
+    string backup_network_id = 1;
+
+    // The xres* hash that identifies the auth vector used.
+    bytes hash_xres_star = 2;
+
     // The signed auth request from the serving network that was given an auth
     // tuple.
-    SignedMessage backup_auth_vector_req = 1;
+    SignedMessage backup_auth_vector_req = 3;
 }
 
 message ReportHomeAuthConsumedResp {
@@ -145,9 +151,12 @@ message ReportHomeAuthConsumedResp {
 }
 
 message ReportHomeKeyShareConsumedReq {
+    // The backup network that owned the key share.
+    string backup_network_id = 1;
+
     // The signed key request from the serving network sent sent to the backup
     // network.
-    SignedMessage get_key_share_req = 1;
+    SignedMessage get_key_share_req = 2;
 }
 
 message ReportHomeKeyShareConsumedResp {

@@ -1,6 +1,7 @@
 pub mod clients;
 pub mod handlers;
 pub mod server;
+pub mod utilities;
 
 pub mod dauth {
     // It seems like as of 2021-11-27 the include_proto macro can only be

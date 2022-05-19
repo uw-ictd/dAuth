@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use auth_vector::types::{HresStar, Kseaf, ResStar};
+use prost::Message;
 use tonic::transport::Channel;
 
 use crate::data::context::DauthContext;
@@ -9,8 +10,12 @@ use crate::data::signing::{self, SignPayloadType};
 use crate::data::vector::AuthVectorRes;
 use crate::rpc::dauth::common::UserIdKind;
 use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
-use crate::rpc::dauth::remote::{get_home_auth_vector_req, get_home_confirm_key_req};
+use crate::rpc::dauth::remote::{
+    get_home_auth_vector_req, get_home_confirm_key_req, ReportHomeAuthConsumedReq,
+    ReportHomeKeyShareConsumedReq, SignedMessage,
+};
 use crate::rpc::dauth::remote::{GetHomeAuthVectorReq, GetHomeConfirmKeyReq};
+use crate::rpc::utilities;
 
 /// Get an auth vector from a user's home network.
 pub async fn get_auth_vector(
@@ -85,6 +90,60 @@ pub async fn get_confirm_key(
         .into_inner();
 
     Ok(response.kseaf[..].try_into()?)
+}
+
+/// Reports an auth vector as used to the home network.
+/// Sends the original signed request for the auth vector as
+/// proof of the auth vector request.
+pub async fn report_auth_consumed(
+    context: Arc<DauthContext>,
+    xres_star_hash: &HresStar,
+    user_id: &str,
+    original_request: &Vec<u8>,
+    address: &str,
+) -> Result<AuthVectorRes, DauthError> {
+    let mut client = get_client(context.clone(), address).await?;
+
+    let signed_message = SignedMessage::decode(&original_request[..])?;
+
+    let dvector = client
+        .report_auth_consumed(ReportHomeAuthConsumedReq {
+            backup_network_id: context.local_context.id.clone(),
+            hash_xres_star: xres_star_hash.to_vec(),
+            backup_auth_vector_req: Some(signed_message),
+        })
+        .await?
+        .into_inner()
+        .vector
+        .ok_or(DauthError::ClientError(
+            "Missing vector in response".to_string(),
+        ))?;
+
+    Ok(utilities::handle_delegated_vector(context, dvector, user_id).await?)
+}
+
+/// Reports a key share as used to the home network.
+/// Sends the original signed request for the auth vector as
+/// proof of the auth vector request.
+pub async fn report_key_share_consumed(
+    context: Arc<DauthContext>,
+    original_request: &Vec<u8>,
+    address: &str,
+) -> Result<(), DauthError> {
+    let mut client = get_client(context.clone(), address).await?;
+
+    let signed_message = SignedMessage::decode(&original_request[..])?;
+
+    // no key share is sent in return yet
+    let _res = client
+        .report_key_share_consumed(ReportHomeKeyShareConsumedReq {
+            backup_network_id: context.local_context.id.clone(),
+            get_key_share_req: Some(signed_message),
+        })
+        .await?
+        .into_inner();
+
+    Ok(())
 }
 
 /// Returns a client to the service at the provided address.

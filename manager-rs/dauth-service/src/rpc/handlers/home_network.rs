@@ -11,8 +11,10 @@ use crate::rpc::dauth::remote::delegated_auth_vector5_g;
 use crate::rpc::dauth::remote::home_network_server::HomeNetwork;
 use crate::rpc::dauth::remote::{
     DelegatedAuthVector5G, GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq,
-    GetHomeConfirmKeyResp,
+    GetHomeConfirmKeyResp, ReportHomeAuthConsumedReq, ReportHomeAuthConsumedResp,
+    ReportHomeKeyShareConsumedReq, ReportHomeKeyShareConsumedResp,
 };
+use crate::rpc::utilities;
 
 pub struct HomeNetworkHandler {
     pub context: Arc<DauthContext>,
@@ -83,6 +85,83 @@ impl HomeNetwork for HomeNetworkHandler {
             )),
         }
     }
+
+    /// Remote request to report an auth vector as used.
+    /// Sends a replacement vector in return.
+    async fn report_auth_consumed(
+        &self,
+        request: tonic::Request<ReportHomeAuthConsumedReq>,
+    ) -> Result<tonic::Response<ReportHomeAuthConsumedResp>, tonic::Status> {
+        tracing::info!("Request: {:?}", request);
+
+        let content = request.into_inner();
+
+        let message = content
+            .backup_auth_vector_req
+            .clone()
+            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
+
+        let verify_result = signing::verify_message(self.context.clone(), &message)
+            .await
+            .or_else(|e| {
+                Err(tonic::Status::new(
+                    tonic::Code::Unauthenticated,
+                    format!("Failed to verify message: {}", e),
+                ))
+            })?;
+
+        match HomeNetworkHandler::report_auth_consumed_hlp(
+            self.context.clone(),
+            content,
+            verify_result,
+        )
+        .await
+        {
+            Ok(result) => Ok(result),
+            Err(e) => Err(tonic::Status::new(
+                tonic::Code::Aborted,
+                format!("Error while handling request: {}", e),
+            )),
+        }
+    }
+
+    /// Remote request to report a key share as used.
+    /// Sends a replacement key share in return.
+    async fn report_key_share_consumed(
+        &self,
+        request: tonic::Request<ReportHomeKeyShareConsumedReq>,
+    ) -> Result<tonic::Response<ReportHomeKeyShareConsumedResp>, tonic::Status> {
+        tracing::info!("Request: {:?}", request);
+
+        let content = request.into_inner();
+
+        let message = content
+            .get_key_share_req
+            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
+
+        let verify_result = signing::verify_message(self.context.clone(), &message)
+            .await
+            .or_else(|e| {
+                Err(tonic::Status::new(
+                    tonic::Code::Unauthenticated,
+                    format!("Failed to verify message: {}", e),
+                ))
+            })?;
+
+        match HomeNetworkHandler::report_key_share_consumed_hlp(
+            self.context.clone(),
+            &content.backup_network_id,
+            verify_result,
+        )
+        .await
+        {
+            Ok(result) => Ok(result),
+            Err(e) => Err(tonic::Status::new(
+                tonic::Code::Aborted,
+                format!("Error while handling request: {}", e),
+            )),
+        }
+    }
 }
 
 impl HomeNetworkHandler {
@@ -140,6 +219,58 @@ impl HomeNetworkHandler {
 
             Ok(tonic::Response::new(GetHomeConfirmKeyResp {
                 kseaf: kseaf.to_vec(),
+            }))
+        } else {
+            Err(DauthError::InvalidMessageError(format!(
+                "Incorrect message type: {:?}",
+                verify_result
+            )))
+        }
+    }
+
+    async fn report_auth_consumed_hlp(
+        context: Arc<DauthContext>,
+        content: ReportHomeAuthConsumedReq,
+        verify_result: SignPayloadType,
+    ) -> Result<tonic::Response<ReportHomeAuthConsumedResp>, DauthError> {
+        // TODO: Check the payload further
+        if let SignPayloadType::GetBackupAuthVectorReq(_payload) = verify_result {
+            Ok(tonic::Response::new(ReportHomeAuthConsumedResp {
+                vector: Some(utilities::build_delegated_vector(
+                    context.clone(),
+                    &manager::auth_vector_used(
+                        context,
+                        &content.backup_network_id,
+                        content.hash_xres_star[..].try_into()?,
+                    )
+                    .await?,
+                    &content.backup_network_id,
+                )),
+            }))
+        } else {
+            Err(DauthError::InvalidMessageError(format!(
+                "Incorrect message type: {:?}",
+                verify_result
+            )))
+        }
+    }
+
+    async fn report_key_share_consumed_hlp(
+        context: Arc<DauthContext>,
+        backup_network_id: &str,
+        verify_result: SignPayloadType,
+    ) -> Result<tonic::Response<ReportHomeKeyShareConsumedResp>, DauthError> {
+        // TODO: Check the payload further
+        if let SignPayloadType::GetKeyShareReq(payload) = verify_result {
+            manager::key_share_used(
+                context,
+                &payload.res_star[..].try_into()?,
+                &payload.hash_xres_star[..].try_into()?,
+                backup_network_id,
+            )
+            .await?;
+            Ok(tonic::Response::new(ReportHomeKeyShareConsumedResp {
+                share: None, // TODO: requires extra state and generation cases
             }))
         } else {
             Err(DauthError::InvalidMessageError(format!(

@@ -1,5 +1,5 @@
 use sqlx::sqlite::{SqlitePool, SqliteRow};
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Row, Sqlite, Transaction};
 
 use crate::data::error::DauthError;
 
@@ -8,6 +8,7 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS key_share_table (
             xres_star_hash BLOB PRIMARY KEY,
+            user_id TEXT NOT NULL,
             key_share BLOB NOT NULL
         );",
     )
@@ -22,13 +23,15 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
+    user_id: &str,
     key_share: &[u8],
 ) -> Result<(), DauthError> {
     sqlx::query(
         "INSERT INTO key_share_table
-        VALUES ($1,$2)",
+        VALUES ($1,$2,$3)",
     )
     .bind(xres_star_hash)
+    .bind(user_id)
     .bind(key_share)
     .execute(transaction)
     .await?;
@@ -48,6 +51,21 @@ pub async fn get(
     .bind(xres_star_hash)
     .fetch_one(transaction)
     .await?)
+}
+
+/// Returns the user id that the key share/vector belongs to.
+pub async fn get_user_id(
+    transaction: &mut Transaction<'_, Sqlite>,
+    xres_star_hash: &[u8],
+) -> Result<String, DauthError> {
+    Ok(sqlx::query(
+        "SELECT * FROM key_share_table
+        WHERE xres_star_hash=$1;",
+    )
+    .bind(xres_star_hash)
+    .fetch_one(transaction)
+    .await?
+    .try_get::<String, &str>("user_id")?)
 }
 
 /// Deletes a key share if found.
@@ -117,6 +135,7 @@ mod tests {
                 key_shares::add(
                     &mut transaction,
                     &[section * num_rows + row; RES_STAR_HASH_LENGTH],
+                    "test_user_id",
                     &[section * num_rows + row; KSEAF_LENGTH],
                 )
                 .await
@@ -141,6 +160,7 @@ mod tests {
                 key_shares::add(
                     &mut transaction,
                     &[section * num_rows + row; RES_STAR_HASH_LENGTH],
+                    "test_user_id",
                     &[section * num_rows + row; KSEAF_LENGTH],
                 )
                 .await
@@ -164,6 +184,16 @@ mod tests {
                     &[section * num_rows + row; KSEAF_LENGTH],
                     res.get_unchecked::<&[u8], &str>("key_share")
                 );
+
+                assert_eq!(
+                    key_shares::get_user_id(
+                        &mut transaction,
+                        &[section * num_rows + row; RES_STAR_HASH_LENGTH],
+                    )
+                    .await
+                    .unwrap(),
+                    "test_user_id"
+                );
             }
         }
         transaction.commit().await.unwrap();
@@ -184,6 +214,7 @@ mod tests {
                 key_shares::add(
                     &mut transaction,
                     &[section * num_rows + row; RES_STAR_LENGTH],
+                    "test_user_id",
                     &[section * num_rows + row; KSEAF_LENGTH],
                 )
                 .await
@@ -237,6 +268,7 @@ mod tests {
                 key_shares::add(
                     &mut transaction,
                     &[section * num_rows + row; RES_STAR_LENGTH],
+                    "test_user_id",
                     &[section * num_rows + row; KSEAF_LENGTH],
                 )
                 .await
@@ -297,6 +329,7 @@ mod tests {
         key_shares::add(
             &mut transaction,
             &[0_u8; RES_STAR_LENGTH],
+            "test_user_id",
             &[1_u8; KSEAF_LENGTH],
         )
         .await
@@ -305,6 +338,7 @@ mod tests {
         key_shares::add(
             &mut transaction,
             &[0_u8; RES_STAR_LENGTH],
+            "test_user_id",
             &[1_u8; KSEAF_LENGTH],
         )
         .await
