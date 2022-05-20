@@ -7,8 +7,8 @@ use crate::core;
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
 use crate::data::vector::AuthVectorRes;
+use crate::database;
 use crate::rpc::clients::{backup_network, directory};
-use crate::{database, manager};
 
 /// Runs the update user task.
 /// Iterates through user in the user update table.
