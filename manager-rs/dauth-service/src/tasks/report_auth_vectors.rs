@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use sqlx::Row;
 
+use crate::core;
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
 use crate::database;
 use crate::database::tasks::report_auth_vectors::ReportAuthVectorTask;
-use crate::manager;
 use crate::rpc::clients;
 
 /// Runs the report auth vector task.
@@ -79,7 +79,7 @@ async fn report_auth_vector(
     // commit only when we know the home network is alerted.
     transaction.commit().await?;
 
-    manager::store_backup_auth_vector(context.clone(), &av_result).await?;
+    core::auth_vectors::store_backup_auth_vector(context.clone(), &av_result).await?;
 
     Ok(report)
 }

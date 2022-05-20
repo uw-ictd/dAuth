@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use auth_vector::types::ResStar;
 
+use crate::core;
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
 use crate::data::signing::{self, SignPayloadType};
-use crate::manager;
 use crate::rpc::dauth::common::AuthVector5G;
 use crate::rpc::dauth::remote::delegated_auth_vector5_g;
 use crate::rpc::dauth::remote::home_network_server::HomeNetwork;
@@ -174,11 +174,15 @@ impl HomeNetworkHandler {
 
             // TODO: Handle reputation
 
-            let av_result = manager::generate_auth_vector(
+            let av_result = core::auth_vectors::generate_local_vector(
                 context.clone(),
                 &user_id,
-                manager::get_sqn_slice(context.clone(), &user_id, &payload.serving_network_id)
-                    .await?,
+                core::users::get_seqnum_slice(
+                    context.clone(),
+                    &user_id,
+                    &payload.serving_network_id,
+                )
+                .await?,
             )
             .await?;
 
@@ -215,7 +219,7 @@ impl HomeNetworkHandler {
         if let SignPayloadType::GetHomeConfirmKeyReq(payload) = verify_result {
             let res_star: ResStar = payload.res_star.as_slice().try_into()?;
 
-            let kseaf = manager::get_confirm_key(context, res_star).await?;
+            let kseaf = core::confirm_keys::get_confirm_key(context, res_star).await?;
 
             Ok(tonic::Response::new(GetHomeConfirmKeyResp {
                 kseaf: kseaf.to_vec(),
@@ -238,7 +242,7 @@ impl HomeNetworkHandler {
             Ok(tonic::Response::new(ReportHomeAuthConsumedResp {
                 vector: Some(utilities::build_delegated_vector(
                     context.clone(),
-                    &manager::auth_vector_used(
+                    &core::auth_vectors::backup_auth_vector_used(
                         context,
                         &content.backup_network_id,
                         content.hash_xres_star[..].try_into()?,
@@ -262,7 +266,7 @@ impl HomeNetworkHandler {
     ) -> Result<tonic::Response<ReportHomeKeyShareConsumedResp>, DauthError> {
         // TODO: Check the payload further
         if let SignPayloadType::GetKeyShareReq(payload) = verify_result {
-            manager::key_share_used(
+            core::confirm_keys::key_share_used(
                 context,
                 &payload.res_star[..].try_into()?,
                 &payload.hash_xres_star[..].try_into()?,

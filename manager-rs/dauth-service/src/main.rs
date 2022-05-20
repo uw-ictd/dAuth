@@ -1,6 +1,6 @@
+mod core;
 mod data;
 mod database;
-mod manager;
 mod rpc;
 mod startup;
 mod tasks;
