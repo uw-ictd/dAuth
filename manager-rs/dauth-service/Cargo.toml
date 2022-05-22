@@ -11,7 +11,7 @@ prost = "0.9"
 tokio = { version = "^1.13.0", features = ["macros", "rt-multi-thread"]}
 tracing = "0.1.29"
 tracing-futures = "0.2.5"
-tracing-subscriber = "0.3.2"
+tracing-subscriber = {version = "0.3.11", features = ["fmt", "env-filter"]}
 hex = "0.4.3"
 thiserror = "1.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -26,6 +26,7 @@ auth-vector = { path = "../auth-vector" }
 
 [dev-dependencies]
 tempfile = "3.3"
+test-log = { version = "0.2.10", features = ["trace"], default-features = false }
 
 [build-dependencies]
 tonic-build = "0.6"
