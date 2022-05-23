@@ -4,11 +4,11 @@ use prost::Message;
 
 use auth_vector::types::HresStar;
 
+use crate::core;
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
 use crate::data::signing::{self, SignPayloadType};
-use crate::data::vector::{AuthVectorReq, AuthVectorRes};
-use crate::manager;
+use crate::data::vector::AuthVectorReq;
 use crate::rpc::dauth::common::{AuthVector5G, UserIdKind};
 use crate::rpc::dauth::remote::backup_network_server::BackupNetwork;
 use crate::rpc::dauth::remote::{
@@ -283,7 +283,7 @@ impl BackupNetworkHandler {
                             payload.backup_network_id
                         )))
                     } else {
-                        manager::set_backup_user(
+                        core::users::set_backup_user(
                             context.clone(),
                             &user_id,
                             &payload.home_network_id,
@@ -320,7 +320,8 @@ impl BackupNetworkHandler {
                 let user_id = std::str::from_utf8(content.user_id.as_slice())?.to_string();
 
                 // TODO: possibly use home network id?
-                let _home_network_id = manager::get_backup_user(context.clone(), &user_id).await?;
+                let _home_network_id =
+                    core::users::get_backup_user(context.clone(), &user_id).await?;
 
                 // collect all properly formated delegated vectors
                 // log and skip on error
@@ -331,7 +332,7 @@ impl BackupNetworkHandler {
                             .await,
                     );
                 }
-                manager::store_backup_auth_vectors(
+                core::auth_vectors::store_backup_auth_vectors(
                     context.clone(),
                     processed_vectors
                         .into_iter()
@@ -352,7 +353,7 @@ impl BackupNetworkHandler {
                     processed_shares
                         .push(utilities::handle_key_share(context.clone(), dshare).await);
                 }
-                manager::store_key_shares(
+                core::confirm_keys::store_key_shares(
                     context.clone(),
                     &user_id,
                     processed_shares
@@ -384,7 +385,7 @@ impl BackupNetworkHandler {
         if let SignPayloadType::GetBackupAuthVectorReq(payload) = verify_result {
             let user_id = std::str::from_utf8(payload.user_id.as_slice())?.to_string();
 
-            let av_result = manager::next_backup_auth_vector(
+            let av_result = core::auth_vectors::next_backup_auth_vector(
                 context.clone(),
                 &AuthVectorReq {
                     user_id: user_id.to_string(),
@@ -428,7 +429,7 @@ impl BackupNetworkHandler {
             let mut signed_request_bytes = Vec::new();
             message.encode(&mut signed_request_bytes)?;
 
-            let key_share = manager::get_key_share(
+            let key_share = core::confirm_keys::get_key_share(
                 context.clone(),
                 payload.hash_xres_star[..].try_into()?,
                 &signed_request_bytes,
@@ -471,7 +472,7 @@ impl BackupNetworkHandler {
         let (new_xres_star_hash, new_key_share) =
             utilities::handle_key_share(context.clone(), dshare).await?;
 
-        manager::replace_key_shares(
+        core::confirm_keys::replace_key_share(
             context,
             &old_xres_star_hash,
             &new_xres_star_hash,
@@ -495,14 +496,14 @@ impl BackupNetworkHandler {
                     payload.backup_network_id
                 )))
             } else {
-                if manager::get_backup_user(context.clone(), &user_id).await?
+                if core::users::get_backup_user(context.clone(), &user_id).await?
                     != payload.home_network_id
                 {
                     Err(DauthError::InvalidMessageError(format!(
                         "Not the correct home network",
                     )))
                 } else {
-                    manager::remove_backup_user(context, &user_id, &payload.home_network_id)
+                    core::users::remove_backup_user(context, &user_id, &payload.home_network_id)
                         .await?;
                     Ok(tonic::Response::new(WithdrawBackupResp {}))
                 }
@@ -520,7 +521,7 @@ impl BackupNetworkHandler {
         verify_result: SignPayloadType,
     ) -> Result<tonic::Response<WithdrawSharesResp>, DauthError> {
         if let SignPayloadType::WithdrawSharesReq(payload) = verify_result {
-            manager::remove_key_shares(
+            core::confirm_keys::remove_key_shares(
                 context,
                 payload
                     .xres_star_hash
@@ -550,7 +551,7 @@ impl BackupNetworkHandler {
                         "Missing content".to_string(),
                     ))?;
 
-                    manager::store_backup_flood_vector(
+                    core::auth_vectors::store_backup_flood_vector(
                         context.clone(),
                         &utilities::handle_delegated_vector(context, dvector, &user_id).await?,
                     )

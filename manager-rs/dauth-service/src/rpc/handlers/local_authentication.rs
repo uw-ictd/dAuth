@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use auth_vector::types::Kseaf;
 
+use crate::core;
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
-use crate::manager;
 use crate::rpc::dauth::local::aka_confirm_resp;
 use crate::rpc::dauth::local::local_authentication_server::LocalAuthentication;
 use crate::rpc::dauth::local::{AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp};
@@ -30,7 +30,7 @@ impl LocalAuthentication for LocalAuthenticationHandler {
             Err(e) => return Err(tonic::Status::new(tonic::Code::Aborted, e.to_string())),
         }
 
-        match manager::find_vector(
+        match core::auth_vectors::find_vector(
             self.context.clone(),
             &user_id,
             &self.context.local_context.id,
@@ -76,6 +76,9 @@ impl LocalAuthenticationHandler {
 
         let res_star: auth_vector::types::ResStar = payload.res_star[..].try_into()?;
 
-        Ok(manager::confirm_auth_vector(self.context.clone(), &user_id, res_star).await?)
+        Ok(
+            core::confirm_keys::confirm_authentication(self.context.clone(), &user_id, res_star)
+                .await?,
+        )
     }
 }

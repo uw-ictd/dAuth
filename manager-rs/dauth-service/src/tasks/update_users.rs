@@ -3,11 +3,12 @@ use std::sync::Arc;
 
 use auth_vector::types::{HresStar, Kseaf, Rand};
 
+use crate::core;
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
 use crate::data::vector::AuthVectorRes;
+use crate::database;
 use crate::rpc::clients::{backup_network, directory};
-use crate::{database, manager};
 
 /// Runs the update user task.
 /// Iterates through user in the user update table.
@@ -87,12 +88,16 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             0,
             context.local_context.max_backup_vectors - num_existing_vectors,
         ) {
-            let (vector, seqnum) =
-                manager::build_auth_vector(context.clone(), &mut transaction, user_id, *sqn_slice)
-                    .await?;
+            let (vector, seqnum) = core::auth_vectors::build_auth_vector(
+                context.clone(),
+                &mut transaction,
+                user_id,
+                *sqn_slice,
+            )
+            .await?;
 
             let (xres_star_hash, rand) = (vector.xres_star_hash.clone(), vector.rand.clone());
-            let mut shares: Vec<(HresStar, Kseaf, Rand)> = manager::generate_key_shares(
+            let mut shares: Vec<(HresStar, Kseaf, Rand)> = core::confirm_keys::generate_key_shares(
                 context.clone(),
                 &vector.kseaf,
                 backup_network_ids.len() - 1,
