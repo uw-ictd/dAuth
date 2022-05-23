@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use auth_vector::types::{HresStar, Kseaf, Rand};
+use auth_vector::types::{HresStar, Rand};
 
 use crate::core;
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
+use crate::data::keys;
 use crate::data::vector::AuthVectorRes;
 use crate::database;
 use crate::rpc::clients::{backup_network, directory};
@@ -97,14 +98,17 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             .await?;
 
             let (xres_star_hash, rand) = (vector.xres_star_hash.clone(), vector.rand.clone());
-            let mut shares: Vec<(HresStar, Kseaf, Rand)> = core::confirm_keys::generate_key_shares(
-                context.clone(),
-                &vector.kseaf,
-                backup_network_ids.len() - 1,
-            )?
-            .into_iter()
-            .map(|key_share| (xres_star_hash, key_share, rand))
-            .collect();
+            let mut rng = rand_0_8::thread_rng();
+            let mut shares: Vec<(HresStar, keys::KseafShare, Rand)> =
+                keys::create_shares_from_kseaf(
+                    &vector.kseaf,
+                    backup_network_ids.len() as u8,
+                    keys::TEMPORARY_CONSTANT_THRESHOLD,
+                    &mut rng,
+                )?
+                .into_iter()
+                .map(|key_share| (xres_star_hash, key_share, rand))
+                .collect();
 
             vectors_map
                 .get_mut(backup_network_id)
@@ -184,7 +188,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
         // TODO: allow backups to have rand? Would allow them to check res
         let key_shares = shares
             .into_iter()
-            .map(|(xres_star_hash, kseaf, _rand)| (xres_star_hash.clone(), kseaf.clone()))
+            .map(|(xres_star_hash, kseaf, _rand)| (xres_star_hash.clone(), kseaf.to_owned()))
             .collect();
 
         backup_network::enroll_backup_commit(

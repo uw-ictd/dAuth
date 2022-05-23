@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use auth_vector::types::{HresStar, Kseaf, ResStar};
+use auth_vector::types::{HresStar, ResStar};
 use tonic::transport::Channel;
 
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
+use crate::data::keys;
 use crate::data::signing;
 use crate::data::signing::SignPayloadType;
 use crate::data::vector::AuthVectorRes;
@@ -77,7 +78,7 @@ pub async fn enroll_backup_commit(
     backup_network_id: &str,
     user_id: &str,
     vectors: &Vec<AuthVectorRes>,
-    key_shares: &Vec<(HresStar, Kseaf)>,
+    key_shares: &Vec<(HresStar, keys::KseafShare)>,
     address: &str,
 ) -> Result<(), DauthError> {
     let mut client = get_client(context.clone(), address).await?;
@@ -171,7 +172,7 @@ pub async fn get_key_share(
     xres_star_hash: HresStar,
     res_star: ResStar,
     address: String,
-) -> Result<Kseaf, DauthError> {
+) -> Result<keys::KseafShare, DauthError> {
     let mut client = get_client(context.clone(), &address).await?;
 
     let response = client
@@ -220,7 +221,7 @@ pub async fn replace_key_share(
             new_share: Some(utilities::build_delegated_share(
                 context,
                 &replace.xres_star_hash[..].try_into()?,
-                &replace.key_share[..].try_into()?,
+                &replace.key_share,
             )),
             replaced_share_xres_star_hash: replace.old_xres_star_hash.clone(),
         })

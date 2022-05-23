@@ -7,6 +7,7 @@ use crate::core;
 use crate::data::{
     context::DauthContext,
     error::DauthError,
+    keys,
     state::{AuthSource, AuthState},
     vector::{AuthVectorReq, AuthVectorRes},
 };
@@ -267,10 +268,11 @@ pub async fn backup_auth_vector_used(
         clients::directory::lookup_user(context.clone(), &user_id).await?;
     backup_networks.retain(|id| id != backup_network_id);
 
-    let mut key_shares = core::confirm_keys::generate_key_shares(
-        context.clone(),
+    let mut key_shares = keys::create_shares_from_kseaf(
         &auth_vector_data.kseaf,
-        backup_networks.len(),
+        backup_networks.len() as u8,
+        keys::TEMPORARY_CONSTANT_THRESHOLD,
+        &mut rand_0_8::thread_rng(),
     )?;
 
     for id in backup_networks {

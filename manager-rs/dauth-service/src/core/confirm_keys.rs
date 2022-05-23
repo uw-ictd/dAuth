@@ -1,11 +1,12 @@
 use std::sync::Arc;
+use tracing::*;
 
 use auth_vector::{
     self,
-    types::{HresStar, Kseaf, ResStar},
+    types::{HresStar, ResStar},
 };
 
-use crate::data::{context::DauthContext, error::DauthError, state::AuthSource};
+use crate::data::{context::DauthContext, error::DauthError, keys, state::AuthSource};
 use crate::database;
 use crate::database::utilities::DauthDataUtilities;
 use crate::rpc::clients;
@@ -15,6 +16,7 @@ use crate::rpc::clients;
 /// 1. If generated on this network, get Kseaf from the database.
 /// 2. Else, check the home network for a Kseaf value.
 /// 3. If not from the home network, get key shares from the backup networks.
+#[instrument(level = "debug")]
 pub async fn confirm_authentication(
     context: Arc<DauthContext>,
     user_id: &str,
@@ -76,17 +78,27 @@ pub async fn confirm_authentication(
 
                 for resp in responses {
                     match resp.await {
-                        Ok(key_share) => {
-                            key_shares.push(key_share);
-                        }
+                        Ok(key_share) => match key_share {
+                            Ok(share) => key_shares.push(share),
+                            Err(e) => tracing::warn!("Failed to get key share: {}", e),
+                        },
                         Err(e) => {
                             tracing::warn!("Failed to get key share: {}", e)
                         }
                     }
                 }
 
-                // need to derive kseaf from key shares, then alert home network
-                todo!()
+                if key_shares.len() < keys::TEMPORARY_CONSTANT_THRESHOLD.into() {
+                    tracing::warn!("Insufficient valid responses to compute the kseaf");
+                    return Err(DauthError::ShamirShareError());
+                }
+
+                let kseaf = keys::recover_kseaf_from_shares(
+                    &key_shares,
+                    keys::TEMPORARY_CONSTANT_THRESHOLD,
+                )?;
+
+                Ok(kseaf)
             }
         }
     }
@@ -230,21 +242,6 @@ pub async fn key_share_used(
     transaction.commit().await?;
 
     Ok(())
-}
-
-/// Placeholder function for generating key shares.
-pub fn generate_key_shares(
-    _context: Arc<DauthContext>,
-    kseaf: &Kseaf,
-    num_slices: usize,
-) -> Result<Vec<Kseaf>, DauthError> {
-    let mut slices = Vec::new();
-
-    for _ in 0..num_slices {
-        slices.push(kseaf.clone())
-    }
-
-    Ok(slices)
 }
 
 /// Confirms res* is a valid preimage of xres* hash.
