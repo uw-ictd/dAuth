@@ -1,15 +1,16 @@
 use std::sync::Arc;
 
-use auth_vector::types::{HresStar, Kseaf};
+use auth_vector::types::HresStar;
 
-use crate::data::context::DauthContext;
-use crate::data::error::DauthError;
-use crate::data::signing;
-use crate::data::signing::SignPayloadType;
-use crate::data::vector::AuthVectorRes;
+use crate::data::{
+    context::DauthContext, error::DauthError, keys, signing, signing::SignPayloadType,
+    vector::AuthVectorRes,
+};
 use crate::rpc::dauth::common::AuthVector5G;
-use crate::rpc::dauth::remote::{delegated_auth_vector5_g, delegated_confirmation_share};
-use crate::rpc::dauth::remote::{DelegatedAuthVector5G, DelegatedConfirmationShare};
+use crate::rpc::dauth::remote::{
+    delegated_auth_vector5_g, delegated_confirmation_share, DelegatedAuthVector5G,
+    DelegatedConfirmationShare,
+};
 
 pub fn build_delegated_vector(
     context: Arc<DauthContext>,
@@ -37,11 +38,11 @@ pub fn build_delegated_vector(
 pub fn build_delegated_share(
     context: Arc<DauthContext>,
     xres_star_hash: &HresStar,
-    confirmation_share: &Kseaf,
+    confirmation_share: &keys::KseafShare,
 ) -> DelegatedConfirmationShare {
     let payload = delegated_confirmation_share::Payload {
         xres_star_hash: xres_star_hash.to_vec(),
-        confirmation_share: confirmation_share.to_vec(),
+        confirmation_share: confirmation_share.share.to_vec(),
     };
 
     DelegatedConfirmationShare {

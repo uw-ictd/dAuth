@@ -2,9 +2,30 @@ use sqlx::sqlite::SqlitePool;
 use sqlx::{FromRow, Sqlite, Transaction};
 
 use crate::data::error::DauthError;
+use crate::data::keys;
+
+#[derive(Clone)]
+pub struct ReplaceKeyShareTask {
+    pub backup_network_id: String,
+    pub xres_star_hash: Vec<u8>,
+    pub old_xres_star_hash: Vec<u8>,
+    pub key_share: keys::KseafShare,
+}
+
+impl TryFrom<ReplaceKeyShareTaskRow> for ReplaceKeyShareTask {
+    type Error = DauthError;
+    fn try_from(value: ReplaceKeyShareTaskRow) -> Result<Self, Self::Error> {
+        Ok(ReplaceKeyShareTask {
+            backup_network_id: value.backup_network_id,
+            xres_star_hash: value.xres_star_hash,
+            old_xres_star_hash: value.old_xres_star_hash,
+            key_share: value.key_share.try_into()?,
+        })
+    }
+}
 
 #[derive(FromRow, Clone)]
-pub struct ReplaceKeyShareTask {
+pub struct ReplaceKeyShareTaskRow {
     pub backup_network_id: String,
     pub xres_star_hash: Vec<u8>,
     pub old_xres_star_hash: Vec<u8>,
@@ -35,7 +56,7 @@ pub async fn add(
     backup_network_id: &str,
     xres_star_hash: &[u8],
     old_xres_star_hash: &[u8],
-    key_share: &[u8],
+    key_share: &keys::KseafShare,
 ) -> Result<(), DauthError> {
     sqlx::query(
         "INSERT INTO replace_key_share_task_table
@@ -44,7 +65,7 @@ pub async fn add(
     .bind(backup_network_id)
     .bind(xres_star_hash)
     .bind(old_xres_star_hash)
-    .bind(key_share)
+    .bind(key_share.share.as_slice())
     .execute(transaction)
     .await?;
 
@@ -55,13 +76,14 @@ pub async fn add(
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
 ) -> Result<Vec<ReplaceKeyShareTask>, DauthError> {
-    let rows = sqlx::query("SELECT * FROM replace_key_share_task_table")
-        .fetch_all(transaction)
-        .await?;
+    let rows: Vec<ReplaceKeyShareTaskRow> =
+        sqlx::query_as("SELECT * FROM replace_key_share_task_table")
+            .fetch_all(transaction)
+            .await?;
 
-    let mut res = Vec::with_capacity(rows.len());
+    let mut res: Vec<ReplaceKeyShareTask> = Vec::with_capacity(rows.len());
     for row in rows {
-        res.push(ReplaceKeyShareTask::from_row(&row)?)
+        res.push(row.try_into()?)
     }
     Ok(res)
 }
@@ -93,6 +115,7 @@ mod tests {
     use sqlx::SqlitePool;
     use tempfile::{tempdir, TempDir};
 
+    use crate::data::keys;
     use crate::database::{general, tasks};
 
     fn gen_name() -> String {
@@ -129,7 +152,7 @@ mod tests {
                 &format!("test_backup_network_{}", row),
                 &vec![row as u8],
                 &vec![row as u8],
-                &vec![0u8],
+                &keys::KseafShare { share: [0xFF; 33] },
             )
             .await
             .unwrap()
@@ -151,7 +174,7 @@ mod tests {
                 &format!("test_backup_network_{}", row),
                 &vec![row as u8],
                 &vec![row as u8],
-                &vec![0u8],
+                &keys::KseafShare { share: [0xEE; 33] },
             )
             .await
             .unwrap();
@@ -183,7 +206,7 @@ mod tests {
                 &format!("test_backup_network_{}", row),
                 &vec![row as u8],
                 &vec![row as u8],
-                &vec![0u8],
+                &keys::KseafShare { share: [0xDD; 33] },
             )
             .await
             .unwrap();
