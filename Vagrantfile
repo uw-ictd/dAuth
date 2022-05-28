@@ -25,7 +25,8 @@ Vagrant.configure(2) do |config|
     ueransim.vm.box = "ubuntu/focal64"
     ueransim.vm.hostname = "ueransim"
 
-    ueransim.vm.network "private_network", ip: "192.168.60.200"
+    machine_ip = "192.168.60.200"
+    ueransim.vm.network "private_network", ip: machine_ip
 
     ueransim.vm.provider "virtualbox" do |vb|
       vb.customize ["modifyvm", :id, "--memory", "2048"]
@@ -39,6 +40,11 @@ Vagrant.configure(2) do |config|
       ansible.playbook = "ansible/ueransim.yml"
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
+      ansible.extra_vars = {
+        colte_ip: machine_ip,
+        prompt_color: "yellow",
+        tmux_color: "yellow"
+      }
     end
 
   end
@@ -62,7 +68,9 @@ Vagrant.configure(2) do |config|
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
       ansible.extra_vars = {
-        colte_ip: machine_ip
+        colte_ip: machine_ip,
+        prompt_color: "cyan",
+        tmux_color: "cyan"
       }
     end
 
@@ -87,7 +95,9 @@ Vagrant.configure(2) do |config|
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
       ansible.extra_vars = {
-        colte_ip: machine_ip
+        colte_ip: machine_ip,
+        prompt_color: "green",
+        tmux_color: "cyan"
       }
     end
   end
@@ -111,7 +121,9 @@ Vagrant.configure(2) do |config|
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
       ansible.extra_vars = {
-        colte_ip: machine_ip
+        colte_ip: machine_ip,
+        prompt_color: "red",
+        tmux_color: "red"
       }
     end
   end
@@ -152,7 +164,9 @@ Vagrant.configure(2) do |config|
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
       ansible.extra_vars = {
-        colte_ip: machine_ip
+        colte_ip: machine_ip,
+        prompt_color: "blue",
+        tmux_color: "green"
       }
     end
   end
