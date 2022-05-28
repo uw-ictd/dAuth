@@ -84,3 +84,9 @@
       ansible.builtin.template:
         src: "templates/zshrc-dotfile.j2"
         dest: "/home/vagrant/.zshrc"
+
+    - name: "Copy in config file"
+      copy:
+        src: "../configs/dauth-service/sample{{test_net_index}}.yaml"
+        dest: "/etc/dauth/dauth.yml"
+        remote_src: no

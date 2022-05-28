@@ -1,24 +1,46 @@
-# Addrs of remote cores that can be contacted
-remote_addrs:
-  - "[::1]:50052"
+# The id of this network
+id: "sample-network-2"
 
-# Address to host the RPC server
-host_addr: "[::1]:50051"
+# Address this network will host on
+host_addr: "127.0.0.1:50052"
 
-# User sensitive data for generating auth vectors
-# Key is imsi/supi
-users:
-  "901700000000002":
-    k: "465B5CE8B199B49FAA5F0A2EE238A6BC"
-    opc: "E8ED289DEBA952E4283B54E88E6183CA"
-    sqn_max: "32"
+# Address of the directory service
+directory_addr: "127.0.0.1:8900"
 
-# min and max values for user id (imsi/supi) to be considered local
-local_user_id_min: "901700000000002"
-local_user_id_max: "901700000000002"
+# Keyfile for ed25519 keys used in signing remote messages
+ed25519_keyfile_path: "./out/sample-network-2/dauth_service/ed25519_keys"
 
-# keyfile for ed25519 keys used in signing remote messages
-ed25519_keyfile_path: "~/dauth_service/ed25519_keys"
+# Path to create/find the database
+database_path: "./out/sample-network-2/dauth_service/sqlite1.db"
 
-# path to create/find the database
-database_path: "~/dauth_service/sqlite2.db"
+# Delay in seconds before tasks thread begins executing
+task_startup_delay: 1.0
+
+# Interval in seconds between checking for new tasks
+task_interval: 1.0
+
+# The number of vector slices possible (also determines max backup networks)
+# Slice 0 is always reserved for the home network
+num_sqn_slices: 32
+
+# Max number of auth vectors a backup network should have at one time
+max_backup_vectors: 10
+
+# The set of users for this network (for testing)
+users: {
+  "imsi-901700000000002": {
+    "k": "465B5CE8B199B49FAA5F0A2EE238A6BC",
+    "opc": "E8ED289DEBA952E4283B54E88E6183CA",
+
+    # Mapping of sqn slice to max sqn for that slice
+    "sqn_slice_max": {
+      0: 32,
+      1: 33
+    },
+
+    # Mapping of network id to sqn slice
+    "backup_network_ids": {
+      "sample-network-1": 1
+    }
+  }
+}

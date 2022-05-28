@@ -1,0 +1,2 @@
+host_address: "127.0.0.1:8900"
+database_path: "./out/directory_service/directory_sqlite.db"
