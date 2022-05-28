@@ -11,7 +11,7 @@ gtpIp: 192.168.60.200    # gNB's local IP address for N3 Interface (Usually same
 
 # List of AMF address information
 amfConfigs:
-  - address: 192.168.56.2
+  - address: 192.168.56.101
     port: 38412
 
 # List of supported S-NSSAIs by this gNB
