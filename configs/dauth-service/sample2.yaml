@@ -1,11 +1,11 @@
 # The id of this network
-id: "sample-network-2"
+id: "colte-2"
 
 # Address this network will host on
-host_addr: "127.0.0.1:50052"
+host_addr: "192.168.56.102:50052"
 
 # Address of the directory service
-directory_addr: "127.0.0.1:8900"
+directory_addr: "192.168.56.250:8900"
 
 # Keyfile for ed25519 keys used in signing remote messages
 ed25519_keyfile_path: "./out/sample-network-2/dauth_service/ed25519_keys"
@@ -40,7 +40,7 @@ users: {
 
     # Mapping of network id to sqn slice
     "backup_network_ids": {
-      "sample-network-1": 1
+      "colte-1": 1
     }
   }
 }
