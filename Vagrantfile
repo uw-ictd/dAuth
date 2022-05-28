@@ -25,7 +25,8 @@ Vagrant.configure(2) do |config|
     ueransim.vm.box = "ubuntu/focal64"
     ueransim.vm.hostname = "ueransim"
 
-    ueransim.vm.network "private_network", ip: "192.168.60.200"
+    machine_ip = "192.168.60.200"
+    ueransim.vm.network "private_network", ip: machine_ip
 
     ueransim.vm.provider "virtualbox" do |vb|
       vb.customize ["modifyvm", :id, "--memory", "2048"]
@@ -39,6 +40,11 @@ Vagrant.configure(2) do |config|
       ansible.playbook = "ansible/ueransim.yml"
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
+      ansible.extra_vars = {
+        colte_ip: machine_ip,
+        prompt_color: "yellow",
+        tmux_color: "yellow"
+      }
     end
 
   end
@@ -62,7 +68,10 @@ Vagrant.configure(2) do |config|
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
       ansible.extra_vars = {
-        colte_ip: machine_ip
+        colte_ip: machine_ip,
+        test_net_index: 1,
+        prompt_color: "cyan",
+        tmux_color: "cyan"
       }
     end
 
@@ -87,7 +96,36 @@ Vagrant.configure(2) do |config|
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
       ansible.extra_vars = {
-        colte_ip: machine_ip
+        colte_ip: machine_ip,
+        test_net_index: 2,
+        prompt_color: "green",
+        tmux_color: "cyan"
+      }
+    end
+  end
+
+  config.vm.define :directory do |colte|
+    colte.vm.box = "ubuntu/focal64"
+    colte.vm.hostname = "directory"
+
+    machine_ip = "192.168.56.250"
+    colte.vm.network "private_network", ip: machine_ip
+
+    colte.vm.provider "virtualbox" do |vb|
+      vb.customize ["modifyvm", :id, "--memory", "1024"]
+      vb.customize ["modifyvm", :id, "--cpus", "1"]
+    end
+
+    colte.vm.provision "ansible" do |ansible|
+      ansible.compatibility_mode = "2.0"
+      ansible.host_key_checking = false
+      ansible.playbook = "ansible/directory.yml"
+      ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
+      ansible.verbose = 'v'
+      ansible.extra_vars = {
+        colte_ip: machine_ip,
+        prompt_color: "red",
+        tmux_color: "red"
       }
     end
   end
@@ -128,7 +166,9 @@ Vagrant.configure(2) do |config|
       ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
       ansible.verbose = 'v'
       ansible.extra_vars = {
-        colte_ip: machine_ip
+        colte_ip: machine_ip,
+        prompt_color: "blue",
+        tmux_color: "green"
       }
     end
   end

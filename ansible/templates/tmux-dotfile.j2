@@ -1,0 +1,9 @@
+# Use prfx k for pane kill like screen.
+bind-key k confirm-before kill-pane
+# Use big k to really kill (the whole window).
+bind-key K confirm-before kill-window
+
+set -g default-terminal "screen-256color"
+
+set -g status-bg {{ tmux_color }}
+set -g status-fg white
