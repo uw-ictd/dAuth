@@ -59,6 +59,7 @@
       git:
         repo: https://github.com/aligungr/UERANSIM
         dest: /home/vagrant/UERANSIM
+        version: v3.2.6
 
     - name: Make UERANSIM
       make:
