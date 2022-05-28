@@ -1,0 +1,20 @@
+---
+
+- name: Set up a directory service machine
+  hosts: ['directory']
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  become: yes
+  roles:
+    - "ssh_mesh_member"
+
+  tasks:
+    - name: Create dauth config directory if it doesn't already exist
+      file:
+        path: /etc/dauth
+        state: directory
+
+    - name: Write host data to a long-lived config file
+      ansible.builtin.template:
+        src: "templates/dauth-host-config.yml.j2"
+        dest: "/etc/dauth/host-config.yml"

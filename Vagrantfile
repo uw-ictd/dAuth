@@ -92,6 +92,30 @@ Vagrant.configure(2) do |config|
     end
   end
 
+  config.vm.define :directory do |colte|
+    colte.vm.box = "ubuntu/focal64"
+    colte.vm.hostname = "directory"
+
+    machine_ip = "192.168.56.250"
+    colte.vm.network "private_network", ip: machine_ip
+
+    colte.vm.provider "virtualbox" do |vb|
+      vb.customize ["modifyvm", :id, "--memory", "1024"]
+      vb.customize ["modifyvm", :id, "--cpus", "1"]
+    end
+
+    colte.vm.provision "ansible" do |ansible|
+      ansible.compatibility_mode = "2.0"
+      ansible.host_key_checking = false
+      ansible.playbook = "ansible/directory.yml"
+      ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
+      ansible.verbose = 'v'
+      ansible.extra_vars = {
+        colte_ip: machine_ip
+      }
+    end
+  end
+
   config.vm.define :dauthDev do |colte|
     colte.vm.box = "ubuntu/focal64"
     colte.vm.hostname = "dauthDev"
