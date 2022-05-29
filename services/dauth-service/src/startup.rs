@@ -38,6 +38,7 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
         rpc_context: RpcContext {
             host_addr: config.host_addr,
             directory_addr: config.directory_addr,
+            local_auth_addr: config.local_auth_addr.unwrap_or("127.0.0.1:50051".to_owned()),
             backup_clients: tokio::sync::Mutex::new(HashMap::new()),
             home_clients: tokio::sync::Mutex::new(HashMap::new()),
             directory_client: tokio::sync::Mutex::new(None),
