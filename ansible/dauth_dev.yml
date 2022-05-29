@@ -9,6 +9,7 @@
   become: no
   roles:
     - "ssh_mesh_member"
+    - "dev_login"
 
   tasks:
 

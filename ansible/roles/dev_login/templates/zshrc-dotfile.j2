@@ -13,7 +13,7 @@ compinit
 
 autoload -Uz promptinit
 promptinit
-prompt adam1 {{ prompt_color }}
+prompt adam1 {{ prompt_color | default('green') }}
 
 # enable color support of ls and also add handy aliases
 if [ -x /usr/bin/dircolors ]; then

@@ -1,0 +1,30 @@
+- name: Update apt package cache
+  become: yes
+  apt:
+    upgrade: no
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: "Install convenience dependencies"
+  become: yes
+  apt:
+    name:
+      - "zsh"
+      - "emacs-nox"
+    state: "latest"
+
+- name: "Setup tmux config file"
+  ansible.builtin.template:
+    src: "templates/tmux-dotfile.j2"
+    dest: "/home/vagrant/.tmux.conf"
+
+- name: "Use zsh for sanity"
+  become: yes
+  user:
+    name: "vagrant"
+    shell: /bin/zsh
+
+- name: "Setup zshrc config file"
+  ansible.builtin.template:
+    src: "templates/zshrc-dotfile.j2"
+    dest: "/home/vagrant/.zshrc"
