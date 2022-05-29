@@ -140,7 +140,7 @@ if __name__ == "__main__":
         "-d",
         "--deploy-dauth",
         action="store_true",
-        help="Build open5gs from source",
+        help="Deploy an already built version of dauth",
     )
     parser.add_argument(
         "--deploy-dauth-directory",
@@ -150,7 +150,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--deploy-open5gs",
         action="store_true",
-        help="Build open5gs from source",
+        help="Deploy an already built version of open5gs",
     )
 
     parser.add_argument(
