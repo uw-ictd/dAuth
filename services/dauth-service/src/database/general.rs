@@ -1,3 +1,4 @@
+use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 
 use crate::data::error::DauthError;
@@ -9,6 +10,8 @@ pub async fn build_pool(database_path: &str) -> Result<SqlitePool, DauthError> {
         .max_connections(10)
         .connect_with(
             SqliteConnectOptions::new()
+                .disable_statement_logging()
+                .clone()
                 .create_if_missing(true)
                 .filename(database_path),
         )

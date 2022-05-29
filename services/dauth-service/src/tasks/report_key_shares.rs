@@ -13,7 +13,7 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
     transaction.commit().await.unwrap();
 
     if reports.is_empty() {
-        tracing::info!("Nothing to do for report key share task");
+        tracing::debug!("Nothing to do for report key share task");
     } else {
         tracing::info!("Found {} report key share(s) pending", reports.len());
 
