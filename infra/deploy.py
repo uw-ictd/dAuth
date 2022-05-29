@@ -45,6 +45,26 @@ def package_dauth_service(target, package_name="dauth-service_0.0.0~dev_amd64.de
     return package_path
 
 
+def package_dauth_directory_service(target, package_name="dauth-directory-service_0.0.0~dev_amd64.deb"):
+    """ Package the dauth directory service per external nfpm.yaml config file
+    """
+    with open("../services/nfpm-directory.yaml") as f:
+        nfpm_config = f.read()
+
+    # Update the config file TARGET placeholder with the appropriate target
+    nfpm_config = nfpm_config.replace(r"${TARGET}", target)
+    log.debug("Running nfpm with config: \n %s", nfpm_config)
+
+    subprocess.run(["nfpm", "package", "--config", "/dev/stdin", "--packager", "deb", "--target", package_name],
+                   check=True,
+                   cwd="../services",
+                   input=nfpm_config.encode("utf8"))
+
+    package_path = Path("../services", package_name)
+    log.info("Package created at: %s", package_path.absolute())
+    return package_path
+
+
 def deploy_package(package_path, host):
     """ Transfer and install the provided package on the host
     """
@@ -123,6 +143,11 @@ if __name__ == "__main__":
         help="Build open5gs from source",
     )
     parser.add_argument(
+        "--deploy-dauth-directory",
+        action="store_true",
+        help="Deploy the dauth directory service",
+    )
+    parser.add_argument(
         "--deploy-open5gs",
         action="store_true",
         help="Build open5gs from source",
@@ -177,6 +202,10 @@ if __name__ == "__main__":
     if not (args.build_dauth or args.build_open5gs or args.deploy_dauth or args.deploy_open5gs):
         log.error("No action specified!")
 
+    if args.deploy_dauth_directory and len(args.dest_host) > 1:
+        log.error("Cannot deploy the directory when multiple hosts are specified")
+        raise NotImplementedError("No way to differentiate which host receives the directory and which do not.")
+
     if args.build_dauth:
         log.info("Building dauth")
         build_dauth_services(target="release")
@@ -194,6 +223,15 @@ if __name__ == "__main__":
             log.error("Specified deploy but no deploy destinations provided")
         for host in args.dest_host:
             deploy_package(dauth_package_path, host)
+
+    if args.deploy_dauth_directory:
+        log.info("Building dauth directory package")
+        directory_package_path = package_dauth_directory_service(target="release")
+        log.info("Deploying dauth directory package")
+        if len(args.dest_host) == 0:
+            log.error("Specified deploy but no deploy destinations provided")
+        assert(len(args.dest_host) == 1)
+        deploy_package(directory_package_path, args.dest_host[0])
 
     if args.deploy_open5gs:
         log.info("Deploying open5gs packages")

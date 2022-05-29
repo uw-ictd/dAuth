@@ -1,4 +1,4 @@
-name: "dauth"
+name: "dauth-directory"
 arch: "amd64"
 platform: "linux"
 
@@ -26,7 +26,7 @@ release: 1
 section: "net"
 priority: "optional"
 maintainer: "Matthew Johnson <matt9j@cs.washington.edu>"
-description: "A federated LTE authenticaion manager"
+description: "A federated LTE authenticaion manager directory service"
 vendor: "UW-ICTD <colte@cs.washington.edu>"
 homepage: "https://github.com/uw-ictd/dAuth"
 license: "none"
@@ -64,15 +64,15 @@ conflicts:
 # This can be binaries or any other files.
 contents:
   # Basic files that apply to all packagers
-  - src: "./target/${TARGET}/dauth-service"
-    dst: "/usr/bin/dauth-service"
+  - src: "./target/${TARGET}/directory-service"
+    dst: "/usr/bin/dauth-directory-service"
 
-  - src: "./dauth-service/init/dauth.service"
-    dst: "/lib/systemd/system/dauth.service"
+  - src: "./directory-service/init/dauth-directory.service"
+    dst: "/lib/systemd/system/dauth-directory.service"
 
   # Config files
-  - src: ./dauth-service/default-config.yaml
-    dst: /etc/dauth/dauth.yml
+  - src: ./directory-service/default-config.yaml
+    dst: /etc/dauth/directory.yml
     type: config
 
   # Sometimes it is important to be able to set the mtime, mode, owner, or group for a file
@@ -91,9 +91,9 @@ contents:
 # Scripts to run at specific stages. (overridable)
 scripts:
   # preinstall: ./scripts/preinstall.sh
-  postinstall: ./dauth-service/pkg/scripts/postinst.sh
-  preremove: ./dauth-service/pkg/scripts/prerm.sh
-  postremove: ./dauth-service/pkg/scripts/postrm.sh
+  postinstall: ./directory-service/pkg/scripts/postinst.sh
+  preremove: ./directory-service/pkg/scripts/prerm.sh
+  postremove: ./directory-service/pkg/scripts/postrm.sh
 
 # Custom configuration applied only to the Deb packager.
 deb:
