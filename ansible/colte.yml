@@ -69,3 +69,10 @@
         src: "../configs/dauth-service/sample{{test_net_index}}.yaml"
         dest: "/etc/dauth/dauth.yaml"
         remote_src: no
+      register: dauth_config
+
+    - name: Restart Dauth Due to Config Change
+      systemd:
+        name: dauth
+        state: restarted
+      when: dauth_config.changed
