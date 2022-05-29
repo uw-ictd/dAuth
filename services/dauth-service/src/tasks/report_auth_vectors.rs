@@ -16,7 +16,7 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
     transaction.commit().await.unwrap();
 
     if reports.is_empty() {
-        tracing::info!("Nothing to do for report auth vector task");
+        tracing::debug!("Nothing to do for report auth vector task");
     } else {
         tracing::info!("Found {} report key share(s) pending", reports.len());
 

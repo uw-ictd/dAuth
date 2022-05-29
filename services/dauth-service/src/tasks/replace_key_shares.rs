@@ -15,7 +15,7 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
     transaction.commit().await.unwrap();
 
     if replaces.is_empty() {
-        tracing::info!("Nothing to do for replace key share task");
+        tracing::debug!("Nothing to do for replace key share task");
     } else {
         tracing::info!("Found {} replace key share(s) pending", replaces.len());
 

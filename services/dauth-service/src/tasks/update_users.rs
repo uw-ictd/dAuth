@@ -21,7 +21,7 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
     transaction.commit().await.unwrap();
 
     if user_ids.is_empty() {
-        tracing::info!("Nothing to do for update user task");
+        tracing::debug!("Nothing to do for update user task");
     } else {
         tracing::info!("Found {} user update(s) pending", user_ids.len());
 
