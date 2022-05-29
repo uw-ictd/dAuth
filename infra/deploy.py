@@ -15,7 +15,7 @@ def build_dauth_services(target):
     """ Build rust services from source via cargo
     """
     if target == "debug":
-        cmd = ["cargo", "build", "--debug"]
+        cmd = ["cargo", "build"]
     elif target == "release":
         cmd = ["cargo", "build", "--release"]
     else:
@@ -162,6 +162,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "-f",
+        "--fast-debug",
+        action="store_true",
+        help="Do a less peformant but faster to complete debug build",
+    )
+
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -206,9 +213,15 @@ if __name__ == "__main__":
         log.error("Cannot deploy the directory when multiple hosts are specified")
         raise NotImplementedError("No way to differentiate which host receives the directory and which do not.")
 
+    if args.fast_debug:
+        cargo_target = "debug"
+        log.warn("Doing a debug build! Don't use for any performance testing")
+    else:
+        cargo_target = "release"
+
     if args.build_dauth:
         log.info("Building dauth")
-        build_dauth_services(target="release")
+        build_dauth_services(target=cargo_target)
 
     if args.build_open5gs:
         log.info("Building open5gs")
@@ -217,7 +230,7 @@ if __name__ == "__main__":
 
     if args.deploy_dauth:
         log.info("Building dauth package")
-        dauth_package_path = package_dauth_service(target="release")
+        dauth_package_path = package_dauth_service(target=cargo_target)
         log.info("Deploying dauth package")
         if len(args.dest_host) == 0:
             log.error("Specified deploy but no deploy destinations provided")
@@ -226,7 +239,7 @@ if __name__ == "__main__":
 
     if args.deploy_dauth_directory:
         log.info("Building dauth directory package")
-        directory_package_path = package_dauth_directory_service(target="release")
+        directory_package_path = package_dauth_directory_service(target=cargo_target)
         log.info("Deploying dauth directory package")
         if len(args.dest_host) == 0:
             log.error("Specified deploy but no deploy destinations provided")
