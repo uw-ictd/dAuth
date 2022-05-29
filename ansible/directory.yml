@@ -19,3 +19,16 @@
       ansible.builtin.template:
         src: "templates/dauth-host-config.yaml.j2"
         dest: "/etc/dauth/host-config.yaml"
+
+    - name: "Copy in config file"
+      copy:
+        src: "../configs/directory-service/directory.yaml"
+        dest: "/etc/dauth/directory.yaml"
+        remote_src: no
+      register: dauth_directory_config
+
+    - name: Restart Directory Due to Config Change
+      systemd:
+        name: dauth-directory
+        state: restarted
+      when: dauth_directory_config.changed
