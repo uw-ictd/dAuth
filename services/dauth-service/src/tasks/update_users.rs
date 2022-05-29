@@ -103,7 +103,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
                 keys::create_shares_from_kseaf(
                     &vector.kseaf,
                     backup_network_ids.len() as u8,
-                    keys::TEMPORARY_CONSTANT_THRESHOLD,
+                    std::cmp::min(keys::TEMPORARY_CONSTANT_THRESHOLD, backup_network_ids.len() as u8),
                     &mut rng,
                 )?
                 .into_iter()
