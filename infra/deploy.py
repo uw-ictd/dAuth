@@ -28,7 +28,7 @@ def build_dauth_manager(target):
 def package_dauth_manager(target, package_name="dauth-manager_0.0.0~dev_amd64.deb"):
     """ Package the dauth manager per external nfpm.yaml config file
     """
-    with open("../manager-rs/nfpm.yaml") as f:
+    with open("../manager-rs/nfpm-dauth.yaml") as f:
         nfpm_config = f.read()
 
     # Update the config file TARGET placeholder with the appropriate target
