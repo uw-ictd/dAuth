@@ -57,8 +57,8 @@
 
     - name: Write host data to a long-lived config file
       ansible.builtin.template:
-        src: "templates/dauth-host-config.yml.j2"
-        dest: "/etc/dauth/host-config.yml"
+        src: "templates/dauth-host-config.yaml.j2"
+        dest: "/etc/dauth/host-config.yaml"
 
     # - name: Configure open5gs ips
     #   command: /home/vagrant/scripts/open5gs-ip-config.py {{ colte_ip }}
@@ -67,5 +67,5 @@
     - name: "Copy in config file"
       copy:
         src: "../configs/dauth-service/sample{{test_net_index}}.yaml"
-        dest: "/etc/dauth/dauth.yml"
+        dest: "/etc/dauth/dauth.yaml"
         remote_src: no

@@ -31,7 +31,7 @@ def edit_upf(ip: str):
   with open("/etc/open5gs/upf.yaml", "w") as f:
     yaml.safe_dump(config, f)
 
-def read_host_config(config_path=Path("/etc/dauth/host-config.yml")):
+def read_host_config(config_path=Path("/etc/dauth/host-config.yaml")):
   with open(config_path) as f:
     host_config = yaml.safe_load(f)
 

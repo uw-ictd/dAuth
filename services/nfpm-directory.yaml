@@ -72,7 +72,7 @@ contents:
 
   # Config files
   - src: ./directory-service/default-config.yaml
-    dst: /etc/dauth/directory.yml
+    dst: /etc/dauth/directory.yaml
     type: config
 
   # Sometimes it is important to be able to set the mtime, mode, owner, or group for a file
