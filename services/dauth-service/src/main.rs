@@ -26,5 +26,5 @@ async fn main() {
         .await
         .expect("Failed to start task manager");
 
-    server::start_server(context.clone()).await;
+    server::start_servers(context.clone()).await;
 }
