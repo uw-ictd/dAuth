@@ -52,7 +52,7 @@ def deploy_package(package_path, host):
     package_name = package_path.name
 
     result = Connection(host).put(package_path, remote="/tmp/", preserve_mode=False)
-    result = Connection(host).sudo("dpkg -i /tmp/{}".format(package_name))
+    result = Connection(host).sudo("dpkg --force-confdef --force-confold -i /tmp/{}".format(package_name))
 
 
 def build_open5gs_packages():
