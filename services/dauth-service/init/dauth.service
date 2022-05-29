@@ -4,7 +4,7 @@ After=network-online.target
 Requires=network.target
 
 [Service]
-ExecStart=/usr/bin/dauth-service /etc/dauth/dauth.yml
+ExecStart=/usr/bin/dauth-service /etc/dauth/dauth.yaml
 Restart=always
 RestartSec=2
 User=root
