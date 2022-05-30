@@ -7,6 +7,7 @@
   become: yes
   roles:
     - "ssh_mesh_member"
+    - "dev_login"
 
   tasks:
     - name: Update apt package cache
@@ -14,12 +15,6 @@
       apt:
         update_cache: yes
         cache_valid_time: 3600
-
-    - name: "Install convenience dependencies"
-      apt:
-        name:
-          - "zsh"
-        state: "present"
 
     - name: Install open5gs and dauth runtime dependencies
       apt:
@@ -68,22 +63,6 @@
     # - name: Configure open5gs ips
     #   command: /home/vagrant/scripts/open5gs-ip-config.py {{ colte_ip }}
     #   become: yes
-
-    - name: "Setup tmux config file"
-      ansible.builtin.template:
-        src: "templates/tmux-dotfile.j2"
-        dest: "/home/vagrant/.tmux.conf"
-
-    - name: "Use zsh for sanity"
-      become: yes
-      user:
-        name: "vagrant"
-        shell: /bin/zsh
-
-    - name: "Setup zshrc config file"
-      ansible.builtin.template:
-        src: "templates/zshrc-dotfile.j2"
-        dest: "/home/vagrant/.zshrc"
 
     - name: "Copy in config file"
       copy:

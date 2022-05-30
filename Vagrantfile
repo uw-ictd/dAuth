@@ -98,7 +98,7 @@ Vagrant.configure(2) do |config|
       ansible.extra_vars = {
         colte_ip: machine_ip,
         test_net_index: 2,
-        prompt_color: "green",
+        prompt_color: "36",
         tmux_color: "cyan"
       }
     end
@@ -124,8 +124,8 @@ Vagrant.configure(2) do |config|
       ansible.verbose = 'v'
       ansible.extra_vars = {
         colte_ip: machine_ip,
-        prompt_color: "red",
-        tmux_color: "red"
+        prompt_color: "56",
+        tmux_color: "56"
       }
     end
   end
@@ -167,7 +167,7 @@ Vagrant.configure(2) do |config|
       ansible.verbose = 'v'
       ansible.extra_vars = {
         colte_ip: machine_ip,
-        prompt_color: "blue",
+        prompt_color: "green",
         tmux_color: "green"
       }
     end
