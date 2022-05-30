@@ -71,8 +71,13 @@
         remote_src: no
       register: dauth_config
 
+    - name: Populate service facts state
+      service_facts:
+
     - name: Restart Dauth Due to Config Change
       systemd:
         name: dauth
         state: restarted
-      when: dauth_config.changed
+      when:
+        - dauth_config.changed
+        - "'dauth.service' in ansible_facts.services"

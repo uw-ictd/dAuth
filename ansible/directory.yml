@@ -27,8 +27,13 @@
         remote_src: no
       register: dauth_directory_config
 
+    - name: Populate service facts state
+      service_facts:
+
     - name: Restart Directory Due to Config Change
       systemd:
         name: dauth-directory
         state: restarted
-      when: dauth_directory_config.changed
+      when:
+        - dauth_directory_config.changed
+        - "'dauth-directory.service' in ansible_facts.services"
