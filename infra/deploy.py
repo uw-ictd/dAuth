@@ -11,8 +11,8 @@ log = logging.getLogger(__name__)
 hosts = "colte1.local, colte2.local"
 
 
-def build_dauth_manager(target):
-    """ Build dauth manager from source via cargo
+def build_dauth_services(target):
+    """ Build rust services from source via cargo
     """
     if target == "debug":
         cmd = ["cargo", "build", "--debug"]
@@ -22,13 +22,13 @@ def build_dauth_manager(target):
         raise ValueError("Invalid target mode: {}".format(target))
 
     log.info("Running build command: %s", cmd)
-    subprocess.run(cmd, check=True, cwd="../manager-rs")
+    subprocess.run(cmd, check=True, cwd="../services")
 
 
-def package_dauth_manager(target, package_name="dauth-manager_0.0.0~dev_amd64.deb"):
-    """ Package the dauth manager per external nfpm.yaml config file
+def package_dauth_service(target, package_name="dauth-service_0.0.0~dev_amd64.deb"):
+    """ Package the dauth service per external nfpm.yaml config file
     """
-    with open("../manager-rs/nfpm.yaml") as f:
+    with open("../services/nfpm-dauth.yaml") as f:
         nfpm_config = f.read()
 
     # Update the config file TARGET placeholder with the appropriate target
@@ -37,10 +37,10 @@ def package_dauth_manager(target, package_name="dauth-manager_0.0.0~dev_amd64.de
 
     subprocess.run(["nfpm", "package", "--config", "/dev/stdin", "--packager", "deb", "--target", package_name],
                    check=True,
-                   cwd="../manager-rs",
+                   cwd="../services",
                    input=nfpm_config.encode("utf8"))
 
-    package_path = Path("../manager-rs", package_name)
+    package_path = Path("../services", package_name)
     log.info("Package created at: %s", package_path.absolute())
     return package_path
 
@@ -52,7 +52,7 @@ def deploy_package(package_path, host):
     package_name = package_path.name
 
     result = Connection(host).put(package_path, remote="/tmp/", preserve_mode=False)
-    result = Connection(host).sudo("dpkg -i /tmp/{}".format(package_name))
+    result = Connection(host).sudo("dpkg --force-confdef --force-confold -i /tmp/{}".format(package_name))
 
 
 def build_open5gs_packages():
@@ -179,7 +179,7 @@ if __name__ == "__main__":
 
     if args.build_dauth:
         log.info("Building dauth")
-        build_dauth_manager(target="release")
+        build_dauth_services(target="release")
 
     if args.build_open5gs:
         log.info("Building open5gs")
@@ -188,7 +188,7 @@ if __name__ == "__main__":
 
     if args.deploy_dauth:
         log.info("Building dauth package")
-        dauth_package_path = package_dauth_manager(target="release")
+        dauth_package_path = package_dauth_service(target="release")
         log.info("Deploying dauth package")
         if len(args.dest_host) == 0:
             log.error("Specified deploy but no deploy destinations provided")

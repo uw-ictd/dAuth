@@ -1,11 +1,12 @@
 # dAuth High-Level Dev Flow
 
-dAuth has two main components, a manager which holds authentication state and
-can coordinate with over dAuth nodes via gRPC, and a modified SEAF, based on the
-open5gs ausf.
+dAuth has three main components, a local service (services/dauth-service) which
+holds authentication state and can coordinate with other dAuth nodes via gRPC, a
+directory service for looking up other dAuth nodes, and a modified SEAF, based
+on the open5gs ausf.
 
-Currently the SEAF communicates with the manager via a minimalistic gRPC
-interface, and expects the manager to be running at its default port.
+Currently the SEAF communicates with the dauth-service via a minimalistic gRPC
+interface, and expects the dauth-service to be running at its default port.
 
 # Deploying to the test environment for iterative development
 
@@ -48,7 +49,7 @@ streamlined and simplified over the next few weeks. All steps take place in the 
 1. Build and run the manager service
 
 ```bash
-cd manager-rs
+cd services
 cargo build
 ./target/debug/dauth-service configs/basic-ueransim-home-attach.yml
 ```

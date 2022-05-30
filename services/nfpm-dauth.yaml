@@ -35,7 +35,7 @@ license: "none"
 #changelog: "changelog.yaml"
 
 # Disables globbing for files, config_files, etc.
-disable_globbing: false
+disable_globbing: true
 
 # Packages it replaces. (overridable)
 replaces:
@@ -67,11 +67,11 @@ contents:
   - src: "./target/${TARGET}/dauth-service"
     dst: "/usr/bin/dauth-service"
 
-  - src: "./init/dauth.service"
+  - src: "./dauth-service/init/dauth.service"
     dst: "/lib/systemd/system/dauth.service"
 
   # Config files
-  - src: ./configs/default.yml
+  - src: ./dauth-service/default-config.yaml
     dst: /etc/dauth/dauth.yml
     type: config
 
@@ -91,9 +91,9 @@ contents:
 # Scripts to run at specific stages. (overridable)
 scripts:
   # preinstall: ./scripts/preinstall.sh
-  postinstall: ./pkg/scripts/postinst.sh
-  preremove: ./pkg/scripts/prerm.sh
-  postremove: ./pkg/scripts/postrm.sh
+  postinstall: ./dauth-service/pkg/scripts/postinst.sh
+  preremove: ./dauth-service/pkg/scripts/prerm.sh
+  postremove: ./dauth-service/pkg/scripts/postrm.sh
 
 # Custom configuration applied only to the Deb packager.
 deb:
