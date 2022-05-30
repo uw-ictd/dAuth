@@ -16,7 +16,7 @@
         state: directory
 
     - name: Write host data to a long-lived config file
-      ansible.builtin.template:
+      template:
         src: "templates/dauth-host-config.yaml.j2"
         dest: "/etc/dauth/host-config.yaml"
 
