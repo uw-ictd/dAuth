@@ -24,6 +24,9 @@ pub enum DauthError {
     #[error("Conversion error -- {0}")]
     ConversionError(#[from] TryFromSliceError),
 
+    #[error("Conversion error -- {0}")]
+    AuthConversionError(#[from] auth_vector::types::AuthVectorConversionError),
+
     #[error("Invalid message error -- {0}")]
     InvalidMessageError(String),
 
