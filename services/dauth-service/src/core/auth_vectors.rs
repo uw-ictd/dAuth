@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use auth_vector::{self, constants::SQN_LENGTH, data::AuthVectorData};
+use auth_vector::{self, data::AuthVectorData};
 use sqlx::{Sqlite, Transaction};
 
 use crate::core;
@@ -315,7 +315,7 @@ pub async fn build_auth_vector(
     let auth_vector_data = auth_vector::generate_vector(
         &user_info.k,
         &user_info.opc,
-        &user_info.sqn.to_be_bytes()[..SQN_LENGTH].try_into()?,
+        &user_info.sqn.try_into()?,
     );
 
     user_info.sqn += context.local_context.num_sqn_slices;

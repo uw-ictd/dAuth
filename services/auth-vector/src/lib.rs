@@ -35,7 +35,7 @@ fn generate_vector_with_rand(
 
     let xres_star_hash = gen_xres_star_hash(rand, &xres_star);
 
-    let sqn_xor_ak: types::Sqn = sqn
+    let sqn_xor_ak: types::Sqn = sqn.as_bytes()
         .iter()
         .zip(ak.iter())
         .map(|(a, b)| a ^ b)
@@ -43,7 +43,7 @@ fn generate_vector_with_rand(
         .try_into()
         .expect("All data should have correct size");
 
-    let mac: types::Mac = m.f1(&rand, &sqn, &constants::AMF);
+    let mac: types::Mac = m.f1(&rand, &sqn.as_bytes(), &constants::AMF);
 
     let autn = build_autn(&sqn_xor_ak, &mac);
 
@@ -61,7 +61,7 @@ fn generate_vector_with_rand(
 fn build_autn(sqn_xor_ak: &types::Sqn, mac: &types::Mac) -> types::Autn {
     let mut autn: types::Autn = [0; constants::AUTN_LENGTH];
 
-    autn[..constants::SQN_LENGTH].copy_from_slice(sqn_xor_ak);
+    autn[..constants::SQN_LENGTH].copy_from_slice(sqn_xor_ak.as_bytes());
     autn[constants::SQN_LENGTH..(constants::SQN_LENGTH + constants::AMF_LENGTH)]
         .copy_from_slice(&constants::AMF[..]);
     autn[(constants::SQN_LENGTH + constants::AMF_LENGTH)..].copy_from_slice(mac);

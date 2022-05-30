@@ -181,12 +181,12 @@
       register: rustup
 
     - name: Run rustup
-      ansible.builtin.shell:
+      shell:
         cmd: "/home/vagrant/rustup.sh -y"
       when: rustup.changed
 
     - name: Install or update rust stable
-      ansible.builtin.shell:
+      shell:
         cmd: "/home/vagrant/.cargo/bin/rustup update stable"
 
     # - name: Configure forwarding and rounting (script)

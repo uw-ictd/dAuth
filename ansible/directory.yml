@@ -16,6 +16,24 @@
         state: directory
 
     - name: Write host data to a long-lived config file
-      ansible.builtin.template:
-        src: "templates/dauth-host-config.yml.j2"
-        dest: "/etc/dauth/host-config.yml"
+      template:
+        src: "templates/dauth-host-config.yaml.j2"
+        dest: "/etc/dauth/host-config.yaml"
+
+    - name: "Copy in config file"
+      copy:
+        src: "../configs/directory-service/directory.yaml"
+        dest: "/etc/dauth/directory.yaml"
+        remote_src: no
+      register: dauth_directory_config
+
+    - name: Populate service facts state
+      service_facts:
+
+    - name: Restart Directory Due to Config Change
+      systemd:
+        name: dauth-directory
+        state: restarted
+      when:
+        - dauth_directory_config.changed
+        - "'dauth-directory.service' in ansible_facts.services"

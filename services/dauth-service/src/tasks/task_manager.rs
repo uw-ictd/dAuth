@@ -27,7 +27,7 @@ async fn run(context: Arc<DauthContext>) -> Result<(), DauthError> {
     let mut interval = tokio::time::interval(context.tasks_context.interval);
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     loop {
-        tracing::info!("Checking for tasks to run");
+        tracing::trace!("Checking for tasks to run");
 
         // Register with directory before any register-dependent tasks
         if let Err(e) = tasks::register::run_task(context.clone()).await {

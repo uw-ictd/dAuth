@@ -1,10 +1,10 @@
 [Unit]
-Description=dAuth Manager Service
+Description=dAuth Directory Service
 After=network-online.target
 Requires=network.target
 
 [Service]
-ExecStart=/usr/bin/dauth-service /etc/dauth/dauth.yaml
+ExecStart=/usr/bin/dauth-directory-service /etc/dauth/directory.yaml
 Restart=always
 RestartSec=2
 User=root

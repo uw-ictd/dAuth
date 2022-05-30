@@ -137,6 +137,7 @@ dependencies = [
  "milenage",
  "rand 0.8.5",
  "sha2 0.10.2",
+ "thiserror",
 ]
 
 [[package]]

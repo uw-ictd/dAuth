@@ -45,6 +45,9 @@ int ogs_dbi_increment_sqn(char *supi);
 int ogs_dbi_subscription_data(char *supi,
         ogs_subscription_data_t *subscription_data);
 
+int ogs_dbi_default_subscription_data(char *supi,
+        ogs_subscription_data_t *subscription_data);
+
 #ifdef __cplusplus
 }
 #endif

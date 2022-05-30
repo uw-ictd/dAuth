@@ -22,6 +22,7 @@ pub struct DauthConfig {
     pub max_backup_vectors: i64,
     pub task_startup_delay: f64,
     pub task_interval: f64,
+    pub local_auth_addr: Option<String>,
 }
 
 /// For ease of inputting content in the yaml file

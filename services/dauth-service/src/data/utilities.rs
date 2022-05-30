@@ -1,5 +1,3 @@
-use auth_vector::types::Sqn;
-
 use crate::data::error::DauthError;
 
 /// Converts hex string to byte vec
@@ -25,7 +23,7 @@ pub fn convert_hex_string_to_byte_vec(s: &str) -> Result<Vec<u8>, DauthError> {
 
 /// Converts decimal string to byte vec
 /// NOTE: DOES NOT ALLOW DECIMAL REPRESENATIONS LARGER THAN 128 BITS!
-pub fn convert_int_string_to_byte_vec(s: &str) -> Result<Vec<u8>, DauthError> {
+pub fn _convert_int_string_to_byte_vec(s: &str) -> Result<Vec<u8>, DauthError> {
     match s.parse::<u128>() {
         Ok(dec) => {
             let mut ns = format!("{:x}", dec);
@@ -69,24 +67,16 @@ pub fn convert_hex_string_to_byte_vec_with_length(
 
 /// Converts hex string to array of bytes
 /// Pads resulting byte array with zeros
-pub fn convert_int_string_to_byte_vec_with_length(
+pub fn _convert_int_string_to_byte_vec_with_length(
     s: &str,
     length: usize,
 ) -> Result<Vec<u8>, DauthError> {
-    zero_pad(convert_int_string_to_byte_vec(s)?, length)
-}
-
-/// Converts sqn_bytes to seqnum int
-pub fn convert_sqn_bytes_to_int(sqn_bytes: &Sqn) -> Result<i64, DauthError> {
-    Ok(i64::from_be_bytes(
-        zero_pad(sqn_bytes.to_vec(), 8)?[..].try_into()?,
-    ))
+    zero_pad(_convert_int_string_to_byte_vec(s)?, length)
 }
 
 #[cfg(test)]
 mod tests {
     use crate::data::utilities;
-    use auth_vector::constants::SQN_LENGTH;
 
     #[test]
     fn test_string_hex_to_byte_vec() {
@@ -123,31 +113,31 @@ mod tests {
     #[test]
     fn test_string_int_to_byte_vec() {
         assert_eq!(
-            utilities::convert_int_string_to_byte_vec("0").unwrap(),
+            utilities::_convert_int_string_to_byte_vec("0").unwrap(),
             vec![0x00]
         );
         assert_eq!(
-            utilities::convert_int_string_to_byte_vec("1").unwrap(),
+            utilities::_convert_int_string_to_byte_vec("1").unwrap(),
             vec![0x01]
         );
         assert_eq!(
-            utilities::convert_int_string_to_byte_vec("01").unwrap(),
+            utilities::_convert_int_string_to_byte_vec("01").unwrap(),
             vec![0x01]
         );
         assert_eq!(
-            utilities::convert_int_string_to_byte_vec("0000000000000000001").unwrap(),
+            utilities::_convert_int_string_to_byte_vec("0000000000000000001").unwrap(),
             vec![0x01]
         );
         assert_eq!(
-            utilities::convert_int_string_to_byte_vec("255").unwrap(),
+            utilities::_convert_int_string_to_byte_vec("255").unwrap(),
             vec![0xff]
         );
         assert_eq!(
-            utilities::convert_int_string_to_byte_vec("256").unwrap(),
+            utilities::_convert_int_string_to_byte_vec("256").unwrap(),
             vec![0x01, 0x00]
         );
         assert_eq!(
-            utilities::convert_int_string_to_byte_vec("901700000000001").unwrap(),
+            utilities::_convert_int_string_to_byte_vec("901700000000001").unwrap(),
             vec![0x03, 0x34, 0x17, 0x64, 0x31, 0xA8, 0x01]
         );
     }
@@ -181,36 +171,28 @@ mod tests {
 
     #[test]
     fn test_string_int_to_byte_vec_with_length() {
-        assert!(utilities::convert_int_string_to_byte_vec_with_length("1", 0).is_err());
-        assert!(utilities::convert_int_string_to_byte_vec_with_length("256", 1).is_err());
-        assert!(utilities::convert_int_string_to_byte_vec_with_length("65536", 2).is_err());
+        assert!(utilities::_convert_int_string_to_byte_vec_with_length("1", 0).is_err());
+        assert!(utilities::_convert_int_string_to_byte_vec_with_length("256", 1).is_err());
+        assert!(utilities::_convert_int_string_to_byte_vec_with_length("65536", 2).is_err());
         assert_eq!(
-            utilities::convert_int_string_to_byte_vec_with_length("1", 1).unwrap(),
+            utilities::_convert_int_string_to_byte_vec_with_length("1", 1).unwrap(),
             vec![0x01]
         );
         assert_eq!(
-            utilities::convert_int_string_to_byte_vec_with_length("1", 2).unwrap(),
+            utilities::_convert_int_string_to_byte_vec_with_length("1", 2).unwrap(),
             vec![0x00, 0x01]
         );
         assert_eq!(
-            utilities::convert_int_string_to_byte_vec_with_length("1", 3).unwrap(),
+            utilities::_convert_int_string_to_byte_vec_with_length("1", 3).unwrap(),
             vec![0x00, 0x00, 0x01]
         );
         assert_eq!(
-            utilities::convert_int_string_to_byte_vec_with_length("256", 2).unwrap(),
+            utilities::_convert_int_string_to_byte_vec_with_length("256", 2).unwrap(),
             vec![0x01, 0x00]
         );
         assert_eq!(
-            utilities::convert_int_string_to_byte_vec_with_length("256", 3).unwrap(),
+            utilities::_convert_int_string_to_byte_vec_with_length("256", 3).unwrap(),
             vec![0x00, 0x01, 0x00]
-        );
-    }
-
-    #[test]
-    fn test_sqn_bytes_into_int() {
-        assert_eq!(
-            utilities::convert_sqn_bytes_to_int(&utilities::convert_int_string_to_byte_vec_with_length("1", SQN_LENGTH).unwrap()[..].try_into().unwrap()).unwrap(),
-            1
         );
     }
 }
