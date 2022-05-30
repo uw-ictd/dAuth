@@ -123,16 +123,25 @@ bool pcf_nbsf_management_handle_register(
 
     ogs_sbi_header_free(&header);
 
-    rv = ogs_dbi_session_data(
-            pcf_ue->supi, &sess->s_nssai, sess->dnn, &session_data);
+    // DAUTH
+    // rv = ogs_dbi_session_data(
+    //         pcf_ue->supi, &sess->s_nssai, sess->dnn, &session_data);
+    // if (rv != OGS_OK) {
+    //     rv = ogs_dbi_session_default_data(pcf_ue->supi, &sess->s_nssai, sess->dnn, &session_data);
+    //     if (rv != OGS_OK) {
+    //         strerror = ogs_msprintf("[%s:%d] Cannot find SUPI in DB",
+    //                 pcf_ue->supi, sess->psi);
+    //         status = OGS_SBI_HTTP_STATUS_NOT_FOUND;
+    //         goto cleanup;
+    //     }
+    // }
+
+    rv = ogs_dbi_session_default_data(pcf_ue->supi, &sess->s_nssai, sess->dnn, &session_data);
     if (rv != OGS_OK) {
-        rv = ogs_dbi_session_default_data(pcf_ue->supi, &sess->s_nssai, sess->dnn, &session_data);
-        if (rv != OGS_OK) {
-            strerror = ogs_msprintf("[%s:%d] Cannot find SUPI in DB",
-                    pcf_ue->supi, sess->psi);
-            status = OGS_SBI_HTTP_STATUS_NOT_FOUND;
-            goto cleanup;
-        }
+        strerror = ogs_msprintf("[%s:%d] Failed to create default session data",
+                pcf_ue->supi, sess->psi);
+        status = OGS_SBI_HTTP_STATUS_NOT_FOUND;
+        goto cleanup;
     }
 
     session = &session_data.session;

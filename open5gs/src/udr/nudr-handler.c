@@ -929,14 +929,22 @@ bool udr_nudr_dr_handle_policy_data(
         CASE(OGS_SBI_HTTP_METHOD_GET)
             OpenAPI_lnode_t *node = NULL, *node2 = NULL;
 
-            rv = ogs_dbi_subscription_data(supi, &subscription_data);
+            // DAUTH
+            // rv = ogs_dbi_subscription_data(supi, &subscription_data);
+            // if (rv != OGS_OK) {
+            //     rv = ogs_dbi_default_subscription_data(supi, &subscription_data);
+            //     if (rv != OGS_OK) {
+            //         strerror = ogs_msprintf("[%s] Cannot find SUPI in DB and failed to make default", supi);
+            //         status = OGS_SBI_HTTP_STATUS_NOT_FOUND;
+            //         goto cleanup;
+            //     }
+            // }
+
+            rv = ogs_dbi_default_subscription_data(supi, &subscription_data);
             if (rv != OGS_OK) {
-                rv = ogs_dbi_default_subscription_data(supi, &subscription_data);
-                if (rv != OGS_OK) {
-                    strerror = ogs_msprintf("[%s] Cannot find SUPI in DB and failed to make default", supi);
-                    status = OGS_SBI_HTTP_STATUS_NOT_FOUND;
-                    goto cleanup;
-                }
+                strerror = ogs_msprintf("[%s] Failed to make default", supi);
+                status = OGS_SBI_HTTP_STATUS_NOT_FOUND;
+                goto cleanup;
             }
 
             SWITCH(recvmsg->h.resource.component[3])
