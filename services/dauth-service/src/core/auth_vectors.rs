@@ -312,10 +312,14 @@ pub async fn build_auth_vector(
         .await?
         .to_user_info()?;
 
+    // Convert the sqn i64 to a 48 bit bytestring of the low-magnitude bits.
+    let sqn_be_bytes = user_info.sqn.to_be_bytes();
+    let sqn_typed: auth_vector::types::Sqn = sqn_be_bytes[(sqn_be_bytes.len() - SQN_LENGTH)..].try_into()?;
+
     let auth_vector_data = auth_vector::generate_vector(
         &user_info.k,
         &user_info.opc,
-        &user_info.sqn.to_be_bytes()[..SQN_LENGTH].try_into()?,
+        &sqn_typed,
     );
 
     user_info.sqn += context.local_context.num_sqn_slices;
