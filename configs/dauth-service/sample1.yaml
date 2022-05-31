@@ -36,12 +36,12 @@ users: {
     "sqn_slice_max": {
       0: 32,
       1: 33,
-      2: 34,
+      2: 34
     },
 
     # Mapping of network id to sqn slice
     "backup_network_ids": {
-      "colte-2": 1
+      "colte-2": 1,
       "colte-3": 2
     }
   }
