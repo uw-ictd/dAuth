@@ -57,7 +57,7 @@ Vagrant.configure(2) do |config|
     colte.vm.network "private_network", ip: machine_ip
 
     colte.vm.provider "virtualbox" do |vb|
-      vb.customize ["modifyvm", :id, "--memory", "2048"]
+      vb.customize ["modifyvm", :id, "--memory", "1024"]
       vb.customize ["modifyvm", :id, "--cpus", "1"]
     end
 
@@ -85,7 +85,7 @@ Vagrant.configure(2) do |config|
     colte.vm.network "private_network", ip: machine_ip
 
     colte.vm.provider "virtualbox" do |vb|
-      vb.customize ["modifyvm", :id, "--memory", "2048"]
+      vb.customize ["modifyvm", :id, "--memory", "1024"]
       vb.customize ["modifyvm", :id, "--cpus", "1"]
     end
 
