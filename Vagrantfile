@@ -104,6 +104,60 @@ Vagrant.configure(2) do |config|
     end
   end
 
+  config.vm.define :colte3 do |colte|
+    colte.vm.box = "ubuntu/focal64"
+    colte.vm.hostname = "colte3"
+
+    machine_ip = "192.168.56.103"
+    colte.vm.network "private_network", ip: machine_ip
+
+    colte.vm.provider "virtualbox" do |vb|
+      vb.customize ["modifyvm", :id, "--memory", "1024"]
+      vb.customize ["modifyvm", :id, "--cpus", "1"]
+    end
+
+    colte.vm.provision "ansible" do |ansible|
+      ansible.compatibility_mode = "2.0"
+      ansible.host_key_checking = false
+      ansible.playbook = "ansible/colte.yml"
+      ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
+      ansible.verbose = 'v'
+      ansible.extra_vars = {
+        colte_ip: machine_ip,
+        test_net_index: 3,
+        prompt_color: "44",
+        tmux_color: "cyan"
+      }
+    end
+  end
+
+  config.vm.define :colte4 do |colte|
+    colte.vm.box = "ubuntu/focal64"
+    colte.vm.hostname = "colte4"
+
+    machine_ip = "192.168.56.104"
+    colte.vm.network "private_network", ip: machine_ip
+
+    colte.vm.provider "virtualbox" do |vb|
+      vb.customize ["modifyvm", :id, "--memory", "1024"]
+      vb.customize ["modifyvm", :id, "--cpus", "1"]
+    end
+
+    colte.vm.provision "ansible" do |ansible|
+      ansible.compatibility_mode = "2.0"
+      ansible.host_key_checking = false
+      ansible.playbook = "ansible/colte.yml"
+      ansible.raw_arguments = ['--timeout=20', '--connection=paramiko']
+      ansible.verbose = 'v'
+      ansible.extra_vars = {
+        colte_ip: machine_ip,
+        test_net_index: 4,
+        prompt_color: "26",
+        tmux_color: "cyan"
+      }
+    end
+  end
+
   config.vm.define :directory do |colte|
     colte.vm.box = "ubuntu/focal64"
     colte.vm.hostname = "directory"

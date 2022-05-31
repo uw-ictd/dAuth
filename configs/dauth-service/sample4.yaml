@@ -1,17 +1,17 @@
 # The id of this network
-id: "colte-1"
+id: "colte-4"
 
 # Address this network will host on
-host_addr: "192.168.56.101:50051"
+host_addr: "192.168.56.104:50052"
 
 # Address of the directory service
 directory_addr: "192.168.56.250:8900"
 
 # Keyfile for ed25519 keys used in signing remote messages
-ed25519_keyfile_path: "./out/sample-network-1/dauth_service/ed25519_keys"
+ed25519_keyfile_path: "./out/sample-network-4/dauth_service/ed25519_keys"
 
 # Path to create/find the database
-database_path: "./out/sample-network-1/dauth_service/sqlite1.db"
+database_path: "./out/sample-network-4/dauth_service/sqlite1.db"
 
 # Delay in seconds before tasks thread begins executing
 task_startup_delay: 1.0
@@ -27,22 +27,4 @@ num_sqn_slices: 32
 max_backup_vectors: 10
 
 # The set of users for this network (for testing)
-users: {
-  "imsi-901700000000001": {
-    "k": "465B5CE8B199B49FAA5F0A2EE238A6BC",
-    "opc": "E8ED289DEBA952E4283B54E88E6183CA",
-
-    # Mapping of sqn slice to max sqn for that slice
-    "sqn_slice_max": {
-      0: 32,
-      1: 33,
-      2: 34,
-    },
-
-    # Mapping of network id to sqn slice
-    "backup_network_ids": {
-      "colte-2": 1
-      "colte-3": 2
-    }
-  }
-}
+users: { }
