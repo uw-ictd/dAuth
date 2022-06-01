@@ -39,6 +39,9 @@ users: {
     },
 
     # Mapping of network id to sqn slice
-    "backup_network_ids": { }
+    "backup_network_ids": {
+        "colte-1": 1,
+        "colte-2": 2
+     }
   }
 }
