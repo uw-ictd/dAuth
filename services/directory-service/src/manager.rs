@@ -73,7 +73,7 @@ pub async fn upsert_user(
     backup_network_ids: &Vec<String>,
 ) -> Result<(), DirectoryError> {
     tracing::info!(
-        "Register called: {:?}-{:?}-{:?}",
+        "Upsert user called: {:?}-{:?}-{:?}",
         user_id,
         home_network_id,
         backup_network_ids
