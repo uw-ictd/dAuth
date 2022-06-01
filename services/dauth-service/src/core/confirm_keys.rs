@@ -62,6 +62,7 @@ pub async fn confirm_authentication(
 
                 let mut key_shares = Vec::with_capacity(backup_network_ids.len());
                 let mut responses = Vec::with_capacity(backup_network_ids.len());
+                let share_threshold: u8 = std::cmp::min(keys::TEMPORARY_CONSTANT_THRESHOLD, backup_network_ids.len() as u8);
 
                 for backup_network_id in backup_network_ids {
                     let (backup_address, _) =
@@ -88,14 +89,14 @@ pub async fn confirm_authentication(
                     }
                 }
 
-                if key_shares.len() < keys::TEMPORARY_CONSTANT_THRESHOLD.into() {
-                    tracing::warn!("Insufficient valid responses to compute the kseaf");
+                if key_shares.len() < share_threshold.into() {
+                    tracing::warn!("Insufficient valid responses {} of {} needed to compute the kseaf", key_shares.len(), share_threshold);
                     return Err(DauthError::ShamirShareError());
                 }
 
                 let kseaf = keys::recover_kseaf_from_shares(
                     &key_shares,
-                    keys::TEMPORARY_CONSTANT_THRESHOLD,
+                    share_threshold,
                 )?;
 
                 Ok(kseaf)

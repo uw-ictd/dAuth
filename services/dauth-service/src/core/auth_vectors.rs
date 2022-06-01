@@ -271,7 +271,7 @@ pub async fn backup_auth_vector_used(
     let mut key_shares = keys::create_shares_from_kseaf(
         &auth_vector_data.kseaf,
         backup_networks.len() as u8,
-        keys::TEMPORARY_CONSTANT_THRESHOLD,
+        std::cmp::min(keys::TEMPORARY_CONSTANT_THRESHOLD, backup_networks.len() as u8),
         &mut rand_0_8::thread_rng(),
     )?;
 
