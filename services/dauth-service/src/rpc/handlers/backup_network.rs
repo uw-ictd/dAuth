@@ -438,7 +438,7 @@ impl BackupNetworkHandler {
 
             let payload = delegated_confirmation_share::Payload {
                 xres_star_hash: payload.hash_xres_star,
-                confirmation_share: key_share.to_vec(),
+                confirmation_share: Vec::from(key_share.as_slice()),
             };
 
             let dshare = DelegatedConfirmationShare {

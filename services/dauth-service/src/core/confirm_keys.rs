@@ -176,7 +176,7 @@ pub async fn get_key_share(
     context: Arc<DauthContext>,
     xres_star_hash: &auth_vector::types::HresStar,
     signed_request_bytes: &Vec<u8>,
-) -> Result<auth_vector::types::Kseaf, DauthError> {
+) -> Result<keys::KseafShare, DauthError> {
     tracing::info!("Handling key share get: {:?}", xres_star_hash,);
 
     let mut transaction = context.local_context.database_pool.begin().await?;
