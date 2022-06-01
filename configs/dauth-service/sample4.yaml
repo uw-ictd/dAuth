@@ -8,10 +8,10 @@ host_addr: "192.168.56.104:50052"
 directory_addr: "192.168.56.250:8900"
 
 # Keyfile for ed25519 keys used in signing remote messages
-ed25519_keyfile_path: "./out/sample-network-4/dauth_service/ed25519_keys"
+ed25519_keyfile_path: "/var/lib/dauth/dauth_service/ed25519_keys"
 
 # Path to create/find the database
-database_path: "./out/sample-network-4/dauth_service/sqlite1.db"
+database_path: "/var/lib/dauth/dauth_service/dauth.sqlite3"
 
 # Delay in seconds before tasks thread begins executing
 task_startup_delay: 1.0
