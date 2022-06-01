@@ -1,7 +1,7 @@
 ---
 
 - name: Set up a local isolated vm for colte development
-  hosts: ['colte1', 'colte2']
+  hosts: ['colte1', 'colte2', "colte3", "colte4"]
   vars:
     ansible_python_interpreter: /usr/bin/python3
   become: yes
@@ -31,7 +31,7 @@
 
     - name: Copy network config
       copy:
-        src: "../configs/network/{{ inventory_hostname }}.yaml"
+        src: "../configs/network/colte-static-route.yaml"
         dest: "/etc/netplan/60-static-routes.yaml"
         remote_src: no
 
