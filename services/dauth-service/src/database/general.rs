@@ -32,6 +32,7 @@ pub async fn database_init(database_path: &str) -> Result<SqlitePool, DauthError
     database::kseafs::init_table(&pool).await?;
     database::user_infos::init_table(&pool).await?;
     database::key_shares::init_table(&pool).await?;
+    database::key_share_state::init_table(&pool).await?;
     database::backup_networks::init_table(&pool).await?;
     database::backup_users::init_table(&pool).await?;
     database::vector_state::init_table(&pool).await?;

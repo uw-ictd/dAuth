@@ -13,6 +13,12 @@ pub struct KseafShare {
     pub share: [u8; SHARE_LENGTH],
 }
 
+impl KseafShare {
+    pub fn as_slice<'a>(&'a self) -> &'a [u8] {
+        self.share.as_slice()
+    }
+}
+
 impl TryFrom<Vec<u8>> for KseafShare {
     type Error = DauthError;
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {

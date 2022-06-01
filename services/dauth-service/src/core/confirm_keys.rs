@@ -127,14 +127,14 @@ pub async fn get_confirm_key(
 pub async fn store_key_shares(
     context: Arc<DauthContext>,
     user_id: &str,
-    key_shares: Vec<(auth_vector::types::HresStar, auth_vector::types::Kseaf)>,
+    key_shares: Vec<(auth_vector::types::HresStar, keys::KseafShare)>,
 ) -> Result<(), DauthError> {
     tracing::info!("Handling multiple key store: {:?}", key_shares);
 
     let mut transaction = context.local_context.database_pool.begin().await?;
 
     for (xres_star_hash, key_share) in key_shares {
-        database::key_shares::add(&mut transaction, &xres_star_hash, user_id, &key_share).await?;
+        database::key_shares::add(&mut transaction, &xres_star_hash, user_id, key_share.as_slice()).await?;
     }
     transaction.commit().await?;
     Ok(())
@@ -146,7 +146,7 @@ pub async fn replace_key_share(
     context: Arc<DauthContext>,
     old_xres_star_hash: &auth_vector::types::HresStar,
     new_xres_star_hash: &auth_vector::types::HresStar,
-    new_key_share: &auth_vector::types::Kseaf,
+    new_key_share: &keys::KseafShare,
 ) -> Result<(), DauthError> {
     tracing::info!(
         "Replacing key share: {:?} => {:?}",
@@ -162,7 +162,7 @@ pub async fn replace_key_share(
         &mut transaction,
         new_xres_star_hash,
         &user_id,
-        new_key_share,
+        new_key_share.as_slice(),
     )
     .await?;
 
