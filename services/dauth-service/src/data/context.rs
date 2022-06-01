@@ -1,4 +1,4 @@
-use ed25519_dalek::Keypair;
+use ed25519_dalek::{Keypair, PublicKey};
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -32,6 +32,8 @@ pub struct LocalContext {
 #[derive(Debug)]
 pub struct BackupContext {
     pub auth_states: tokio::sync::Mutex<HashMap<String, AuthState>>,
+    pub directory_network_cache: tokio::sync::Mutex<HashMap<String, (String, PublicKey)>>,
+    pub directory_user_cache: tokio::sync::Mutex<HashMap<String, (String, Vec<String>)>>,
 }
 
 #[derive(Debug)]

@@ -34,6 +34,8 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
         },
         backup_context: BackupContext {
             auth_states: tokio::sync::Mutex::new(HashMap::new()),
+            directory_network_cache: tokio::sync::Mutex::new(HashMap::new()),
+            directory_user_cache: tokio::sync::Mutex::new(HashMap::new()),
         },
         rpc_context: RpcContext {
             host_addr: config.host_addr,
