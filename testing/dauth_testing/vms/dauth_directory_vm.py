@@ -11,11 +11,11 @@ class DauthDirectoryVM(VM):
     """
 
     def __init__(self, vagrant_dir: str, host_name: str) -> None:
-        super().__init__(host_name, vagrant_dir=vagrant_dir)
+        super().__init__(vagrant_dir, host_name)
 
         self.db_script_path = "~/scripts/open5gs-dbctl"
-        self.service_name = "dauth.service"
-        self.db_location = "/var/lib/dauth/dauth_service/ed25519_keys"
+        self.service_name = "dauth-directory.service"
+        self.db_location = "/var/lib/dauth/directory_db.sqlite3"
 
     def start_service(self) -> Union[str, str]:
         """
