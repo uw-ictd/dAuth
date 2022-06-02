@@ -14,7 +14,7 @@ class VM:
     Uses paramiko to maintain ssh connection, connects on build.
     """
 
-    def __init__(self, host_name: str, vagrant_dir: str="./") -> None:
+    def __init__(self, vagrant_dir: str, host_name: str) -> None:
         self.host_name = host_name
         self.vagrant_dir = vagrant_dir
 

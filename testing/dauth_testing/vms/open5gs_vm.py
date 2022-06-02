@@ -8,8 +8,8 @@ class Open5gsVM(VM):
     Represents an colte core node VM.
     """
 
-    def __init__(self, host_name: str, vagrant_dir: str="./") -> None:
-        super().__init__(host_name, vagrant_dir=vagrant_dir)
+    def __init__(self, vagrant_dir: str, host_name: str) -> None:
+        super().__init__(vagrant_dir, host_name)
 
         self.db_script_path = "~/scripts/open5gs-dbctl"
 

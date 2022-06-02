@@ -10,7 +10,7 @@ class DauthDirectoryVM(VM):
     Represents a dAuth directory VM.
     """
 
-    def __init__(self, host_name: str, vagrant_dir: str="./") -> None:
+    def __init__(self, vagrant_dir: str, host_name: str) -> None:
         super().__init__(host_name, vagrant_dir=vagrant_dir)
 
         self.db_script_path = "~/scripts/open5gs-dbctl"
@@ -45,9 +45,9 @@ class DauthDirectoryVM(VM):
 
         return self.run_command(command)
 
-    def stream_logs(self) -> ChannelFile:
+    def get_logs(self) -> ChannelFile:
         """
-        Pulls the logs from journalctl.
+        Gets the service logs using journalctl.
         Returns stdout and stderr output streams for the log.
         """
         command = " ".join(["sudo", "journalctl", "-fu", self.service_name])

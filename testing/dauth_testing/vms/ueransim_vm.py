@@ -12,9 +12,9 @@ class UeransimVM(VM):
     Represents the UERANSIM testing node VM.
     """
 
-    def __init__(self, host_name: str, vagrant_dir: str="./",
+    def __init__(self, vagrant_dir: str, host_name: str,
                              build_path: str="./UERANSIM/build/") -> None:
-        super().__init__(host_name, vagrant_dir=vagrant_dir)
+        super().__init__(vagrant_dir, host_name)
 
         self.build_path: str = build_path
         self.gnbs: List[GNB] = []
