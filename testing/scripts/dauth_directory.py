@@ -5,10 +5,16 @@ from vms.dauth_directory_vm import DauthDirectoryVM
 
 def print_logs(dauth_directory: DauthDirectoryVM) -> None:
     """
-    Prints dauth service logs as they are created from the host.
+    Prints dauth service logs from the host.
+    """
+    print(dauth_directory.print_logs())
+
+def stream_logs(dauth_directory: DauthDirectoryVM) -> None:
+    """
+    Streams dauth service logs as they are created from the host.
     """
     try:
-        for line in dauth_directory.get_logs():
+        for line in dauth_directory.streams_logs():
             print(line)
     except KeyboardInterrupt:
         print()
@@ -67,6 +73,11 @@ def main():
     group.add_argument(
         "--print-logs",
         action="store_true",
+        help="Print journalctl logs",
+    )
+    group.add_argument(
+        "--stream-logs",
+        action="store_true",
         help="Continuously print journalctl logs",
     )
     group.add_argument(
@@ -99,6 +110,8 @@ def main():
     print(directory_service.host_name + ":")
     if args.print_logs:
         print_logs(directory_service)
+    elif args.stream_logs:
+        stream_logs(directory_service)
     elif args.start_service:
         start_service(directory_service)
     elif args.stop_service:

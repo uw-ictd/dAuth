@@ -45,11 +45,20 @@ class DauthDirectoryVM(VM):
 
         return self.run_command(command)
 
-    def get_logs(self) -> ChannelFile:
+    def streams_logs(self) -> ChannelFile:
         """
-        Gets the service logs using journalctl.
+        Streams the service logs using journalctl.
         Returns stdout and stderr output streams for the log.
         """
         command = " ".join(["sudo", "journalctl", "-fu", self.service_name])
         
         return self.run_input_command(command)[1]
+        
+    def print_logs(self) -> str:
+        """
+        Prints the service logs using journalctl.
+        Returns stdout and stderr output streams for the log.
+        """
+        command = " ".join(["sudo", "journalctl", "--no-pager", "-n", "100", "-u", self.service_name])
+        
+        return self.run_command(command)[0]

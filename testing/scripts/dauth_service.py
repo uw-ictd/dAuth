@@ -6,13 +6,20 @@ from vms.dauth_service_vm import DauthServiceVM
 
 def print_logs(dauth_services: List[DauthServiceVM]) -> None:
     """
+    Prints dauth service logs from the host.
+    """
+    for dauth_service in dauth_services:
+        print(dauth_service.host_name + ":")
+        print(dauth_service.print_logs())
+def stream_logs(dauth_services: List[DauthServiceVM]) -> None:
+    """
     Prints dauth service logs as they are created from the host.
     """
     for dauth_service in dauth_services:
         print(dauth_service.host_name + ":")
         
         try:
-            for line in dauth_service.get_logs():
+            for line in dauth_service.streams_logs():
                 print(line)
         except KeyboardInterrupt:
             print()
@@ -85,6 +92,11 @@ def main():
     group.add_argument(
         "--print-logs",
         action="store_true",
+        help="Print journalctl logs",
+    )
+    group.add_argument(
+        "--stream-logs",
+        action="store_true",
         help="Continuously print journalctl logs",
     )
     group.add_argument(
@@ -125,6 +137,8 @@ def main():
     print("Running commands...")
     if args.print_logs:
         print_logs(dauth_services)
+    elif args.stream_logs:
+        stream_logs(dauth_services)
     elif args.start_service:
         start_service(dauth_services)
     elif args.stop_service:
