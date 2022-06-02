@@ -56,7 +56,7 @@ class DauthServiceVM(VM):
 
         return self.run_command(command)
 
-    def get_logs(self) -> ChannelFile:
+    def get_logs(self) -> Union[str, str]:
         """
         Pulls the logs from journalctl.
         Returns the current log output.
