@@ -272,9 +272,8 @@ pub async fn backup_auth_vector_used(
     )
     .await?;
 
-    let (_, mut backup_networks) =
+    let (_, backup_networks) =
         clients::directory::lookup_user(context.clone(), &user_id).await?;
-    backup_networks.retain(|id| id != backup_network_id);
 
     let mut key_shares = keys::create_shares_from_kseaf(
         &auth_vector_data.kseaf,
