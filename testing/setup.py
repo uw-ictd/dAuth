@@ -1,9 +1,10 @@
 from distutils.core import setup
 
-setup(name='dauth-testing',
+setup(name='testing',
       version='1.0',
       description='Testing framework for dauth vms',
       author='Nick Durand',
-      packages=['dauth_testing'],
+      packages=['testing'],
+      package_dir={'testing': '..'},
       install_requires=["paramiko"]
      )
