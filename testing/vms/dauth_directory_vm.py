@@ -2,7 +2,7 @@ from typing import Union
 
 from paramiko.channel import ChannelFile
 
-from testing.vms.vm import VM
+from vms.vm import VM
 
 
 class DauthDirectoryVM(VM):

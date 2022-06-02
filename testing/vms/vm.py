@@ -5,7 +5,7 @@ from typing import Union
 from paramiko import SSHConfig, SSHClient, AutoAddPolicy
 from paramiko.channel import ChannelFile, ChannelStderrFile, ChannelStdinFile
 
-from testing.logger import TestingLogger
+from logger import TestingLogger
 
 
 class VM:
