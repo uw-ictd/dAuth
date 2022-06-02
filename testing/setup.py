@@ -1,9 +1,9 @@
 from distutils.core import setup
 
-setup(name='colte-tests',
+setup(name='dauth-testing',
       version='1.0',
-      description='Testing scripts for colte using ueransim.',
+      description='Testing framework for dauth vms',
       author='Nick Durand',
-      packages=['colte_tests'],
+      packages=['dauth_testing'],
       install_requires=["paramiko"]
      )
