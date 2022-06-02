@@ -49,7 +49,6 @@ class VM:
         """
         outputs = self.run_input_command(command)
         stdout, stderr = outputs[1].read().decode(), outputs[2].read().decode()
-        TestingLogger.log_command_execution(command, stdout, stderr)
         return (stdout, stderr)
 
     def run_input_command(self, command: str) -> Union[ChannelStdinFile, ChannelFile, ChannelStderrFile]:
@@ -57,4 +56,5 @@ class VM:
         Runs the provided command in in the home dir of the VM.
         Returns active streams for stdin, stout, and stderr.
         """
+        TestingLogger.log_cammand(self.host_name, command)
         return self.ssh_client.exec_command(command)

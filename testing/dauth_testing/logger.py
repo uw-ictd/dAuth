@@ -5,7 +5,7 @@ from paramiko.channel import ChannelFile, ChannelStderrFile, ChannelStdinFile
 
 
 logging.basicConfig()
-logger = logging.getLogger("Colte-UERANSIM")
+logger = logging.getLogger("dauth-testing")
 logger.setLevel(logging.DEBUG)
 
 
@@ -14,6 +14,13 @@ class TestingLogger:
     Logging class that handles specific logging cases for testing.
     """
     logger = logger
+    
+    @staticmethod
+    def log_cammand(host_name: str, command: str) -> None:
+        """
+        Logs the command being run.
+        """
+        logger.debug("{}: '{}'".format(host_name, command))
 
     @staticmethod
     def log_command_streams(command: str, 
