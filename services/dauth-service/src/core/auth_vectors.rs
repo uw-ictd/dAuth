@@ -207,10 +207,18 @@ pub async fn next_backup_auth_vector(
         database::flood_vectors::get_first(&mut transaction, &av_request.user_id).await
     {
         vector = flood_row.to_auth_vector()?;
+
+        database::flood_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
+
+        tracing::info!("Flood vector found: {:?}", vector);
     } else {
         vector = database::auth_vectors::get_first(&mut transaction, &av_request.user_id)
             .await?
             .to_auth_vector()?;
+        
+        database::auth_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
+
+        tracing::info!("Backup vector found: {:?}", vector);
     };
 
     database::tasks::report_auth_vectors::add(
