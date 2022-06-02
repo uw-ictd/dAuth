@@ -1,40 +1,56 @@
 import argparse
+from typing import List
 from multiprocessing.pool import ThreadPool
 
 from dauth_testing.vms.dauth_service_vm import DauthServiceVM
 
-def print_logs(dauth_service: DauthServiceVM) -> None:
+def print_logs(dauth_services: List[DauthServiceVM]) -> None:
     """
     Prints dauth service logs as they are created from the host.
     """
-    try:
-        for line in dauth_service.get_logs():
-            print(line)
-    except KeyboardInterrupt:
-        print()
-        pass
+    for dauth_service in dauth_services:
+        print(dauth_service.host_name + ":")
+        
+        try:
+            for line in dauth_service.get_logs():
+                print(line)
+        except KeyboardInterrupt:
+            print()
+            pass
 
-def start_service(dauth_service: DauthServiceVM) -> None:
+def start_service(dauth_services: List[DauthServiceVM]) -> None:
     """
     Starts the dauth service if it is not started already.
     """
-    print(dauth_service.start_service())
+    for dauth_service in dauth_services:
+        print(dauth_service.host_name + ":")
+        print(dauth_service.start_service())
 
-def stop_service(dauth_service: DauthServiceVM) -> None:
+def stop_service(dauth_services: List[DauthServiceVM]) -> None:
     """
     Stops the dauth service if it is not stopped already.
     """
-    print(dauth_service.stop_service())
+    for dauth_service in dauth_services:
+        print(dauth_service.host_name + ":")
+        print(dauth_service.stop_service())
+
+def remove_state(dauth_services: List[DauthServiceVM]) -> None:
+    """
+    Removes all local state, including db and keys.
+    """
+    for dauth_service in dauth_services:
+        print(dauth_service.host_name + ":")
+        print(dauth_service.remove_db())
+        print(dauth_service.remove_keys())
     
-def reset_service(dauth_service: DauthServiceVM) -> None:
+def reset_service(dauth_services: List[DauthServiceVM]) -> None:
     """
     Resets all of the state of the dauth service.
     Stops the service, removes state, and starts the service again.
     """
-    print(dauth_service.stop_service())
-    print(dauth_service.remove_db())
-    print(dauth_service.remove_keys())
-    print(dauth_service.start_service())
+    stop_service(dauth_services)
+    remove_state(dauth_services)
+    start_service(dauth_services)
     
 def build_vm(vagrant_dir: str, host_name: str) -> DauthServiceVM:
     """
@@ -82,6 +98,11 @@ def main():
         help="Stops the dauth service",
     )
     group.add_argument(
+        "--remove-state",
+        action="store_true",
+        help="Removes all state for the dauth service",
+    )
+    group.add_argument(
         "--reset-service",
         action="store_true",
         help="Resets the dauth service state completely",
@@ -102,19 +123,18 @@ def main():
         dauth_services.append(result.get())
         
     print("Running commands...")
-    for dauth_service in dauth_services:
-        print(dauth_service.host_name + ":")
-        
-        if args.print_logs:
-            print_logs(dauth_service)
-        elif args.start_service:
-            start_service(dauth_service)
-        elif args.stop_service:
-            stop_service(dauth_service)
-        elif args.reset_service:
-            reset_service(dauth_service)
-        else:
-            print("No action specified")
+    if args.print_logs:
+        print_logs(dauth_services)
+    elif args.start_service:
+        start_service(dauth_services)
+    elif args.stop_service:
+        stop_service(dauth_services)
+    elif args.remove_state:
+        remove_state(dauth_services)
+    elif args.reset_service:
+        reset_service(dauth_services)
+    else:
+        print("No action specified")
 
 if __name__ == "__main__":
     main()

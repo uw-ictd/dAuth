@@ -26,15 +26,21 @@ def stop_service(dauth_directory: DauthDirectoryVM) -> None:
     """
     print(dauth_directory.stop_service())
     
+def remove_state(dauth_directory: DauthDirectoryVM) -> None:
+    """
+    Removes all local state, including db and keys.
+    """
+    print(dauth_directory.remove_db())
+
 def reset_service(dauth_directory: DauthDirectoryVM) -> None:
     """
     Resets all of the state of the dauth directory.
     Stops the service, removes state, and starts the service again.
     """
-    print(dauth_directory.stop_service())
-    print(dauth_directory.remove_db())
-    print(dauth_directory.start_service())
-
+    stop_service(dauth_directory)
+    remove_state(dauth_directory)
+    start_service(dauth_directory)
+    
 def main():
     parser = argparse.ArgumentParser(
         description='Run commands remotely on a dauth service VM'
@@ -74,6 +80,11 @@ def main():
         help="Stops the dauth directory service",
     )
     group.add_argument(
+        "--remove-state",
+        action="store_true",
+        help="Removes all state for the dauth service",
+    )
+    group.add_argument(
         "--reset-service",
         action="store_true",
         help="Resets the dauth service directory state completely",
@@ -92,6 +103,8 @@ def main():
         start_service(directory_service)
     elif args.stop_service:
         stop_service(directory_service)
+    elif args.remove_state:
+        remove_state(directory_service)
     elif args.reset_service:
         reset_service(directory_service)
     else:
