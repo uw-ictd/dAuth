@@ -84,7 +84,7 @@ pub async fn handle_delegated_vector(
 pub async fn handle_key_share(
     context: Arc<DauthContext>,
     dshare: DelegatedConfirmationShare,
-) -> Result<(auth_vector::types::HresStar, auth_vector::types::Kseaf), DauthError> {
+) -> Result<(auth_vector::types::HresStar, keys::KseafShare), DauthError> {
     let verify_result = signing::verify_message(
         context,
         &dshare.message.ok_or(DauthError::InvalidMessageError(

@@ -5,11 +5,12 @@ use sqlx::Row;
 use crate::data::error::DauthError;
 use crate::data::user_info::UserInfo;
 use crate::data::vector::AuthVectorRes;
+use crate::data::keys;
 
 pub trait DauthDataUtilities {
     fn to_auth_vector(&self) -> Result<AuthVectorRes, DauthError>;
     fn to_kseaf(&self) -> Result<Kseaf, DauthError>;
-    fn to_key_share(&self) -> Result<Kseaf, DauthError>;
+    fn to_key_share(&self) -> Result<keys::KseafShare, DauthError>;
     fn to_user_info(&self) -> Result<UserInfo, DauthError>;
     fn to_backup_user_home_network_id(&self) -> Result<String, DauthError>;
 }
@@ -30,7 +31,7 @@ impl DauthDataUtilities for SqliteRow {
         Ok(self.try_get::<&[u8], &str>("kseaf_data")?.try_into()?)
     }
 
-    fn to_key_share(&self) -> Result<Kseaf, DauthError> {
+    fn to_key_share(&self) -> Result<keys::KseafShare, DauthError> {
         Ok(self.try_get::<&[u8], &str>("key_share")?.try_into()?)
     }
 

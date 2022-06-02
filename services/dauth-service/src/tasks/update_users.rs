@@ -122,14 +122,12 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
                 });
 
             for other_id in &backup_network_ids {
-                if other_id != backup_network_id {
-                    shares_map
-                        .get_mut(other_id)
-                        .ok_or(DauthError::DataError("Shares map error".to_string()))?
-                        .push(shares.pop().ok_or(DauthError::DataError(
-                            "Shares list out of shares".to_string(),
-                        ))?);
-                }
+                shares_map
+                    .get_mut(other_id)
+                    .ok_or(DauthError::DataError("Shares map error".to_string()))?
+                    .push(shares.pop().ok_or(DauthError::DataError(
+                        "Shares list out of shares".to_string(),
+                    ))?);
             }
 
             if !shares.is_empty() {

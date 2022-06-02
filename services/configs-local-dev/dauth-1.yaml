@@ -4,6 +4,9 @@ id: "sample-network-1"
 # Address this network will host on
 host_addr: "127.0.0.1:50051"
 
+# Address this network will host on
+local_auth_addr: "127.0.0.2:50051"
+
 # Address of the directory service
 directory_addr: "127.0.0.1:8900"
 

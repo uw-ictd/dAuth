@@ -62,6 +62,7 @@ pub async fn confirm_authentication(
 
                 let mut key_shares = Vec::with_capacity(backup_network_ids.len());
                 let mut responses = Vec::with_capacity(backup_network_ids.len());
+                let share_threshold: u8 = std::cmp::min(keys::TEMPORARY_CONSTANT_THRESHOLD, backup_network_ids.len() as u8);
 
                 for backup_network_id in backup_network_ids {
                     let (backup_address, _) =
@@ -88,14 +89,14 @@ pub async fn confirm_authentication(
                     }
                 }
 
-                if key_shares.len() < keys::TEMPORARY_CONSTANT_THRESHOLD.into() {
-                    tracing::warn!("Insufficient valid responses to compute the kseaf");
+                if key_shares.len() < share_threshold.into() {
+                    tracing::warn!("Insufficient valid responses {} of {} needed to compute the kseaf", key_shares.len(), share_threshold);
                     return Err(DauthError::ShamirShareError());
                 }
 
                 let kseaf = keys::recover_kseaf_from_shares(
                     &key_shares,
-                    keys::TEMPORARY_CONSTANT_THRESHOLD,
+                    share_threshold,
                 )?;
 
                 Ok(kseaf)
@@ -127,14 +128,14 @@ pub async fn get_confirm_key(
 pub async fn store_key_shares(
     context: Arc<DauthContext>,
     user_id: &str,
-    key_shares: Vec<(auth_vector::types::HresStar, auth_vector::types::Kseaf)>,
+    key_shares: Vec<(auth_vector::types::HresStar, keys::KseafShare)>,
 ) -> Result<(), DauthError> {
     tracing::info!("Handling multiple key store: {:?}", key_shares);
 
     let mut transaction = context.local_context.database_pool.begin().await?;
 
     for (xres_star_hash, key_share) in key_shares {
-        database::key_shares::add(&mut transaction, &xres_star_hash, user_id, &key_share).await?;
+        database::key_shares::add(&mut transaction, &xres_star_hash, user_id, key_share.as_slice()).await?;
     }
     transaction.commit().await?;
     Ok(())
@@ -146,7 +147,7 @@ pub async fn replace_key_share(
     context: Arc<DauthContext>,
     old_xres_star_hash: &auth_vector::types::HresStar,
     new_xres_star_hash: &auth_vector::types::HresStar,
-    new_key_share: &auth_vector::types::Kseaf,
+    new_key_share: &keys::KseafShare,
 ) -> Result<(), DauthError> {
     tracing::info!(
         "Replacing key share: {:?} => {:?}",
@@ -162,7 +163,7 @@ pub async fn replace_key_share(
         &mut transaction,
         new_xres_star_hash,
         &user_id,
-        new_key_share,
+        new_key_share.as_slice(),
     )
     .await?;
 
@@ -176,7 +177,7 @@ pub async fn get_key_share(
     context: Arc<DauthContext>,
     xres_star_hash: &auth_vector::types::HresStar,
     signed_request_bytes: &Vec<u8>,
-) -> Result<auth_vector::types::Kseaf, DauthError> {
+) -> Result<keys::KseafShare, DauthError> {
     tracing::info!("Handling key share get: {:?}", xres_star_hash,);
 
     let mut transaction = context.local_context.database_pool.begin().await?;

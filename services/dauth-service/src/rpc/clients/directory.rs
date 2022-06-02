@@ -35,19 +35,28 @@ pub async fn lookup_network(
     context: Arc<DauthContext>,
     network_id: &str,
 ) -> Result<(String, PublicKey), DauthError> {
-    let mut client = get_client(context.clone()).await?;
+    let mut cache = context.backup_context.directory_network_cache.lock().await;
 
-    let response = client
-        .lookup_network(LooukupNetworkReq {
-            network_id: network_id.to_string(),
-        })
-        .await?
-        .into_inner();
+    Ok(match cache.get(network_id) {
+        Some(cached) => cached.clone(),
+        None => {
+            let mut client = get_client(context.clone()).await?;
 
-    Ok((
-        response.address,
-        PublicKey::from_bytes(&response.public_key)?,
-    ))
+            let response = client
+                .lookup_network(LooukupNetworkReq {
+                    network_id: network_id.to_string(),
+                })
+                .await?
+                .into_inner();
+            let res = (
+                response.address,
+                PublicKey::from_bytes(&response.public_key)?,
+            );
+
+            cache.insert(network_id.to_string(), res.clone());
+            res
+        }
+    })
 }
 
 /// Contacts directory service to find the home network
@@ -57,16 +66,25 @@ pub async fn lookup_user(
     context: Arc<DauthContext>,
     user_id: &str,
 ) -> Result<(String, Vec<String>), DauthError> {
-    let mut client = get_client(context.clone()).await?;
+    let mut cache = context.backup_context.directory_user_cache.lock().await;
 
-    let response = client
-        .lookup_user(LookupUserReq {
-            user_id: user_id.to_string(),
-        })
-        .await?
-        .into_inner();
-
-    Ok((response.home_network_id, response.backup_network_ids))
+    Ok(match cache.get(user_id) {
+        Some(cached) => cached.clone(),
+        None => {
+            let mut client = get_client(context.clone()).await?;
+        
+            let response = client
+                .lookup_user(LookupUserReq {
+                    user_id: user_id.to_string(),
+                })
+                .await?
+                .into_inner();
+        
+            let res = (response.home_network_id, response.backup_network_ids);
+            cache.insert(user_id.to_string(), res.clone());
+            res
+        }
+    })
 }
 
 /// Sends user info to the directory service.
