@@ -1,6 +1,6 @@
 from typing import Union
 
-from dauth_testing.vms.vm import VM
+from testing.vms.vm import VM
 
 
 class Open5gsVM(VM):

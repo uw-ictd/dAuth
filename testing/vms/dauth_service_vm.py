@@ -2,7 +2,7 @@ from typing import Union
 
 from paramiko.channel import ChannelFile
 
-from dauth_testing.vms.vm import VM
+from testing.vms.vm import VM
 
 
 class DauthServiceVM(VM):

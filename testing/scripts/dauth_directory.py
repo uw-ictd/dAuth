@@ -1,7 +1,7 @@
 import argparse
 from multiprocessing.pool import ThreadPool
 
-from dauth_testing.vms.dauth_directory_vm import DauthDirectoryVM
+from testing.vms.dauth_directory_vm import DauthDirectoryVM
 
 def print_logs(dauth_directory: DauthDirectoryVM) -> None:
     """

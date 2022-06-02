@@ -2,7 +2,7 @@ import argparse
 from typing import List
 from multiprocessing.pool import ThreadPool
 
-from dauth_testing.vms.dauth_service_vm import DauthServiceVM
+from testing.vms.dauth_service_vm import DauthServiceVM
 
 def print_logs(dauth_services: List[DauthServiceVM]) -> None:
     """

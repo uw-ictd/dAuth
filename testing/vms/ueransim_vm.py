@@ -3,8 +3,8 @@ from os import path
 from typing import List, Set, Union
 from paramiko.client import SSHClient
 
-from dauth_testing.vms.vm import VM
-from dauth_testing.logger import TestingLogger
+from testing.vms.vm import VM
+from testing.logger import TestingLogger
 
 
 class UeransimVM(VM):

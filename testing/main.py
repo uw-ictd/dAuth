@@ -1,5 +1,5 @@
-from dauth_testing.vms.open5gs_vm import Open5gsVM
-from dauth_testing.vms.ueransim_vm import UeransimVM
+from testing.vms.open5gs_vm import Open5gsVM
+from testing.vms.ueransim_vm import UeransimVM
 
 
 def dev_main():
