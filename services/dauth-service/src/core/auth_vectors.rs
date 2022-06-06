@@ -215,7 +215,7 @@ pub async fn next_backup_auth_vector(
         vector = database::auth_vectors::get_first(&mut transaction, &av_request.user_id)
             .await?
             .to_auth_vector()?;
-        
+
         database::auth_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
 
         tracing::info!("Backup vector found: {:?}", vector);
@@ -272,13 +272,15 @@ pub async fn backup_auth_vector_used(
     )
     .await?;
 
-    let (_, backup_networks) =
-        clients::directory::lookup_user(context.clone(), &user_id).await?;
+    let (_, backup_networks) = clients::directory::lookup_user(context.clone(), &user_id).await?;
 
     let mut key_shares = keys::create_shares_from_kseaf(
         &auth_vector_data.kseaf,
         backup_networks.len() as u8,
-        std::cmp::min(keys::TEMPORARY_CONSTANT_THRESHOLD, backup_networks.len() as u8),
+        std::cmp::min(
+            keys::TEMPORARY_CONSTANT_THRESHOLD,
+            backup_networks.len() as u8,
+        ),
         &mut rand_0_8::thread_rng(),
     )?;
 
@@ -319,11 +321,8 @@ pub async fn build_auth_vector(
         .await?
         .to_user_info()?;
 
-    let auth_vector_data = auth_vector::generate_vector(
-        &user_info.k,
-        &user_info.opc,
-        &user_info.sqn.try_into()?,
-    );
+    let auth_vector_data =
+        auth_vector::generate_vector(&user_info.k, &user_info.opc, &user_info.sqn.try_into()?);
 
     user_info.sqn += context.local_context.num_sqn_slices;
 

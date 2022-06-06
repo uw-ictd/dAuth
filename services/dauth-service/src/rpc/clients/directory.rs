@@ -72,14 +72,14 @@ pub async fn lookup_user(
         Some(cached) => cached.clone(),
         None => {
             let mut client = get_client(context.clone()).await?;
-        
+
             let response = client
                 .lookup_user(LookupUserReq {
                     user_id: user_id.to_string(),
                 })
                 .await?
                 .into_inner();
-        
+
             let res = (response.home_network_id, response.backup_network_ids);
             cache.insert(user_id.to_string(), res.clone());
             res

@@ -62,7 +62,10 @@ pub async fn confirm_authentication(
 
                 let mut key_shares = Vec::with_capacity(backup_network_ids.len());
                 let mut responses = Vec::with_capacity(backup_network_ids.len());
-                let share_threshold: u8 = std::cmp::min(keys::TEMPORARY_CONSTANT_THRESHOLD, backup_network_ids.len() as u8);
+                let share_threshold: u8 = std::cmp::min(
+                    keys::TEMPORARY_CONSTANT_THRESHOLD,
+                    backup_network_ids.len() as u8,
+                );
 
                 for backup_network_id in backup_network_ids {
                     let (backup_address, _) =
@@ -90,14 +93,15 @@ pub async fn confirm_authentication(
                 }
 
                 if key_shares.len() < share_threshold.into() {
-                    tracing::warn!("Insufficient valid responses {} of {} needed to compute the kseaf", key_shares.len(), share_threshold);
+                    tracing::warn!(
+                        "Insufficient valid responses {} of {} needed to compute the kseaf",
+                        key_shares.len(),
+                        share_threshold
+                    );
                     return Err(DauthError::ShamirShareError());
                 }
 
-                let kseaf = keys::recover_kseaf_from_shares(
-                    &key_shares,
-                    share_threshold,
-                )?;
+                let kseaf = keys::recover_kseaf_from_shares(&key_shares, share_threshold)?;
 
                 Ok(kseaf)
             }
@@ -135,7 +139,13 @@ pub async fn store_key_shares(
     let mut transaction = context.local_context.database_pool.begin().await?;
 
     for (xres_star_hash, key_share) in key_shares {
-        database::key_shares::add(&mut transaction, &xres_star_hash, user_id, key_share.as_slice()).await?;
+        database::key_shares::add(
+            &mut transaction,
+            &xres_star_hash,
+            user_id,
+            key_share.as_slice(),
+        )
+        .await?;
     }
     transaction.commit().await?;
     Ok(())
