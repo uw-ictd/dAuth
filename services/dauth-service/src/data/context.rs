@@ -55,6 +55,8 @@ pub struct TasksContext {
     pub interval: Duration,
     pub is_registered: tokio::sync::Mutex<bool>,
     pub replace_key_share_delay: Duration,
+    pub metrics_report_interval: Duration,
+    pub metrics_last_report: tokio::sync::Mutex<Instant>,
 }
 
 /// Allow implementation of debug for TaskMonitor.
