@@ -1,3 +1,4 @@
+mod metrics;
 mod register;
 mod replace_key_shares;
 mod report_auth_vectors;

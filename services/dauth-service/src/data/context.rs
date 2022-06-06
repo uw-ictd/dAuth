@@ -74,7 +74,7 @@ pub struct MetricsContext {
 impl MetricsContext {
     /// Returns the monitor for the provided monitor id.
     /// Creates a new monitor if one does not exist.
-    async fn get_monitor(&self, monitor_id: &str) -> tokio_metrics::TaskMonitor {
+    pub async fn get_monitor(&self, monitor_id: &str) -> tokio_metrics::TaskMonitor {
         let mut monitors = self.monitors.lock().await;
 
         match monitors.get(monitor_id) {
@@ -89,7 +89,7 @@ impl MetricsContext {
 
     /// Returns a mapping of monitor ids to their current metrics.
     /// Metrics are cumulative up to the point of calling this function.
-    async fn get_metrics(&self) -> HashMap<String, tokio_metrics::TaskMetrics> {
+    pub async fn get_metrics(&self) -> HashMap<String, tokio_metrics::TaskMetrics> {
         let monitors = self.monitors.lock().await;
         let mut metrics = HashMap::with_capacity(monitors.len());
 
