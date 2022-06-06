@@ -9,6 +9,7 @@ edition = "2021"
 tonic = "^0.6.1"
 prost = "0.9"
 tokio = { version = "^1.13.0", features = ["macros", "rt-multi-thread"]}
+tokio-metrics = "0.1.0"
 tracing = "0.1.29"
 tracing-futures = "0.2.5"
 tracing-subscriber = {version = "0.3.11", features = ["fmt", "env-filter"]}
