@@ -38,29 +38,38 @@ impl BackupNetwork for BackupNetworkHandler {
     ) -> Result<tonic::Response<EnrollBackupPrepareResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        let message = request
-            .into_inner()
-            .message
-            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
-
-        let verify_result = signing::verify_message(self.context.clone(), &message)
+        self.context
+            .metrics_context
+            .get_monitor("backup_network::enroll_backup_prepare")
             .await
-            .or_else(|e| {
-                Err(tonic::Status::new(
-                    tonic::Code::Unauthenticated,
-                    format!("Failed to verify message: {}", e),
-                ))
-            })?;
+            .instrument(async move {
+                let message = request.into_inner().message.ok_or_else(|| {
+                    tonic::Status::new(tonic::Code::NotFound, "No message received")
+                })?;
 
-        match BackupNetworkHandler::enroll_backup_prepare_hlp(self.context.clone(), verify_result)
+                let verify_result = signing::verify_message(self.context.clone(), &message)
+                    .await
+                    .or_else(|e| {
+                        Err(tonic::Status::new(
+                            tonic::Code::Unauthenticated,
+                            format!("Failed to verify message: {}", e),
+                        ))
+                    })?;
+
+                match BackupNetworkHandler::enroll_backup_prepare_hlp(
+                    self.context.clone(),
+                    verify_result,
+                )
+                .await
+                {
+                    Ok(result) => Ok(result),
+                    Err(e) => Err(tonic::Status::new(
+                        tonic::Code::Aborted,
+                        format!("Error while handling request: {}", e),
+                    )),
+                }
+            })
             .await
-        {
-            Ok(result) => Ok(result),
-            Err(e) => Err(tonic::Status::new(
-                tonic::Code::Aborted,
-                format!("Error while handling request: {}", e),
-            )),
-        }
     }
 
     /// Finishes the process of enrolling this network as a backup.
@@ -72,14 +81,23 @@ impl BackupNetwork for BackupNetworkHandler {
     ) -> Result<tonic::Response<EnrollBackupCommitResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        let content = request.into_inner();
-        match BackupNetworkHandler::enroll_backup_commit_hlp(self.context.clone(), content).await {
-            Ok(result) => Ok(result),
-            Err(e) => Err(tonic::Status::new(
-                tonic::Code::Aborted,
-                format!("Error while handling request: {}", e),
-            )),
-        }
+        self.context
+            .metrics_context
+            .get_monitor("backup_network::enroll_backup_commit")
+            .await
+            .instrument(async move {
+                let content = request.into_inner();
+                match BackupNetworkHandler::enroll_backup_commit_hlp(self.context.clone(), content)
+                    .await
+                {
+                    Ok(result) => Ok(result),
+                    Err(e) => Err(tonic::Status::new(
+                        tonic::Code::Aborted,
+                        format!("Error while handling request: {}", e),
+                    )),
+                }
+            })
+            .await
     }
 
     /// Retrieves an auth vector backup that has been stored by this network.
@@ -89,41 +107,47 @@ impl BackupNetwork for BackupNetworkHandler {
     ) -> Result<tonic::Response<GetBackupAuthVectorResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        let message = request
-            .into_inner()
-            .message
-            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
-
-        let mut signed_request_bytes = Vec::new();
-        message.encode(&mut signed_request_bytes).or_else(|e| {
-            Err(tonic::Status::new(
-                tonic::Code::Aborted,
-                format!("Failed to encode message: {}", e),
-            ))
-        })?;
-
-        let verify_result = signing::verify_message(self.context.clone(), &message)
+        self.context
+            .metrics_context
+            .get_monitor("backup_network::get_auth_vector")
             .await
-            .or_else(|e| {
-                Err(tonic::Status::new(
-                    tonic::Code::Unauthenticated,
-                    format!("Failed to verify message: {}", e),
-                ))
-            })?;
+            .instrument(async move {
+                let message = request.into_inner().message.ok_or_else(|| {
+                    tonic::Status::new(tonic::Code::NotFound, "No message received")
+                })?;
 
-        match BackupNetworkHandler::get_backup_auth_vector_hlp(
-            self.context.clone(),
-            verify_result,
-            &signed_request_bytes,
-        )
-        .await
-        {
-            Ok(result) => Ok(result),
-            Err(e) => Err(tonic::Status::new(
-                tonic::Code::Aborted,
-                format!("Error while handling request: {}", e),
-            )),
-        }
+                let mut signed_request_bytes = Vec::new();
+                message.encode(&mut signed_request_bytes).or_else(|e| {
+                    Err(tonic::Status::new(
+                        tonic::Code::Aborted,
+                        format!("Failed to encode message: {}", e),
+                    ))
+                })?;
+
+                let verify_result = signing::verify_message(self.context.clone(), &message)
+                    .await
+                    .or_else(|e| {
+                        Err(tonic::Status::new(
+                            tonic::Code::Unauthenticated,
+                            format!("Failed to verify message: {}", e),
+                        ))
+                    })?;
+
+                match BackupNetworkHandler::get_backup_auth_vector_hlp(
+                    self.context.clone(),
+                    verify_result,
+                    &signed_request_bytes,
+                )
+                .await
+                {
+                    Ok(result) => Ok(result),
+                    Err(e) => Err(tonic::Status::new(
+                        tonic::Code::Aborted,
+                        format!("Error while handling request: {}", e),
+                    )),
+                }
+            })
+            .await
     }
 
     /// Retrieves a key share that has been stored by this network.
@@ -133,47 +157,66 @@ impl BackupNetwork for BackupNetworkHandler {
     ) -> Result<tonic::Response<GetKeyShareResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        let message = request
-            .into_inner()
-            .message
-            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
-
-        let verify_result = signing::verify_message(self.context.clone(), &message)
+        self.context
+            .metrics_context
+            .get_monitor("backup_network::get_key_share")
             .await
-            .or_else(|e| {
-                Err(tonic::Status::new(
-                    tonic::Code::Unauthenticated,
-                    format!("Failed to verify message: {}", e),
-                ))
-            })?;
+            .instrument(async move {
+                let message = request.into_inner().message.ok_or_else(|| {
+                    tonic::Status::new(tonic::Code::NotFound, "No message received")
+                })?;
 
-        match BackupNetworkHandler::get_key_share_hlp(self.context.clone(), verify_result, message)
+                let verify_result = signing::verify_message(self.context.clone(), &message)
+                    .await
+                    .or_else(|e| {
+                        Err(tonic::Status::new(
+                            tonic::Code::Unauthenticated,
+                            format!("Failed to verify message: {}", e),
+                        ))
+                    })?;
+
+                match BackupNetworkHandler::get_key_share_hlp(
+                    self.context.clone(),
+                    verify_result,
+                    message,
+                )
+                .await
+                {
+                    Ok(result) => Ok(result),
+                    Err(e) => Err(tonic::Status::new(
+                        tonic::Code::Aborted,
+                        format!("Error while handling request: {}", e),
+                    )),
+                }
+            })
             .await
-        {
-            Ok(result) => Ok(result),
-            Err(e) => Err(tonic::Status::new(
-                tonic::Code::Aborted,
-                format!("Error while handling request: {}", e),
-            )),
-        }
     }
 
     async fn replace_key_share(
         &self,
         request: tonic::Request<ReplaceShareReq>,
     ) -> Result<tonic::Response<ReplaceShareResp>, tonic::Status> {
-        match BackupNetworkHandler::replace_key_share_hlp(
-            self.context.clone(),
-            request.into_inner(),
-        )
-        .await
-        {
-            Ok(result) => Ok(result),
-            Err(e) => Err(tonic::Status::new(
-                tonic::Code::Aborted,
-                format!("Error while handling request: {}", e),
-            )),
-        }
+        tracing::info!("Request: {:?}", request);
+
+        self.context
+            .metrics_context
+            .get_monitor("backup_network::replace_key_share")
+            .await
+            .instrument(async move {
+                match BackupNetworkHandler::replace_key_share_hlp(
+                    self.context.clone(),
+                    request.into_inner(),
+                )
+                .await
+                {
+                    Ok(result) => Ok(result),
+                    Err(e) => Err(tonic::Status::new(
+                        tonic::Code::Aborted,
+                        format!("Error while handling request: {}", e),
+                    )),
+                }
+            })
+            .await
     }
 
     /// Removes the requested user id as a backup on this network.
@@ -184,27 +227,35 @@ impl BackupNetwork for BackupNetworkHandler {
     ) -> Result<tonic::Response<WithdrawBackupResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        let message = request
-            .into_inner()
-            .message
-            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
-
-        let verify_result = signing::verify_message(self.context.clone(), &message)
+        self.context
+            .metrics_context
+            .get_monitor("backup_network::withdraw_backup")
             .await
-            .or_else(|e| {
-                Err(tonic::Status::new(
-                    tonic::Code::Unauthenticated,
-                    format!("Failed to verify message: {}", e),
-                ))
-            })?;
+            .instrument(async move {
+                let message = request.into_inner().message.ok_or_else(|| {
+                    tonic::Status::new(tonic::Code::NotFound, "No message received")
+                })?;
 
-        match BackupNetworkHandler::withdraw_backup_hlp(self.context.clone(), verify_result).await {
-            Ok(result) => Ok(result),
-            Err(e) => Err(tonic::Status::new(
-                tonic::Code::Aborted,
-                format!("Error while handling request: {}", e),
-            )),
-        }
+                let verify_result = signing::verify_message(self.context.clone(), &message)
+                    .await
+                    .or_else(|e| {
+                        Err(tonic::Status::new(
+                            tonic::Code::Unauthenticated,
+                            format!("Failed to verify message: {}", e),
+                        ))
+                    })?;
+
+                match BackupNetworkHandler::withdraw_backup_hlp(self.context.clone(), verify_result)
+                    .await
+                {
+                    Ok(result) => Ok(result),
+                    Err(e) => Err(tonic::Status::new(
+                        tonic::Code::Aborted,
+                        format!("Error while handling request: {}", e),
+                    )),
+                }
+            })
+            .await
     }
 
     async fn withdraw_shares(
@@ -213,27 +264,35 @@ impl BackupNetwork for BackupNetworkHandler {
     ) -> Result<tonic::Response<WithdrawSharesResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        let message = request
-            .into_inner()
-            .message
-            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
-
-        let verify_result = signing::verify_message(self.context.clone(), &message)
+        self.context
+            .metrics_context
+            .get_monitor("backup_network::withdraw_shares")
             .await
-            .or_else(|e| {
-                Err(tonic::Status::new(
-                    tonic::Code::Unauthenticated,
-                    format!("Failed to verify message: {}", e),
-                ))
-            })?;
+            .instrument(async move {
+                let message = request.into_inner().message.ok_or_else(|| {
+                    tonic::Status::new(tonic::Code::NotFound, "No message received")
+                })?;
 
-        match BackupNetworkHandler::withdraw_shares_hlp(self.context.clone(), verify_result).await {
-            Ok(result) => Ok(result),
-            Err(e) => Err(tonic::Status::new(
-                tonic::Code::Aborted,
-                format!("Error while handling request: {}", e),
-            )),
-        }
+                let verify_result = signing::verify_message(self.context.clone(), &message)
+                    .await
+                    .or_else(|e| {
+                        Err(tonic::Status::new(
+                            tonic::Code::Unauthenticated,
+                            format!("Failed to verify message: {}", e),
+                        ))
+                    })?;
+
+                match BackupNetworkHandler::withdraw_shares_hlp(self.context.clone(), verify_result)
+                    .await
+                {
+                    Ok(result) => Ok(result),
+                    Err(e) => Err(tonic::Status::new(
+                        tonic::Code::Aborted,
+                        format!("Error while handling request: {}", e),
+                    )),
+                }
+            })
+            .await
     }
 
     async fn flood_vector(
@@ -242,27 +301,35 @@ impl BackupNetwork for BackupNetworkHandler {
     ) -> Result<tonic::Response<FloodVectorResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        let message = request
-            .into_inner()
-            .message
-            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
-
-        let verify_result = signing::verify_message(self.context.clone(), &message)
+        self.context
+            .metrics_context
+            .get_monitor("backup_network::flood_vector")
             .await
-            .or_else(|e| {
-                Err(tonic::Status::new(
-                    tonic::Code::Unauthenticated,
-                    format!("Failed to verify message: {}", e),
-                ))
-            })?;
+            .instrument(async move {
+                let message = request.into_inner().message.ok_or_else(|| {
+                    tonic::Status::new(tonic::Code::NotFound, "No message received")
+                })?;
 
-        match BackupNetworkHandler::flood_vector_hlp(self.context.clone(), verify_result).await {
-            Ok(result) => Ok(result),
-            Err(e) => Err(tonic::Status::new(
-                tonic::Code::Aborted,
-                format!("Error while handling request: {}", e),
-            )),
-        }
+                let verify_result = signing::verify_message(self.context.clone(), &message)
+                    .await
+                    .or_else(|e| {
+                        Err(tonic::Status::new(
+                            tonic::Code::Unauthenticated,
+                            format!("Failed to verify message: {}", e),
+                        ))
+                    })?;
+
+                match BackupNetworkHandler::flood_vector_hlp(self.context.clone(), verify_result)
+                    .await
+                {
+                    Ok(result) => Ok(result),
+                    Err(e) => Err(tonic::Status::new(
+                        tonic::Code::Aborted,
+                        format!("Error while handling request: {}", e),
+                    )),
+                }
+            })
+            .await
     }
 }
 
