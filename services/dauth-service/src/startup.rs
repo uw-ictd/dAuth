@@ -12,7 +12,9 @@ use serde_yaml;
 
 use crate::data::{
     config::DauthConfig,
-    context::{BackupContext, DauthContext, LocalContext, RpcContext, TasksContext},
+    context::{
+        BackupContext, DauthContext, LocalContext, MetricsContext, RpcContext, TasksContext,
+    },
     error::DauthError,
     opt::DauthOpt,
 };
@@ -40,7 +42,9 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
         rpc_context: RpcContext {
             host_addr: config.host_addr,
             directory_addr: config.directory_addr,
-            local_auth_addr: config.local_auth_addr.unwrap_or("127.0.0.1:50051".to_owned()),
+            local_auth_addr: config
+                .local_auth_addr
+                .unwrap_or("127.0.0.1:50051".to_owned()),
             backup_clients: tokio::sync::Mutex::new(HashMap::new()),
             home_clients: tokio::sync::Mutex::new(HashMap::new()),
             directory_client: tokio::sync::Mutex::new(None),
@@ -52,6 +56,7 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             is_registered: tokio::sync::Mutex::new(false),
             replace_key_share_delay: Duration::from_secs_f64(10.0),
         },
+        metrics_context: MetricsContext::default(),
     });
 
     for (user_id, user_info_config) in config.users {
