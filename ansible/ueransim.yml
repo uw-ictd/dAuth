@@ -6,66 +6,46 @@
     ansible_python_interpreter: /usr/bin/python3
   become: yes
   roles:
+    - "ssh_mesh_member"
     - "dev_login"
 
   tasks:
-    - name: Update apt package cache
-      become: yes
-      apt:
-        update_cache: yes
-
-    - name: Install dependencies - g++
-      apt:
-        name: g++
-        state: present
-
-    - name: Install dependencies - libsctp-dev
-      apt:
-        name: libsctp-dev
-        state: present
-        update_cache: yes
-
-    - name: Install dependencies - lksctp-tools
-      apt:
-        name: lksctp-tools
-        state: present
-
-    - name: Install dependencies - software-properties-common
-      apt:
-        name: software-properties-common
-        state: present
-
-    - name: Install dependencies - lsb-release
-      apt:
-        name: lsb-release
-        state: present
-        update_cache: yes
-
     - name: Add kitware key
       apt_key:
         url: "https://apt.kitware.com/keys/kitware-archive-latest.asc"
         state: present
 
-    - name: Add kitware repos
+    - name: Add kitware repos for latest cmake
       apt_repository:
         repo: "deb https://apt.kitware.com/ubuntu/ focal main"
         state: present
         update_cache: yes
 
-    - name: Install cmake
+    - name: Update apt package cache
+      become: yes
       apt:
-        name: cmake
+        update_cache: yes
+
+    - name: Install dependencies
+      apt:
+        name:
+          - "g++"
+          - "libsctp-dev"
+          - "lksctp-tools"
+          - "software-properties-common"
+          - "lsb-release"
+          - "cmake"
         state: present
 
-    - name: Clone UERANSIM
-      git:
-        repo: https://github.com/aligungr/UERANSIM
-        dest: /home/vagrant/UERANSIM
-        version: v3.2.6
+    # - name: Clone UERANSIM
+    #   git:
+    #     repo: https://github.com/aligungr/UERANSIM
+    #     dest: /home/vagrant/UERANSIM
+    #     version: v3.2.6
 
-    - name: Make UERANSIM
-      make:
-        chdir: /home/vagrant/UERANSIM
+    # - name: Make UERANSIM
+    #   make:
+    #     chdir: /home/vagrant/UERANSIM
 
     - name: Copy ueransim configs
       copy:
