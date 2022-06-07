@@ -1,7 +1,9 @@
+use std::collections::{HashMap, VecDeque};
+use std::time::{Duration, Instant};
+
 use ed25519_dalek::{Keypair, PublicKey};
 use sqlx::SqlitePool;
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use tokio_metrics::{TaskMetrics, TaskMonitor};
 use tonic::transport::Channel;
 
 use crate::data::state::AuthState;
@@ -18,6 +20,7 @@ pub struct DauthContext {
     pub backup_context: BackupContext,
     pub rpc_context: RpcContext,
     pub tasks_context: TasksContext,
+    pub metrics_context: MetricsContext,
 }
 
 #[derive(Debug)]
@@ -53,4 +56,43 @@ pub struct TasksContext {
     pub interval: Duration,
     pub is_registered: tokio::sync::Mutex<bool>,
     pub replace_key_share_delay: Duration,
+    pub metrics_report_interval: Duration,
+    pub metrics_last_report: tokio::sync::Mutex<Instant>,
+}
+
+#[derive(Debug)]
+pub struct MetricsContext {
+    pub max_recorded_metrics: usize,
+    pub metrics_map: tokio::sync::Mutex<HashMap<String, VecDeque<TaskMetrics>>>,
+}
+
+impl MetricsContext {
+    /// Records the metrics data from the monitor and stores it under
+    /// the provided metrics id.
+    pub async fn record_metrics(&self, metrics_id: &str, monitor: TaskMonitor) {
+        if self.max_recorded_metrics > 0 {
+            let mut metrics_map = self.metrics_map.lock().await;
+
+            match metrics_map.get_mut(metrics_id) {
+                Some(queue) => {
+                    if queue.len() >= self.max_recorded_metrics {
+                        queue.pop_front();
+                    }
+                    queue.push_back(monitor.cumulative());
+                }
+                None => {
+                    let mut queue = VecDeque::with_capacity(self.max_recorded_metrics);
+                    queue.push_back(monitor.cumulative());
+                    metrics_map.insert(metrics_id.to_string(), queue);
+                }
+            }
+        }
+    }
+
+    /// Returns the set of metrics for each metric id.
+    pub async fn get_metrics(&self) -> HashMap<String, VecDeque<TaskMetrics>> {
+        let metrics_map = self.metrics_map.lock().await;
+
+        metrics_map.clone()
+    }
 }

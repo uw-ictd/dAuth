@@ -3,9 +3,9 @@ use sqlx::sqlite::SqliteRow;
 use sqlx::Row;
 
 use crate::data::error::DauthError;
+use crate::data::keys;
 use crate::data::user_info::UserInfo;
 use crate::data::vector::AuthVectorRes;
-use crate::data::keys;
 
 pub trait DauthDataUtilities {
     fn to_auth_vector(&self) -> Result<AuthVectorRes, DauthError>;

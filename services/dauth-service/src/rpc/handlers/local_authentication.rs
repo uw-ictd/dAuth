@@ -23,29 +23,41 @@ impl LocalAuthentication for LocalAuthenticationHandler {
     ) -> Result<tonic::Response<AkaVectorResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        let content = request.into_inner();
-        let user_id: String;
-        match std::str::from_utf8(content.user_id.as_slice()) {
-            Ok(res) => user_id = res.to_string(),
-            Err(e) => return Err(tonic::Status::new(tonic::Code::Aborted, e.to_string())),
-        }
+        let monitor = tokio_metrics::TaskMonitor::new();
 
-        match core::auth_vectors::find_vector(
-            self.context.clone(),
-            &user_id,
-            &self.context.local_context.id,
-        )
-        .await
-        {
-            Ok(av_result) => {
-                tracing::info!("Returning result: {:?}", av_result);
-                Ok(tonic::Response::new(av_result.to_resp()))
-            }
-            Err(e) => {
-                tracing::error!("Error while handling request: {}", e);
-                Err(tonic::Status::new(tonic::Code::Aborted, e.to_string()))
-            }
-        }
+        let res = monitor
+            .instrument(async move {
+                let content = request.into_inner();
+                let user_id: String;
+                match std::str::from_utf8(content.user_id.as_slice()) {
+                    Ok(res) => user_id = res.to_string(),
+                    Err(e) => return Err(tonic::Status::new(tonic::Code::Aborted, e.to_string())),
+                }
+
+                match core::auth_vectors::find_vector(
+                    self.context.clone(),
+                    &user_id,
+                    &self.context.local_context.id,
+                )
+                .await
+                {
+                    Ok(av_result) => {
+                        tracing::info!("Returning result: {:?}", av_result);
+                        Ok(tonic::Response::new(av_result.to_resp()))
+                    }
+                    Err(e) => {
+                        tracing::error!("Error while handling request: {}", e);
+                        Err(tonic::Status::new(tonic::Code::Aborted, e.to_string()))
+                    }
+                }
+            })
+            .await;
+
+        self.context
+            .metrics_context
+            .record_metrics("local_authentication::get_auth_vector", monitor)
+            .await;
+        res
     }
 
     /// Local request for to complete auth process for a vector.
@@ -56,17 +68,29 @@ impl LocalAuthentication for LocalAuthenticationHandler {
     ) -> Result<tonic::Response<AkaConfirmResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        match self.confirm_auth_hlp(request.into_inner()).await {
-            Ok(kseaf) => {
-                let response_payload = AkaConfirmResp {
-                    error: aka_confirm_resp::ErrorKind::NoError as i32,
-                    kseaf: kseaf.to_vec(),
-                };
+        let monitor = tokio_metrics::TaskMonitor::new();
 
-                Ok(tonic::Response::new(response_payload))
-            }
-            Err(e) => Err(tonic::Status::new(tonic::Code::NotFound, e.to_string())),
-        }
+        let res = monitor
+            .instrument(async move {
+                match self.confirm_auth_hlp(request.into_inner()).await {
+                    Ok(kseaf) => {
+                        let response_payload = AkaConfirmResp {
+                            error: aka_confirm_resp::ErrorKind::NoError as i32,
+                            kseaf: kseaf.to_vec(),
+                        };
+
+                        Ok(tonic::Response::new(response_payload))
+                    }
+                    Err(e) => Err(tonic::Status::new(tonic::Code::NotFound, e.to_string())),
+                }
+            })
+            .await;
+
+        self.context
+            .metrics_context
+            .record_metrics("local_authentication::confirm_auth", monitor)
+            .await;
+        res
     }
 }
 

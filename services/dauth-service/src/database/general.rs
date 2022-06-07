@@ -1,5 +1,5 @@
-use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
+use sqlx::ConnectOptions;
 
 use crate::data::error::DauthError;
 use crate::database;

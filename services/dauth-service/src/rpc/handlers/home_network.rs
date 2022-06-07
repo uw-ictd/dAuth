@@ -30,29 +30,43 @@ impl HomeNetwork for HomeNetworkHandler {
     ) -> Result<tonic::Response<GetHomeAuthVectorResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        let message = request
-            .into_inner()
-            .message
-            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
+        let monitor = tokio_metrics::TaskMonitor::new();
 
-        let verify_result = signing::verify_message(self.context.clone(), &message)
-            .await
-            .or_else(|e| {
-                Err(tonic::Status::new(
-                    tonic::Code::Unauthenticated,
-                    format!("Failed to verify message: {}", e),
-                ))
-            })?;
+        let res = monitor
+            .instrument(async move {
+                let message = request.into_inner().message.ok_or_else(|| {
+                    tonic::Status::new(tonic::Code::NotFound, "No message received")
+                })?;
 
-        match HomeNetworkHandler::get_home_auth_vector_hlp(self.context.clone(), verify_result)
-            .await
-        {
-            Ok(result) => Ok(result),
-            Err(e) => Err(tonic::Status::new(
-                tonic::Code::Aborted,
-                format!("Error while handling request: {}", e),
-            )),
-        }
+                let verify_result = signing::verify_message(self.context.clone(), &message)
+                    .await
+                    .or_else(|e| {
+                        Err(tonic::Status::new(
+                            tonic::Code::Unauthenticated,
+                            format!("Failed to verify message: {}", e),
+                        ))
+                    })?;
+
+                match HomeNetworkHandler::get_home_auth_vector_hlp(
+                    self.context.clone(),
+                    verify_result,
+                )
+                .await
+                {
+                    Ok(result) => Ok(result),
+                    Err(e) => Err(tonic::Status::new(
+                        tonic::Code::Aborted,
+                        format!("Error while handling request: {}", e),
+                    )),
+                }
+            })
+            .await;
+
+        self.context
+            .metrics_context
+            .record_metrics("home_network::get_auth_vector", monitor)
+            .await;
+        res
     }
 
     /// Remote request for to complete auth process for a vector.
@@ -63,27 +77,40 @@ impl HomeNetwork for HomeNetworkHandler {
     ) -> Result<tonic::Response<GetHomeConfirmKeyResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        let message = request
-            .into_inner()
-            .message
-            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
+        let monitor = tokio_metrics::TaskMonitor::new();
 
-        let verify_result = signing::verify_message(self.context.clone(), &message)
-            .await
-            .or_else(|e| {
-                Err(tonic::Status::new(
-                    tonic::Code::Unauthenticated,
-                    format!("Failed to verify message: {}", e),
-                ))
-            })?;
+        let res = monitor
+            .instrument(async move {
+                let message = request.into_inner().message.ok_or_else(|| {
+                    tonic::Status::new(tonic::Code::NotFound, "No message received")
+                })?;
 
-        match HomeNetworkHandler::get_confirm_key_hlp(self.context.clone(), verify_result).await {
-            Ok(result) => Ok(result),
-            Err(e) => Err(tonic::Status::new(
-                tonic::Code::Aborted,
-                format!("Error while handling request: {}", e),
-            )),
-        }
+                let verify_result = signing::verify_message(self.context.clone(), &message)
+                    .await
+                    .or_else(|e| {
+                        Err(tonic::Status::new(
+                            tonic::Code::Unauthenticated,
+                            format!("Failed to verify message: {}", e),
+                        ))
+                    })?;
+
+                match HomeNetworkHandler::get_confirm_key_hlp(self.context.clone(), verify_result)
+                    .await
+                {
+                    Ok(result) => Ok(result),
+                    Err(e) => Err(tonic::Status::new(
+                        tonic::Code::Aborted,
+                        format!("Error while handling request: {}", e),
+                    )),
+                }
+            })
+            .await;
+
+        self.context
+            .metrics_context
+            .record_metrics("home_network::get_confirm_key", monitor)
+            .await;
+        res
     }
 
     /// Remote request to report an auth vector as used.
@@ -94,35 +121,46 @@ impl HomeNetwork for HomeNetworkHandler {
     ) -> Result<tonic::Response<ReportHomeAuthConsumedResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        let content = request.into_inner();
+        let monitor = tokio_metrics::TaskMonitor::new();
 
-        let message = content
-            .backup_auth_vector_req
-            .clone()
-            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
+        let res = monitor
+            .instrument(async move {
+                let content = request.into_inner();
 
-        let verify_result = signing::verify_message(self.context.clone(), &message)
-            .await
-            .or_else(|e| {
-                Err(tonic::Status::new(
-                    tonic::Code::Unauthenticated,
-                    format!("Failed to verify message: {}", e),
-                ))
-            })?;
+                let message = content.backup_auth_vector_req.clone().ok_or_else(|| {
+                    tonic::Status::new(tonic::Code::NotFound, "No message received")
+                })?;
 
-        match HomeNetworkHandler::report_auth_consumed_hlp(
-            self.context.clone(),
-            content,
-            verify_result,
-        )
-        .await
-        {
-            Ok(result) => Ok(result),
-            Err(e) => Err(tonic::Status::new(
-                tonic::Code::Aborted,
-                format!("Error while handling request: {}", e),
-            )),
-        }
+                let verify_result = signing::verify_message(self.context.clone(), &message)
+                    .await
+                    .or_else(|e| {
+                        Err(tonic::Status::new(
+                            tonic::Code::Unauthenticated,
+                            format!("Failed to verify message: {}", e),
+                        ))
+                    })?;
+
+                match HomeNetworkHandler::report_auth_consumed_hlp(
+                    self.context.clone(),
+                    content,
+                    verify_result,
+                )
+                .await
+                {
+                    Ok(result) => Ok(result),
+                    Err(e) => Err(tonic::Status::new(
+                        tonic::Code::Aborted,
+                        format!("Error while handling request: {}", e),
+                    )),
+                }
+            })
+            .await;
+
+        self.context
+            .metrics_context
+            .record_metrics("home_network::report_auth_consumed", monitor)
+            .await;
+        res
     }
 
     /// Remote request to report a key share as used.
@@ -133,34 +171,46 @@ impl HomeNetwork for HomeNetworkHandler {
     ) -> Result<tonic::Response<ReportHomeKeyShareConsumedResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        let content = request.into_inner();
+        let monitor = tokio_metrics::TaskMonitor::new();
 
-        let message = content
-            .get_key_share_req
-            .ok_or_else(|| tonic::Status::new(tonic::Code::NotFound, "No message received"))?;
+        let res = monitor
+            .instrument(async move {
+                let content = request.into_inner();
 
-        let verify_result = signing::verify_message(self.context.clone(), &message)
-            .await
-            .or_else(|e| {
-                Err(tonic::Status::new(
-                    tonic::Code::Unauthenticated,
-                    format!("Failed to verify message: {}", e),
-                ))
-            })?;
+                let message = content.get_key_share_req.ok_or_else(|| {
+                    tonic::Status::new(tonic::Code::NotFound, "No message received")
+                })?;
 
-        match HomeNetworkHandler::report_key_share_consumed_hlp(
-            self.context.clone(),
-            &content.backup_network_id,
-            verify_result,
-        )
-        .await
-        {
-            Ok(result) => Ok(result),
-            Err(e) => Err(tonic::Status::new(
-                tonic::Code::Aborted,
-                format!("Error while handling request: {}", e),
-            )),
-        }
+                let verify_result = signing::verify_message(self.context.clone(), &message)
+                    .await
+                    .or_else(|e| {
+                        Err(tonic::Status::new(
+                            tonic::Code::Unauthenticated,
+                            format!("Failed to verify message: {}", e),
+                        ))
+                    })?;
+
+                match HomeNetworkHandler::report_key_share_consumed_hlp(
+                    self.context.clone(),
+                    &content.backup_network_id,
+                    verify_result,
+                )
+                .await
+                {
+                    Ok(result) => Ok(result),
+                    Err(e) => Err(tonic::Status::new(
+                        tonic::Code::Aborted,
+                        format!("Error while handling request: {}", e),
+                    )),
+                }
+            })
+            .await;
+
+        self.context
+            .metrics_context
+            .record_metrics("home_network::report_key_share_consumed", monitor)
+            .await;
+        res
     }
 }
 
