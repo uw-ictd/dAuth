@@ -30,10 +30,9 @@ impl HomeNetwork for HomeNetworkHandler {
     ) -> Result<tonic::Response<GetHomeAuthVectorResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        self.context
-            .metrics_context
-            .get_monitor("home_network::get_auth_vector")
-            .await
+        let monitor = tokio_metrics::TaskMonitor::new();
+
+        let res = monitor
             .instrument(async move {
                 let message = request.into_inner().message.ok_or_else(|| {
                     tonic::Status::new(tonic::Code::NotFound, "No message received")
@@ -61,7 +60,13 @@ impl HomeNetwork for HomeNetworkHandler {
                     )),
                 }
             })
-            .await
+            .await;
+
+        self.context
+            .metrics_context
+            .record_metrics("home_network::get_auth_vector", monitor)
+            .await;
+        res
     }
 
     /// Remote request for to complete auth process for a vector.
@@ -72,10 +77,9 @@ impl HomeNetwork for HomeNetworkHandler {
     ) -> Result<tonic::Response<GetHomeConfirmKeyResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        self.context
-            .metrics_context
-            .get_monitor("home_network::get_confirm_key")
-            .await
+        let monitor = tokio_metrics::TaskMonitor::new();
+
+        let res = monitor
             .instrument(async move {
                 let message = request.into_inner().message.ok_or_else(|| {
                     tonic::Status::new(tonic::Code::NotFound, "No message received")
@@ -100,7 +104,13 @@ impl HomeNetwork for HomeNetworkHandler {
                     )),
                 }
             })
-            .await
+            .await;
+
+        self.context
+            .metrics_context
+            .record_metrics("home_network::get_confirm_key", monitor)
+            .await;
+        res
     }
 
     /// Remote request to report an auth vector as used.
@@ -111,10 +121,9 @@ impl HomeNetwork for HomeNetworkHandler {
     ) -> Result<tonic::Response<ReportHomeAuthConsumedResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        self.context
-            .metrics_context
-            .get_monitor("home_network::report_auth_consumed")
-            .await
+        let monitor = tokio_metrics::TaskMonitor::new();
+
+        let res = monitor
             .instrument(async move {
                 let content = request.into_inner();
 
@@ -145,7 +154,13 @@ impl HomeNetwork for HomeNetworkHandler {
                     )),
                 }
             })
-            .await
+            .await;
+
+        self.context
+            .metrics_context
+            .record_metrics("home_network::report_auth_consumed", monitor)
+            .await;
+        res
     }
 
     /// Remote request to report a key share as used.
@@ -156,10 +171,9 @@ impl HomeNetwork for HomeNetworkHandler {
     ) -> Result<tonic::Response<ReportHomeKeyShareConsumedResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        self.context
-            .metrics_context
-            .get_monitor("home_network::report_key_share_consumed")
-            .await
+        let monitor = tokio_metrics::TaskMonitor::new();
+
+        let res = monitor
             .instrument(async move {
                 let content = request.into_inner();
 
@@ -190,7 +204,13 @@ impl HomeNetwork for HomeNetworkHandler {
                     )),
                 }
             })
-            .await
+            .await;
+
+        self.context
+            .metrics_context
+            .record_metrics("home_network::report_key_share_consumed", monitor)
+            .await;
+        res
     }
 }
 

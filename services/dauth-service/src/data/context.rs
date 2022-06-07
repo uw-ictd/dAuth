@@ -1,8 +1,9 @@
-use ed25519_dalek::{Keypair, PublicKey};
-use sqlx::SqlitePool;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
 
+use ed25519_dalek::{Keypair, PublicKey};
+use sqlx::SqlitePool;
+use tokio_metrics::{TaskMetrics, TaskMonitor};
 use tonic::transport::Channel;
 
 use crate::data::state::AuthState;
@@ -59,46 +60,39 @@ pub struct TasksContext {
     pub metrics_last_report: tokio::sync::Mutex<Instant>,
 }
 
-/// Allow implementation of debug for TaskMonitor.
-struct TaskMonitorDebug(tokio_metrics::TaskMonitor);
-
-impl std::fmt::Debug for TaskMonitorDebug {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(fmt, "TaskMonitorDebug")
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct MetricsContext {
-    monitors: tokio::sync::Mutex<HashMap<String, TaskMonitorDebug>>,
+    pub max_recorded_metrics: usize,
+    pub metrics_map: tokio::sync::Mutex<HashMap<String, VecDeque<TaskMetrics>>>,
 }
 
 impl MetricsContext {
-    /// Returns the monitor for the provided monitor id.
-    /// Creates a new monitor if one does not exist.
-    pub async fn get_monitor(&self, monitor_id: &str) -> tokio_metrics::TaskMonitor {
-        let mut monitors = self.monitors.lock().await;
+    /// Records the metrics data from the monitor and stores it under
+    /// the provided metrics id.
+    pub async fn record_metrics(&self, metrics_id: &str, monitor: TaskMonitor) {
+        if self.max_recorded_metrics > 0 {
+            let mut metrics_map = self.metrics_map.lock().await;
 
-        match monitors.get(monitor_id) {
-            Some(monitor) => monitor.0.clone(),
-            None => {
-                let monitor = tokio_metrics::TaskMonitor::new();
-                monitors.insert(monitor_id.to_string(), TaskMonitorDebug(monitor.clone()));
-                monitor
+            match metrics_map.get_mut(metrics_id) {
+                Some(queue) => {
+                    if queue.len() >= self.max_recorded_metrics {
+                        queue.pop_front();
+                    }
+                    queue.push_back(monitor.cumulative());
+                }
+                None => {
+                    let mut queue = VecDeque::with_capacity(self.max_recorded_metrics);
+                    queue.push_back(monitor.cumulative());
+                    metrics_map.insert(metrics_id.to_string(), queue);
+                }
             }
         }
     }
 
-    /// Returns a mapping of monitor ids to their current metrics.
-    /// Metrics are cumulative up to the point of calling this function.
-    pub async fn get_metrics(&self) -> HashMap<String, tokio_metrics::TaskMetrics> {
-        let monitors = self.monitors.lock().await;
-        let mut metrics = HashMap::with_capacity(monitors.len());
+    /// Returns the set of metrics for each metric id.
+    pub async fn get_metrics(&self) -> HashMap<String, VecDeque<TaskMetrics>> {
+        let metrics_map = self.metrics_map.lock().await;
 
-        for (monitor_id, monitor) in monitors.iter() {
-            metrics.insert(monitor_id.clone(), monitor.0.cumulative());
-        }
-
-        metrics
+        metrics_map.clone()
     }
 }

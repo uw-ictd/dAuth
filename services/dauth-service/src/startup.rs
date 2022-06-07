@@ -58,7 +58,10 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             metrics_report_interval: Duration::from_secs_f64(10.0),
             metrics_last_report: tokio::sync::Mutex::new(Instant::now()),
         },
-        metrics_context: MetricsContext::default(),
+        metrics_context: MetricsContext {
+            max_recorded_metrics: config.max_recorded_metrics.unwrap_or(100) as usize,
+            metrics_map: tokio::sync::Mutex::new(HashMap::new()),
+        },
     });
 
     for (user_id, user_info_config) in config.users {

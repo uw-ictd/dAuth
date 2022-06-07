@@ -23,10 +23,9 @@ impl LocalAuthentication for LocalAuthenticationHandler {
     ) -> Result<tonic::Response<AkaVectorResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        self.context
-            .metrics_context
-            .get_monitor("local_authentication::get_auth_vector")
-            .await
+        let monitor = tokio_metrics::TaskMonitor::new();
+
+        let res = monitor
             .instrument(async move {
                 let content = request.into_inner();
                 let user_id: String;
@@ -52,7 +51,13 @@ impl LocalAuthentication for LocalAuthenticationHandler {
                     }
                 }
             })
-            .await
+            .await;
+
+        self.context
+            .metrics_context
+            .record_metrics("local_authentication::get_auth_vector", monitor)
+            .await;
+        res
     }
 
     /// Local request for to complete auth process for a vector.
@@ -63,10 +68,9 @@ impl LocalAuthentication for LocalAuthenticationHandler {
     ) -> Result<tonic::Response<AkaConfirmResp>, tonic::Status> {
         tracing::info!("Request: {:?}", request);
 
-        self.context
-            .metrics_context
-            .get_monitor("local_authentication::confirm_auth")
-            .await
+        let monitor = tokio_metrics::TaskMonitor::new();
+
+        let res = monitor
             .instrument(async move {
                 match self.confirm_auth_hlp(request.into_inner()).await {
                     Ok(kseaf) => {
@@ -80,7 +84,13 @@ impl LocalAuthentication for LocalAuthenticationHandler {
                     Err(e) => Err(tonic::Status::new(tonic::Code::NotFound, e.to_string())),
                 }
             })
-            .await
+            .await;
+
+        self.context
+            .metrics_context
+            .record_metrics("local_authentication::confirm_auth", monitor)
+            .await;
+        res
     }
 }
 
