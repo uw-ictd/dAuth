@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -16,7 +15,7 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
 
         for (metric_id, metrics) in all_metrics {
             let mut metric_results =
-                HashMap::with_capacity(context.metrics_context.max_recorded_metrics);
+                Vec::with_capacity(context.metrics_context.max_recorded_metrics);
             let mut idle_times = Vec::with_capacity(context.metrics_context.max_recorded_metrics);
             let mut polling_times =
                 Vec::with_capacity(context.metrics_context.max_recorded_metrics);
@@ -26,23 +25,25 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
                 polling_times.push(metric.total_poll_duration);
             }
 
-            metric_results.insert("idle times", format!("{:?}", idle_times));
-            metric_results.insert("polling times", format!("{:?}", polling_times));
-
+            let idle_times_string = format!("{}: {:?}", "idle times", idle_times);
+            let polling_times_string = format!("{}: {:?}", "polling times", polling_times);
             let (idle_len, polling_len) = (idle_times.len() as u32, polling_times.len() as u32);
-            metric_results.insert(
-                "idle average",
-                format!("{:?}", idle_times.into_iter().sum::<Duration>() / idle_len),
-            );
-            metric_results.insert(
-                "polling average",
-                format!(
-                    "{:?}",
-                    polling_times.into_iter().sum::<Duration>() / polling_len
-                ),
+            let (idle_avg, polling_avg) = (
+                idle_times.into_iter().sum::<Duration>() / idle_len,
+                polling_times.into_iter().sum::<Duration>() / polling_len,
             );
 
-            tracing::info!("Metrics for {}: {:?}", metric_id, metric_results);
+            metric_results.push(format!("{}: {:?}", "total average", idle_avg + polling_avg));
+            metric_results.push(format!("{}: {:?}", "idle average", idle_avg));
+            metric_results.push(format!("{}: {:?}", "polling average", polling_avg));
+            metric_results.push(idle_times_string);
+            metric_results.push(polling_times_string);
+
+            tracing::info!(
+                "Metrics for {}: {{{:?}}}",
+                metric_id,
+                metric_results.join(", ")
+            );
         }
 
         *last_report = Instant::now();
