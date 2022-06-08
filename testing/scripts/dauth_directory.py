@@ -15,7 +15,7 @@ def stream_logs(dauth_directory: DauthDirectoryVM) -> None:
     """
     try:
         for line in dauth_directory.streams_logs():
-            print(line)
+            print(line.strip())
     except KeyboardInterrupt:
         print()
         pass
