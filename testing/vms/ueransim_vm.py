@@ -6,6 +6,7 @@ from paramiko.channel import ChannelFile, ChannelStderrFile, ChannelStdinFile
 
 from vms.vm import VM
 from logger import TestingLogger
+from tests.config import UEConfig
 
 
 class UeransimVM(VM):
@@ -20,6 +21,12 @@ class UeransimVM(VM):
         self.build_path: str = build_path
         self.gnbs: List[GNB] = []
         self.ues: List[UE] = []
+        
+    def add_ue_config(self, config: UEConfig, remotepath: str):
+        """
+        Adds a UE yaml config on the vm at remotepath.
+        """
+        self.upload_file(config.get_file(), remotepath)
 
     def run_cli_command(self, command: str) -> Union[str, str]:
         """

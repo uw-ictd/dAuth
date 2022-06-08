@@ -13,12 +13,16 @@ class TestingConfig:
     """
     All configuration needed to connect to the VMs.
     """
-    directory_host = "directory"
-    service1_host = "colte1"
-    service2_host = "colte2"
-    service3_host = "colte3"
-    service4_host = "colte4"
-    ueransim_host = "ueransim"
+    def __init__(self, vagrant_dir: str, config_dir: str) -> None:
+        self.vagrant_dir = vagrant_dir
+        self.config_dir = config_dir
+        
+        self.directory_host = "directory"
+        self.service1_host = "colte1"
+        self.service2_host = "colte2"
+        self.service3_host = "colte3"
+        self.service4_host = "colte4"
+        self.ueransim_host = "ueransim"
 
 
 class TestingState:
@@ -26,13 +30,22 @@ class TestingState:
     Holds all testing state, including vm connections.
     """
 
-    def __init__(self, vagrant_dir: str):
-        self.directory: DauthDirectoryVM = DauthDirectoryVM(vagrant_dir, TestingConfig.directory_host)
-        self.service1: DauthServiceVM = DauthServiceVM(vagrant_dir, TestingConfig.service1_host)
-        self.service2: DauthServiceVM = DauthServiceVM(vagrant_dir, TestingConfig.service2_host)
-        self.service3: DauthServiceVM = DauthServiceVM(vagrant_dir, TestingConfig.service3_host)
-        self.service4: DauthServiceVM = DauthServiceVM(vagrant_dir, TestingConfig.service4_host)
-        self.ueransim: UeransimVM = UeransimVM(vagrant_dir, TestingConfig.ueransim_host)
+    def __init__(self, config: TestingConfig):
+        self.vagrant_dir = config.vagrant_dir
+        self.config_dir = config.config_dir
+        
+        self.directory: DauthDirectoryVM = \
+            DauthDirectoryVM(config.vagrant_dir, config.directory_host)
+        self.service1: DauthServiceVM = \
+            DauthServiceVM(config.vagrant_dir, config.service1_host)
+        self.service2: DauthServiceVM = \
+            DauthServiceVM(config.vagrant_dir, config.service2_host)
+        self.service3: DauthServiceVM = \
+            DauthServiceVM(config.vagrant_dir, config.service3_host)
+        self.service4: DauthServiceVM = \
+            DauthServiceVM(config.vagrant_dir, config.service4_host)
+        self.ueransim: UeransimVM = \
+            UeransimVM(config.vagrant_dir, config.ueransim_host)
         self.services = (self.service1, self.service2, self.service3, self.service4)
 
     def reset(self):
@@ -57,7 +70,7 @@ class TestingState:
         # Not ideal, but UERANSIM seems to need this delay to work correctly.
         # Without it, immediately adding gNBs and UEs causes the first 
         # connection request to fail.
-        sleep(2)
+        sleep(3)
 
     def start_and_check_gnb(self, config_path: str) -> None:
         """
@@ -90,7 +103,7 @@ class TestingState:
         return ue
         
     def _find_or_timeout(self, success_string: str, error_string: str, 
-                         stdout: ChannelFile, timeout_seconds: int=3) -> str:
+                         stdout: ChannelFile, timeout_seconds: int=5) -> str:
         """
         Internal function that checks stdout for a particular string.
         Returns None on success, or stdout on failure.
