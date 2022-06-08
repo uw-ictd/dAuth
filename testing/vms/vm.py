@@ -1,8 +1,8 @@
 import subprocess
 import io
-from typing import Union
+from typing import IO, Union
 
-from paramiko import SSHConfig, SSHClient, AutoAddPolicy
+from paramiko import SFTPClient, SSHConfig, SSHClient, AutoAddPolicy
 from paramiko.channel import ChannelFile, ChannelStderrFile, ChannelStdinFile
 
 from logger import TestingLogger
@@ -26,8 +26,8 @@ class VM:
                     ["vagrant", "ssh-config", host_name], 
                     cwd=vagrant_dir).decode()))
         self.ssh_info = config.lookup(host_name)
-        self.ssh_client = self.build_ssh_client()
-
+        self.ssh_client: SSHClient = self.build_ssh_client()
+        self.sfpt_client: SFTPClient = self.ssh_client.open_sftp()
 
     def build_ssh_client(self) -> SSHClient:
         """
@@ -40,6 +40,7 @@ class VM:
             username=self.ssh_info["user"],
             key_filename=self.ssh_info["identityfile"][0],
             timeout=30)
+        
         return ssh_client
 
     def run_command(self, command: str) -> Union[str, str]:
@@ -58,3 +59,10 @@ class VM:
         """
         TestingLogger.log_cammand(self.host_name, command)
         return self.ssh_client.exec_command(command)
+    
+    def upload_file(self, file_bytes: IO[bytes], remotepath: str) -> None:
+        """
+        Uploads a file from the local file path to the remote file path
+        on the VM.
+        """
+        self.sfpt_client.putfo(fl=file_bytes, remotepath=remotepath)

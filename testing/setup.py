@@ -6,5 +6,5 @@ setup(name='testing',
       author='Nick Durand',
       packages=['testing'],
       package_dir={'testing': '..'},
-      install_requires=["paramiko"]
+      install_requires=["paramiko", "pyyaml"]
      )

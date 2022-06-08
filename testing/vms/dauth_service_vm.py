@@ -1,4 +1,4 @@
-from typing import Union
+from typing import IO, Union
 
 from paramiko.channel import ChannelFile
 
@@ -17,6 +17,14 @@ class DauthServiceVM(VM):
         self.service_name = "dauth.service"
         self.db_location = "/var/lib/dauth/dauth_service/ed25519_keys"
         self.keys_location = "/var/lib/dauth/dauth_service/dauth.sqlite3"
+        self.config_location = "/etc/dauth/host-config.yaml"
+        
+    def change_config(self, file_bytes: IO[bytes]):
+        """
+        Changes the main config to the provided file bytes.
+        Should reset the service state after calling this.
+        """
+        self.upload_file(file_bytes, self.config_location)
 
     def start_service(self) -> Union[str, str]:
         """
