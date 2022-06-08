@@ -35,7 +35,8 @@ fn generate_vector_with_rand(
 
     let xres_star_hash = gen_xres_star_hash(rand, &xres_star);
 
-    let sqn_xor_ak: types::Sqn = sqn.as_bytes()
+    let sqn_xor_ak: types::Sqn = sqn
+        .as_bytes()
         .iter()
         .zip(ak.iter())
         .map(|(a, b)| a ^ b)

@@ -40,7 +40,16 @@ impl Sqn {
 impl Into<i64> for Sqn {
     /// Converts sqn_bytes to seqnum int
     fn into(self) -> i64 {
-        i64::from_be_bytes([0, 0, self.data[0], self.data[1], self.data[2], self.data[3], self.data[4], self.data[5]])
+        i64::from_be_bytes([
+            0,
+            0,
+            self.data[0],
+            self.data[1],
+            self.data[2],
+            self.data[3],
+            self.data[4],
+            self.data[5],
+        ])
     }
 }
 
@@ -63,7 +72,9 @@ impl TryFrom<&[u8]> for Sqn {
             return Err(AuthVectorConversionError::BoundsError());
         }
 
-        Ok(Sqn{data: value.try_into()?})
+        Ok(Sqn {
+            data: value.try_into()?,
+        })
     }
 }
 
@@ -87,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_sqn_bytes_into_int() {
-        let integer_rep: i64 = Sqn::try_from(vec![0,0,0,0,1,0]).unwrap().into();
+        let integer_rep: i64 = Sqn::try_from(vec![0, 0, 0, 0, 1, 0]).unwrap().into();
 
         assert_eq!(integer_rep, 256);
     }
