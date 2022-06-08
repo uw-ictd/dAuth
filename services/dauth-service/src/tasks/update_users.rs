@@ -53,8 +53,12 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
     let user_id = &user_id;
 
     let mut transaction = context.local_context.database_pool.begin().await.unwrap();
-    let user_data =
-        database::tasks::update_users::get_user_data(&mut transaction, &user_id).await?;
+    let user_data: Vec<(String, i64)> =
+        database::tasks::update_users::get_user_data(&mut transaction, &user_id)
+            .await?
+            .into_iter()
+            .filter(|v| v.0 != context.local_context.id)
+            .collect();
 
     let mut backup_network_ids = Vec::new();
     let mut vectors_map = HashMap::new();

@@ -94,6 +94,16 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             )));
         }
 
+        // add home network as a special case
+        // otherwise, if there are no backups, the directory is never notified
+        database::tasks::update_users::add(
+            &mut transaction,
+            &user_id,
+            0,
+            &context.local_context.id,
+        )
+        .await?;
+
         for (backup_network_id, sqn_slice) in &user_info_config.backup_network_ids {
             database::user_infos::upsert(
                 &mut transaction,
