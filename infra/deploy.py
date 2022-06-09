@@ -12,8 +12,7 @@ hosts = "colte1.local, colte2.local"
 
 
 def build_dauth_services(target):
-    """ Build rust services from source via cargo
-    """
+    """Build rust services from source via cargo"""
     if target == "debug":
         cmd = ["cargo", "build"]
     elif target == "release":
@@ -26,8 +25,7 @@ def build_dauth_services(target):
 
 
 def package_dauth_service(target, package_name="dauth-service_0.0.0~dev_amd64.deb"):
-    """ Package the dauth service per external nfpm.yaml config file
-    """
+    """Package the dauth service per external nfpm.yaml config file"""
     with open("../services/nfpm-dauth.yaml") as f:
         nfpm_config = f.read()
 
@@ -35,19 +33,31 @@ def package_dauth_service(target, package_name="dauth-service_0.0.0~dev_amd64.de
     nfpm_config = nfpm_config.replace(r"${TARGET}", target)
     log.debug("Running nfpm with config: \n %s", nfpm_config)
 
-    subprocess.run(["nfpm", "package", "--config", "/dev/stdin", "--packager", "deb", "--target", package_name],
-                   check=True,
-                   cwd="../services",
-                   input=nfpm_config.encode("utf8"))
+    subprocess.run(
+        [
+            "nfpm",
+            "package",
+            "--config",
+            "/dev/stdin",
+            "--packager",
+            "deb",
+            "--target",
+            package_name,
+        ],
+        check=True,
+        cwd="../services",
+        input=nfpm_config.encode("utf8"),
+    )
 
     package_path = Path("../services", package_name)
     log.info("Package created at: %s", package_path.absolute())
     return package_path
 
 
-def package_dauth_directory_service(target, package_name="dauth-directory-service_0.0.0~dev_amd64.deb"):
-    """ Package the dauth directory service per external nfpm.yaml config file
-    """
+def package_dauth_directory_service(
+    target, package_name="dauth-directory-service_0.0.0~dev_amd64.deb"
+):
+    """Package the dauth directory service per external nfpm.yaml config file"""
     with open("../services/nfpm-directory.yaml") as f:
         nfpm_config = f.read()
 
@@ -55,10 +65,21 @@ def package_dauth_directory_service(target, package_name="dauth-directory-servic
     nfpm_config = nfpm_config.replace(r"${TARGET}", target)
     log.debug("Running nfpm with config: \n %s", nfpm_config)
 
-    subprocess.run(["nfpm", "package", "--config", "/dev/stdin", "--packager", "deb", "--target", package_name],
-                   check=True,
-                   cwd="../services",
-                   input=nfpm_config.encode("utf8"))
+    subprocess.run(
+        [
+            "nfpm",
+            "package",
+            "--config",
+            "/dev/stdin",
+            "--packager",
+            "deb",
+            "--target",
+            package_name,
+        ],
+        check=True,
+        cwd="../services",
+        input=nfpm_config.encode("utf8"),
+    )
 
     package_path = Path("../services", package_name)
     log.info("Package created at: %s", package_path.absolute())
@@ -66,26 +87,31 @@ def package_dauth_directory_service(target, package_name="dauth-directory-servic
 
 
 def deploy_package(package_path, host):
-    """ Transfer and install the provided package on the host
-    """
+    """Transfer and install the provided package on the host"""
 
     package_name = package_path.name
 
     result = Connection(host).put(package_path, remote="/tmp/", preserve_mode=False)
-    result = Connection(host).sudo("dpkg --force-confdef --force-confold -i /tmp/{}".format(package_name))
+    result = Connection(host).sudo(
+        "dpkg --force-confdef --force-confold -i /tmp/{}".format(package_name)
+    )
 
 
 def build_open5gs_packages(fast_build=False):
-    """ Builds our open5gs deb packages from source via dpkg-buildpkg
-    """
-    command = ["dpkg-buildpackage", "-us", "-uc", "--build=binary", "--compression-level=1", "--compression=gzip"]
+    """Builds our open5gs deb packages from source via dpkg-buildpkg"""
+    command = [
+        "dpkg-buildpackage",
+        "-us",
+        "-uc",
+        "--build=binary",
+        "--compression-level=1",
+        "--compression=gzip",
+    ]
 
     if fast_build:
         command += ["--no-pre-clean", "--no-post-clean"]
 
-    subprocess.run(command,
-                   check=True,
-                   cwd="../open5gs")
+    subprocess.run(command, check=True, cwd="../open5gs")
 
     # Clean up packaging products
     Path("../debug-open5gs-debs").mkdir(exist_ok=True, parents=True)
@@ -101,12 +127,23 @@ def build_open5gs_packages(fast_build=False):
     for deb in Path("../").glob("open5gs*.deb"):
         deb.replace(Path("../open5gs-debs") / deb.name)
 
+
 def deploy_open5gs_5gc_packages(open5gs_package_directory, host):
-    """ Deploys all open5gs packages to the indicated host
-    """
+    """Deploys all open5gs packages to the indicated host"""
 
     # Build the package list programatically to more easily update
-    components = ["amf", "ausf", "bsf", "nrf", "nssf", "pcf", "smf", "udm", "udr", "upf"]
+    components = [
+        "amf",
+        "ausf",
+        "bsf",
+        "nrf",
+        "nssf",
+        "pcf",
+        "smf",
+        "udm",
+        "udr",
+        "upf",
+    ]
     version = "2.3.6"
     architecture = "amd64"
 
@@ -114,20 +151,22 @@ def deploy_open5gs_5gc_packages(open5gs_package_directory, host):
     packages = ["open5gs-dauth-common_{}_{}.deb".format(version, architecture)]
 
     for component in components:
-        packages.append("open5gs-dauth-{}_{}_{}.deb".format(component, version, architecture))
+        packages.append(
+            "open5gs-dauth-{}_{}_{}.deb".format(component, version, architecture)
+        )
 
     connection = Connection(host)
     for package in packages:
         deb_path = Path(open5gs_package_directory, package).absolute()
         log.info("Deploying deb: %s to host %s", deb_path, host)
         connection.put(deb_path, remote="/tmp/", preserve_mode=False)
-        connection.sudo("dpkg --force-confnew --force-overwrite -i /tmp/{}".format(deb_path.name))
+        connection.sudo(
+            "dpkg --force-confnew --force-overwrite -i /tmp/{}".format(deb_path.name)
+        )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="deploy dauth in a test environment"
-    )
+    parser = argparse.ArgumentParser(description="deploy dauth in a test environment")
     parser.add_argument(
         "-b",
         "--build-dauth",
@@ -210,18 +249,27 @@ if __name__ == "__main__":
 
     log.debug("Proceeding with args: %s", args)
 
-    if not (args.build_dauth or args.build_open5gs or args.deploy_dauth or args.deploy_open5gs):
+    if not (
+        args.build_dauth
+        or args.build_open5gs
+        or args.deploy_dauth
+        or args.deploy_open5gs
+    ):
         log.error("No action specified!")
 
     if args.deploy_dauth_directory and len(args.dest_host) > 1:
         log.error("Cannot deploy the directory when multiple hosts are specified")
-        raise NotImplementedError("No way to differentiate which host receives the directory and which do not.")
+        raise NotImplementedError(
+            "No way to differentiate which host receives the directory and which do not."
+        )
 
     if args.fast_debug:
         cargo_target = "debug"
         log.warn("Doing a debug build! Don't use for any performance testing")
         open5gs_fast_unclean_build = True
-        log.warn("Building incrementally and may contain state from previous builds if unclean")
+        log.warn(
+            "Building incrementally and may contain state from previous builds if unclean"
+        )
     else:
         cargo_target = "release"
         open5gs_fast_unclean_build = False
@@ -250,7 +298,7 @@ if __name__ == "__main__":
         log.info("Deploying dauth directory package")
         if len(args.dest_host) == 0:
             log.error("Specified deploy but no deploy destinations provided")
-        assert(len(args.dest_host) == 1)
+        assert len(args.dest_host) == 1
         deploy_package(directory_package_path, args.dest_host[0])
 
     if args.deploy_open5gs:
