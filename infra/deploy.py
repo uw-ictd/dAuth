@@ -75,11 +75,15 @@ def deploy_package(package_path, host):
     result = Connection(host).sudo("dpkg --force-confdef --force-confold -i /tmp/{}".format(package_name))
 
 
-def build_open5gs_packages():
+def build_open5gs_packages(fast_build=False):
     """ Builds our open5gs deb packages from source via dpkg-buildpkg
     """
+    command = ["dpkg-buildpackage", "-us", "-uc", "--build=binary", "--compression-level=1", "--compression=gzip"]
 
-    subprocess.run(["dpkg-buildpackage", "-us", "-uc"],
+    if fast_build:
+        command += ["--no-pre-clean", "--no-post-clean"]
+
+    subprocess.run(command,
                    check=True,
                    cwd="../open5gs")
 
@@ -216,8 +220,11 @@ if __name__ == "__main__":
     if args.fast_debug:
         cargo_target = "debug"
         log.warn("Doing a debug build! Don't use for any performance testing")
+        open5gs_fast_unclean_build = True
+        log.warn("Building incrementally and may contain state from previous builds if unclean")
     else:
         cargo_target = "release"
+        open5gs_fast_unclean_build = False
 
     if args.build_dauth:
         log.info("Building dauth")
@@ -226,7 +233,7 @@ if __name__ == "__main__":
     if args.build_open5gs:
         log.info("Building open5gs")
         log.warning("Building and packaging open5gs may take a while : /")
-        build_open5gs_packages()
+        build_open5gs_packages(fast_build=open5gs_fast_unclean_build)
 
     if args.deploy_dauth:
         log.info("Building dauth package")
