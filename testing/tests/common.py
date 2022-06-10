@@ -47,6 +47,8 @@ class TestingState:
         self.ueransim: UeransimVM = \
             UeransimVM(config.vagrant_dir, config.ueransim_host)
         self.services = (self.service1, self.service2, self.service3, self.service4)
+        
+        self.error_log = "[\x1b[31m\x1b[1merror\x1b[m]"
 
     def reset(self):
         """
@@ -70,7 +72,7 @@ class TestingState:
         # Not ideal, but UERANSIM seems to need this delay to work correctly.
         # Without it, immediately adding gNBs and UEs causes the first 
         # connection request to fail.
-        sleep(3)
+        sleep(1)
 
     def start_and_check_gnb(self, config_path: str) -> None:
         """
@@ -79,7 +81,7 @@ class TestingState:
         Raises TestingException on failure.
         """
         gnb = self.ueransim.add_gnb(config_path)
-        res = self._find_or_timeout("NG Setup procedure is successful", "[\x1b[31m\x1b[1merror\x1b[m]", gnb.stdout)
+        res = self._find_or_timeout("NG Setup procedure is successful", 1, self.error_log, gnb.stdout)
     
         if res is not None:
             TestingLogger.logger.error("Failed to start gNB: \n   {}".format(res))
@@ -87,14 +89,14 @@ class TestingState:
         
         return gnb
     
-    def start_and_check_ue(self, config_path: str) -> None:
+    def start_and_check_ue(self, config_path: str, imsi: str, num_ues: int) -> None:
         """
         Attempts to start a gnb and check that it was successful.
         Returns the UE on success.
         Raises TestingException on failure.
         """
-        ue = self.ueransim.add_ue(config_path)
-        res = self._find_or_timeout("Connection setup for PDU session", "[\x1b[31m\x1b[1merror\x1b[m]", ue.stdout)
+        ue = self.ueransim.add_ue(config_path, imsi, num_ues)
+        res = self._find_or_timeout("Connection setup for PDU session", num_ues, None, ue.stdout)
         
         if res is not None:
             TestingLogger.logger.error("Failed to start UE: \n   {}".format(res))
@@ -102,26 +104,30 @@ class TestingState:
         
         return ue
         
-    def _find_or_timeout(self, success_string: str, error_string: str, 
+    def _find_or_timeout(self, success_string: str, num_success: int, error_string: str, 
                          stdout: ChannelFile, timeout_seconds: int=5) -> str:
         """
         Internal function that checks stdout for a particular string.
         Returns None on success, or stdout on failure.
         """
         res = []
+        success_found = 0
 
         try:
             with Timeout(seconds=timeout_seconds, error_message="Failed to confirm successful"):
                 for line in stdout:
                     if success_string in line:
-                        return None
+                        success_found += 1
                     else: 
                         res.append(line.strip())
                         if error_string and error_string in line:
-                            res.append("<<< Error string: '{}' >>>".format(error_string))
+                            res.append("<<< Error string: '{}', {} successes >>>".format(error_string,success_found))
                             return "\n   ".join(res)
+                        
+                    if success_found >= num_success:
+                        return None
         except TimeoutError:
-            res.append("<<< Timeout: {}s >>>".format(timeout_seconds))
+            res.append("<<< Timeout: {}s, {} successes >>>".format(timeout_seconds, success_found))
             return "\n   ".join(res)
 
 class TestingException(Exception):
