@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <chrono>
+
 #include <lib/crypt/milenage.hpp>
 #include <lib/nas/nas.hpp>
 #include <ue/nas/storage.hpp>
@@ -67,6 +69,10 @@ class NasMm
     int64_t m_lastTimeMmStateChange{};
     // Received NAS sequence numbers for replay protection
     std::deque<int> m_lastNasSequenceNums{};
+
+    // Time of last authentication start
+    std::chrono::time_point<std::chrono::steady_clock> m_last_auth_start;
+    std::chrono::time_point<std::chrono::steady_clock> m_last_registration_start;
 
     friend class UeCmdHandler;
     friend class NasSm;

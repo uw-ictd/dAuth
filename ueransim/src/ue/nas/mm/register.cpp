@@ -9,6 +9,7 @@
 #include "mm.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <lib/nas/utils.hpp>
 #include <ue/nas/task.hpp>
 
@@ -53,6 +54,8 @@ EProcRc NasMm::sendInitialRegistration(EInitialRegCause regCause)
     {
         return EProcRc::STAY;
     }
+
+    m_last_registration_start = std::chrono::steady_clock::now();
 
     m_logger->debug("Sending %s",
                     nas::utils::EnumToString(isEmergencyReg ? nas::ERegistrationType::EMERGENCY_REGISTRATION
@@ -433,6 +436,17 @@ void NasMm::receiveInitialRegistrationAccept(const nas::RegistrationAccept &msg)
         m_registeredForEmergency = true;
 
     m_logger->info("%s is successful", nas::utils::EnumToString(regType));
+
+    const auto end_registration_time = std::chrono::steady_clock::now();
+    const auto delta_since_registration = end_registration_time - m_last_registration_start;
+    const auto delta_since_auth = end_registration_time - m_last_auth_start;
+
+    // Assumes platform where long decimal == i64
+    m_logger->info(
+        "[dAUTH] {\"nanoseconds_since_registration\": %ld,\"nanoseconds_since_auth\": %ld}",
+        std::chrono::nanoseconds(delta_since_registration).count(),
+        std::chrono::nanoseconds(delta_since_auth).count()
+        );
 }
 
 void NasMm::receiveMobilityRegistrationAccept(const nas::RegistrationAccept &msg)
