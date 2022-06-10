@@ -2,7 +2,6 @@ import yaml
 from os import path
 from typing import List, Set, Union
 from paramiko.client import SSHClient
-from paramiko.channel import ChannelFile, ChannelStderrFile, ChannelStdinFile
 
 from vms.vm import VM
 from logger import TestingLogger
@@ -56,13 +55,13 @@ class UeransimVM(VM):
         self.gnbs.append(gnb)
         return gnb
 
-    def add_ue(self, config_path: str) -> "UE":
+    def add_ue(self, config_path: str, imsi: str, num: int) -> "UE":
         """
         Builds and starts a UE device.
         Returns the resulting UE object.
         """
 
-        ue = UE(self, config_path)
+        ue = UE(self, config_path, imsi, num)
         ue.start_device()
         self.ues.append(ue)
         return ue
@@ -97,6 +96,8 @@ class DeviceInstance:
         self.stdin = None
         self.stdout = None
         self.stderr = None
+        
+        self.extra_commands = []
 
     def start_device(self) -> None:
         """
@@ -108,10 +109,11 @@ class DeviceInstance:
 
             self.startup_tasks()
             self.generate_id()
+            
+            command_comps = ["sudo", path.join(self.node.build_path, self.device_type), "-c", self.config_path]
+            command_comps.extend(self.extra_commands)
 
-            command = "sudo {} -c {}".format(
-                path.join(self.node.build_path, self.device_type), 
-                self.config_path)
+            command = " ".join(command_comps)
             
             TestingLogger.log_cammand(self.node.host_name, command)
 
@@ -247,9 +249,13 @@ class UE(DeviceInstance):
     Represents a UE instance on the ueransim node.
     """
 
-    def __init__(self, node: UeransimVM, config_path: str) -> None:
+    def __init__(self, node: UeransimVM, config_path: str, imsi: str, num: int) -> None:
         super().__init__(node, config_path)
         self.device_type: str = "nr-ue"
+        self.imsi = imsi
+        self.num = num
+        
+        self.extra_commands = ["-i", imsi, "-n", str(num)]
 
     def generate_id(self) -> None:
         """
