@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <lib/nas/ie6.hpp>
 #include <lib/nas/utils.hpp>
 #include <ue/nas/task.hpp>
 
@@ -441,11 +442,13 @@ void NasMm::receiveInitialRegistrationAccept(const nas::RegistrationAccept &msg)
     const auto delta_since_registration = end_registration_time - m_last_registration_start;
     const auto delta_since_auth = end_registration_time - m_last_auth_start;
 
+    const auto ue_supi = m_base->config->supi.value().value;
     // Assumes platform where long decimal == i64
     m_logger->info(
-        "[dAUTH] {\"nanoseconds_since_registration\": %ld,\"nanoseconds_since_auth\": %ld}",
+        "[dAUTH] {\"nanoseconds_since_registration\": %ld,\"nanoseconds_since_auth\": %ld, \"ue_supi\": \"%s\"}",
         std::chrono::nanoseconds(delta_since_registration).count(),
-        std::chrono::nanoseconds(delta_since_auth).count()
+        std::chrono::nanoseconds(delta_since_auth).count(),
+        ue_supi.c_str()
         );
 }
 
