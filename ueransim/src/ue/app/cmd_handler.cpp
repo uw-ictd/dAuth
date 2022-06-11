@@ -7,6 +7,7 @@
 //
 
 #include "cmd_handler.hpp"
+#include "lib/app/cli_cmd.hpp"
 
 #include <ue/app/task.hpp>
 #include <ue/nas/task.hpp>
@@ -171,6 +172,15 @@ void UeCmdHandler::handleCmdImpl(NmUeCliCommand &msg)
             sendResult(msg.address, "De-registration procedure triggered");
         else
             sendResult(msg.address, "De-registration procedure triggered. UE device will be switched off.");
+        break;
+    }
+    case app::UeCliCommand::RECONNECT: {
+        m_base->nasTask->mm->m_logger->info("Running cli command reconnect");
+        if (m_base->nasTask->mm->startCommand(msg.cmd->command_id, msg.address)) {
+            m_base->nasTask->mm->reconnectRequired();
+        } else {
+            sendError(msg.address, "{\"result\":\"Err\",\"msg\":\"Failed to start reconnect due to in-progress command\"}");
+        }
         break;
     }
     case app::UeCliCommand::PS_RELEASE: {

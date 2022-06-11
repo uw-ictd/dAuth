@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <strstream>
 #include <lib/nas/ie6.hpp>
 #include <lib/nas/utils.hpp>
 #include <ue/nas/task.hpp>
@@ -450,6 +451,22 @@ void NasMm::receiveInitialRegistrationAccept(const nas::RegistrationAccept &msg)
         std::chrono::nanoseconds(delta_since_auth).count(),
         ue_supi.c_str()
         );
+
+    if (hasPendingExternalCommand()) {
+        std::ostrstream res_json;
+        res_json << "{\"result\":\"Ok\"," <<
+            "\"nanoseconds_since_auth\":" << std::chrono::nanoseconds(delta_since_auth).count() << "," <<
+            "\"nanoseconds_since_registration\":" << std::chrono::nanoseconds(delta_since_registration).count() << "," <<
+            "\"ue_supi\":\"" << ue_supi << "\"," <<
+            "\"command_tag\":" << m_command_tag << "}";
+
+        m_base->cliCallbackTask->push(std::make_unique<app::NwCliSendResponse>(
+            m_response_address,
+            res_json.str(),
+            false));
+        m_command_tag = 0;
+        m_external_command_in_progress = false;
+    }
 }
 
 void NasMm::receiveMobilityRegistrationAccept(const nas::RegistrationAccept &msg)

@@ -56,10 +56,13 @@ struct UeCliCommand
         DE_REGISTER,
         RLS_STATE,
         COVERAGE,
+        RECONNECT,
     } present;
 
     // DE_REGISTER
     EDeregCause deregCause{};
+
+    int64_t command_id;
 
     // PS_RELEASE
     std::array<int8_t, 16> psIds{};

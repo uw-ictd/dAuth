@@ -72,6 +72,11 @@ class NasMm
     std::chrono::time_point<std::chrono::steady_clock> m_last_auth_start;
     std::chrono::time_point<std::chrono::steady_clock> m_last_registration_start;
 
+    // Currently executing automation command
+    bool m_external_command_in_progress;
+    int64_t m_command_tag;
+    InetAddress m_response_address;
+
     friend class UeCmdHandler;
     friend class NasSm;
     friend class NasTask;
@@ -197,8 +202,11 @@ class NasMm
     void serviceRequestRequiredForSignalling();
     void serviceRequestRequired(EServiceReqCause cause);
     void deregistrationRequired(EDeregCause cause);
+    void reconnectRequired();
     void invokeProcedures();
     bool hasPendingProcedure();
+    bool hasPendingExternalCommand();
+    bool startCommand(const int64_t command_tag, const InetAddress response_address);
 
   private: /* Service Access Point */
     void handleRrcEvent(const NmUeRrcToNas &msg);

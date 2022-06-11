@@ -54,7 +54,15 @@ static EMmState GetMmStateFromSubState(EMmSubState subState)
     std::terminate();
 }
 
-NasMm::NasMm(TaskBase *base, NasTimers *timers) : m_base{base}, m_timers{timers}, m_sm{}, m_usim{}, m_procCtl{}
+NasMm::NasMm(TaskBase *base, NasTimers *timers) :
+    m_base{base},
+    m_timers{timers},
+    m_sm{},
+    m_usim{},
+    m_procCtl{},
+    m_external_command_in_progress(false),
+    m_command_tag(0),
+    m_response_address()
 {
     m_logger = base->logBase->makeUniqueLogger(base->config->getLoggerPrefix() + "nas");
 
