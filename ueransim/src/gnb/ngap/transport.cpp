@@ -109,11 +109,11 @@ void NgapTask::sendNgapNonUe(int associatedAmf, ASN_NGAP_NGAP_PDU *pdu)
         m_logger->err("NGAP APER encoding failed");
     else
     {
-        auto *msg = new NmGnbSctp(NmGnbSctp::SEND_MESSAGE);
+        auto msg = std::make_unique<NmGnbSctp>(NmGnbSctp::SEND_MESSAGE);
         msg->clientId = amf->ctxId;
         msg->stream = 0;
         msg->buffer = UniqueBuffer{buffer, static_cast<size_t>(encoded)};
-        m_base->sctpTask->push(msg);
+        m_base->sctpTask->push(std::move(msg));
 
         if (m_base->nodeListener)
         {
@@ -200,11 +200,11 @@ void NgapTask::sendNgapUeAssociated(int ueId, ASN_NGAP_NGAP_PDU *pdu)
         m_logger->err("NGAP APER encoding failed");
     else
     {
-        auto *msg = new NmGnbSctp(NmGnbSctp::SEND_MESSAGE);
+        auto msg = std::make_unique<NmGnbSctp>(NmGnbSctp::SEND_MESSAGE);
         msg->clientId = amf->ctxId;
         msg->stream = ue->uplinkStream;
         msg->buffer = UniqueBuffer{buffer, static_cast<size_t>(encoded)};
-        m_base->sctpTask->push(msg);
+        m_base->sctpTask->push(std::move(msg));
 
         if (m_base->nodeListener)
         {
@@ -375,7 +375,7 @@ bool NgapTask::handleSctpStreamId(int amfId, int stream, const ASN_NGAP_NGAP_PDU
                 return false;
             }
 
-            long id = static_cast<long>(*reinterpret_cast<ASN_NGAP_RAN_UE_NGAP_ID_t *>(ptr));
+            auto id = static_cast<int64_t>(*reinterpret_cast<ASN_NGAP_RAN_UE_NGAP_ID_t *>(ptr));
             auto *ue = findUeByRanId(id);
             if (ue == nullptr)
                 return false;

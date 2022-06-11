@@ -48,14 +48,14 @@ int CreateSocket()
 
 void BindSocket(int sd, const std::string &address, uint16_t port)
 {
-    auto *addr = (sockaddr *)std::malloc(sizeof(sockaddr));
-    std::memset(addr, 0, sizeof(sockaddr_in));
+    sockaddr addr = {};
+    std::memset(&addr, 0, sizeof(sockaddr_in));
 
     int ipVersion = utils::GetIpVersion(address);
 
     if (ipVersion == 4)
     {
-        auto addr4 = (sockaddr_in *)addr;
+        auto addr4 = (sockaddr_in *)&addr;
         addr4->sin_family = AF_INET;
         addr4->sin_port = htons(port);
 
@@ -63,11 +63,17 @@ void BindSocket(int sd, const std::string &address, uint16_t port)
             ThrowError("Bad IPv4 address.");
     }
     else if (ipVersion == 6)
-        ThrowError("IPv6 for SCTP is not supported yet.");
+    {
+        auto addr6 = (sockaddr_in6 *)&addr;
+        addr6->sin6_family = AF_INET6;
+        addr6->sin6_port = htons(port);
+        if (inet_pton(AF_INET6, address.c_str(), &(addr6->sin6_addr)) != 1)
+            ThrowError("Bad IPv6 address.");
+    }
     else
         ThrowError("Bad IPv4 or IPv6 address.");
 
-    if (sctp_bindx(sd, addr, 1, SCTP_BINDX_ADD_ADDR))
+    if (sctp_bindx(sd, &addr, 1, SCTP_BINDX_ADD_ADDR))
         ThrowError("SCTP bind failed: ", errno);
 }
 

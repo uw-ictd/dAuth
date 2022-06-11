@@ -55,14 +55,15 @@ void GnbRrcTask::handleDownlinkNasDelivery(int ueId, const OctetString &nasPdu)
     asn::SetOctetString(*c1.choice.dlInformationTransfer->dedicatedNAS_Message, nasPdu);
 
     sendRrcMessage(ueId, pdu);
+    asn::Free(asn_DEF_ASN_RRC_DL_DCCH_Message, pdu);
 }
 
 void GnbRrcTask::deliverUplinkNas(int ueId, OctetString &&nasPdu)
 {
-    auto *w = new NmGnbRrcToNgap(NmGnbRrcToNgap::UPLINK_NAS_DELIVERY);
+    auto w = std::make_unique<NmGnbRrcToNgap>(NmGnbRrcToNgap::UPLINK_NAS_DELIVERY);
     w->ueId = ueId;
     w->pdu = std::move(nasPdu);
-    m_base->ngapTask->push(w);
+    m_base->ngapTask->push(std::move(w));
 }
 
 void GnbRrcTask::receiveUplinkInformationTransfer(int ueId, const ASN_RRC_ULInformationTransfer &msg)
@@ -87,6 +88,7 @@ void GnbRrcTask::releaseConnection(int ueId)
     rrcRelease->criticalExtensions.choice.rrcRelease = asn::New<ASN_RRC_RRCRelease_IEs>();
 
     sendRrcMessage(ueId, pdu);
+    asn::Free(asn_DEF_ASN_RRC_DL_DCCH_Message, pdu);
 
     // Delete UE RRC context
     m_ueCtx.erase(ueId);
@@ -95,9 +97,9 @@ void GnbRrcTask::releaseConnection(int ueId)
 void GnbRrcTask::handleRadioLinkFailure(int ueId)
 {
     // Notify NGAP task
-    auto *w = new NmGnbRrcToNgap(NmGnbRrcToNgap::RADIO_LINK_FAILURE);
+    auto w = std::make_unique<NmGnbRrcToNgap>(NmGnbRrcToNgap::RADIO_LINK_FAILURE);
     w->ueId = ueId;
-    m_base->ngapTask->push(w);
+    m_base->ngapTask->push(std::move(w));
 
     // Delete UE RRC context
     m_ueCtx.erase(ueId);
@@ -129,6 +131,7 @@ void GnbRrcTask::handlePaging(const asn::Unique<ASN_NGAP_FiveG_S_TMSI> &tmsi,
     asn::SequenceAdd(*paging->pagingRecordList, record);
 
     sendRrcMessage(pdu);
+    asn::Free(asn_DEF_ASN_RRC_PCCH_Message, pdu);
 }
 
 } // namespace nr::gnb

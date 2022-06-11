@@ -9,7 +9,6 @@
 #pragma once
 
 #include <string>
-
 #include <utils/network.hpp>
 
 namespace udp
@@ -18,7 +17,7 @@ namespace udp
 class UdpServer
 {
   private:
-    Socket socket;
+    std::vector<Socket> sockets;
 
   public:
     UdpServer();

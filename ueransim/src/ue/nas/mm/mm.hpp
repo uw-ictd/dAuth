@@ -67,8 +67,6 @@ class NasMm
     int64_t m_lastTimePlmnSearchFailureLogged{};
     // Last time MM state changed
     int64_t m_lastTimeMmStateChange{};
-    // Received NAS sequence numbers for replay protection
-    std::deque<int> m_lastNasSequenceNums{};
 
     // Time of last authentication start
     std::chrono::time_point<std::chrono::steady_clock> m_last_auth_start;
