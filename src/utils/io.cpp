@@ -219,36 +219,71 @@ std::string GetIp4OfInterface(const std::string &ifName)
     return std::string{str};
 }
 
+std::string GetIp6OfInterface(const std::string &ifName)
+{
+    std::string res;
+
+    struct ifreq ifr = {};
+
+    int fd = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (fd <= 0)
+        return "";
+
+    ifr.ifr_addr.sa_family = AF_INET6;
+    strncpy(ifr.ifr_name, ifName.c_str(), IFNAMSIZ - 1);
+
+    if (ioctl(fd, SIOCGIFADDR, &ifr))
+    {
+        close(fd);
+        return "";
+    }
+
+    close(fd);
+
+    auto address = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+
+    char str[INET6_ADDRSTRLEN] = {0};
+    if (inet_ntop(AF_INET6, &address, str, INET6_ADDRSTRLEN) == nullptr)
+        return "";
+
+    return std::string{str};
+}
+
 std::string GetHostByName(const std::string &name)
 {
     struct addrinfo hints = {};
+    struct addrinfo *res;
 
-    hints.ai_family = PF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags |= AI_CANONNAME;
+    hints.ai_family = AF_UNSPEC;
 
-    auto* res = gethostbyname(name.c_str());
-    if (res == nullptr)
-        return "";
-    if (res->h_addr_list == nullptr)
+    if (getaddrinfo(name.c_str(), NULL, &hints, &res))
         return "";
 
-    if (res->h_addrtype == AF_INET)
+    if (res->ai_family == AF_INET)
     {
         char str[INET_ADDRSTRLEN] = {0};
-        if (inet_ntop(AF_INET, res->h_addr_list[0], str, INET_ADDRSTRLEN) == nullptr)
+        if (inet_ntop(AF_INET, &((struct sockaddr_in*)res->ai_addr)->sin_addr, str, INET_ADDRSTRLEN) == nullptr)
+        {
+            freeaddrinfo(res);
             return "";
+        }
+        freeaddrinfo(res);
         return std::string{str};
     }
-    else if (res->h_addrtype == AF_INET)
+    else if (res->ai_family == AF_INET6)
     {
         char str[INET6_ADDRSTRLEN] = {0};
-        if (inet_ntop(AF_INET6, res->h_addr_list[0], str, INET6_ADDRSTRLEN) == nullptr)
+        if (inet_ntop(AF_INET6, &((struct sockaddr_in6*)res->ai_addr)->sin6_addr, str, INET6_ADDRSTRLEN) == nullptr)
+        {
+            freeaddrinfo(res);
             return "";
+        }
+        freeaddrinfo(res);
         return std::string{str};
     }
     else
     {
+        freeaddrinfo(res);
         return "";
     }
 }

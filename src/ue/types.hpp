@@ -178,8 +178,8 @@ struct UeSharedContext
     Locked<ActiveCellInfo> currentCell;
     Locked<std::vector<Tai>> forbiddenTaiRoaming;
     Locked<std::vector<Tai>> forbiddenTaiRps;
-    Locked<GutiMobileIdentity> providedGuti;
-    Locked<GutiMobileIdentity> providedTmsi;
+    Locked<std::optional<GutiMobileIdentity>> providedGuti;
+    Locked<std::optional<GutiMobileIdentity>> providedTmsi;
 
     Plmn getCurrentPlmn();
     Tai getCurrentTai();
@@ -423,6 +423,8 @@ struct NasSecurityContext
     nas::ETypeOfIntegrityProtectionAlgorithm integrity{};
     nas::ETypeOfCipheringAlgorithm ciphering{};
 
+    std::deque<int> lastNasSequenceNums{};
+
     void updateDownlinkCount(const NasCount &validatedCount)
     {
         downlinkCount.overflow = validatedCount.overflow;
@@ -476,6 +478,7 @@ struct NasSecurityContext
         ctx.keys = keys.deepCopy();
         ctx.integrity = integrity;
         ctx.ciphering = ciphering;
+        ctx.lastNasSequenceNums = lastNasSequenceNums;
         return ctx;
     }
 };

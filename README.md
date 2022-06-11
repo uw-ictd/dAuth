@@ -2,7 +2,7 @@
   <a href="https://github.com/aligungr/UERANSIM"><img src="/.github/logo.png" width="75" title="UERANSIM"></a>
 </p>
 <p align="center">
-<img src="https://img.shields.io/badge/UERANSIM-v3.2.4-blue" />
+<img src="https://img.shields.io/badge/UERANSIM-v3.2.6-blue" />
 <img src="https://img.shields.io/badge/3GPP-R15-orange" />
 <img src="https://img.shields.io/badge/License-GPL--3.0-green"/>
 </p>
@@ -22,11 +22,10 @@ using it.
 In terms of 3GPP coverage, fundamental control plane features are done. However, some of them are in progress.
 More details can be found at [Feature Set](https://github.com/aligungr/UERANSIM/wiki/Feature-Set).
 
-At the same time, 5G-NR radio interface is under development but not complete yet. Currently we utilize the radio
-interface over a simulated environment.
+Meanwhile, 5G-NR radio interface is partially implemented, and simulated over UDP protocol.
 
 <p align="center">
-<img src="https://img.shields.io/badge/Radio%20Interface-in%20progress-orange" alt="OS Linux"/>
+<img src="https://img.shields.io/badge/Radio%20Interface-simulated-orange" alt="OS Linux"/>
 <img src="https://img.shields.io/badge/Control%20Plane-functional-green" alt="OS Linux"/>  
 <img src="https://img.shields.io/badge/User%20Plane-functional-green" alt="OS Linux"/>
 </p>

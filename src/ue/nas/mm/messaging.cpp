@@ -147,23 +147,23 @@ EProcRc NasMm::sendNasMessage(const nas::PlainMmMessage &msg)
                 auto copy = nas::utils::DeepCopyMsg(msg);
                 RemoveCleartextIEs((nas::PlainMmMessage &)*copy, std::move(originalPdu));
 
-                auto copySecured = nas_enc::Encrypt(*m_usim->m_currentNsCtx, (nas::PlainMmMessage &)*copy, true);
+                auto copySecured = nas_enc::Encrypt(*m_usim->m_currentNsCtx, (nas::PlainMmMessage &)*copy, true, true);
                 nas::EncodeNasMessage(*copySecured, pdu);
             }
             else
             {
-                auto secured = nas_enc::Encrypt(*m_usim->m_currentNsCtx, msg, true);
+                auto secured = nas_enc::Encrypt(*m_usim->m_currentNsCtx, msg, true, false);
                 nas::EncodeNasMessage(*secured, pdu);
             }
         }
         else if (msg.messageType == nas::EMessageType::DEREGISTRATION_REQUEST_UE_ORIGINATING)
         {
-            auto secured = nas_enc::Encrypt(*m_usim->m_currentNsCtx, msg, true);
+            auto secured = nas_enc::Encrypt(*m_usim->m_currentNsCtx, msg, true, false);
             nas::EncodeNasMessage(*secured, pdu);
         }
         else
         {
-            auto secured = nas_enc::Encrypt(*m_usim->m_currentNsCtx, msg, false);
+            auto secured = nas_enc::Encrypt(*m_usim->m_currentNsCtx, msg, false, false);
             nas::EncodeNasMessage(*secured, pdu);
         }
     }
@@ -182,10 +182,10 @@ EProcRc NasMm::sendNasMessage(const nas::PlainMmMessage &msg)
         }
     }
 
-    auto *m = new NmUeNasToRrc(NmUeNasToRrc::UPLINK_NAS_DELIVERY);
+    auto m = std::make_unique<NmUeNasToRrc>(NmUeNasToRrc::UPLINK_NAS_DELIVERY);
     m->pduId = 0;
     m->nasPdu = std::move(pdu);
-    m_base->rrcTask->push(m);
+    m_base->rrcTask->push(std::move(m));
 
     return EProcRc::OK;
 }
@@ -363,13 +363,18 @@ bool NasMm::checkForReplay(const nas::SecuredMmMessage &msg)
 {
     int n = static_cast<int>(msg.sequenceNumber);
 
-    for (int seq : m_lastNasSequenceNums)
-        if (seq == n)
-            return false;
+    if (m_usim->m_currentNsCtx)
+    {
+        auto &lastNasSequenceNums = m_usim->m_currentNsCtx->lastNasSequenceNums;
 
-    m_lastNasSequenceNums.push_back(n);
-    while (m_lastNasSequenceNums.size() > 16)
-        m_lastNasSequenceNums.pop_front();
+        for (int seq : lastNasSequenceNums)
+            if (seq == n)
+                return false;
+
+        lastNasSequenceNums.push_back(n);
+        while (lastNasSequenceNums.size() > 16)
+            lastNasSequenceNums.pop_front();
+    }
 
     return true;
 }

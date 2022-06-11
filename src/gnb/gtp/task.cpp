@@ -48,55 +48,53 @@ void GtpTask::onQuit()
 
 void GtpTask::onLoop()
 {
-    NtsMessage *msg = take();
+    auto msg = take();
     if (!msg)
         return;
 
     switch (msg->msgType)
     {
     case NtsMessageType::GNB_NGAP_TO_GTP: {
-        auto *w = dynamic_cast<NmGnbNgapToGtp *>(msg);
-        switch (w->present)
+        auto &w = dynamic_cast<NmGnbNgapToGtp &>(*msg);
+        switch (w.present)
         {
         case NmGnbNgapToGtp::UE_CONTEXT_UPDATE: {
-            handleUeContextUpdate(*w->update);
+            handleUeContextUpdate(*w.update);
             break;
         }
         case NmGnbNgapToGtp::UE_CONTEXT_RELEASE: {
-            handleUeContextDelete(w->ueId);
+            handleUeContextDelete(w.ueId);
             break;
         }
         case NmGnbNgapToGtp::SESSION_CREATE: {
-            handleSessionCreate(w->resource);
+            handleSessionCreate(w.resource);
             break;
         }
         case NmGnbNgapToGtp::SESSION_RELEASE: {
-            handleSessionRelease(w->ueId, w->psi);
+            handleSessionRelease(w.ueId, w.psi);
             break;
         }
         }
         break;
     }
     case NtsMessageType::GNB_RLS_TO_GTP: {
-        auto *w = dynamic_cast<NmGnbRlsToGtp *>(msg);
-        switch (w->present)
+        auto &w = dynamic_cast<NmGnbRlsToGtp &>(*msg);
+        switch (w.present)
         {
         case NmGnbRlsToGtp::DATA_PDU_DELIVERY: {
-            handleUplinkData(w->ueId, w->psi, std::move(w->pdu));
+            handleUplinkData(w.ueId, w.psi, std::move(w.pdu));
             break;
         }
         }
         break;
     }
     case NtsMessageType::UDP_SERVER_RECEIVE:
-        handleUdpReceive(*dynamic_cast<udp::NwUdpServerReceive *>(msg));
+        handleUdpReceive(dynamic_cast<udp::NwUdpServerReceive &>(*msg));
         break;
     default:
-        m_logger->unhandledNts(msg);
+        m_logger->unhandledNts(*msg);
         break;
     }
-
-    delete msg;
 }
 
 void GtpTask::handleUeContextUpdate(const GtpUeContextUpdate &msg)
@@ -142,11 +140,14 @@ void GtpTask::handleSessionRelease(int ueId, int psi)
     m_rateLimiter->updateUeDownlinkLimit(ueId, 0);
 
     // And remove from PDU session table
-    uint32_t teid = m_pduSessions[sessionInd]->downTunnel.teid;
-    m_pduSessions.erase(sessionInd);
+    if (m_pduSessions.count(sessionInd))
+    {
+        uint32_t teid = m_pduSessions[sessionInd]->downTunnel.teid;
+        m_pduSessions.erase(sessionInd);
 
-    // And remove from the tree
-    m_sessionTree.remove(sessionInd, teid);
+        // And remove from the tree
+        m_sessionTree.remove(sessionInd, teid);
+    }
 }
 
 void GtpTask::handleUeContextDelete(int ueId)
@@ -206,9 +207,9 @@ void GtpTask::handleUplinkData(int ueId, int psi, OctetString &&pdu)
         // TODO: currently using first QSI
         ul->qfi = static_cast<int>(pduSession->qosFlows->list.array[0]->qosFlowIdentifier);
 
-        auto cont = new gtp::PduSessionContainerExtHeader();
+        auto cont = std::make_unique<gtp::PduSessionContainerExtHeader>();
         cont->pduSessionInformation = std::move(ul);
-        gtp.extHeaders.push_back(std::unique_ptr<gtp::GtpExtHeader>(cont));
+        gtp.extHeaders.push_back(std::move(cont));
 
         OctetString gtpPdu;
         if (!gtp::EncodeGtpMessage(gtp, gtpPdu))
@@ -221,33 +222,29 @@ void GtpTask::handleUplinkData(int ueId, int psi, OctetString &&pdu)
 void GtpTask::handleUdpReceive(const udp::NwUdpServerReceive &msg)
 {
     OctetView buffer{msg.packet};
-    auto *gtp = gtp::DecodeGtpMessage(buffer);
+    auto gtp = gtp::DecodeGtpMessage(buffer);
 
     auto sessionInd = m_sessionTree.findByDownTeid(gtp->teid);
     if (sessionInd == 0)
     {
         m_logger->err("TEID %d not found on GTP-U Downlink", gtp->teid);
-        delete gtp;
         return;
     }
 
     if (gtp->msgType != gtp::GtpMessage::MT_G_PDU)
     {
         m_logger->err("Unhandled GTP-U message type: %d", gtp->msgType);
-        delete gtp;
         return;
     }
 
     if (m_rateLimiter->allowDownlinkPacket(sessionInd, gtp->payload.length()))
     {
-        auto *w = new NmGnbGtpToRls(NmGnbGtpToRls::DATA_PDU_DELIVERY);
+        auto w = std::make_unique<NmGnbGtpToRls>(NmGnbGtpToRls::DATA_PDU_DELIVERY);
         w->ueId = GetUeId(sessionInd);
         w->psi = GetPsi(sessionInd);
         w->pdu = std::move(gtp->payload);
-        m_base->rlsTask->push(w);
+        m_base->rlsTask->push(std::move(w));
     }
-
-    delete gtp;
 }
 
 void GtpTask::updateAmbrForUe(int ueId)
