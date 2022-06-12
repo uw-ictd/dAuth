@@ -461,12 +461,12 @@ void NasMm::receiveInitialRegistrationAccept(const nas::RegistrationAccept &msg)
             "\"ue_supi\":\"" << ue_supi << "\"," <<
             "\"command_tag\":" << m_command_tag << "}"<< std::ends;
 
+        m_command_tag = 0;
+        m_external_command_in_progress = false;
         m_base->cliCallbackTask->push(std::make_unique<app::NwCliSendResponse>(
             m_response_address,
             res_json.str(),
             false));
-        m_command_tag = 0;
-        m_external_command_in_progress = false;
     }
 }
 
