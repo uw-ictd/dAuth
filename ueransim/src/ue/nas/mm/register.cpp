@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <ostream>
 #include <strstream>
 #include <lib/nas/ie6.hpp>
 #include <lib/nas/utils.hpp>
@@ -458,7 +459,7 @@ void NasMm::receiveInitialRegistrationAccept(const nas::RegistrationAccept &msg)
             "\"nanoseconds_since_auth\":" << std::chrono::nanoseconds(delta_since_auth).count() << "," <<
             "\"nanoseconds_since_registration\":" << std::chrono::nanoseconds(delta_since_registration).count() << "," <<
             "\"ue_supi\":\"" << ue_supi << "\"," <<
-            "\"command_tag\":" << m_command_tag << "}";
+            "\"command_tag\":" << m_command_tag << "}"<< std::ends;
 
         m_base->cliCallbackTask->push(std::make_unique<app::NwCliSendResponse>(
             m_response_address,
