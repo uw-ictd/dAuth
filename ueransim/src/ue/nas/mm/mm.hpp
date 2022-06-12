@@ -72,6 +72,9 @@ class NasMm
     std::chrono::time_point<std::chrono::steady_clock> m_last_auth_start;
     std::chrono::time_point<std::chrono::steady_clock> m_last_registration_start;
 
+    int64_t m_last_auth_duration_ns;
+    int64_t m_last_registration_duration_ns;
+
     // Currently executing automation command
     bool m_external_command_in_progress;
     int64_t m_command_tag;

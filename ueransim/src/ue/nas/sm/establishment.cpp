@@ -8,8 +8,10 @@
 
 #include "sm.hpp"
 #include <algorithm>
+#include <chrono>
 #include <lib/nas/proto_conf.hpp>
 #include <lib/nas/utils.hpp>
+#include <strstream>
 #include <ue/app/task.hpp>
 #include <ue/nas/mm/mm.hpp>
 
@@ -175,6 +177,37 @@ void NasSm::receiveEstablishmentAccept(const nas::PduSessionEstablishmentAccept 
     m_base->appTask->push(std::move(statusUpdate));
 
     m_logger->info("PDU Session establishment is successful PSI[%d]", pduSession->psi);
+
+    // Now that the session has been established, report back to the external test harness.
+    const auto end_session_establishment_time = std::chrono::steady_clock::now();
+    const auto session_delta_since_registration = end_session_establishment_time - m_mm->m_last_registration_start;
+
+    const auto ue_supi = m_base->config->supi.value().value;
+    // Assumes platform where long decimal == i64
+    m_logger->info("Sending Setup Timing Report: %ld",
+        std::chrono::nanoseconds(session_delta_since_registration).count()
+        );
+
+    if (m_mm->hasPendingExternalCommand()) {
+        std::ostrstream res_json;
+        res_json << "{\"result\":\"Ok\"," <<
+            "\"nanoseconds_since_auth\":" << m_mm->m_last_auth_duration_ns << "," <<
+            "\"nanoseconds_since_registration\":" << m_mm->m_last_registration_duration_ns << "," <<
+            "\"nanoseconds_to_establish_session\":" << std::chrono::nanoseconds(session_delta_since_registration).count() << "," <<
+            "\"ue_supi\":\"" << ue_supi << "\"," <<
+            "\"command_tag\":" << m_mm->m_command_tag << "}"<< std::ends;
+
+        // TODO (matt9j) I think these variables might also need to be
+        // synchronized, but I'm not exactly sure of the calling model, and
+        // think they are okay if only modified from within the mm context.
+        m_mm->m_command_tag = 0;
+        m_mm->m_external_command_in_progress = false;
+        m_base->cliCallbackTask->push(std::make_unique<app::NwCliSendResponse>(
+            m_mm->m_response_address,
+            res_json.str(),
+            false));
+    }
+
 }
 
 void NasSm::receiveEstablishmentReject(const nas::PduSessionEstablishmentReject &msg)

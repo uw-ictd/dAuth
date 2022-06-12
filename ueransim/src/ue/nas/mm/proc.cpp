@@ -104,7 +104,7 @@ void NasMm::deregistrationRequired(EDeregCause cause)
 void NasMm::reconnectRequired()
 {
     if (m_mmState != EMmState::MM_NULL) {
-        m_logger->err("Requested reconnect when not in disconnected state");
+        m_logger->err("Requested reconnect when not in disconnected state %d", m_mmState);
     }
 
     // Switch back to the main active initial state

@@ -60,6 +60,8 @@ NasMm::NasMm(TaskBase *base, NasTimers *timers) :
     m_sm{},
     m_usim{},
     m_procCtl{},
+    m_last_auth_duration_ns{0},
+    m_last_registration_duration_ns{0},
     m_external_command_in_progress(false),
     m_command_tag(0),
     m_response_address()

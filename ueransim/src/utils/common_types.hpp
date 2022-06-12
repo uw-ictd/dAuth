@@ -136,6 +136,7 @@ enum class EDeregCause
     USIM_REMOVAL,
     DISABLE_5G,
     ECALL_INACTIVITY,
+    SYNC_DISABLE_5G,
 };
 
 enum class EInitialRegCause

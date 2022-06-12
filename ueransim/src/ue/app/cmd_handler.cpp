@@ -166,6 +166,19 @@ void UeCmdHandler::handleCmdImpl(NmUeCliCommand &msg)
         break;
     }
     case app::UeCliCommand::DE_REGISTER: {
+        // Don't immediately send the result message if doing a synchronous deregister.
+        if (msg.cmd->deregCause == EDeregCause::SYNC_DISABLE_5G) {
+            m_base->nasTask->mm->m_logger->debug("Running cli command sync deregister");
+
+            if (m_base->nasTask->mm->startCommand(1337, msg.address)) {
+                m_base->nasTask->mm->deregistrationRequired(EDeregCause::DISABLE_5G);
+            } else {
+                sendError(msg.address, "{\"result\":\"Err\",\"msg\":\"Failed to start synchronous deregister due to in-progress command\"}");
+            }
+
+            break;
+        }
+
         m_base->nasTask->mm->deregistrationRequired(msg.cmd->deregCause);
 
         if (msg.cmd->deregCause != EDeregCause::SWITCH_OFF)

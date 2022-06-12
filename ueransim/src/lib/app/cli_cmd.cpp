@@ -7,6 +7,7 @@
 //
 
 #include "cli_cmd.hpp"
+#include "utils/common_types.hpp"
 
 #include <cstdint>
 #include <optional>
@@ -169,7 +170,7 @@ static OrderedMap<std::string, CmdEntry> g_ueCmdEntries = {
     {"ps-release", {"Trigger a PDU session release procedure", "<pdu-session-id>...", DefaultDesc, true}},
     {"ps-release-all", {"Trigger PDU session release procedures for all active sessions", "", DefaultDesc, false}},
     {"deregister",
-     {"Perform a de-registration by the UE", "<normal|disable-5g|switch-off|remove-sim>", DefaultDesc, true}},
+     {"Perform a de-registration by the UE", "<normal|disable-5g|switch-off|remove-sim|sync-disable-5g>", DefaultDesc, true}},
     {"reconnect",
      {"reconnect to the network", "[optional int64 command id int_64]", DefaultDesc, false}},
 };
@@ -254,11 +255,13 @@ static std::unique_ptr<UeCliCommand> UeCliParseImpl(const std::string &subCmd, c
             cmd->deregCause = EDeregCause::SWITCH_OFF;
         else if (type == "disable-5g")
             cmd->deregCause = EDeregCause::DISABLE_5G;
+        else if (type == "sync-disable-5g")
+            cmd->deregCause = EDeregCause::SYNC_DISABLE_5G;
         else if (type == "remove-sim")
             cmd->deregCause = EDeregCause::USIM_REMOVAL;
         else
             CMD_ERR("Invalid de-registration type, possible values are: \"normal\", \"disable-5g\", \"switch-off\", "
-                    "\"remove-sim\"")
+                    "\"remove-sim\", \"sync-disable-5g\"")
         return cmd;
     }
     else if (subCmd == "reconnect")

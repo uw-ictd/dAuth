@@ -454,19 +454,9 @@ void NasMm::receiveInitialRegistrationAccept(const nas::RegistrationAccept &msg)
         );
 
     if (hasPendingExternalCommand()) {
-        std::ostrstream res_json;
-        res_json << "{\"result\":\"Ok\"," <<
-            "\"nanoseconds_since_auth\":" << std::chrono::nanoseconds(delta_since_auth).count() << "," <<
-            "\"nanoseconds_since_registration\":" << std::chrono::nanoseconds(delta_since_registration).count() << "," <<
-            "\"ue_supi\":\"" << ue_supi << "\"," <<
-            "\"command_tag\":" << m_command_tag << "}"<< std::ends;
-
-        m_command_tag = 0;
-        m_external_command_in_progress = false;
-        m_base->cliCallbackTask->push(std::make_unique<app::NwCliSendResponse>(
-            m_response_address,
-            res_json.str(),
-            false));
+        // Store values but don't send the response until after the entire auth flow is complete.
+        m_last_auth_duration_ns = std::chrono::nanoseconds(delta_since_auth).count();
+        m_last_registration_duration_ns = std::chrono::nanoseconds(delta_since_registration).count();
     }
 }
 

@@ -39,7 +39,7 @@ class UeransimUe(object):
         # Setup the control socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(("127.0.0.1", 0))
-        self.sock.settimeout(3.0)
+        self.sock.settimeout(5.0)
         log.info(f"Communicating with {name} at port {self.ue_process_control_port} from {self.sock.getsockname()}")
 
         # Communication metadata
@@ -101,9 +101,9 @@ class UeransimUe(object):
 test_ue = UeransimUe(name="imsi-901700000000001")
 print(test_ue.request_echo("FISHSTICKS"))
 
+time.sleep(5)
 
 for i in range(100):
     print(f"-------- {i} -------")
-    print(test_ue.send_command("deregister disable-5g"))
+    print(test_ue.send_command("deregister sync-disable-5g"))
     print(test_ue.send_command("reconnect {}".format(10)))
-    time.sleep(1)
