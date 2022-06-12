@@ -6,6 +6,8 @@
 // and subject to the terms and conditions defined in LICENSE file.
 //
 
+#include <strstream>
+
 #include "mm.hpp"
 
 #include <lib/nas/utils.hpp>
@@ -97,8 +99,34 @@ void NasMm::triggerMmCycle()
 void NasMm::performMmCycle()
 {
     /* Do nothing in case of MM-NULL */
-    if (m_mmState == EMmState::MM_NULL)
+    if (m_mmState == EMmState::MM_NULL) {
+        m_logger->debug("In State null handler");
+        if (m_cmState == ECmState::CM_IDLE) {
+            m_logger->debug("In cm idle handler");
+            // Fully Disconnected, so output disconnect status if necessary
+            if (hasPendingExternalCommand()) {
+                m_logger->debug("Sending callback!");
+                const auto ue_supi = m_base->config->supi.value().value;
+
+                std::ostrstream res_json;
+                res_json << "{\"result\":\"Ok\"," <<
+                    "\"ue_supi\":\"" << ue_supi << "\"," <<
+                    "\"command_tag\":" << m_command_tag << "}"<< std::ends;
+
+                // TODO (matt9j) I think these variables might also need to be
+                // synchronized, but I'm not exactly sure of the calling model, and
+                // think they are okay if only modified from within the mm context.
+                m_command_tag = 0;
+                m_external_command_in_progress = false;
+                m_base->cliCallbackTask->push(std::make_unique<app::NwCliSendResponse>(
+                    m_response_address,
+                    res_json.str(),
+                    false));
+            }
+        }
+
         return;
+    }
 
     auto currentCell = m_base->shCtx.currentCell.get();
     Tai currentTai = Tai{currentCell.plmn, currentCell.tac};
@@ -287,6 +315,7 @@ void NasMm::switchCmState(ECmState state)
                                        ToJson(oldState).str(), ToJson(m_cmState).str());
     }
 
+    m_logger->debug("Triggering mm cycle from cm state change");
     triggerMmCycle();
 }
 

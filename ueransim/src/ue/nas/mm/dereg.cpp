@@ -6,8 +6,6 @@
 // and subject to the terms and conditions defined in LICENSE file.
 //
 
-#include <strstream>
-
 #include "mm.hpp"
 
 #include <lib/nas/utils.hpp>
@@ -142,25 +140,6 @@ void NasMm::receiveDeregistrationAccept(const nas::DeRegistrationAcceptUeOrigina
         switchMmState(EMmSubState::MM_DEREGISTERED_PS);
 
     m_logger->info("De-registration is successful");
-
-    if (hasPendingExternalCommand()) {
-        const auto ue_supi = m_base->config->supi.value().value;
-
-        std::ostrstream res_json;
-        res_json << "{\"result\":\"Ok\"," <<
-            "\"ue_supi\":\"" << ue_supi << "\"," <<
-            "\"command_tag\":" << m_command_tag << "}"<< std::ends;
-
-        // TODO (matt9j) I think these variables might also need to be
-        // synchronized, but I'm not exactly sure of the calling model, and
-        // think they are okay if only modified from within the mm context.
-        m_command_tag = 0;
-        m_external_command_in_progress = false;
-        m_base->cliCallbackTask->push(std::make_unique<app::NwCliSendResponse>(
-            m_response_address,
-            res_json.str(),
-            false));
-    }
 }
 
 void NasMm::receiveDeregistrationRequest(const nas::DeRegistrationRequestUeTerminated &msg)
