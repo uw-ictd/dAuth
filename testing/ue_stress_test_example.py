@@ -10,7 +10,7 @@ from enum import IntEnum
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
 
 class UERANSIM_MESSAGE_KIND(IntEnum):
     EMPTY = 0
@@ -20,14 +20,14 @@ class UERANSIM_MESSAGE_KIND(IntEnum):
     COMMAND = 4
 
 class UeransimUe(object):
-    def __init__(self, name):
+    def __init__(self, name, config_index=""):
         # Start the actual UE process
         # ToDo Make sure the imsi and keys make sense when generating many ues
         self.process_handle = subprocess.Popen(
-            ["/home/vagrant/ueransim/nr-ue", "-c", "/home/vagrant/configs/ueransim/ue.yaml", "--no-routing-config"],
+            ["/home/vagrant/ueransim/nr-ue", "-c", f"/home/vagrant/configs/ueransim/ue{config_index}.yaml", "--no-routing-config"],
             stderr=subprocess.PIPE,
-            #stdout=subprocess.DEVNULL,
-            stdout=None,
+            stdout=subprocess.DEVNULL,
+            #stdout=None,
             )
         # For now register a kill at exit for each process, I'm not sure if this breaks garbage collection though...
         atexit.register(lambda :self.process_handle.kill())
@@ -98,12 +98,13 @@ class UeransimUe(object):
             raise ConnectionError("Command response not received")
 
 
-test_ue = UeransimUe(name="imsi-901700000000001")
+test_ue = UeransimUe(name="imsi-901700000000011", config_index="1")
 print(test_ue.request_echo("FISHSTICKS"))
 
-time.sleep(5)
+print("Sleeping to allow nodes to settle")
+time.sleep(2)
 
-for i in range(100):
+for i in range(10):
     print(f"-------- {i} -------")
     print(test_ue.send_command("deregister sync-disable-5g"))
     print(test_ue.send_command("reconnect {}".format(10)))
