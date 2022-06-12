@@ -4,6 +4,7 @@ import re
 import socket
 import struct
 import subprocess
+import threading
 import time
 
 from enum import IntEnum
@@ -98,13 +99,27 @@ class UeransimUe(object):
             raise ConnectionError("Command response not received")
 
 
-test_ue = UeransimUe(name="imsi-901700000000011", config_index="1")
-print(test_ue.request_echo("FISHSTICKS"))
+def run_test_loop(ue, count):
+    for i in range(count):
+        print(ue.send_command("deregister sync-disable-5g"))
+        # Sleeps here seem to help with open5gs stability : (
+        time.sleep(0.5)
+        print(ue.send_command("reconnect {}".format(i)))
+        # Sleeps here seem to help with open5gs stability : (
+        time.sleep(0.5)
+
+test_ue0 = UeransimUe(name="imsi-901700000000001", config_index="")
+print(test_ue0.request_echo("FISHSTICKS"))
+
+test_ue1 = UeransimUe(name="imsi-901700000000011", config_index="1")
+test_ue2 = UeransimUe(name="imsi-901700000000012", config_index="2")
 
 print("Sleeping to allow nodes to settle")
 time.sleep(2)
 
-for i in range(10):
-    print(f"-------- {i} -------")
-    print(test_ue.send_command("deregister sync-disable-5g"))
-    print(test_ue.send_command("reconnect {}".format(10)))
+ues = [test_ue0, test_ue1, test_ue2]
+threads = []
+
+for ue in ues:
+    threads.append(threading.Thread(target= lambda: run_test_loop(ue, 100)))
+    threads[-1].start()
