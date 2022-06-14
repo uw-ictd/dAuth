@@ -115,15 +115,7 @@ def run_test_loop(ue: UeransimUe, interval: float, iterations: int):
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description='Creates a number of UEs and records (re)connection performance stats'
-    )
-
-    parser.add_argument(
-        "-c",
-        "--config",
-        required=True,
-        type=str,
-        help="UE config path",
+        description='Creates a number of UEs and prints connection performance stats'
     )
 
     parser.add_argument(
