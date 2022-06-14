@@ -31,7 +31,10 @@ impl LocalAuthentication for LocalAuthenticationHandler {
                 let user_id: String;
                 match std::str::from_utf8(content.user_id.as_slice()) {
                     Ok(res) => user_id = res.to_string(),
-                    Err(e) => return Err(tonic::Status::new(tonic::Code::Aborted, e.to_string())),
+                    Err(e) => {
+                        tracing::error!("Error while handling request: {}", e);
+                        return Err(tonic::Status::new(tonic::Code::Aborted, e.to_string()));
+                    }
                 }
 
                 match core::auth_vectors::find_vector(
@@ -79,9 +82,13 @@ impl LocalAuthentication for LocalAuthenticationHandler {
                             kseaf: kseaf.to_vec(),
                         };
 
+                        tracing::info!("Returning result: {:?}", response_payload);
                         Ok(tonic::Response::new(response_payload))
                     }
-                    Err(e) => Err(tonic::Status::new(tonic::Code::NotFound, e.to_string())),
+                    Err(e) => {
+                        tracing::error!("Error while handling request: {}", e);
+                        Err(tonic::Status::new(tonic::Code::NotFound, e.to_string()))
+                    }
                 }
             })
             .await;

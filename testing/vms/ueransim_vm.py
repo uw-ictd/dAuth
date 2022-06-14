@@ -5,6 +5,7 @@ from paramiko.client import SSHClient
 
 from vms.vm import VM
 from logger import TestingLogger
+from tests.config import UEConfig
 
 
 class UeransimVM(VM):
@@ -19,6 +20,12 @@ class UeransimVM(VM):
         self.build_path: str = build_path
         self.gnbs: List[GNB] = []
         self.ues: List[UE] = []
+        
+    def add_ue_config(self, config: UEConfig, remotepath: str):
+        """
+        Adds a UE yaml config on the vm at remotepath.
+        """
+        self.upload_file(config.get_file(), remotepath)
 
     def run_cli_command(self, command: str) -> Union[str, str]:
         """
@@ -37,27 +44,39 @@ class UeransimVM(VM):
         
         return set([id.strip() for id in stdout.split("\n") if id.strip() != ''])
 
-    def add_gnb(self, config_path: str, ip: str) -> "GNB":
+    def add_gnb(self, config_path: str) -> "GNB":
         """
         Builds and starts a GNB device.
         Returns the resulting GNB object.
         """
 
-        gnb = GNB(self, config_path, ip)
+        gnb = GNB(self, config_path)
         gnb.start_device()
         self.gnbs.append(gnb)
         return gnb
 
-    def add_ue(self, config_path: str) -> "UE":
+    def add_ue(self, config_path: str, imsi: str, num: int) -> "UE":
         """
-        Builds and starts a GNB device.
-        Returns the resulting GNB object.
+        Builds and starts a UE device.
+        Returns the resulting UE object.
         """
 
-        ue = UE(self, config_path)
+        ue = UE(self, config_path, imsi, num)
         ue.start_device()
         self.ues.append(ue)
         return ue
+    
+    def remove_devices(self):
+        """
+        Stops all active GNBs/UEs and removes them.
+        """
+        for ue in self.ues:
+            ue.stop_device()
+        self.ues.clear()
+        
+        for gnb in self.gnbs:
+            gnb.stop_device()
+        self.gnbs.clear()
 
 
 class DeviceInstance:
@@ -73,6 +92,12 @@ class DeviceInstance:
         self.id: str = None
         self.device_type: str = None  # Set when subclassed
         self.connection: SSHClient = None
+        
+        self.stdin = None
+        self.stdout = None
+        self.stderr = None
+        
+        self.extra_commands = []
 
     def start_device(self) -> None:
         """
@@ -84,10 +109,19 @@ class DeviceInstance:
 
             self.startup_tasks()
             self.generate_id()
+            
+            command_comps = ["sudo", path.join(self.node.build_path, self.device_type), "-c", self.config_path]
+            command_comps.extend(self.extra_commands)
 
-            self.connection.exec_command("{} -c {}".format(
-                path.join(self.node.build_path, self.device_type), 
-                self.config_path), get_pty=True)[0]
+            command = " ".join(command_comps)
+            
+            TestingLogger.log_cammand(self.node.host_name, command)
+
+            channels = self.connection.exec_command(command, get_pty=True)
+            
+            self.stdin = channels[0]
+            self.stdout = channels[1]
+            self.stderr = channels[2]
 
     def startup_tasks(self) -> None:
         """
@@ -109,6 +143,10 @@ class DeviceInstance:
         if self.connection is not None:
             self.connection.close()
             self.connection = None
+
+            self.stdin = None
+            self.stdout = None
+            self.stderr = None
 
     def run_device_command(self, command: str) -> Union[str, str]:
         """
@@ -137,27 +175,29 @@ class GNB(DeviceInstance):
     Represents a gNodeB instance on the ueransim node.
     """
 
-    def __init__(self, node: UeransimVM, config_path: str, ip: str) -> None:
+    def __init__(self, node: UeransimVM, config_path: str) -> None:
         super().__init__(node, config_path)
-        self.ip: str = ip
         self.device_type: str = "nr-gnb"
 
     def startup_tasks(self) -> None:
         """
         Specific device startup tasks to be run during "start_device".
         """
-        command = "sudo ip addr add {} dev enp0s8".format(self.ip)
-        TestingLogger.log_command_streams(command, self.connection.exec_command(command))
+        pass
+        # NOTE: The below is removed since (for now) only one gNB will be used per VM
 
-        # Note: Using config_path as the base config
-        config_producer = path.join(path.dirname(self.config_path), "gnb_config_producer.py")
-        new_config = "".join([self.config_path.replace(".yaml", ""), "-", 
-            self.ip.replace(".", "_"), ".yaml"])
+        # command = "sudo ip addr add {} dev enp0s8".format(self.ip)
+        # TestingLogger.log_command_streams(command, self.connection.exec_command(command))
 
-        # Build the new config and set it as the current
-        command = " ".join(["sudo", config_producer, self.config_path, self.ip, new_config])
-        TestingLogger.log_command_streams(command, self.connection.exec_command(command))
-        self.config_path = new_config
+        # # Note: Using config_path as the base config
+        # config_producer = path.join(path.dirname(self.config_path), "gnb_config_producer.py")
+        # new_config = "".join([self.config_path.replace(".yaml", ""), "-", 
+        #     self.ip.replace(".", "_"), ".yaml"])
+
+        # # Build the new config and set it as the current
+        # command = " ".join(["sudo", config_producer, self.config_path, self.ip, new_config])
+        # TestingLogger.log_command_streams(command, self.connection.exec_command(command))
+        # self.config_path = new_config
 
     def generate_id(self) -> None:
         """
@@ -209,9 +249,13 @@ class UE(DeviceInstance):
     Represents a UE instance on the ueransim node.
     """
 
-    def __init__(self, node: UeransimVM, config_path: str) -> None:
+    def __init__(self, node: UeransimVM, config_path: str, imsi: str, num: int) -> None:
         super().__init__(node, config_path)
         self.device_type: str = "nr-ue"
+        self.imsi = imsi
+        self.num = num
+        
+        self.extra_commands = ["-i", imsi, "-n", str(num)]
 
     def generate_id(self) -> None:
         """

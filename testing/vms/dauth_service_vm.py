@@ -1,6 +1,7 @@
-from typing import Union
+from typing import IO, Union
 
 from paramiko.channel import ChannelFile
+from tests.config import ServiceConfig
 
 from vms.vm import VM
 
@@ -17,6 +18,27 @@ class DauthServiceVM(VM):
         self.service_name = "dauth.service"
         self.db_location = "/var/lib/dauth/dauth_service/ed25519_keys"
         self.keys_location = "/var/lib/dauth/dauth_service/dauth.sqlite3"
+        self.config_location = "/etc/dauth/dauth.yaml"
+        self.tmp_config_location = "/tmp/dauth.yaml"
+        
+    def upload_config(self, file: IO[bytes]):
+        """
+        Uploads the config file to the service vm.
+        Should reset the service state after calling this.
+        """
+        self.upload_file(file, self.tmp_config_location)
+        
+        # sftp does not have root permissions, so we need to store in a temp location
+        # then move the uploaded file using ssh root permissions
+        self.run_command(
+            " ".join(["sudo", "mv", self.tmp_config_location, self.config_location]))
+        
+    def change_config(self, config: ServiceConfig):
+        """
+        Changes the main config to the provided config.
+        Should reset the service state after calling this.
+        """
+        self.upload_config(config.get_file())
 
     def start_service(self) -> Union[str, str]:
         """

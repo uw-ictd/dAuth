@@ -4,6 +4,17 @@ from multiprocessing.pool import ThreadPool
 
 from vms.dauth_service_vm import DauthServiceVM
 
+
+def upload_config(dauth_services: List[DauthServiceVM], config_path: str) -> None:
+    """
+    Uploads the config from the provided path.
+    Should reset the service after calling this.
+    Only uploads a config to the first service in the list.
+    """
+    service = dauth_services[0]
+    with open(config_path, 'r') as f:
+        service.upload_config(f)
+    
 def print_logs(dauth_services: List[DauthServiceVM]) -> None:
     """
     Prints dauth service logs from the host.
@@ -11,6 +22,7 @@ def print_logs(dauth_services: List[DauthServiceVM]) -> None:
     for dauth_service in dauth_services:
         print(dauth_service.host_name + ":")
         print(dauth_service.print_logs())
+
 def stream_logs(dauth_services: List[DauthServiceVM]) -> None:
     """
     Prints dauth service logs as they are created from the host.
@@ -20,7 +32,7 @@ def stream_logs(dauth_services: List[DauthServiceVM]) -> None:
         
         try:
             for line in dauth_service.streams_logs():
-                print(line)
+                print(line.strip())
         except KeyboardInterrupt:
             print()
             pass
@@ -90,6 +102,10 @@ def main():
     # select one of the following commands
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
+        "--upload-config",
+        help="Uploads and replaces the service config",
+    )
+    group.add_argument(
         "--print-logs",
         action="store_true",
         help="Print journalctl logs",
@@ -135,7 +151,9 @@ def main():
         dauth_services.append(result.get())
         
     print("Running commands...")
-    if args.print_logs:
+    if args.upload_config:
+        upload_config(dauth_services, args.upload_config)
+    elif args.print_logs:
         print_logs(dauth_services)
     elif args.stream_logs:
         stream_logs(dauth_services)
