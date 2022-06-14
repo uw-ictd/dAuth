@@ -6,6 +6,8 @@
 // and subject to the terms and conditions defined in LICENSE file.
 //
 
+#include <strstream>
+
 #include "mm.hpp"
 
 #include <lib/nas/utils.hpp>
@@ -54,7 +56,17 @@ static EMmState GetMmStateFromSubState(EMmSubState subState)
     std::terminate();
 }
 
-NasMm::NasMm(TaskBase *base, NasTimers *timers) : m_base{base}, m_timers{timers}, m_sm{}, m_usim{}, m_procCtl{}
+NasMm::NasMm(TaskBase *base, NasTimers *timers) :
+    m_base{base},
+    m_timers{timers},
+    m_sm{},
+    m_usim{},
+    m_procCtl{},
+    m_last_auth_duration_ns{0},
+    m_last_registration_duration_ns{0},
+    m_external_command_in_progress(false),
+    m_command_tag(0),
+    m_response_address()
 {
     m_logger = base->logBase->makeUniqueLogger(base->config->getLoggerPrefix() + "nas");
 
@@ -81,14 +93,40 @@ void NasMm::onQuit()
 
 void NasMm::triggerMmCycle()
 {
-    m_base->nasTask->push(new NmUeNasToNas(NmUeNasToNas::PERFORM_MM_CYCLE));
+    m_base->nasTask->push(std::make_unique<NmUeNasToNas>(NmUeNasToNas::PERFORM_MM_CYCLE));
 }
 
 void NasMm::performMmCycle()
 {
     /* Do nothing in case of MM-NULL */
-    if (m_mmState == EMmState::MM_NULL)
+    if (m_mmState == EMmState::MM_NULL) {
+        m_logger->debug("In State null handler");
+        if (m_cmState == ECmState::CM_IDLE) {
+            m_logger->debug("In cm idle handler");
+            // Fully Disconnected, so output disconnect status if necessary
+            if (hasPendingExternalCommand()) {
+                m_logger->debug("Sending callback!");
+                const auto ue_supi = m_base->config->supi.value().value;
+
+                std::ostrstream res_json;
+                res_json << "{\"result\":\"Ok\"," <<
+                    "\"ue_supi\":\"" << ue_supi << "\"," <<
+                    "\"command_tag\":" << m_command_tag << "}"<< std::ends;
+
+                // TODO (matt9j) I think these variables might also need to be
+                // synchronized, but I'm not exactly sure of the calling model, and
+                // think they are okay if only modified from within the mm context.
+                m_command_tag = 0;
+                m_external_command_in_progress = false;
+                m_base->cliCallbackTask->push(std::make_unique<app::NwCliSendResponse>(
+                    m_response_address,
+                    res_json.str(),
+                    false));
+            }
+        }
+
         return;
+    }
 
     auto currentCell = m_base->shCtx.currentCell.get();
     Tai currentTai = Tai{currentCell.plmn, currentCell.tac};
@@ -267,9 +305,9 @@ void NasMm::switchCmState(ECmState state)
 
     onSwitchCmState(oldState, m_cmState);
 
-    auto *statusUpdate = new NmUeStatusUpdate(NmUeStatusUpdate::CM_STATE);
+    auto statusUpdate = std::make_unique<NmUeStatusUpdate>(NmUeStatusUpdate::CM_STATE);
     statusUpdate->cmState = m_cmState;
-    m_base->appTask->push(statusUpdate);
+    m_base->appTask->push(std::move(statusUpdate));
 
     if (m_base->nodeListener)
     {
@@ -277,6 +315,7 @@ void NasMm::switchCmState(ECmState state)
                                        ToJson(oldState).str(), ToJson(m_cmState).str());
     }
 
+    m_logger->debug("Triggering mm cycle from cm state change");
     triggerMmCycle();
 }
 

@@ -18,7 +18,7 @@ namespace asn
 
 void SetPrintableString(PrintableString_t &target, const std::string &value)
 {
-    if (OCTET_STRING_fromBuf(&target, value.c_str(), value.length()) != 0)
+    if (OCTET_STRING_fromBuf(&target, value.c_str(), static_cast<int>(value.length())) != 0)
         throw std::runtime_error("OCTET_STRING_fromBuf failed");
 }
 
@@ -60,7 +60,7 @@ void SetOctetString(OCTET_STRING_t &target, const OctetString &value)
         throw std::runtime_error("OCTET_STRING_fromBuf failed");
 }
 
-void SetBitString(BIT_STRING_t &target, octet4 value)
+void SetBitString(BIT_STRING_t &target, octet4 value, size_t bitCount)
 {
     if (target.buf)
         free(target.buf);
@@ -70,8 +70,8 @@ void SetBitString(BIT_STRING_t &target, octet4 value)
     target.buf[1] = value[1];
     target.buf[2] = value[2];
     target.buf[3] = value[3];
-    target.size = 4;
-    target.bits_unused = 0;
+    target.size = static_cast<size_t>(bits::NearDiv(static_cast<int>(bitCount), 8) / 8);
+    target.bits_unused = static_cast<int>(target.size * 8 - bitCount);
 }
 
 void SetBitString(BIT_STRING_t &target, const OctetString &value)
@@ -128,24 +128,24 @@ OctetString GetOctetString(const BIT_STRING_t &source)
 
 uint64_t GetUnsigned64(const INTEGER_t &source)
 {
-    uint64_t res = 0;
+    unsigned long res = 0;
     if (asn_INTEGER2ulong(&source, &res) != 0)
     {
         // ignore the error
         res = 0;
     }
-    return res;
+    return static_cast<uint64_t>(res);
 }
 
 int64_t GetSigned64(const INTEGER_t &source)
 {
-    int64_t res = 0;
+    long res = 0;
     if (asn_INTEGER2long(&source, &res) != 0)
     {
         // ignore the error
         res = 0;
     }
-    return res;
+    return static_cast<int64_t>(res);
 }
 
 void SetUnsigned64(uint64_t value, INTEGER_t &target)

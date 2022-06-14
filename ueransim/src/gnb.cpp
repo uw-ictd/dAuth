@@ -48,12 +48,12 @@ static nr::gnb::GnbConfig *ReadConfigYaml()
     result->gnbIdLength = yaml::GetInt32(config, "idLength", 22, 32);
     result->tac = yaml::GetInt32(config, "tac", 0, 0xFFFFFF);
 
-    result->portalIp = yaml::GetIp4(config, "linkIp");
-    result->ngapIp = yaml::GetIp4(config, "ngapIp");
-    result->gtpIp = yaml::GetIp4(config, "gtpIp");
+    result->linkIp = yaml::GetIp(config, "linkIp");
+    result->ngapIp = yaml::GetIp(config, "ngapIp");
+    result->gtpIp = yaml::GetIp(config, "gtpIp");
 
     if (yaml::HasField(config, "gtpAdvertiseIp"))
-        result->gtpAdvertiseIp = yaml::GetIp4(config, "gtpAdvertiseIp");
+        result->gtpAdvertiseIp = yaml::GetIp(config, "gtpAdvertiseIp");
 
     result->ignoreStreamIds = yaml::GetBool(config, "ignoreStreamIds");
     result->pagingDrx = EPagingDrx::V128;
@@ -63,7 +63,7 @@ static nr::gnb::GnbConfig *ReadConfigYaml()
     for (auto &amfConfig : yaml::GetSequence(config, "amfConfigs"))
     {
         nr::gnb::GnbAmfConfig c{};
-        c.address = yaml::GetIp4(amfConfig, "address");
+        c.address = yaml::GetIp(amfConfig, "address");
         c.port = static_cast<uint16_t>(yaml::GetInt32(amfConfig, "port", 1024, 65535));
         result->amfConfigs.push_back(c);
     }

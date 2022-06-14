@@ -7,9 +7,13 @@
 //
 
 #include "cli_cmd.hpp"
+#include "utils/common_types.hpp"
 
+#include <cstdint>
 #include <optional>
 #include <sstream>
+#include <stdexcept>
+#include <string>
 #include <utility>
 
 #include <utils/common.hpp>
@@ -166,7 +170,9 @@ static OrderedMap<std::string, CmdEntry> g_ueCmdEntries = {
     {"ps-release", {"Trigger a PDU session release procedure", "<pdu-session-id>...", DefaultDesc, true}},
     {"ps-release-all", {"Trigger PDU session release procedures for all active sessions", "", DefaultDesc, false}},
     {"deregister",
-     {"Perform a de-registration by the UE", "<normal|disable-5g|switch-off|remove-sim>", DefaultDesc, true}},
+     {"Perform a de-registration by the UE", "<normal|disable-5g|switch-off|remove-sim|sync-disable-5g>", DefaultDesc, true}},
+    {"reconnect",
+     {"reconnect to the network", "[optional int64 command id int_64]", DefaultDesc, false}},
 };
 
 static std::unique_ptr<GnbCliCommand> GnbCliParseImpl(const std::string &subCmd, const opt::OptionsResult &options,
@@ -249,11 +255,35 @@ static std::unique_ptr<UeCliCommand> UeCliParseImpl(const std::string &subCmd, c
             cmd->deregCause = EDeregCause::SWITCH_OFF;
         else if (type == "disable-5g")
             cmd->deregCause = EDeregCause::DISABLE_5G;
+        else if (type == "sync-disable-5g")
+            cmd->deregCause = EDeregCause::SYNC_DISABLE_5G;
         else if (type == "remove-sim")
             cmd->deregCause = EDeregCause::USIM_REMOVAL;
         else
             CMD_ERR("Invalid de-registration type, possible values are: \"normal\", \"disable-5g\", \"switch-off\", "
-                    "\"remove-sim\"")
+                    "\"remove-sim\", \"sync-disable-5g\"")
+        return cmd;
+    }
+    else if (subCmd == "reconnect")
+    {
+        auto cmd = std::make_unique<UeCliCommand>(UeCliCommand::RECONNECT);
+
+        if (options.positionalCount() == 0) {
+            cmd->command_id = 0;
+        } else if (options.positionalCount() > 1) {
+            CMD_ERR("Only one re register command id is expected")
+        }
+
+        int64_t command_id;
+        try {
+            command_id = std::stol(options.getPositional(0));
+        } catch (const std::invalid_argument &) {
+            command_id = 0;
+        } catch (const std::out_of_range &) {
+            command_id = 0;
+        }
+
+        cmd->command_id = command_id;
         return cmd;
     }
     else if (subCmd == "ps-release")

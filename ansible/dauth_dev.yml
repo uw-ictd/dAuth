@@ -69,7 +69,7 @@
           - git
           - libsctp-dev
           - libgnutls28-dev
-          - libgcrypt-dev
+          - libgcrypt20-dev
           - libssl-dev
           - libidn11-dev
           - libmongoc-dev
@@ -82,7 +82,7 @@
           - libtins-dev
           - meson
           - debhelper
-        state: latest
+        state: present
 
     - name: Install meson dependencies
       become: yes

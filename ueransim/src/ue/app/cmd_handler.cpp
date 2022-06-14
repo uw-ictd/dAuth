@@ -7,6 +7,7 @@
 //
 
 #include "cmd_handler.hpp"
+#include "lib/app/cli_cmd.hpp"
 
 #include <ue/app/task.hpp>
 #include <ue/nas/task.hpp>
@@ -36,12 +37,12 @@ namespace nr::ue
 
 void UeCmdHandler::sendResult(const InetAddress &address, const std::string &output)
 {
-    m_base->cliCallbackTask->push(new app::NwCliSendResponse(address, output, false));
+    m_base->cliCallbackTask->push(std::make_unique<app::NwCliSendResponse>(address, output, false));
 }
 
 void UeCmdHandler::sendError(const InetAddress &address, const std::string &output)
 {
-    m_base->cliCallbackTask->push(new app::NwCliSendResponse(address, output, true));
+    m_base->cliCallbackTask->push(std::make_unique<app::NwCliSendResponse>(address, output, true));
 }
 
 void UeCmdHandler::pauseTasks()
@@ -165,12 +166,34 @@ void UeCmdHandler::handleCmdImpl(NmUeCliCommand &msg)
         break;
     }
     case app::UeCliCommand::DE_REGISTER: {
+        // Don't immediately send the result message if doing a synchronous deregister.
+        if (msg.cmd->deregCause == EDeregCause::SYNC_DISABLE_5G) {
+            m_base->nasTask->mm->m_logger->debug("Running cli command sync deregister");
+
+            if (m_base->nasTask->mm->startCommand(1337, msg.address)) {
+                m_base->nasTask->mm->deregistrationRequired(EDeregCause::DISABLE_5G);
+            } else {
+                sendError(msg.address, "{\"result\":\"Err\",\"msg\":\"Failed to start synchronous deregister due to in-progress command\"}");
+            }
+
+            break;
+        }
+
         m_base->nasTask->mm->deregistrationRequired(msg.cmd->deregCause);
 
         if (msg.cmd->deregCause != EDeregCause::SWITCH_OFF)
             sendResult(msg.address, "De-registration procedure triggered");
         else
             sendResult(msg.address, "De-registration procedure triggered. UE device will be switched off.");
+        break;
+    }
+    case app::UeCliCommand::RECONNECT: {
+        m_base->nasTask->mm->m_logger->info("Running cli command reconnect");
+        if (m_base->nasTask->mm->startCommand(msg.cmd->command_id, msg.address)) {
+            m_base->nasTask->mm->reconnectRequired();
+        } else {
+            sendError(msg.address, "{\"result\":\"Err\",\"msg\":\"Failed to start reconnect due to in-progress command\"}");
+        }
         break;
     }
     case app::UeCliCommand::PS_RELEASE: {

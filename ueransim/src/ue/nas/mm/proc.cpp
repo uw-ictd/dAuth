@@ -101,6 +101,20 @@ void NasMm::deregistrationRequired(EDeregCause cause)
     triggerMmCycle();
 }
 
+void NasMm::reconnectRequired()
+{
+    if (m_mmState != EMmState::MM_NULL) {
+        m_logger->err("Requested reconnect when not in disconnected state %d", m_mmState);
+    }
+
+    // Switch back to the main active initial state
+    switchMmState(EMmSubState::MM_DEREGISTERED_PS);
+
+    m_logger->debug("Reconnecting!");
+
+    triggerMmCycle();
+}
+
 void NasMm::serviceRequestRequiredForSignalling()
 {
     serviceRequestRequired(EServiceReqCause::IDLE_UPLINK_SIGNAL_PENDING);
@@ -199,6 +213,22 @@ bool NasMm::hasPendingProcedure()
     // TODO: Check for SM sublayer, (and other stacks in the future such as SMS) because they are transported over MM.
     // NOTE: Other MM common procedures are ignored. (Except UL/DL NAS Transport)
     return false;
+}
+
+bool NasMm::hasPendingExternalCommand() {
+    return m_external_command_in_progress;
+}
+
+bool NasMm::startCommand(const int64_t command_tag, const InetAddress response_address) {
+    if (hasPendingExternalCommand()) {
+        m_logger->err("Attempted to start a new external command while another running");
+        return false;
+    }
+    m_command_tag = command_tag;
+    m_response_address = response_address;
+    m_external_command_in_progress = true;
+
+    return true;
 }
 
 } // namespace nr::ue

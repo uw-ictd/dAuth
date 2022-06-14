@@ -90,6 +90,10 @@ struct GutiMobileIdentity
         : plmn(plmn), amfRegionId(amfRegionId), amfSetId(amfSetId), amfPointer(amfPointer), tmsi(tmsi)
     {
     }
+
+    [[nodiscard]] int64_t toTmsiValue() const;
+
+    static GutiMobileIdentity FromSTmsi(int64_t sTmsi);
 };
 
 struct ImsiMobileIdentity
@@ -132,6 +136,7 @@ enum class EDeregCause
     USIM_REMOVAL,
     DISABLE_5G,
     ECALL_INACTIVITY,
+    SYNC_DISABLE_5G,
 };
 
 enum class EInitialRegCause

@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <chrono>
+
 #include <lib/crypt/milenage.hpp>
 #include <lib/nas/nas.hpp>
 #include <ue/nas/storage.hpp>
@@ -65,8 +67,18 @@ class NasMm
     int64_t m_lastTimePlmnSearchFailureLogged{};
     // Last time MM state changed
     int64_t m_lastTimeMmStateChange{};
-    // Received NAS sequence numbers for replay protection
-    std::deque<int> m_lastNasSequenceNums{};
+
+    // Time of last authentication start
+    std::chrono::time_point<std::chrono::steady_clock> m_last_auth_start;
+    std::chrono::time_point<std::chrono::steady_clock> m_last_registration_start;
+
+    int64_t m_last_auth_duration_ns;
+    int64_t m_last_registration_duration_ns;
+
+    // Currently executing automation command
+    bool m_external_command_in_progress;
+    int64_t m_command_tag;
+    InetAddress m_response_address;
 
     friend class UeCmdHandler;
     friend class NasSm;
@@ -193,8 +205,11 @@ class NasMm
     void serviceRequestRequiredForSignalling();
     void serviceRequestRequired(EServiceReqCause cause);
     void deregistrationRequired(EDeregCause cause);
+    void reconnectRequired();
     void invokeProcedures();
     bool hasPendingProcedure();
+    bool hasPendingExternalCommand();
+    bool startCommand(const int64_t command_tag, const InetAddress response_address);
 
   private: /* Service Access Point */
     void handleRrcEvent(const NmUeRrcToNas &msg);

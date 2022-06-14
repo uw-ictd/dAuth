@@ -24,7 +24,8 @@
 namespace nr::gnb
 {
 
-void NgapTask::handleInitialNasTransport(int ueId, const OctetString &nasPdu, long rrcEstablishmentCause)
+void NgapTask::handleInitialNasTransport(int ueId, const OctetString &nasPdu, int64_t rrcEstablishmentCause,
+                                         const std::optional<GutiMobileIdentity> &sTmsi)
 {
     m_logger->debug("Initial NAS message received from UE[%d]", ueId);
 
@@ -54,34 +55,52 @@ void NgapTask::handleInitialNasTransport(int ueId, const OctetString &nasPdu, lo
         amfCtx->nextStream += 1;
     ueCtx->uplinkStream = amfCtx->nextStream;
 
+    std::vector<ASN_NGAP_InitialUEMessage_IEs *> ies;
+
     auto *ieEstablishmentCause = asn::New<ASN_NGAP_InitialUEMessage_IEs>();
     ieEstablishmentCause->id = ASN_NGAP_ProtocolIE_ID_id_RRCEstablishmentCause;
     ieEstablishmentCause->criticality = ASN_NGAP_Criticality_ignore;
     ieEstablishmentCause->value.present = ASN_NGAP_InitialUEMessage_IEs__value_PR_RRCEstablishmentCause;
     ieEstablishmentCause->value.choice.RRCEstablishmentCause = rrcEstablishmentCause;
+    ies.push_back(ieEstablishmentCause);
 
     auto *ieCtxRequest = asn::New<ASN_NGAP_InitialUEMessage_IEs>();
     ieCtxRequest->id = ASN_NGAP_ProtocolIE_ID_id_UEContextRequest;
     ieCtxRequest->criticality = ASN_NGAP_Criticality_ignore;
     ieCtxRequest->value.present = ASN_NGAP_InitialUEMessage_IEs__value_PR_UEContextRequest;
     ieCtxRequest->value.choice.UEContextRequest = ASN_NGAP_UEContextRequest_requested;
+    ies.push_back(ieCtxRequest);
 
     auto *ieNasPdu = asn::New<ASN_NGAP_InitialUEMessage_IEs>();
     ieNasPdu->id = ASN_NGAP_ProtocolIE_ID_id_NAS_PDU;
     ieNasPdu->criticality = ASN_NGAP_Criticality_reject;
     ieNasPdu->value.present = ASN_NGAP_InitialUEMessage_IEs__value_PR_NAS_PDU;
     asn::SetOctetString(ieNasPdu->value.choice.NAS_PDU, nasPdu);
+    ies.push_back(ieNasPdu);
 
-    auto *pdu = asn::ngap::NewMessagePdu<ASN_NGAP_InitialUEMessage>({ieEstablishmentCause, ieCtxRequest, ieNasPdu});
+    if (sTmsi)
+    {
+        auto *ieTmsi = asn::New<ASN_NGAP_InitialUEMessage_IEs>();
+        ieTmsi->id = ASN_NGAP_ProtocolIE_ID_id_FiveG_S_TMSI;
+        ieTmsi->criticality = ASN_NGAP_Criticality_reject;
+        ieTmsi->value.present = ASN_NGAP_InitialUEMessage_IEs__value_PR_FiveG_S_TMSI;
+
+        asn::SetBitStringInt<10>(sTmsi->amfSetId, ieTmsi->value.choice.FiveG_S_TMSI.aMFSetID);
+        asn::SetBitStringInt<6>(sTmsi->amfPointer, ieTmsi->value.choice.FiveG_S_TMSI.aMFPointer);
+        asn::SetOctetString4(ieTmsi->value.choice.FiveG_S_TMSI.fiveG_TMSI, sTmsi->tmsi);
+        ies.push_back(ieTmsi);
+    }
+
+    auto *pdu = asn::ngap::NewMessagePdu<ASN_NGAP_InitialUEMessage>(ies);
     sendNgapUeAssociated(ueId, pdu);
 }
 
 void NgapTask::deliverDownlinkNas(int ueId, OctetString &&nasPdu)
 {
-    auto *w = new NmGnbNgapToRrc(NmGnbNgapToRrc::NAS_DELIVERY);
+    auto w = std::make_unique<NmGnbNgapToRrc>(NmGnbNgapToRrc::NAS_DELIVERY);
     w->ueId = ueId;
     w->pdu = std::move(nasPdu);
-    m_base->rrcTask->push(w);
+    m_base->rrcTask->push(std::move(w));
 }
 
 void NgapTask::handleUplinkNasTransport(int ueId, const OctetString &nasPdu)

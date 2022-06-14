@@ -43,5 +43,37 @@ users: {
     "backup_network_ids": {
       "colte-2": 1
     }
+  },
+  "imsi-901700000000011": {
+    "k": "11111111111111111111111111111111",
+    "opc": "E8ED289DEBA952E4283B54E88E6183CA",
+
+    # Mapping of sqn slice to max sqn for that slice
+    "sqn_slice_max": {
+      0: 32,
+      1: 33,
+      2: 34
+    },
+
+    # Mapping of network id to sqn slice
+    "backup_network_ids": {
+      "colte-2": 1
+    }
+  },
+  "imsi-901700000000012": {
+    "k": "22222222222222222222222222222222",
+    "opc": "E8ED289DEBA952E4283B54E88E6183CA",
+
+    # Mapping of sqn slice to max sqn for that slice
+    "sqn_slice_max": {
+      0: 32,
+      1: 33,
+      2: 34
+    },
+
+    # Mapping of network id to sqn slice
+    "backup_network_ids": {
+      "colte-2": 1
+    }
   }
 }

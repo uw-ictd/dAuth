@@ -8,9 +8,12 @@
 
 #include "ngap.hpp"
 #include "utils.hpp"
+#include "utils/common.hpp"
 
 #include <algorithm>
 #include <functional>
+#include <exception>
+#include <stdexcept>
 
 #include <asn/ngap/ASN_NGAP_AMFConfigurationUpdate.h>
 #include <asn/ngap/ASN_NGAP_AMFConfigurationUpdateAcknowledge.h>
@@ -857,7 +860,9 @@ static bool GetProtocolIeInfo(const ASN_NGAP_NGAP_PDU &pdu, const asn_TYPE_descr
     // This function assumes all ASN structs are "C++ standard layout".
     // Therefore no problem is expected since the structs are already standard layout.
 
-    // TODO: assert for Little Endian (this asssumption is used for presentEnumSize and related)
+    // Assert that the machine is Little Endian. (This assumption is used for presentEnumSize and related)
+    if (!utils::IsLittleEndian())
+        throw std::runtime_error("Big Endian architecture is not supported");
 
     asn_TYPE_descriptor_t *desc;
     void *ptr;

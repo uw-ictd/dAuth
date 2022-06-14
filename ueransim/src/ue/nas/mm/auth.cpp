@@ -8,6 +8,7 @@
 
 #include "mm.hpp"
 
+#include <chrono>
 #include <lib/nas/utils.hpp>
 #include <ue/nas/keys.hpp>
 
@@ -17,6 +18,7 @@ namespace nr::ue
 void NasMm::receiveAuthenticationRequest(const nas::AuthenticationRequest &msg)
 {
     m_logger->debug("Authentication Request received");
+    m_last_auth_start = std::chrono::steady_clock::now();
 
     if (!m_usim->isValid())
     {

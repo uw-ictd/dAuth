@@ -15,8 +15,14 @@ namespace nr::ue
 
 void NasMm::handleRrcEvent(const NmUeRrcToNas &msg)
 {
-    if (m_mmState == EMmState::MM_NULL)
+    if (m_mmState == EMmState::MM_NULL) {
+        m_logger->debug("In RRC null handler");
+        if (msg.present == NmUeRrcToNas::RRC_CONNECTION_RELEASE) {
+            m_logger->debug("RRC null handling connection release");
+            handleRrcConnectionRelease();
+        }
         return;
+    }
 
     switch (msg.present)
     {
@@ -64,9 +70,6 @@ void NasMm::handleRrcEvent(const NmUeRrcToNas &msg)
 
 void NasMm::handleNasEvent(const NmUeNasToNas &msg)
 {
-    if (m_mmState == EMmState::MM_NULL)
-        return;
-
     switch (msg.present)
     {
     case NmUeNasToNas::PERFORM_MM_CYCLE:
