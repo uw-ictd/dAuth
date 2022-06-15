@@ -62,11 +62,16 @@ class LocalAuthSetup(NetworkSetup):
             self.state.reset()
             
             # wait for network to settle
+            TestingLogger.logger.info("Waiting for network to settle")
             sleep(5)
             
             # Start gnb and ues
+            TestingLogger.logger.info("Starting gNB and UEs")
             self._start_gnb()
-            for line in self._start_ues(num_ues, interval, iterations):
+            output = self._start_ues(num_ues, interval, iterations)
+            
+            TestingLogger.logger.info("Processing output (varies by iterations*interval)")
+            for line in output:
                 print(line)
 
         except Exception as e:
