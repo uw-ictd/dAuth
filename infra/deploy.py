@@ -1,5 +1,6 @@
 import argparse
 import logging
+import shutil
 import subprocess
 
 from pathlib import Path
@@ -164,6 +165,59 @@ def deploy_open5gs_5gc_packages(open5gs_package_directory, host):
             "dpkg --force-confnew --force-overwrite -i /tmp/{}".format(deb_path.name)
         )
 
+def build_ueransim(fast_build=False):
+    """Builds our custom ueransim binaries from source"""
+
+    if fast_build:
+        release_type = "-DCMAKE_BUILD_TYPE=Debug"
+        release_dir = "cmake-build-debug"
+    else:
+        release_type = "-DCMAKE_BUILD_TYPE=Release"
+        release_dir = "cmake-build-release"
+
+    cmake_configure_command = [
+        "cmake",
+        release_type,
+        "-G",
+        "Ninja",
+        "-B",
+        release_dir,
+    ]
+
+    subprocess.run(cmake_configure_command, check=True, cwd="../ueransim")
+
+    cmake_build_command = [
+        "cmake",
+        "--build",
+        release_dir,
+        "--target",
+        "all",
+    ]
+
+    subprocess.run(cmake_build_command, check=False, cwd="../ueransim")
+
+    output_directory = Path("../ueransim-bin")
+    output_directory.mkdir(exist_ok=True, parents=True)
+    for component in ["nr-ue", "nr-gnb"]:
+        log.info(f"Copying ueransim binary {component} to {output_directory}")
+        shutil.copy(
+            Path("../ueransim") / Path(release_dir) / Path(component),
+            output_directory / Path(component)
+            )
+
+def deploy_ueransim(ueransim_binary_directory, host):
+    """Deploys all ueransim binaries to the indicated host"""
+
+    # Build the package list programatically to more easily update
+    components = ["nr-ue", "nr-gnb"]
+
+    connection = Connection(host)
+    for component in components:
+        binary_path = Path(ueransim_binary_directory, component).absolute()
+        log.info("Deploying binary: %s to host %s", binary_path, host)
+        connection.run("mkdir -p /home/vagrant/ueransim/")
+        connection.put(binary_path, remote="/home/vagrant/ueransim/", preserve_mode=False)
+        connection.run(f"chmod a+x /home/vagrant/ueransim/{component}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="deploy dauth in a test environment")
@@ -177,6 +231,11 @@ if __name__ == "__main__":
         "--build-open5gs",
         action="store_true",
         help="Build open5gs from source",
+    )
+    parser.add_argument(
+        "--build-ueransim",
+        action="store_true",
+        help="Build ueransim from source",
     )
 
     parser.add_argument(
@@ -194,6 +253,11 @@ if __name__ == "__main__":
         "--deploy-open5gs",
         action="store_true",
         help="Deploy an already built version of open5gs",
+    )
+    parser.add_argument(
+        "--deploy-ueransim",
+        action="store_true",
+        help="Deploy the built ueransim binaries",
     )
 
     parser.add_argument(
@@ -254,6 +318,9 @@ if __name__ == "__main__":
         or args.build_open5gs
         or args.deploy_dauth
         or args.deploy_open5gs
+        or args.deploy_dauth_directory
+        or args.build_ueransim
+        or args.deploy_ueransim
     ):
         log.error("No action specified!")
 
@@ -283,6 +350,10 @@ if __name__ == "__main__":
         log.warning("Building and packaging open5gs may take a while : /")
         build_open5gs_packages(fast_build=open5gs_fast_unclean_build)
 
+    if args.build_ueransim:
+        log.info("Building ueransim")
+        build_ueransim(fast_build=args.fast_debug)
+
     if args.deploy_dauth:
         log.info("Building dauth package")
         dauth_package_path = package_dauth_service(target=cargo_target)
@@ -308,3 +379,10 @@ if __name__ == "__main__":
         for host in args.dest_host:
             deploy_open5gs_5gc_packages(Path("../open5gs-debs"), host)
             Connection(host).sudo("/home/vagrant/scripts/open5gs-ip-config.py")
+
+    if args.build_ueransim:
+        log.info("Deploying ueransim")
+        if len(args.dest_host) == 0:
+            log.error("Specified deploy but no deploy destinations provided")
+        for host in args.dest_host:
+            deploy_ueransim("../ueransim-bin", host)
