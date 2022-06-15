@@ -26,8 +26,8 @@ class UeransimUe(object):
         # Start the actual UE process
         # ToDo Make sure the imsi and keys make sense when generating many ues
         self.process_handle = subprocess.Popen(
-            ["/home/vagrant/ueransim/nr-ue", 
-             "-c", f"/home/vagrant/configs/ueransim/ue.yaml", 
+            ["/home/vagrant/UERANSIM/build/nr-ue", 
+             "-c", "/home/vagrant/configs/ueransim/ue.yaml", 
              "--no-routing-config",
              "-i", name],
             stderr=subprocess.PIPE,
@@ -104,11 +104,12 @@ class UeransimUe(object):
 
 
 def run_test_loop(ue: UeransimUe, interval: float, iterations: int):
+    time.sleep(0.5)
     for i in range(iterations):
-        print(ue.send_command("deregister sync-disable-5g"))
+        print(ue.send_command("deregister sync-disable-5g"), flush=True)
         # Sleeps here seem to help with open5gs stability : (
         time.sleep(0.5)
-        print(ue.send_command("reconnect {}".format(i)))
+        print(ue.send_command("reconnect {}".format(i)), flush=True)
         # Sleep for interval time, or at least long enough for stability
         time.sleep(max(0.5, interval))
 

@@ -30,7 +30,7 @@ class NetworkSetup:
         Runs the ue driver with the provided arguments and returns the output stream.
         """
         command = " ".join(
-            ["python", "./ue_driver.py",
+            ["sudo", "python3", "./ue_driver.py",
              "-n", str(num_ues),
              "-i", str(interval),
              "-t", str(iterations),
