@@ -1,9 +1,13 @@
 import argparse
+import logging
+from logger import TestingLogger
 
 from perf.state import NetworkState, NetworkStateConfig
 from perf.setups.local_auth import LocalAuthSetup
 
 def main():
+    TestingLogger.logger.setLevel(logging.INFO)
+
     parser = argparse.ArgumentParser(
         description='Run the specified perf tests'
     )
@@ -76,20 +80,20 @@ def main():
 
     args = parser.parse_args()
     
+    TestingLogger.logger.info("Building state and connecting...")
     config = NetworkStateConfig(args.vagrant_dir, args.config_dir, args.ue_driver)
     state = NetworkState(config)
-    
+
     if args.local_auth:
         setup = LocalAuthSetup(state)
-    if args.home_auth:
+    elif args.home_auth:
         pass
-    if args.backup_auth:
+    elif args.backup_auth:
         pass
     else:
         raise Exception("No setup specified")
     
     setup.run_perf(args.num_ues, args.interval, args.iterations)
-
 
 if __name__ == "__main__":
     main()

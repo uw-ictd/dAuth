@@ -52,6 +52,9 @@ class LocalAuthSetup(NetworkSetup):
         Runs and prints the resulting performance metrics.
         """
         TestingLogger.logger.info("Running local auth perf")
+        TestingLogger.logger.info(
+            "Num UEs: {}, Inteval: {}ms, iterations: {}"
+            .format(num_ues, interval, iterations))
         
         try:
             # configure and reset the network state 
