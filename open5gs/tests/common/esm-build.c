@@ -19,7 +19,8 @@
 
 #include "test-common.h"
 
-ogs_pkbuf_t *testesm_build_pdn_connectivity_request(test_sess_t *sess)
+ogs_pkbuf_t *testesm_build_pdn_connectivity_request(
+        test_sess_t *sess, bool integrity_protected)
 {
     ogs_nas_eps_message_t message;
     ogs_nas_eps_pdn_connectivity_request_t *pdn_connectivity_request =
@@ -53,8 +54,7 @@ ogs_pkbuf_t *testesm_build_pdn_connectivity_request(test_sess_t *sess)
     ogs_assert(test_ue);
 
     memset(&message, 0, sizeof(message));
-
-    if (sess->pdn_connectivity_param.integrity_protected) {
+    if (integrity_protected) {
         message.h.security_header_type =
             OGS_NAS_SECURITY_HEADER_INTEGRITY_PROTECTED;
         message.h.protocol_discriminator = OGS_NAS_PROTOCOL_DISCRIMINATOR_EMM;
@@ -89,7 +89,7 @@ ogs_pkbuf_t *testesm_build_pdn_connectivity_request(test_sess_t *sess)
         memcpy(protocol_configuration_options->buffer, ue_pco, sizeof(ue_pco));
     }
 
-    if (sess->pdn_connectivity_param.integrity_protected)
+    if (integrity_protected)
         return test_nas_eps_security_encode(test_ue, &message);
     else
         return ogs_nas_eps_plain_encode(&message);
@@ -144,12 +144,24 @@ ogs_pkbuf_t *testesm_build_esm_information_response(test_sess_t *sess)
     uint8_t ue_pco[29] =
             "\x80\x80\x21\x10\x01\x01\x00\x10\x81\x06\x00\x00\x00\x00"
             "\x83\x06\x00\x00\x00\x00\x00\x03\x00\x00\x0a\x00\x00\x0d\x00";
-#else
+    uint8_t ue_pco[94] =
+        "\x80\xc2\x23"
+        "\x23\x01\x01\x00\x23\x10\xec\xa3\x90\x00\x3e\xdb\xf9\x17\xbe\xcf"
+        "\xa8\x14\x8a\xcd\xde\x56\x55\x4d\x54\x53\x5f\x43\x48\x41\x50\x5f"
+        "\x53\x52\x56\x52\xc2\x23\x15\x02\x01\x00\x15\x10\xb6\xfa\xad\xc5"
+        "\x6a\x43\x6b\x2f\x0f\x9f\x82\x35\x6e\x07\xd9\xd9\x80\x21\x1c\x01"
+        "\x00\x00\x1c\x81\x06\x00\x00\x00\x00\x82\x06\x00\x00\x00\x00\x83"
+        "\x06\x00\x00\x00\x00\x84\x06\x00\x00\x00\x00";
     uint8_t ue_pco[35] =
         "\x80\x80\x21\x10\x01\x00\x00\x10\x81\x06\x00\x00\x00\x00"
         "\x83\x06\x00\x00\x00\x00\x00\x0c\x00\x00\x0d\x00\x00\x02\x00\x00"
         "\x0a\x00\x00\x10\x00";
 #endif
+    uint8_t ue_pco[47] =
+        "\x80\x80\x21\x0a\x01\x0a"
+        "\x00\x0a\x81\x06\x00\x00\x00\x00\x80\x21\x0a\x01\x0b\x00\x0a\x83"
+        "\x06\x00\x00\x00\x00\xc0\x23\x11\x01\x0c\x00\x11\x03\x72\x69\x6d"
+        "\x08\x70\x61\x73\x73\x77\x6f\x72\x64";
 
     test_ue_t *test_ue = NULL;
     ogs_pkbuf_t *pkbuf = NULL;
@@ -410,7 +422,7 @@ ogs_pkbuf_t *testesm_build_bearer_resource_modification_request(
         &req->traffic_flow_aggregate;
     ogs_nas_eps_quality_of_service_t *qos = &req->required_traffic_flow_qos;
 
-    ogs_gtp_tft_t tft;
+    ogs_gtp2_tft_t tft;
     ogs_tlv_octet_t octet;
     ogs_ipsubnet_t ipsubnet;
 
@@ -439,7 +451,7 @@ ogs_pkbuf_t *testesm_build_bearer_resource_modification_request(
 
     memset(&tft, 0, sizeof tft);
     tft.code = tft_code;
-    if (tft.code == OGS_GTP_TFT_CODE_REPLACE_PACKET_FILTERS_IN_EXISTING) {
+    if (tft.code == OGS_GTP2_TFT_CODE_REPLACE_PACKET_FILTERS_IN_EXISTING) {
         tft.num_of_packet_filter = 1;
         tft.pf[0].direction = 1;
         tft.pf[0].identifier = 0;
@@ -453,13 +465,13 @@ ogs_pkbuf_t *testesm_build_bearer_resource_modification_request(
         tft.pf[0].content.component[0].ipv4.mask = ipsubnet.mask[0];
         tft.pf[0].content.num_of_component = 1;
     } else if (tft.code ==
-            OGS_GTP_TFT_CODE_ADD_PACKET_FILTERS_TO_EXISTING_TFT) {
+            OGS_GTP2_TFT_CODE_ADD_PACKET_FILTERS_TO_EXISTING_TFT) {
         tft.num_of_packet_filter = 1;
         tft.pf[0].direction = 2;
         tft.pf[0].identifier = 4;
         tft.pf[0].precedence = 0x0f;
 
-        rv = ogs_ipsubnet(&ipsubnet, "2001:230:cafe::9", "120");
+        rv = ogs_ipsubnet(&ipsubnet, "2001:db8:cafe::9", "120");
         ogs_assert(rv == OGS_OK);
 #if 1
         tft.pf[0].content.length = 18;
@@ -479,7 +491,7 @@ ogs_pkbuf_t *testesm_build_bearer_resource_modification_request(
 #endif
         tft.pf[0].content.num_of_component = 1;
 
-    } else if (tft.code == OGS_GTP_TFT_CODE_CREATE_NEW_TFT) {
+    } else if (tft.code == OGS_GTP2_TFT_CODE_CREATE_NEW_TFT) {
         tft.num_of_packet_filter = 4;
 
         tft.pf[0].direction = 1;
@@ -578,15 +590,15 @@ ogs_pkbuf_t *testesm_build_bearer_resource_modification_request(
         tft.pf[3].content.component[3].port.low = 20361;
         tft.pf[3].content.num_of_component = 4;
     } else if (tft.code ==
-            OGS_GTP_TFT_CODE_DELETE_PACKET_FILTERS_FROM_EXISTING) {
+            OGS_GTP2_TFT_CODE_DELETE_PACKET_FILTERS_FROM_EXISTING) {
         tft.num_of_packet_filter = 4;
         tft.pf[0].identifier = 0;
         tft.pf[1].identifier = 1;
         tft.pf[2].identifier = 2;
         tft.pf[3].identifier = 3;
     }
-    tad->length = ogs_gtp_build_tft(&octet,
-            &tft, tad->buffer, OGS_GTP_MAX_TRAFFIC_FLOW_TEMPLATE);
+    tad->length = ogs_gtp2_build_tft(&octet,
+            &tft, tad->buffer, OGS_GTP2_MAX_TRAFFIC_FLOW_TEMPLATE);
 
     if (qci) {
         req->presencemask |=

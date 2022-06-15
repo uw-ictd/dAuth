@@ -15,10 +15,9 @@ OpenAPI_ue_context_relocate_data_t *OpenAPI_ue_context_relocate_data_create(
     char *supported_features
 )
 {
-    OpenAPI_ue_context_relocate_data_t *ue_context_relocate_data_local_var = OpenAPI_malloc(sizeof(OpenAPI_ue_context_relocate_data_t));
-    if (!ue_context_relocate_data_local_var) {
-        return NULL;
-    }
+    OpenAPI_ue_context_relocate_data_t *ue_context_relocate_data_local_var = ogs_malloc(sizeof(OpenAPI_ue_context_relocate_data_t));
+    ogs_assert(ue_context_relocate_data_local_var);
+
     ue_context_relocate_data_local_var->ue_context = ue_context;
     ue_context_relocate_data_local_var->target_id = target_id;
     ue_context_relocate_data_local_var->source_to_target_data = source_to_target_data;
@@ -220,6 +219,12 @@ OpenAPI_ue_context_relocate_data_t *OpenAPI_ue_context_relocate_data_parseFromJS
         }
         OpenAPI_n2_sm_information_t *pdu_session_listItem = OpenAPI_n2_sm_information_parseFromJSON(pdu_session_list_local_nonprimitive);
 
+        if (!pdu_session_listItem) {
+            ogs_error("No pdu_session_listItem");
+            OpenAPI_list_free(pdu_session_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(pdu_session_listList, pdu_session_listItem);
     }
     }
@@ -255,7 +260,7 @@ OpenAPI_ue_context_relocate_data_t *OpenAPI_ue_context_relocate_data_parseFromJS
         pdu_session_list ? pdu_session_listList : NULL,
         ue_radio_capability ? ue_radio_capability_local_nonprim : NULL,
         ngap_cause ? ngap_cause_local_nonprim : NULL,
-        supported_features ? ogs_strdup_or_assert(supported_features->valuestring) : NULL
+        supported_features ? ogs_strdup(supported_features->valuestring) : NULL
     );
 
     return ue_context_relocate_data_local_var;

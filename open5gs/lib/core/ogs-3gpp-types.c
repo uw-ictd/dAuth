@@ -327,11 +327,12 @@ int ogs_fqdn_parse(char *dst, char *src, int length)
     int i = 0, j = 0;
     uint8_t len = 0;
 
-    while (i < length) {
+    while (i+1 < length) {
         len = src[i++];
         if ((j + len + 1) > length) {
-            ogs_error("Invalid APN encoding[len:%d] + 1 > length[%d]",
+            ogs_error("Invalid FQDN encoding[len:%d] + 1 > length[%d]",
                     len, length);
+            ogs_log_hexdump(OGS_LOG_ERROR, (unsigned char *)src, length);
             return 0;
         }
         memcpy(&dst[j], &src[i], len);
@@ -339,7 +340,7 @@ int ogs_fqdn_parse(char *dst, char *src, int length)
         i += len;
         j += len;
         
-        if (i < length)
+        if (i+1 < length)
             dst[j++] = '.';
         else
             dst[j] = 0;
@@ -467,11 +468,11 @@ int ogs_ip_to_sockaddr(ogs_ip_t *ip, uint16_t port, ogs_sockaddr_t **list)
     return OGS_OK;
 }
 
-void ogs_sockaddr_to_ip(
+int ogs_sockaddr_to_ip(
         ogs_sockaddr_t *addr, ogs_sockaddr_t *addr6, ogs_ip_t *ip)
 {
-    ogs_assert(ip);
-    ogs_assert(addr || addr6);
+    ogs_expect_or_return_val(ip, OGS_ERROR);
+    ogs_expect_or_return_val(addr || addr6, OGS_ERROR);
 
     memset(ip, 0, sizeof(ogs_ip_t));
 
@@ -491,6 +492,8 @@ void ogs_sockaddr_to_ip(
         memcpy(ip->addr6, addr6->sin6.sin6_addr.s6_addr, OGS_IPV6_LEN);
     } else
         ogs_assert_if_reached();
+
+    return OGS_OK;
 }
 
 char *ogs_ipv4_to_string(uint32_t addr)
@@ -728,4 +731,280 @@ void ogs_ims_data_free(ogs_ims_data_t *ims_data)
             }
         }
     }
+}
+
+static int flow_rx_to_gx(ogs_flow_t *rx_flow, ogs_flow_t *gx_flow)
+{
+    int len;
+    char *from_str, *to_str;
+
+    ogs_assert(rx_flow);
+    ogs_assert(gx_flow);
+
+    if (!strncmp(rx_flow->description,
+                "permit out", strlen("permit out"))) {
+        gx_flow->direction = OGS_FLOW_DOWNLINK_ONLY;
+        gx_flow->description = ogs_strdup(rx_flow->description);
+        ogs_assert(gx_flow->description);
+
+    } else if (!strncmp(rx_flow->description,
+                "permit in", strlen("permit in"))) {
+        gx_flow->direction = OGS_FLOW_UPLINK_ONLY;
+
+        /* 'permit in' should be changed
+         * 'permit out' in Gx Diameter */
+        len = strlen(rx_flow->description)+2;
+        gx_flow->description = ogs_calloc(1, len);
+        ogs_assert(gx_flow->description);
+        strcpy(gx_flow->description, "permit out");
+        from_str = strstr(&rx_flow->description[strlen("permit in")], "from");
+        ogs_assert(from_str);
+        to_str = strstr(&rx_flow->description[strlen("permit in")], "to");
+        ogs_assert(to_str);
+        strncat(gx_flow->description,
+            &rx_flow->description[strlen("permit in")],
+            strlen(rx_flow->description) -
+                strlen("permit in") - strlen(from_str));
+        strcat(gx_flow->description, "from");
+        strcat(gx_flow->description, &to_str[strlen("to")]);
+        strcat(gx_flow->description, " to");
+        strncat(gx_flow->description, &from_str[strlen("from")],
+                strlen(from_str) - strlen(to_str) - strlen("from") - 1);
+        ogs_assert(len == strlen(gx_flow->description)+1);
+    } else {
+        ogs_error("Invalid Flow Descripton : [%s]", rx_flow->description);
+        return OGS_ERROR;
+    }
+
+    return OGS_OK;
+}
+
+int ogs_pcc_rule_num_of_flow_equal_to_media(
+        ogs_pcc_rule_t *pcc_rule, ogs_media_component_t *media_component)
+{
+    int rv;
+    int i, j, k;
+    int matched = 0;
+    int new = 0;
+
+    ogs_assert(pcc_rule);
+    ogs_assert(media_component);
+
+    for (i = 0; i < media_component->num_of_sub; i++) {
+        ogs_media_sub_component_t *sub = &media_component->sub[i];
+
+        for (j = 0; j < sub->num_of_flow; j++) {
+            new++;
+        }
+    }
+
+    if (new == 0) {
+        /* No new flow in Media-Component */
+        return pcc_rule->num_of_flow;
+    }
+
+    for (i = 0; i < media_component->num_of_sub; i++) {
+        ogs_media_sub_component_t *sub = &media_component->sub[i];
+
+        for (j = 0; j < sub->num_of_flow &&
+                    j < OGS_MAX_NUM_OF_FLOW_IN_MEDIA_SUB_COMPONENT; j++) {
+            ogs_flow_t gx_flow;
+            ogs_flow_t *rx_flow = &sub->flow[j];
+
+            rv = flow_rx_to_gx(rx_flow, &gx_flow);
+            if (rv != OGS_OK) {
+                ogs_error("flow reformatting error");
+                return OGS_ERROR;
+            }
+
+            for (k = 0; k < pcc_rule->num_of_flow; k++) {
+                if (gx_flow.direction == pcc_rule->flow[k].direction &&
+                    !strcmp(gx_flow.description,
+                        pcc_rule->flow[k].description)) {
+                    matched++;
+                    break;
+                }
+            }
+
+            OGS_FLOW_FREE(&gx_flow);
+        }
+    }
+
+    return matched;
+}
+
+int ogs_pcc_rule_install_flow_from_media(
+        ogs_pcc_rule_t *pcc_rule, ogs_media_component_t *media_component)
+{
+    int rv;
+    int i, j;
+
+    ogs_assert(pcc_rule);
+    ogs_assert(media_component);
+
+    /* Remove Flow from PCC Rule */
+    for (i = 0; i < pcc_rule->num_of_flow; i++) {
+        OGS_FLOW_FREE(&pcc_rule->flow[i]);
+    }
+    pcc_rule->num_of_flow = 0;
+
+    for (i = 0; i < media_component->num_of_sub; i++) {
+        ogs_media_sub_component_t *sub = &media_component->sub[i];
+
+        /* Copy Flow to PCC Rule */
+        for (j = 0; j < sub->num_of_flow &&
+                    j < OGS_MAX_NUM_OF_FLOW_IN_MEDIA_SUB_COMPONENT; j++) {
+            ogs_flow_t *rx_flow = NULL;
+            ogs_flow_t *gx_flow = NULL;
+
+            if (pcc_rule->num_of_flow < OGS_MAX_NUM_OF_FLOW_IN_PCC_RULE) {
+                rx_flow = &sub->flow[j];
+                gx_flow = &pcc_rule->flow[pcc_rule->num_of_flow];
+
+                rv = flow_rx_to_gx(rx_flow, gx_flow);
+                if (rv != OGS_OK) {
+                    ogs_error("flow reformatting error");
+                    return OGS_ERROR;
+                }
+
+                pcc_rule->num_of_flow++;
+            } else {
+                ogs_error("Overflow: Number of Flow");
+                return OGS_ERROR;
+            }
+        }
+    }
+
+    return OGS_OK;
+}
+
+int ogs_pcc_rule_update_qos_from_media(
+        ogs_pcc_rule_t *pcc_rule, ogs_media_component_t *media_component)
+{
+    int rv;
+    int i, j;
+
+    ogs_assert(pcc_rule);
+    ogs_assert(media_component);
+
+    pcc_rule->qos.mbr.downlink = 0;
+    pcc_rule->qos.mbr.uplink = 0;
+    pcc_rule->qos.gbr.downlink = 0;
+    pcc_rule->qos.gbr.uplink = 0;
+
+    for (i = 0; i < media_component->num_of_sub; i++) {
+        ogs_media_sub_component_t *sub = &media_component->sub[i];
+
+        for (j = 0; j < sub->num_of_flow &&
+                    j < OGS_MAX_NUM_OF_FLOW_IN_MEDIA_SUB_COMPONENT; j++) {
+            ogs_flow_t gx_flow;
+            ogs_flow_t *rx_flow = &sub->flow[j];
+
+            rv = flow_rx_to_gx(rx_flow, &gx_flow);
+            if (rv != OGS_OK) {
+                ogs_error("flow reformatting error");
+                return OGS_ERROR;
+            }
+
+            if (gx_flow.direction == OGS_FLOW_DOWNLINK_ONLY) {
+                if (sub->flow_usage == OGS_FLOW_USAGE_RTCP) {
+                    if (media_component->rr_bandwidth &&
+                        media_component->rs_bandwidth) {
+                        pcc_rule->qos.mbr.downlink +=
+                            (media_component->rr_bandwidth +
+                            media_component->rs_bandwidth);
+                    } else if (media_component->max_requested_bandwidth_dl) {
+                        if (media_component->rr_bandwidth &&
+                            !media_component->rs_bandwidth) {
+                            pcc_rule->qos.mbr.downlink +=
+                                ogs_max(0.05 *
+                                    media_component->max_requested_bandwidth_dl,
+                                    media_component->rr_bandwidth);
+                        }
+                        if (!media_component->rr_bandwidth &&
+                            media_component->rs_bandwidth) {
+                            pcc_rule->qos.mbr.downlink +=
+                                ogs_max(0.05 *
+                                    media_component->max_requested_bandwidth_dl,
+                                    media_component->rs_bandwidth);
+                        }
+                        if (!media_component->rr_bandwidth &&
+                            !media_component->rs_bandwidth) {
+                            pcc_rule->qos.mbr.downlink +=
+                                0.05 *
+                                    media_component->max_requested_bandwidth_dl;
+                        }
+                    }
+                } else {
+                    if (gx_flow.description) {
+                        pcc_rule->qos.mbr.downlink +=
+                            media_component->max_requested_bandwidth_dl;
+                        pcc_rule->qos.gbr.downlink +=
+                            media_component->min_requested_bandwidth_dl;
+                    }
+                }
+            } else if (gx_flow.direction == OGS_FLOW_UPLINK_ONLY) {
+                if (sub->flow_usage == OGS_FLOW_USAGE_RTCP) {
+                    if (media_component->rr_bandwidth &&
+                        media_component->rs_bandwidth) {
+                        pcc_rule->qos.mbr.uplink +=
+                            (media_component->rr_bandwidth +
+                            media_component->rs_bandwidth);
+                    } else if (media_component->max_requested_bandwidth_ul) {
+                        if (media_component->rr_bandwidth &&
+                            !media_component->rs_bandwidth) {
+                            pcc_rule->qos.mbr.uplink +=
+                                ogs_max(0.05 *
+                                    media_component->max_requested_bandwidth_ul,
+                                    media_component->rr_bandwidth);
+                        }
+                        if (!media_component->rr_bandwidth &&
+                            media_component->rs_bandwidth) {
+                            pcc_rule->qos.mbr.uplink +=
+                                ogs_max(0.05 *
+                                    media_component->max_requested_bandwidth_ul,
+                                    media_component->rs_bandwidth);
+                        }
+                        if (!media_component->rr_bandwidth &&
+                            !media_component->rs_bandwidth) {
+                            pcc_rule->qos.mbr.uplink +=
+                                0.05 *
+                                    media_component->max_requested_bandwidth_ul;
+                        }
+                    }
+                } else {
+                    if (gx_flow.description) {
+                        pcc_rule->qos.mbr.uplink +=
+                            media_component->max_requested_bandwidth_ul;
+                        pcc_rule->qos.gbr.uplink +=
+                            media_component->min_requested_bandwidth_ul;
+                    }
+                }
+            } else
+                ogs_assert_if_reached();
+
+            OGS_FLOW_FREE(&gx_flow);
+        }
+    }
+
+    if (pcc_rule->qos.mbr.downlink == 0) {
+        pcc_rule->qos.mbr.downlink +=
+            media_component->max_requested_bandwidth_dl;
+        pcc_rule->qos.mbr.downlink +=
+            (media_component->rr_bandwidth + media_component->rs_bandwidth);
+    }
+
+    if (pcc_rule->qos.mbr.uplink == 0) {
+        pcc_rule->qos.mbr.uplink +=
+            media_component->max_requested_bandwidth_ul;
+        pcc_rule->qos.mbr.uplink +=
+            (media_component->rr_bandwidth + media_component->rs_bandwidth);
+    }
+
+    if (pcc_rule->qos.gbr.downlink == 0)
+        pcc_rule->qos.gbr.downlink = pcc_rule->qos.mbr.downlink;
+    if (pcc_rule->qos.gbr.uplink == 0)
+        pcc_rule->qos.gbr.uplink = pcc_rule->qos.mbr.uplink;
+
+    return OGS_OK;
 }

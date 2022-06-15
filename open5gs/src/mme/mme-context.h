@@ -54,6 +54,7 @@ typedef struct mme_vlr_s mme_vlr_t;
 typedef struct mme_csmap_s mme_csmap_t;
 
 typedef struct enb_ue_s enb_ue_t;
+typedef struct sgw_ue_s sgw_ue_t;
 typedef struct mme_ue_s mme_ue_t;
 typedef struct mme_sess_s mme_sess_t;
 typedef struct mme_bearer_s mme_bearer_t;
@@ -147,20 +148,20 @@ typedef struct mme_context_s {
 } mme_context_t;
 
 typedef struct mme_sgw_s {
-    ogs_lnode_t     lnode;
+    ogs_gtp_node_t  gnode;
 
     uint16_t        tac[OGS_MAX_NUM_OF_TAI];
     uint8_t         num_of_tac;
     uint32_t        e_cell_id[OGS_MAX_NUM_OF_CELL_ID];
     uint8_t         num_of_e_cell_id;
 
-    ogs_gtp_node_t  *gnode;
+    ogs_list_t      sgw_ue_list;
 } mme_sgw_t;
 
 typedef struct mme_pgw_s {
     ogs_lnode_t     lnode;
 
-    ogs_gtp_node_t  *gnode;
+    ogs_sockaddr_t  *sa_list;
     const char      *apn;
 } mme_pgw_t;
 
@@ -184,6 +185,7 @@ typedef struct mme_vlr_s {
 
     ogs_sock_t      *sock;      /* VLR SGsAP Socket */
     ogs_sockaddr_t  *addr;      /* VLR SGsAP Connected Socket Address */
+    ogs_sockopt_t   *option;    /* VLR SGsAP Socket Option */
     ogs_poll_t      *poll;      /* VLR SGsAP Poll */
 } mme_vlr_t;
 
@@ -238,7 +240,7 @@ struct enb_ue_s {
 
     /* Use mme_ue->tai, mme_ue->e_cgi.
      * Do not access enb_ue->saved.tai enb_ue->saved.e_cgi.
-     * 
+     *
      * Save TAI and ECGI. And then, this will copy 'mme_ue_t' context later */
     struct {
         ogs_eps_tai_t   tai;
@@ -265,7 +267,36 @@ struct enb_ue_s {
     /* Related Context */
     mme_enb_t       *enb;
     mme_ue_t        *mme_ue;
-}; 
+};
+
+struct sgw_ue_s {
+    ogs_lnode_t     lnode;
+    uint32_t        index;
+
+    sgw_ue_t        *source_ue;
+    sgw_ue_t        *target_ue;
+
+    /* UE identity */
+    uint32_t        sgw_s11_teid;   /* SGW-S11-TEID is received from SGW */
+
+    /*
+     * If the MME sends Delete-Session-Request to the SGW for all sessions,
+     *    session_context_will_deleted = 1
+     * When the MME receives a Delete-Session-Response for the last session,
+     *    session_context_will_deleted = 0
+     */
+    int             session_context_will_deleted;
+
+    /* S11 Holding timer for removing this context */
+    ogs_timer_t     *t_s11_holding;
+
+    /* Related Context */
+    union {
+        mme_sgw_t       *sgw;
+        ogs_gtp_node_t  *gnode;
+    };
+    mme_ue_t        *mme_ue;
+};
 
 struct mme_ue_s {
     ogs_lnode_t     lnode;
@@ -276,8 +307,8 @@ struct mme_ue_s {
 #define MME_EPS_TYPE_TAU_REQUEST                    2
 #define MME_EPS_TYPE_SERVICE_REQUEST                3
 #define MME_EPS_TYPE_EXTENDED_SERVICE_REQUEST       4
-#define MME_EPS_TYPE_DETACH_REQUEST_FROM_UE         5 
-#define MME_EPS_TYPE_DETACH_REQUEST_TO_UE           6 
+#define MME_EPS_TYPE_DETACH_REQUEST_FROM_UE         5
+#define MME_EPS_TYPE_DETACH_REQUEST_TO_UE           6
         uint8_t     type;
         uint8_t     ksi;
         union {
@@ -320,7 +351,6 @@ struct mme_ue_s {
     } current, next;
 
     uint32_t        mme_s11_teid;   /* MME-S11-TEID is derived from INDEX */
-    uint32_t        sgw_s11_teid;   /* SGW-S11-TEID is received from SGW */
 
     uint16_t        vlr_ostream_id; /* SCTP output stream id for VLR */
 
@@ -355,7 +385,7 @@ struct mme_ue_s {
     uint8_t         kasme[OGS_SHA256_DIGEST_SIZE];
     uint8_t         rand[OGS_RAND_LEN];
     uint8_t         autn[OGS_AUTN_LEN];
-    uint8_t         knas_int[OGS_SHA256_DIGEST_SIZE/2]; 
+    uint8_t         knas_int[OGS_SHA256_DIGEST_SIZE/2];
     uint8_t         knas_enc[OGS_SHA256_DIGEST_SIZE/2];
     uint32_t        dl_count;
     union {
@@ -390,6 +420,7 @@ struct mme_ue_s {
 
     /* HSS Info */
     ogs_bitrate_t   ambr; /* UE-AMBR */
+    uint32_t        network_access_mode; /* Permitted EPS Attach Type */
 
     uint32_t        context_identifier; /* default APN */
 
@@ -417,16 +448,28 @@ struct mme_ue_s {
      (((__mME)->enb_ue == NULL) || (enb_ue_cycle((__mME)->enb_ue) == NULL)))
     enb_ue_t        *enb_ue;    /* S1 UE context */
 
+    /* SGW UE context */
+    sgw_ue_t        *sgw_ue;
+
     /* Save PDN Connectivity Request */
     ogs_nas_esm_message_container_t pdn_connectivity_request;
 
 #define CLEAR_MME_UE_ALL_TIMERS(__mME) \
     do { \
+        mme_sess_t *sess = NULL; \
+        mme_bearer_t *bearer = NULL; \
+        \
         CLEAR_MME_UE_TIMER((__mME)->t3413); \
         CLEAR_MME_UE_TIMER((__mME)->t3422); \
         CLEAR_MME_UE_TIMER((__mME)->t3450); \
         CLEAR_MME_UE_TIMER((__mME)->t3460); \
         CLEAR_MME_UE_TIMER((__mME)->t3470); \
+        \
+        ogs_list_for_each(&mme_ue->sess_list, sess) { \
+            ogs_list_for_each(&sess->bearer_list, bearer) { \
+                CLEAR_BEARER_ALL_TIMERS(bearer); \
+            } \
+        } \
     } while(0);
 #define CLEAR_MME_UE_TIMER(__mME_UE_TIMER) \
     do { \
@@ -491,36 +534,30 @@ struct mme_ue_s {
 
 #define MAX_NUM_OF_GTP_COUNTER                                  16
 
-#define GTP_COUNTER_MODIFY_BEARER_BY_PATH_SWITCH                1
-#define GTP_COUNTER_MODIFY_BEARER_BY_E_RAB_MODIFICATION         2
+#define GTP_COUNTER_CREATE_SESSION_BY_PATH_SWITCH               1
+#define GTP_COUNTER_DELETE_SESSION_BY_PATH_SWITCH               2
     struct {
         uint8_t request;
         uint8_t response;
     } gtp_counter[MAX_NUM_OF_GTP_COUNTER];
 
-    /*
-     * If the MME sends Delete-Session-Request to the SGW for all sessions,
-     *    session_context_will_deleted = 1
-     * When the MME receives a Delete-Session-Response for the last session,
-     *    session_context_will_deleted = 0
-     */
-    int             session_context_will_deleted;
+    ogs_list_t      bearer_to_modify_list;
 
-    ogs_gtp_node_t  *gnode;
     mme_csmap_t     *csmap;
 };
 
 #define SESSION_CONTEXT_IS_AVAILABLE(__mME) \
-     ((__mME) && ((__mME)->sgw_s11_teid))
+     ((__mME) && ((__mME)->sgw_ue) && (((__mME)->sgw_ue)->sgw_s11_teid))
 
 #define SESSION_CONTEXT_WILL_DELETED(__mME) \
-     ((__mME) && ((__mME)->session_context_will_deleted))
+     ((__mME) && ((__mME)->sgw_ue) && \
+      (((__mME)->sgw_ue)->session_context_will_deleted))
 
 #define CLEAR_SESSION_CONTEXT(__mME) \
     do { \
         ogs_assert((__mME)); \
-        (__mME)->sgw_s11_teid = 0; \
-        (__mME)->session_context_will_deleted = 0; \
+        ((__mME)->sgw_ue)->sgw_s11_teid = 0; \
+        ((__mME)->sgw_ue)->session_context_will_deleted = 0; \
     } while(0)
 
 #define ACTIVE_EPS_BEARERS_IS_AVAIABLE(__mME) \
@@ -530,22 +567,24 @@ typedef struct mme_sess_s {
 
     uint8_t         pti;        /* Procedure Trasaction Identity */
 
+    uint32_t        pgw_s5c_teid;
+
     /* PDN Connectivity Request */
-    ogs_nas_request_type_t request_type; 
+    ogs_nas_request_type_t request_type;
 
     /* mme_bearer_first(sess) : Default Bearer Context */
     ogs_list_t      bearer_list;
 
     /* Related Context */
-    mme_ue_t *mme_ue;
+    mme_ue_t        *mme_ue;
 
-    ogs_session_t *session;
+    ogs_session_t   *session;
 
     /* Save Protocol Configuration Options from UE */
     struct {
         uint8_t length;
         uint8_t *buffer;
-    } ue_pco; 
+    } ue_pco;
 
     /* Save Protocol Configuration Options from PGW */
     ogs_tlv_octet_t pgw_pco;
@@ -588,6 +627,8 @@ typedef struct mme_sess_s {
     } while(0)
 typedef struct mme_bearer_s {
     ogs_lnode_t     lnode;
+    ogs_lnode_t     to_modify_node;
+
     uint32_t        index;
     ogs_fsm_t       sm;             /* State Machine */
 
@@ -598,6 +639,8 @@ typedef struct mme_bearer_s {
     ogs_ip_t        enb_s1u_ip;
     uint32_t        sgw_s1u_teid;
     ogs_ip_t        sgw_s1u_ip;
+    uint32_t        pgw_s5u_teid;
+    ogs_ip_t        pgw_s5u_ip;
 
     uint32_t        target_s1u_teid;    /* Target S1U TEID from HO-Req-Ack */
     ogs_ip_t        target_s1u_ip;      /* Target S1U ADDR from HO-Req-Ack */
@@ -660,7 +703,7 @@ void mme_pgw_remove_all(void);
 ogs_sockaddr_t *mme_pgw_addr_find_by_apn(
         ogs_list_t *list, int family, char *apn);
 
-mme_vlr_t *mme_vlr_add(ogs_sockaddr_t *addr);
+mme_vlr_t *mme_vlr_add(ogs_sockaddr_t *addr, ogs_sockopt_t *option);
 void mme_vlr_remove(mme_vlr_t *vlr);
 void mme_vlr_remove_all(void);
 void mme_vlr_close(mme_vlr_t *vlr);
@@ -690,10 +733,24 @@ enb_ue_t *enb_ue_find(uint32_t index);
 enb_ue_t *enb_ue_find_by_mme_ue_s1ap_id(uint32_t mme_ue_s1ap_id);
 enb_ue_t *enb_ue_cycle(enb_ue_t *enb_ue);
 
+sgw_ue_t *sgw_ue_add(mme_sgw_t *sgw);
+void sgw_ue_remove(sgw_ue_t *sgw_ue);
+void sgw_ue_switch_to_sgw(sgw_ue_t *sgw_ue, mme_sgw_t *new_sgw);
+sgw_ue_t *sgw_ue_find(uint32_t index);
+sgw_ue_t *sgw_ue_cycle(sgw_ue_t *sgw_ue);
+
+typedef enum {
+    SGW_WITHOUT_RELOCATION = 1,
+    SGW_WITH_RELOCATION = 2,
+    SGW_HAS_ALREADY_BEEN_RELOCATED = 3,
+} sgw_relocation_e;
+sgw_relocation_e sgw_ue_check_if_relocated(mme_ue_t *mme_ue);
+
 void mme_ue_new_guti(mme_ue_t *mme_ue);
 void mme_ue_confirm_guti(mme_ue_t *mme_ue);
 
 mme_ue_t *mme_ue_add(enb_ue_t *enb_ue);
+void mme_ue_hash_remove(mme_ue_t *mme_ue);
 void mme_ue_remove(mme_ue_t *mme_ue);
 void mme_ue_remove_all(void);
 
@@ -713,7 +770,7 @@ void mme_ue_clear_indirect_tunnel(mme_ue_t *mme_ue);
 
 bool mme_ue_have_active_eps_bearers(mme_ue_t *mme_ue);
 
-/* 
+/*
  * o RECV Initial UE-Message : S-TMSI
  * o RECV Attach Request : IMSI, GUTI
  * o RECV TAU Request : GUTI
@@ -721,23 +778,23 @@ bool mme_ue_have_active_eps_bearers(mme_ue_t *mme_ue);
  * ### MME_UE_ECM_CONNECTED() ###
  *
  * o RECV Initial Context Setup Failure in EMM Registered State
- * ### MME_UE_DEASSOCIATE_ENB_UE() ###
+ * ### ENB_UE_DEASSOCIATE_MME_UE() ###
  * ### ENB_UE_REMOVE() ###
- * ### MME_UE_DEASSOCIATE() ###
+ * ### ENB_UE_UNLINK() ###
  *
- * o SEND UE Context Release Command with NO_ACTION
+ * o SEND UE Context Release Command with S1_REMOVE_AND_UNLINK
  *   - RECV UE Context Release Complete
  * ### ENB_UE_REMOVE() ###
- * ### MME_UE_DEASSOCIATE() ###
+ * ### ENB_UE_UNLINK() ###
  *
- * o SEND UE Context Release Command with REMOVE_MME_UE_CONTEXT
+ * o SEND UE Context Release Command with UE_CONTEXT_REMOVE
  *   - RECV UE Context Release Complete
  * ### ENB_UE_REMOVE() ###
  * ### MME_UE_REMOVE() ###
  *
  *
  * o RECV Handover Required
- * ### SOURCE_UE_ASSOCIATE_TARGET_UE() ####
+ * ### ENB_UE_SOURCE_ASSOCIATE_TARGET() ####
  *   - SEND Handover Request
  *
  * o RECV Handover Notify
@@ -745,27 +802,33 @@ bool mme_ue_have_active_eps_bearers(mme_ue_t *mme_ue);
  * ### MME_UE_ECM_CONNECTED(TARGET) ###
  *   - Modify Bearer Request/Response
  *   - UE Context Release Command/Complete
- * ### SOURCE_UE_DEASSOCIATE_TARGET_UE() ####
+ * ### ENB_UE_SOURCE_DEASSOCIATE_TARGET() ####
  * ### ENB_UE_REMOVE() ####
  *   - Delete Indirect Data Forwarding Tunnel Request/Response
  *
  * o RECV Handover Cancel
  *   - UE Context Release Command/Complete
- * ### SOURCE_UE_DEASSOCIATE_TARGET_UE() ####
+ * ### ENB_UE_SOURCE_DEASSOCIATE_TARGET() ####
  * ### ENB_UE_REMOVE() ####
  *   - Delete Indirect Data Forwarding Tunnel Request/Response
  *
  * o RECV Handover Failure
  *   - UE Context Release Command/Complete
- * ### SOURCE_UE_DEASSOCIATE_TARGET_UE() ####
+ * ### ENB_UE_SOURCE_DEASSOCIATE_TARGET() ####
  * ### ENB_UE_REMOVE() ####
  *   - Delete Indirect Data Forwarding Tunnel Request/Response
  */
-void mme_ue_associate_enb_ue(mme_ue_t *mme_ue, enb_ue_t *enb_ue);
+void enb_ue_associate_mme_ue(enb_ue_t *enb_ue, mme_ue_t *mme_ue);
 void enb_ue_deassociate(enb_ue_t *enb_ue);
-void mme_ue_deassociate(mme_ue_t *mme_ue);
-void source_ue_associate_target_ue(enb_ue_t *source_ue, enb_ue_t *target_ue);
-void source_ue_deassociate_target_ue(enb_ue_t *enb_ue);
+void enb_ue_unlink(mme_ue_t *mme_ue);
+void enb_ue_source_associate_target(enb_ue_t *source_ue, enb_ue_t *target_ue);
+void enb_ue_source_deassociate_target(enb_ue_t *enb_ue);
+
+void sgw_ue_associate_mme_ue(sgw_ue_t *sgw_ue, mme_ue_t *mme_ue);
+void sgw_ue_deassociate(sgw_ue_t *sgw_ue);
+void sgw_ue_unlink(mme_ue_t *mme_ue);
+void sgw_ue_source_associate_target(sgw_ue_t *source_ue, sgw_ue_t *target_ue);
+void sgw_ue_source_deassociate_target(sgw_ue_t *sgw_ue);
 
 mme_sess_t *mme_sess_add(mme_ue_t *mme_ue, uint8_t pti);
 void mme_sess_remove(mme_sess_t *sess);
@@ -778,18 +841,13 @@ mme_sess_t *mme_sess_first(mme_ue_t *mme_ue);
 mme_sess_t *mme_sess_next(mme_sess_t *sess);
 unsigned int mme_sess_count(mme_ue_t *mme_ue);
 
-#define UE_CONTEXT_IN_ATTACH(__mME) mme_ue_in_attach(__mME)
-#define SESSION_CONTEXT_IN_ATTACH(__sESS) mme_sess_in_attach(__sESS)
-bool mme_ue_in_attach(mme_ue_t *mme_ue);
-bool mme_sess_in_attach(mme_sess_t *sess);
-
 mme_bearer_t *mme_bearer_add(mme_sess_t *sess);
 void mme_bearer_remove(mme_bearer_t *bearer);
 void mme_bearer_remove_all(mme_sess_t *sess);
 mme_bearer_t *mme_bearer_find_by_sess_ebi(mme_sess_t *sess, uint8_t ebi);
 mme_bearer_t *mme_bearer_find_by_ue_ebi(mme_ue_t *mme_ue, uint8_t ebi);
 mme_bearer_t *mme_bearer_find_or_add_by_message(
-                                mme_ue_t *mme_ue, ogs_nas_eps_message_t *message);
+        mme_ue_t *mme_ue, ogs_nas_eps_message_t *message, int create_action);
 mme_bearer_t *mme_default_bearer_in_sess(mme_sess_t *sess);
 mme_bearer_t *mme_linked_bearer(mme_bearer_t *bearer);
 mme_bearer_t *mme_bearer_first(mme_sess_t *sess);

@@ -8,10 +8,9 @@ OpenAPI_dnf_unit_t *OpenAPI_dnf_unit_create(
     OpenAPI_list_t *dnf_unit
 )
 {
-    OpenAPI_dnf_unit_t *dnf_unit_local_var = OpenAPI_malloc(sizeof(OpenAPI_dnf_unit_t));
-    if (!dnf_unit_local_var) {
-        return NULL;
-    }
+    OpenAPI_dnf_unit_t *dnf_unit_local_var = ogs_malloc(sizeof(OpenAPI_dnf_unit_t));
+    ogs_assert(dnf_unit_local_var);
+
     dnf_unit_local_var->dnf_unit = dnf_unit;
 
     return dnf_unit_local_var;
@@ -86,6 +85,12 @@ OpenAPI_dnf_unit_t *OpenAPI_dnf_unit_parseFromJSON(cJSON *dnf_unitJSON)
             goto end;
         }
         OpenAPI_atom_t *dnf_unitItem = OpenAPI_atom_parseFromJSON(dnf_unit_local_nonprimitive);
+
+        if (!dnf_unitItem) {
+            ogs_error("No dnf_unitItem");
+            OpenAPI_list_free(dnf_unitList);
+            goto end;
+        }
 
         OpenAPI_list_add(dnf_unitList, dnf_unitItem);
     }

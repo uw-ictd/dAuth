@@ -20,7 +20,7 @@
 /*******************************************************************************
  * This file had been created by pfcp-tlv.py script v0.1.0
  * Please do not modify this file but regenerate it via script.
- * Created on: 2021-10-04 22:09:12.899719 by acetcom
+ * Created on: 2022-05-10 22:56:07.844328 by acetcom
  * from 29244-g10.docx
  ******************************************************************************/
 
@@ -270,7 +270,7 @@ typedef struct ogs_pfcp_header_s {
 #define OGS_PFCP_SMF_SET_ID_TYPE 180
 #define OGS_PFCP_QUOTA_VALIDITY_TIME_TYPE 181
 
-/* Infomration Element TLV Descriptor */
+/* Information Element TLV Descriptor */
 extern ogs_tlv_desc_t ogs_pfcp_tlv_desc_cause;
 extern ogs_tlv_desc_t ogs_pfcp_tlv_desc_source_interface;
 extern ogs_tlv_desc_t ogs_pfcp_tlv_desc_f_teid;
@@ -407,7 +407,7 @@ extern ogs_tlv_desc_t ogs_pfcp_tlv_desc_packet_replication_and_detection_carry_o
 extern ogs_tlv_desc_t ogs_pfcp_tlv_desc_smf_set_id;
 extern ogs_tlv_desc_t ogs_pfcp_tlv_desc_quota_validity_time;
 
-/* Group Infomration Element TLV Descriptor */
+/* Group Information Element TLV Descriptor */
 extern ogs_tlv_desc_t ogs_pfcp_tlv_desc_ethernet_packet_filter;
 extern ogs_tlv_desc_t ogs_pfcp_tlv_desc_pdi;
 extern ogs_tlv_desc_t ogs_pfcp_tlv_desc_create_pdr;
@@ -480,7 +480,7 @@ extern ogs_tlv_desc_t ogs_pfcp_msg_desc_pfcp_session_deletion_response;
 extern ogs_tlv_desc_t ogs_pfcp_msg_desc_pfcp_session_report_request;
 extern ogs_tlv_desc_t ogs_pfcp_msg_desc_pfcp_session_report_response;
 
-/* Structure for Infomration Element */
+/* Structure for Information Element */
 typedef ogs_tlv_uint8_t ogs_pfcp_tlv_cause_t;
 typedef ogs_tlv_uint8_t ogs_pfcp_tlv_source_interface_t;
 typedef ogs_tlv_octet_t ogs_pfcp_tlv_f_teid_t;
@@ -521,19 +521,19 @@ typedef ogs_tlv_octet_t ogs_pfcp_tlv_f_seid_t;
 typedef ogs_tlv_octet_t ogs_pfcp_tlv_node_id_t;
 typedef ogs_tlv_octet_t ogs_pfcp_tlv_pfd_contents_t;
 typedef ogs_tlv_uint8_t ogs_pfcp_tlv_measurement_method_t;
-typedef ogs_tlv_octet_t ogs_pfcp_tlv_usage_report_trigger_t;
+typedef ogs_tlv_uint24_t ogs_pfcp_tlv_usage_report_trigger_t;
 typedef ogs_tlv_uint32_t ogs_pfcp_tlv_measurement_period_t;
 typedef ogs_tlv_octet_t ogs_pfcp_tlv_fq_csid_t;
 typedef ogs_tlv_octet_t ogs_pfcp_tlv_volume_measurement_t;
-typedef ogs_tlv_octet_t ogs_pfcp_tlv_duration_measurement_t;
-typedef ogs_tlv_octet_t ogs_pfcp_tlv_time_of_first_packet_t;
-typedef ogs_tlv_octet_t ogs_pfcp_tlv_time_of_last_packet_t;
+typedef ogs_tlv_uint32_t ogs_pfcp_tlv_duration_measurement_t;
+typedef ogs_tlv_uint32_t ogs_pfcp_tlv_time_of_first_packet_t;
+typedef ogs_tlv_uint32_t ogs_pfcp_tlv_time_of_last_packet_t;
 typedef ogs_tlv_uint32_t ogs_pfcp_tlv_quota_holding_time_t;
 typedef ogs_tlv_octet_t ogs_pfcp_tlv_dropped_dl_traffic_threshold_t;
 typedef ogs_tlv_octet_t ogs_pfcp_tlv_volume_quota_t;
 typedef ogs_tlv_uint32_t ogs_pfcp_tlv_time_quota_t;
-typedef ogs_tlv_octet_t ogs_pfcp_tlv_start_time_t;
-typedef ogs_tlv_octet_t ogs_pfcp_tlv_end_time_t;
+typedef ogs_tlv_uint32_t ogs_pfcp_tlv_start_time_t;
+typedef ogs_tlv_uint32_t ogs_pfcp_tlv_end_time_t;
 typedef ogs_tlv_uint32_t ogs_pfcp_tlv_urr_id_t;
 typedef ogs_tlv_octet_t ogs_pfcp_tlv_linked_urr_id_t;
 typedef ogs_tlv_octet_t ogs_pfcp_tlv_outer_header_creation_t;
@@ -551,7 +551,7 @@ typedef ogs_tlv_octet_t ogs_pfcp_tlv_header_enrichment_t;
 typedef ogs_tlv_octet_t ogs_pfcp_tlv_measurement_information_t;
 typedef ogs_tlv_octet_t ogs_pfcp_tlv_node_report_type_t;
 typedef ogs_tlv_octet_t ogs_pfcp_tlv_remote_gtp_u_peer_t;
-typedef ogs_tlv_octet_t ogs_pfcp_tlv_ur_seqn_t;
+typedef ogs_tlv_uint32_t ogs_pfcp_tlv_ur_seqn_t;
 typedef ogs_tlv_octet_t ogs_pfcp_tlv_activate_predefined_rules_t;
 typedef ogs_tlv_octet_t ogs_pfcp_tlv_deactivate_predefined_rules_t;
 typedef ogs_tlv_uint32_t ogs_pfcp_tlv_far_id_t;
@@ -617,7 +617,7 @@ typedef ogs_tlv_octet_t ogs_pfcp_tlv_packet_replication_and_detection_carry_on_i
 typedef ogs_tlv_octet_t ogs_pfcp_tlv_smf_set_id_t;
 typedef ogs_tlv_uint32_t ogs_pfcp_tlv_quota_validity_time_t;
 
-/* Structure for Group Infomration Element */
+/* Structure for Group Information Element */
 typedef struct ogs_pfcp_tlv_ethernet_packet_filter_s {
     ogs_tlv_presence_t presence;
     ogs_pfcp_tlv_ethernet_filter_id_t ethernet_filter_id;
@@ -654,7 +654,7 @@ typedef struct ogs_pfcp_tlv_create_pdr_s {
     ogs_pfcp_tlv_pdi_t pdi;
     ogs_pfcp_tlv_outer_header_removal_t outer_header_removal;
     ogs_pfcp_tlv_far_id_t far_id;
-    ogs_pfcp_tlv_urr_id_t urr_id;
+    ogs_pfcp_tlv_urr_id_t urr_id[8];
     ogs_pfcp_tlv_qer_id_t qer_id;
     ogs_pfcp_tlv_activate_predefined_rules_t activate_predefined_rules;
     ogs_pfcp_tlv_activation_time_t activation_time;
@@ -747,7 +747,7 @@ typedef struct ogs_pfcp_tlv_access_forwarding_action_information_1_s {
     ogs_pfcp_tlv_far_id_t far_id;
     ogs_pfcp_tlv_weight_t weight;
     ogs_pfcp_tlv_priority_t priority;
-    ogs_pfcp_tlv_urr_id_t urr_id;
+    ogs_pfcp_tlv_urr_id_t urr_id[8];
 } ogs_pfcp_tlv_access_forwarding_action_information_1_t;
 
 typedef struct ogs_pfcp_tlv_access_forwarding_action_information_2_s {
@@ -755,7 +755,7 @@ typedef struct ogs_pfcp_tlv_access_forwarding_action_information_2_s {
     ogs_pfcp_tlv_far_id_t far_id;
     ogs_pfcp_tlv_weight_t weight;
     ogs_pfcp_tlv_priority_t priority;
-    ogs_pfcp_tlv_urr_id_t urr_id;
+    ogs_pfcp_tlv_urr_id_t urr_id[8];
 } ogs_pfcp_tlv_access_forwarding_action_information_2_t;
 
 typedef struct ogs_pfcp_tlv_update_access_forwarding_action_information_1_s {
@@ -1257,7 +1257,7 @@ typedef struct ogs_pfcp_session_modification_response_s {
     ogs_pfcp_tlv_created_pdr_t created_pdr[8];
     ogs_pfcp_tlv_load_control_information_t load_control_information;
     ogs_pfcp_tlv_overload_control_information_t overload_control_information;
-    ogs_pfcp_tlv_usage_report_session_modification_response_t usage_report;
+    ogs_pfcp_tlv_usage_report_session_modification_response_t usage_report[8];
     ogs_pfcp_tlv_failed_rule_id_t failed_rule_id;
     ogs_pfcp_tlv_additional_usage_reports_information_t additional_usage_reports_information;
     ogs_pfcp_tlv_created_traffic_endpoint_t created_updated_traffic_endpoint;
@@ -1271,13 +1271,13 @@ typedef struct ogs_pfcp_session_deletion_response_s {
     ogs_pfcp_tlv_offending_ie_t offending_ie;
     ogs_pfcp_tlv_load_control_information_t load_control_information;
     ogs_pfcp_tlv_overload_control_information_t overload_control_information;
-    ogs_pfcp_tlv_usage_report_session_deletion_response_t usage_report;
+    ogs_pfcp_tlv_usage_report_session_deletion_response_t usage_report[8];
 } ogs_pfcp_session_deletion_response_t;
 
 typedef struct ogs_pfcp_session_report_request_s {
     ogs_pfcp_tlv_report_type_t report_type;
     ogs_pfcp_tlv_downlink_data_report_t downlink_data_report;
-    ogs_pfcp_tlv_usage_report_session_report_request_t usage_report;
+    ogs_pfcp_tlv_usage_report_session_report_request_t usage_report[8];
     ogs_pfcp_tlv_error_indication_report_t error_indication_report;
     ogs_pfcp_tlv_load_control_information_t load_control_information;
     ogs_pfcp_tlv_overload_control_information_t overload_control_information;

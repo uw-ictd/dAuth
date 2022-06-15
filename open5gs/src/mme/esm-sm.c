@@ -36,18 +36,18 @@ static uint8_t gtp_cause_from_esm(uint8_t esm_cause)
 {
     switch (esm_cause) {
     case ESM_CAUSE_SEMANTIC_ERROR_IN_THE_TFT_OPERATION:
-        return OGS_GTP_CAUSE_SEMANTIC_ERROR_IN_THE_TFT_OPERATION;
+        return OGS_GTP2_CAUSE_SEMANTIC_ERROR_IN_THE_TFT_OPERATION;
     case ESM_CAUSE_SYNTACTICAL_ERROR_IN_THE_TFT_OPERATION:
-        return OGS_GTP_CAUSE_SYNTACTIC_ERROR_IN_THE_TFT_OPERATION;
+        return OGS_GTP2_CAUSE_SYNTACTIC_ERROR_IN_THE_TFT_OPERATION;
     case ESM_CAUSE_SYNTACTICAL_ERROR_IN_PACKET_FILTERS:
-        return OGS_GTP_CAUSE_SYNTACTIC_ERRORS_IN_PACKET_FILTER;
+        return OGS_GTP2_CAUSE_SYNTACTIC_ERRORS_IN_PACKET_FILTER;
     case ESM_CAUSE_SEMANTIC_ERRORS_IN_PACKET_FILTERS:
-        return OGS_GTP_CAUSE_SEMANTIC_ERRORS_IN_PACKET_FILTER;
+        return OGS_GTP2_CAUSE_SEMANTIC_ERRORS_IN_PACKET_FILTER;
     default:
         break;
     }
 
-    return OGS_GTP_CAUSE_SYSTEM_FAILURE;
+    return OGS_GTP2_CAUSE_SYSTEM_FAILURE;
 }
 
 void esm_state_initial(ogs_fsm_t *s, mme_event_t *e)
@@ -106,7 +106,8 @@ void esm_state_inactive(ogs_fsm_t *s, mme_event_t *e)
             ogs_debug("    IMSI[%s] PTI[%d] EBI[%d]",
                     mme_ue->imsi_bcd, sess->pti, bearer->ebi);
             rv = esm_handle_pdn_connectivity_request(
-                    bearer, &message->esm.pdn_connectivity_request);
+                    bearer, &message->esm.pdn_connectivity_request,
+                    e->create_action);
             if (rv != OGS_OK) {
                 OGS_FSM_TRAN(s, esm_state_exception);
                 break;
@@ -118,7 +119,7 @@ void esm_state_inactive(ogs_fsm_t *s, mme_event_t *e)
                     mme_ue->imsi_bcd, sess->pti, bearer->ebi);
             if (MME_HAVE_SGW_S1U_PATH(sess)) {
                 ogs_assert(OGS_OK ==
-                    mme_gtp_send_delete_session_request(sess,
+                    mme_gtp_send_delete_session_request(mme_ue->sgw_ue, sess,
                     OGS_GTP_DELETE_SEND_DEACTIVATE_BEARER_CONTEXT_REQUEST));
             } else {
                 ogs_assert(OGS_OK ==
@@ -178,8 +179,11 @@ void esm_state_inactive(ogs_fsm_t *s, mme_event_t *e)
             /* Check if Initial Context Setup Response or 
              *          E-RAB Setup Response is received */
             if (MME_HAVE_ENB_S1U_PATH(bearer)) {
+                ogs_list_init(&mme_ue->bearer_to_modify_list);
+                ogs_list_add(&mme_ue->bearer_to_modify_list,
+                                &bearer->to_modify_node);
                 ogs_assert(OGS_OK ==
-                    mme_gtp_send_modify_bearer_request(bearer, 0));
+                    mme_gtp_send_modify_bearer_request(mme_ue, 0, 0));
             }
 
             nas_eps_send_activate_all_dedicated_bearers(bearer);
@@ -194,7 +198,7 @@ void esm_state_inactive(ogs_fsm_t *s, mme_event_t *e)
             if (MME_HAVE_ENB_S1U_PATH(bearer)) {
                 ogs_assert(OGS_OK ==
                     mme_gtp_send_create_bearer_response(
-                        bearer, OGS_GTP_CAUSE_REQUEST_ACCEPTED));
+                        bearer, OGS_GTP2_CAUSE_REQUEST_ACCEPTED));
             }
 
             OGS_FSM_TRAN(s, esm_state_active);
@@ -228,7 +232,8 @@ void esm_state_inactive(ogs_fsm_t *s, mme_event_t *e)
 
                 ogs_assert(OGS_OK ==
                     nas_eps_send_pdn_connectivity_reject(sess,
-                        ESM_CAUSE_ESM_INFORMATION_NOT_RECEIVED));
+                        ESM_CAUSE_ESM_INFORMATION_NOT_RECEIVED,
+                        e->create_action));
             } else {
                 rv = nas_eps_send_esm_information_request(bearer);
                 if (rv == OGS_OK) {
@@ -286,7 +291,8 @@ void esm_state_active(ogs_fsm_t *s, mme_event_t *e)
             ogs_debug("    IMSI[%s] PTI[%d] EBI[%d]",
                     mme_ue->imsi_bcd, sess->pti, bearer->ebi);
             rv = esm_handle_pdn_connectivity_request(
-                    bearer, &message->esm.pdn_connectivity_request);
+                    bearer, &message->esm.pdn_connectivity_request,
+                    e->create_action);
             if (rv != OGS_OK) {
                 OGS_FSM_TRAN(s, esm_state_exception);
                 break;
@@ -300,7 +306,7 @@ void esm_state_active(ogs_fsm_t *s, mme_event_t *e)
                     mme_ue->imsi_bcd, sess->pti, bearer->ebi);
             if (MME_HAVE_SGW_S1U_PATH(sess)) {
                 ogs_assert(OGS_OK ==
-                    mme_gtp_send_delete_session_request(sess,
+                    mme_gtp_send_delete_session_request(mme_ue->sgw_ue, sess,
                     OGS_GTP_DELETE_SEND_DEACTIVATE_BEARER_CONTEXT_REQUEST));
             } else {
                 ogs_assert(OGS_OK ==
@@ -315,7 +321,7 @@ void esm_state_active(ogs_fsm_t *s, mme_event_t *e)
 
             ogs_assert(OGS_OK ==
                 mme_gtp_send_update_bearer_response(
-                    bearer, OGS_GTP_CAUSE_REQUEST_ACCEPTED));
+                    bearer, OGS_GTP2_CAUSE_REQUEST_ACCEPTED));
             break;
         case OGS_NAS_EPS_DEACTIVATE_EPS_BEARER_CONTEXT_ACCEPT:
             ogs_debug("Deactivate EPS bearer "
@@ -324,7 +330,7 @@ void esm_state_active(ogs_fsm_t *s, mme_event_t *e)
                     mme_ue->imsi_bcd, sess->pti, bearer->ebi);
             ogs_assert(OGS_OK ==
                 mme_gtp_send_delete_bearer_response(
-                    bearer, OGS_GTP_CAUSE_REQUEST_ACCEPTED));
+                    bearer, OGS_GTP2_CAUSE_REQUEST_ACCEPTED));
             OGS_FSM_TRAN(s, esm_state_bearer_deactivated);
             break;
         case OGS_NAS_EPS_BEARER_RESOURCE_ALLOCATION_REQUEST:
@@ -393,7 +399,8 @@ void esm_state_pdn_will_disconnect(ogs_fsm_t *s, mme_event_t *e)
             ogs_debug("    IMSI[%s] PTI[%d] EBI[%d]",
                     mme_ue->imsi_bcd, sess->pti, bearer->ebi);
             rv = esm_handle_pdn_connectivity_request(
-                    bearer, &message->esm.pdn_connectivity_request);
+                    bearer, &message->esm.pdn_connectivity_request,
+                    e->create_action);
             if (rv != OGS_OK) {
                 OGS_FSM_TRAN(s, esm_state_exception);
                 break;

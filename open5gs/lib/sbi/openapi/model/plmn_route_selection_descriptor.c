@@ -9,10 +9,9 @@ OpenAPI_plmn_route_selection_descriptor_t *OpenAPI_plmn_route_selection_descript
     OpenAPI_list_t *snssai_route_sel_descs
 )
 {
-    OpenAPI_plmn_route_selection_descriptor_t *plmn_route_selection_descriptor_local_var = OpenAPI_malloc(sizeof(OpenAPI_plmn_route_selection_descriptor_t));
-    if (!plmn_route_selection_descriptor_local_var) {
-        return NULL;
-    }
+    OpenAPI_plmn_route_selection_descriptor_t *plmn_route_selection_descriptor_local_var = ogs_malloc(sizeof(OpenAPI_plmn_route_selection_descriptor_t));
+    ogs_assert(plmn_route_selection_descriptor_local_var);
+
     plmn_route_selection_descriptor_local_var->serving_plmn = serving_plmn;
     plmn_route_selection_descriptor_local_var->snssai_route_sel_descs = snssai_route_sel_descs;
 
@@ -108,6 +107,12 @@ OpenAPI_plmn_route_selection_descriptor_t *OpenAPI_plmn_route_selection_descript
             goto end;
         }
         OpenAPI_snssai_route_selection_descriptor_t *snssai_route_sel_descsItem = OpenAPI_snssai_route_selection_descriptor_parseFromJSON(snssai_route_sel_descs_local_nonprimitive);
+
+        if (!snssai_route_sel_descsItem) {
+            ogs_error("No snssai_route_sel_descsItem");
+            OpenAPI_list_free(snssai_route_sel_descsList);
+            goto end;
+        }
 
         OpenAPI_list_add(snssai_route_sel_descsList, snssai_route_sel_descsItem);
     }

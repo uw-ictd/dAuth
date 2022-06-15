@@ -123,11 +123,13 @@ static int server_start(ogs_sbi_server_t *server,
     addr = server->node.addr;
     ogs_assert(addr);
 
-    sock = ogs_tcp_server(&server->node);
+    sock = ogs_tcp_server(addr, server->node.option);
     if (!sock) {
         ogs_error("Cannot start SBI server");
         return OGS_ERROR;
     }
+
+    server->node.sock = sock;
 
     /* Setup callback function */
     server->cb = cb;
@@ -482,8 +484,10 @@ static void session_remove(ogs_sbi_session_t *sbi_sess)
     if (sbi_sess->poll.write)
         ogs_pollset_remove(sbi_sess->poll.write);
 
-    ogs_list_for_each_safe(&sbi_sess->write_queue, next_pkbuf, pkbuf)
+    ogs_list_for_each_safe(&sbi_sess->write_queue, next_pkbuf, pkbuf) {
+        ogs_list_remove(&sbi_sess->write_queue, pkbuf);
         ogs_pkbuf_free(pkbuf);
+    }
 
     ogs_assert(sbi_sess->addr);
     ogs_free(sbi_sess->addr);
@@ -854,7 +858,8 @@ static int on_header(nghttp2_session *session, const nghttp2_frame *frame,
     ogs_assert(value);
     valuebuf = nghttp2_rcbuf_get_buf(value);
     ogs_assert(valuebuf.base);
-    ogs_assert(valuebuf.len);
+
+    if (valuebuf.len == 0) return 0;
 
     namestr = ogs_strndup((const char *)namebuf.base, namebuf.len);
     ogs_assert(namestr);

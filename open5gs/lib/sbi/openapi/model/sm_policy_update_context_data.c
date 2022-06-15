@@ -60,10 +60,9 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_c
     OpenAPI_list_t *types_of_notif
 )
 {
-    OpenAPI_sm_policy_update_context_data_t *sm_policy_update_context_data_local_var = OpenAPI_malloc(sizeof(OpenAPI_sm_policy_update_context_data_t));
-    if (!sm_policy_update_context_data_local_var) {
-        return NULL;
-    }
+    OpenAPI_sm_policy_update_context_data_t *sm_policy_update_context_data_local_var = ogs_malloc(sizeof(OpenAPI_sm_policy_update_context_data_t));
+    ogs_assert(sm_policy_update_context_data_local_var);
+
     sm_policy_update_context_data_local_var->rep_policy_ctrl_req_triggers = rep_policy_ctrl_req_triggers;
     sm_policy_update_context_data_local_var->acc_net_ch_ids = acc_net_ch_ids;
     sm_policy_update_context_data_local_var->access_type = access_type;
@@ -177,6 +176,7 @@ void OpenAPI_sm_policy_update_context_data_free(OpenAPI_sm_policy_update_context
     ogs_free(sm_policy_update_context_data->user_location_info_time);
     OpenAPI_list_for_each(sm_policy_update_context_data->rep_pra_infos, node) {
         OpenAPI_map_t *localKeyValue = (OpenAPI_map_t*)node->data;
+        ogs_free(localKeyValue->key);
         OpenAPI_presence_info_free(localKeyValue->value);
         ogs_free(localKeyValue);
     }
@@ -589,7 +589,9 @@ cJSON *OpenAPI_sm_policy_update_context_data_convertToJSON(OpenAPI_sm_policy_upd
     if (sm_policy_update_context_data->rep_pra_infos) {
         OpenAPI_list_for_each(sm_policy_update_context_data->rep_pra_infos, rep_pra_infos_node) {
             OpenAPI_map_t *localKeyValue = (OpenAPI_map_t*)rep_pra_infos_node->data;
-        cJSON *itemLocal = OpenAPI_presence_info_convertToJSON(localKeyValue->value);
+        cJSON *itemLocal = localKeyValue->value ?
+            OpenAPI_presence_info_convertToJSON(localKeyValue->value) :
+            cJSON_CreateNull();
         if (itemLocal == NULL) {
             ogs_error("OpenAPI_sm_policy_update_context_data_convertToJSON() failed [rep_pra_infos]");
             goto end;
@@ -879,6 +881,12 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_p
         }
         OpenAPI_acc_net_ch_id_t *acc_net_ch_idsItem = OpenAPI_acc_net_ch_id_parseFromJSON(acc_net_ch_ids_local_nonprimitive);
 
+        if (!acc_net_ch_idsItem) {
+            ogs_error("No acc_net_ch_idsItem");
+            OpenAPI_list_free(acc_net_ch_idsList);
+            goto end;
+        }
+
         OpenAPI_list_add(acc_net_ch_idsList, acc_net_ch_idsItem);
     }
     }
@@ -1081,6 +1089,12 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_p
         }
         OpenAPI_accu_usage_report_t *accu_usage_reportsItem = OpenAPI_accu_usage_report_parseFromJSON(accu_usage_reports_local_nonprimitive);
 
+        if (!accu_usage_reportsItem) {
+            ogs_error("No accu_usage_reportsItem");
+            OpenAPI_list_free(accu_usage_reportsList);
+            goto end;
+        }
+
         OpenAPI_list_add(accu_usage_reportsList, accu_usage_reportsItem);
     }
     }
@@ -1113,6 +1127,12 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_p
         }
         OpenAPI_app_detection_info_t *app_detection_infosItem = OpenAPI_app_detection_info_parseFromJSON(app_detection_infos_local_nonprimitive);
 
+        if (!app_detection_infosItem) {
+            ogs_error("No app_detection_infosItem");
+            OpenAPI_list_free(app_detection_infosList);
+            goto end;
+        }
+
         OpenAPI_list_add(app_detection_infosList, app_detection_infosItem);
     }
     }
@@ -1135,6 +1155,12 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_p
             goto end;
         }
         OpenAPI_rule_report_t *rule_reportsItem = OpenAPI_rule_report_parseFromJSON(rule_reports_local_nonprimitive);
+
+        if (!rule_reportsItem) {
+            ogs_error("No rule_reportsItem");
+            OpenAPI_list_free(rule_reportsList);
+            goto end;
+        }
 
         OpenAPI_list_add(rule_reportsList, rule_reportsItem);
     }
@@ -1159,6 +1185,12 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_p
         }
         OpenAPI_session_rule_report_t *sess_rule_reportsItem = OpenAPI_session_rule_report_parseFromJSON(sess_rule_reports_local_nonprimitive);
 
+        if (!sess_rule_reportsItem) {
+            ogs_error("No sess_rule_reportsItem");
+            OpenAPI_list_free(sess_rule_reportsList);
+            goto end;
+        }
+
         OpenAPI_list_add(sess_rule_reportsList, sess_rule_reportsItem);
     }
     }
@@ -1182,6 +1214,12 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_p
         }
         OpenAPI_qos_notification_control_info_t *qnc_reportsItem = OpenAPI_qos_notification_control_info_parseFromJSON(qnc_reports_local_nonprimitive);
 
+        if (!qnc_reportsItem) {
+            ogs_error("No qnc_reportsItem");
+            OpenAPI_list_free(qnc_reportsList);
+            goto end;
+        }
+
         OpenAPI_list_add(qnc_reportsList, qnc_reportsItem);
     }
     }
@@ -1204,6 +1242,12 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_p
             goto end;
         }
         OpenAPI_qos_monitoring_report_t *qos_mon_reportsItem = OpenAPI_qos_monitoring_report_parseFromJSON(qos_mon_reports_local_nonprimitive);
+
+        if (!qos_mon_reportsItem) {
+            ogs_error("No qos_mon_reportsItem");
+            OpenAPI_list_free(qos_mon_reportsList);
+            goto end;
+        }
 
         OpenAPI_list_add(qos_mon_reportsList, qos_mon_reportsItem);
     }
@@ -1231,12 +1275,15 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_p
     OpenAPI_map_t *localMapKeyPair = NULL;
     cJSON_ArrayForEach(rep_pra_infos_local_map, rep_pra_infos) {
         cJSON *localMapObject = rep_pra_infos_local_map;
-        if (!cJSON_IsObject(rep_pra_infos_local_map)) {
+        if (cJSON_IsObject(rep_pra_infos_local_map)) {
+            localMapKeyPair = OpenAPI_map_create(
+                ogs_strdup(localMapObject->string), OpenAPI_presence_info_parseFromJSON(localMapObject));
+        } else if (cJSON_IsNull(rep_pra_infos_local_map)) {
+            localMapKeyPair = OpenAPI_map_create(ogs_strdup(localMapObject->string), NULL);
+        } else {
             ogs_error("OpenAPI_sm_policy_update_context_data_parseFromJSON() failed [rep_pra_infos]");
             goto end;
         }
-        localMapKeyPair = OpenAPI_map_create(
-            localMapObject->string, OpenAPI_presence_info_parseFromJSON(localMapObject));
         OpenAPI_list_add(rep_pra_infosList , localMapKeyPair);
     }
     }
@@ -1351,6 +1398,12 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_p
         }
         OpenAPI_port_management_container_t *tsn_port_man_cont_nwttsItem = OpenAPI_port_management_container_parseFromJSON(tsn_port_man_cont_nwtts_local_nonprimitive);
 
+        if (!tsn_port_man_cont_nwttsItem) {
+            ogs_error("No tsn_port_man_cont_nwttsItem");
+            OpenAPI_list_free(tsn_port_man_cont_nwttsList);
+            goto end;
+        }
+
         OpenAPI_list_add(tsn_port_man_cont_nwttsList, tsn_port_man_cont_nwttsItem);
     }
     }
@@ -1373,6 +1426,12 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_p
             goto end;
         }
         OpenAPI_ip_multicast_address_info_t *mul_addr_infosItem = OpenAPI_ip_multicast_address_info_parseFromJSON(mul_addr_infos_local_nonprimitive);
+
+        if (!mul_addr_infosItem) {
+            ogs_error("No mul_addr_infosItem");
+            OpenAPI_list_free(mul_addr_infosList);
+            goto end;
+        }
 
         OpenAPI_list_add(mul_addr_infosList, mul_addr_infosItem);
     }
@@ -1419,6 +1478,12 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_p
         }
         OpenAPI_ddd_traffic_descriptor_t *traffic_descriptorsItem = OpenAPI_ddd_traffic_descriptor_parseFromJSON(traffic_descriptors_local_nonprimitive);
 
+        if (!traffic_descriptorsItem) {
+            ogs_error("No traffic_descriptorsItem");
+            OpenAPI_list_free(traffic_descriptorsList);
+            goto end;
+        }
+
         OpenAPI_list_add(traffic_descriptorsList, traffic_descriptorsItem);
     }
     }
@@ -1448,7 +1513,7 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_p
         ogs_error("OpenAPI_sm_policy_update_context_data_parseFromJSON() failed [inter_grp_ids]");
         goto end;
     }
-    OpenAPI_list_add(inter_grp_idsList , ogs_strdup_or_assert(inter_grp_ids_local->valuestring));
+    OpenAPI_list_add(inter_grp_idsList , ogs_strdup(inter_grp_ids_local->valuestring));
     }
     }
 
@@ -1483,18 +1548,18 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_p
         rel_access_info ? rel_access_info_local_nonprim : NULL,
         serving_network ? serving_network_local_nonprim : NULL,
         user_location_info ? user_location_info_local_nonprim : NULL,
-        ue_time_zone ? ogs_strdup_or_assert(ue_time_zone->valuestring) : NULL,
-        rel_ipv4_address ? ogs_strdup_or_assert(rel_ipv4_address->valuestring) : NULL,
-        ipv4_address ? ogs_strdup_or_assert(ipv4_address->valuestring) : NULL,
-        ip_domain ? ogs_strdup_or_assert(ip_domain->valuestring) : NULL,
-        ipv6_address_prefix ? ogs_strdup_or_assert(ipv6_address_prefix->valuestring) : NULL,
-        rel_ipv6_address_prefix ? ogs_strdup_or_assert(rel_ipv6_address_prefix->valuestring) : NULL,
-        add_ipv6_addr_prefixes ? ogs_strdup_or_assert(add_ipv6_addr_prefixes->valuestring) : NULL,
-        add_rel_ipv6_addr_prefixes ? ogs_strdup_or_assert(add_rel_ipv6_addr_prefixes->valuestring) : NULL,
-        rel_ue_mac ? ogs_strdup_or_assert(rel_ue_mac->valuestring) : NULL,
-        ue_mac ? ogs_strdup_or_assert(ue_mac->valuestring) : NULL,
+        ue_time_zone ? ogs_strdup(ue_time_zone->valuestring) : NULL,
+        rel_ipv4_address ? ogs_strdup(rel_ipv4_address->valuestring) : NULL,
+        ipv4_address ? ogs_strdup(ipv4_address->valuestring) : NULL,
+        ip_domain ? ogs_strdup(ip_domain->valuestring) : NULL,
+        ipv6_address_prefix ? ogs_strdup(ipv6_address_prefix->valuestring) : NULL,
+        rel_ipv6_address_prefix ? ogs_strdup(rel_ipv6_address_prefix->valuestring) : NULL,
+        add_ipv6_addr_prefixes ? ogs_strdup(add_ipv6_addr_prefixes->valuestring) : NULL,
+        add_rel_ipv6_addr_prefixes ? ogs_strdup(add_rel_ipv6_addr_prefixes->valuestring) : NULL,
+        rel_ue_mac ? ogs_strdup(rel_ue_mac->valuestring) : NULL,
+        ue_mac ? ogs_strdup(ue_mac->valuestring) : NULL,
         subs_sess_ambr ? subs_sess_ambr_local_nonprim : NULL,
-        auth_prof_index ? ogs_strdup_or_assert(auth_prof_index->valuestring) : NULL,
+        auth_prof_index ? ogs_strdup(auth_prof_index->valuestring) : NULL,
         subs_def_qos ? subs_def_qos_local_nonprim : NULL,
         vplmn_qos ? vplmn_qos_local_nonprim : NULL,
         num_of_pack_filter ? true : false,
@@ -1507,7 +1572,7 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_p
         sess_rule_reports ? sess_rule_reportsList : NULL,
         qnc_reports ? qnc_reportsList : NULL,
         qos_mon_reports ? qos_mon_reportsList : NULL,
-        user_location_info_time ? ogs_strdup_or_assert(user_location_info_time->valuestring) : NULL,
+        user_location_info_time ? ogs_strdup(user_location_info_time->valuestring) : NULL,
         rep_pra_infos ? rep_pra_infosList : NULL,
         ue_init_res_req ? ue_init_res_req_local_nonprim : NULL,
         ref_qos_indication ? true : false,
@@ -1525,7 +1590,7 @@ OpenAPI_sm_policy_update_context_data_t *OpenAPI_sm_policy_update_context_data_p
         mul_addr_infos ? mul_addr_infosList : NULL,
         policy_dec_failure_reports ? policy_dec_failure_reportsList : NULL,
         traffic_descriptors ? traffic_descriptorsList : NULL,
-        pcc_rule_id ? ogs_strdup_or_assert(pcc_rule_id->valuestring) : NULL,
+        pcc_rule_id ? ogs_strdup(pcc_rule_id->valuestring) : NULL,
         inter_grp_ids ? inter_grp_idsList : NULL,
         types_of_notif ? types_of_notifList : NULL
     );

@@ -9,10 +9,9 @@ OpenAPI_notification_item_t *OpenAPI_notification_item_create(
     OpenAPI_list_t *notif_items
 )
 {
-    OpenAPI_notification_item_t *notification_item_local_var = OpenAPI_malloc(sizeof(OpenAPI_notification_item_t));
-    if (!notification_item_local_var) {
-        return NULL;
-    }
+    OpenAPI_notification_item_t *notification_item_local_var = ogs_malloc(sizeof(OpenAPI_notification_item_t));
+    ogs_assert(notification_item_local_var);
+
     notification_item_local_var->resource_id = resource_id;
     notification_item_local_var->notif_items = notif_items;
 
@@ -106,11 +105,17 @@ OpenAPI_notification_item_t *OpenAPI_notification_item_parseFromJSON(cJSON *noti
         }
         OpenAPI_updated_item_t *notif_itemsItem = OpenAPI_updated_item_parseFromJSON(notif_items_local_nonprimitive);
 
+        if (!notif_itemsItem) {
+            ogs_error("No notif_itemsItem");
+            OpenAPI_list_free(notif_itemsList);
+            goto end;
+        }
+
         OpenAPI_list_add(notif_itemsList, notif_itemsItem);
     }
 
     notification_item_local_var = OpenAPI_notification_item_create (
-        ogs_strdup_or_assert(resource_id->valuestring),
+        ogs_strdup(resource_id->valuestring),
         notif_itemsList
     );
 

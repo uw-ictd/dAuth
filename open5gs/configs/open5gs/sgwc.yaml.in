@@ -26,17 +26,25 @@ logger:
 #
 #  <GTP-C Server>
 #
-#  o GTP-C Server(127.0.0.3:2123, [fe80::2%@loopback_devname@]:2123)
+#  o GTP-C Server(127.0.0.3:2123, [fd69:f21d:873c:fa::2]:2123)
 #    gtpc:
 #      addr:
 #        - 127.0.0.3
-#        - fe80::2%@loopback_devname@
+#        - fd69:f21d:873c:fa::2
 #
 #  o On SGW, Same Configuration(127.0.0.3:2123,
-#  [fe80::2%@loopback_devname@]:2123) as below.
+#  [fd69:f21d:873c:fa::2]:2123) as below.
 #    gtpc:
 #      - addr: 127.0.0.3
-#      - addr: fe80::2%@loopback_devname@
+#      - addr: fd69:f21d:873c:fa::2
+#
+#  o GTP-C Option (Default)
+#    - so_bindtodevice : NULL
+#
+#    gtpc:
+#      addr: 127.0.0.3
+#      option:
+#        so_bindtodevice: vrf-blue
 #
 #  <PFCP Server>
 #
@@ -48,6 +56,14 @@ logger:
 #  o PFCP-U Server(127.0.0.1:2152, [::1]:2152)
 #    pfcp:
 #      name: localhost
+#
+#  o PFCP Option (Default)
+#    - so_bindtodevice : NULL
+#
+#    pfcp:
+#      addr: 127.0.0.3
+#      option:
+#        so_bindtodevice: vrf-blue
 #
 sgwc:
     gtpc:
@@ -109,9 +125,6 @@ sgwu:
 #
 # parameter:
 #
-#  o Number of output streams per SCTP associations.
-#      sctp_streams: 30
-#
 #  o Disable use of IPv4 addresses (only IPv6)
 #      no_ipv4: true
 #
@@ -132,33 +145,9 @@ parameter:
 # o Maximum Number of UE per AMF/MME
 #    ue: 1024
 # o Maximum Number of gNB/eNB per AMF/MME
-#    gnb: 32
+#    gnb: 64
 #
 max:
-
-#
-# pool:
-#
-# o The default memory pool size was set assuming 1024 UEs.
-#   To connect more UEs, you need to increase the size further.
-#
-#   - Pool-size 128         => 65536 Number
-#   - Pool-size 256         => 16384 Number
-#   - Pool-size 512         => 4096 Number
-#   - Pool-size 1024        => 1024 Number
-#   - Pool-size 2048        => 512 Number
-#   - Pool-size 8192        => 128 Number
-#   - Pool-size 1024*1024   => 8 Number
-#
-#    128:  65536
-#    256:  16384
-#    512:  4096
-#    1024: 1024
-#    2048: 512
-#    8192: 128
-#    big:  8
-#
-pool:
 
 #
 # time:

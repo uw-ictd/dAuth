@@ -23,10 +23,9 @@ OpenAPI_traffic_control_data_t *OpenAPI_traffic_control_data_create(
     OpenAPI_multicast_access_control_t *mul_acc_ctrl
 )
 {
-    OpenAPI_traffic_control_data_t *traffic_control_data_local_var = OpenAPI_malloc(sizeof(OpenAPI_traffic_control_data_t));
-    if (!traffic_control_data_local_var) {
-        return NULL;
-    }
+    OpenAPI_traffic_control_data_t *traffic_control_data_local_var = ogs_malloc(sizeof(OpenAPI_traffic_control_data_t));
+    ogs_assert(traffic_control_data_local_var);
+
     traffic_control_data_local_var->tc_id = tc_id;
     traffic_control_data_local_var->flow_status = flow_status;
     traffic_control_data_local_var->redirect_info = redirect_info;
@@ -289,6 +288,12 @@ OpenAPI_traffic_control_data_t *OpenAPI_traffic_control_data_parseFromJSON(cJSON
         }
         OpenAPI_redirect_information_t *add_redirect_infoItem = OpenAPI_redirect_information_parseFromJSON(add_redirect_info_local_nonprimitive);
 
+        if (!add_redirect_infoItem) {
+            ogs_error("No add_redirect_infoItem");
+            OpenAPI_list_free(add_redirect_infoList);
+            goto end;
+        }
+
         OpenAPI_list_add(add_redirect_infoList, add_redirect_infoItem);
     }
     }
@@ -338,6 +343,12 @@ OpenAPI_traffic_control_data_t *OpenAPI_traffic_control_data_parseFromJSON(cJSON
             goto end;
         }
         OpenAPI_route_to_location_t *route_to_locsItem = OpenAPI_route_to_location_parseFromJSON(route_to_locs_local_nonprimitive);
+
+        if (!route_to_locsItem) {
+            ogs_error("No route_to_locsItem");
+            OpenAPI_list_free(route_to_locsList);
+            goto end;
+        }
 
         OpenAPI_list_add(route_to_locsList, route_to_locsItem);
     }
@@ -392,14 +403,14 @@ OpenAPI_traffic_control_data_t *OpenAPI_traffic_control_data_parseFromJSON(cJSON
     }
 
     traffic_control_data_local_var = OpenAPI_traffic_control_data_create (
-        ogs_strdup_or_assert(tc_id->valuestring),
+        ogs_strdup(tc_id->valuestring),
         flow_status ? flow_statusVariable : 0,
         redirect_info ? redirect_info_local_nonprim : NULL,
         add_redirect_info ? add_redirect_infoList : NULL,
         mute_notif ? true : false,
         mute_notif ? mute_notif->valueint : 0,
-        traffic_steering_pol_id_dl ? ogs_strdup_or_assert(traffic_steering_pol_id_dl->valuestring) : NULL,
-        traffic_steering_pol_id_ul ? ogs_strdup_or_assert(traffic_steering_pol_id_ul->valuestring) : NULL,
+        traffic_steering_pol_id_dl ? ogs_strdup(traffic_steering_pol_id_dl->valuestring) : NULL,
+        traffic_steering_pol_id_ul ? ogs_strdup(traffic_steering_pol_id_ul->valuestring) : NULL,
         route_to_locs ? route_to_locsList : NULL,
         traff_corre_ind ? true : false,
         traff_corre_ind ? traff_corre_ind->valueint : 0,

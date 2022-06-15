@@ -66,7 +66,7 @@ static void test1_func(abts_case *tc, void *data)
     test_ue->k_string = "465b5ce8b199b49faa5f0a2ee238a6bc";
     test_ue->opc_string = "e8ed289deba952e4283b54e88e6183ca";
 
-    sess = test_sess_add_by_apn(test_ue, "internet", OGS_GTP_RAT_TYPE_EUTRAN);
+    sess = test_sess_add_by_apn(test_ue, "internet", OGS_GTP2_RAT_TYPE_EUTRAN);
     ogs_assert(sess);
 
     /* eNB connects to MME */
@@ -126,7 +126,7 @@ static void test1_func(abts_case *tc, void *data)
     sess->pdn_connectivity_param.pco = 1;
     sess->pdn_connectivity_param.request_type =
         OGS_NAS_EPS_REQUEST_TYPE_INITIAL;
-    esmbuf = testesm_build_pdn_connectivity_request(sess);
+    esmbuf = testesm_build_pdn_connectivity_request(sess, false);
     ABTS_PTR_NOTNULL(tc, esmbuf);
 
     memset(&test_ue->attach_request_param,
@@ -138,7 +138,7 @@ static void test1_func(abts_case *tc, void *data)
     test_ue->attach_request_param.supported_codecs = 1;
     test_ue->attach_request_param.ue_usage_setting = 1;
     test_ue->attach_request_param.ms_network_feature_support = 1;
-    emmbuf = testemm_build_attach_request(test_ue, esmbuf);
+    emmbuf = testemm_build_attach_request(test_ue, esmbuf, false, false);
     ABTS_PTR_NOTNULL(tc, emmbuf);
 
     memset(&test_ue->initial_ue_param, 0, sizeof(test_ue->initial_ue_param));
@@ -347,7 +347,7 @@ static void test2_func(abts_case *tc, void *data)
         test_ue[i]->opc_string = "e8ed289deba952e4283b54e88e6183ca";
 
         sess = test_sess_add_by_apn(
-                test_ue[i], "internet", OGS_GTP_RAT_TYPE_EUTRAN);
+                test_ue[i], "internet", OGS_GTP2_RAT_TYPE_EUTRAN);
         ogs_assert(sess);
 
         /********** Insert Subscriber in Database */
@@ -358,7 +358,7 @@ static void test2_func(abts_case *tc, void *data)
 
     for (i = 0; i < NUM_OF_TEST_UE; i++) {
         sess = test_sess_find_by_apn(
-                test_ue[i], "internet", OGS_GTP_RAT_TYPE_EUTRAN);
+                test_ue[i], "internet", OGS_GTP2_RAT_TYPE_EUTRAN);
         ogs_assert(sess);
 
         /* Send Attach Request */
@@ -368,7 +368,7 @@ static void test2_func(abts_case *tc, void *data)
         sess->pdn_connectivity_param.pco = 1;
         sess->pdn_connectivity_param.request_type =
             OGS_NAS_EPS_REQUEST_TYPE_INITIAL;
-        esmbuf = testesm_build_pdn_connectivity_request(sess);
+        esmbuf = testesm_build_pdn_connectivity_request(sess, false);
         ABTS_PTR_NOTNULL(tc, esmbuf);
 
         memset(&test_ue[i]->attach_request_param,
@@ -380,7 +380,7 @@ static void test2_func(abts_case *tc, void *data)
         test_ue[i]->attach_request_param.supported_codecs = 1;
         test_ue[i]->attach_request_param.ue_usage_setting = 1;
         test_ue[i]->attach_request_param.ms_network_feature_support = 1;
-        emmbuf = testemm_build_attach_request(test_ue[i], esmbuf);
+        emmbuf = testemm_build_attach_request(test_ue[i], esmbuf, false, false);
         ABTS_PTR_NOTNULL(tc, emmbuf);
 
         memset(&test_ue[i]->initial_ue_param, 0,
@@ -574,7 +574,7 @@ static void test3_func(abts_case *tc, void *data)
         test_ue[i]->opc_string = "e8ed289deba952e4283b54e88e6183ca";
 
         sess = test_sess_add_by_apn(
-                test_ue[i], "internet", OGS_GTP_RAT_TYPE_EUTRAN);
+                test_ue[i], "internet", OGS_GTP2_RAT_TYPE_EUTRAN);
         ogs_assert(sess);
 
         /********** Insert Subscriber in Database */
@@ -585,7 +585,7 @@ static void test3_func(abts_case *tc, void *data)
 
     for (i = 0; i < NUM_OF_TEST_UE; i++) {
         sess = test_sess_find_by_apn(
-                test_ue[i], "internet", OGS_GTP_RAT_TYPE_EUTRAN);
+                test_ue[i], "internet", OGS_GTP2_RAT_TYPE_EUTRAN);
         ogs_assert(sess);
 
         /* Send Attach Request */
@@ -595,7 +595,7 @@ static void test3_func(abts_case *tc, void *data)
         sess->pdn_connectivity_param.pco = 1;
         sess->pdn_connectivity_param.request_type =
             OGS_NAS_EPS_REQUEST_TYPE_INITIAL;
-        esmbuf = testesm_build_pdn_connectivity_request(sess);
+        esmbuf = testesm_build_pdn_connectivity_request(sess, false);
         ABTS_PTR_NOTNULL(tc, esmbuf);
 
         memset(&test_ue[i]->attach_request_param,
@@ -607,7 +607,7 @@ static void test3_func(abts_case *tc, void *data)
         test_ue[i]->attach_request_param.supported_codecs = 1;
         test_ue[i]->attach_request_param.ue_usage_setting = 1;
         test_ue[i]->attach_request_param.ms_network_feature_support = 1;
-        emmbuf = testemm_build_attach_request(test_ue[i], esmbuf);
+        emmbuf = testemm_build_attach_request(test_ue[i], esmbuf, false, false);
         ABTS_PTR_NOTNULL(tc, emmbuf);
 
         memset(&test_ue[i]->initial_ue_param, 0,

@@ -10,10 +10,9 @@ OpenAPI_unrelated_class_t *OpenAPI_unrelated_class_create(
     OpenAPI_list_t *service_type_unrelated_classes
 )
 {
-    OpenAPI_unrelated_class_t *unrelated_class_local_var = OpenAPI_malloc(sizeof(OpenAPI_unrelated_class_t));
-    if (!unrelated_class_local_var) {
-        return NULL;
-    }
+    OpenAPI_unrelated_class_t *unrelated_class_local_var = ogs_malloc(sizeof(OpenAPI_unrelated_class_t));
+    ogs_assert(unrelated_class_local_var);
+
     unrelated_class_local_var->default_unrelated_class = default_unrelated_class;
     unrelated_class_local_var->external_unrelated_class = external_unrelated_class;
     unrelated_class_local_var->service_type_unrelated_classes = service_type_unrelated_classes;
@@ -131,6 +130,12 @@ OpenAPI_unrelated_class_t *OpenAPI_unrelated_class_parseFromJSON(cJSON *unrelate
             goto end;
         }
         OpenAPI_service_type_unrelated_class_t *service_type_unrelated_classesItem = OpenAPI_service_type_unrelated_class_parseFromJSON(service_type_unrelated_classes_local_nonprimitive);
+
+        if (!service_type_unrelated_classesItem) {
+            ogs_error("No service_type_unrelated_classesItem");
+            OpenAPI_list_free(service_type_unrelated_classesList);
+            goto end;
+        }
 
         OpenAPI_list_add(service_type_unrelated_classesList, service_type_unrelated_classesItem);
     }

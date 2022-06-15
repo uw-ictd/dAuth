@@ -49,6 +49,8 @@ typedef struct ogs_gtp_context_s {
 
     ogs_list_t      gtpu_peer_list; /* GTPU Node List */
     ogs_list_t      gtpu_resource_list; /* UP IP Resource List */
+
+    ogs_sockaddr_t *link_local_addr;
 } ogs_gtp_context_t;
 
 #define OGS_SETUP_GTP_NODE(__cTX, __gNODE) \
@@ -71,8 +73,8 @@ typedef struct ogs_gtp_node_s {
 
     ogs_ip_t        ip;             /* F-TEID IP Address Duplicate Check */
 
-    ogs_list_t      local_list;    
-    ogs_list_t      remote_list;   
+    ogs_list_t      local_list;
+    ogs_list_t      remote_list;
 } ogs_gtp_node_t;
 
 typedef struct ogs_gtpu_resource_s {
@@ -90,7 +92,7 @@ ogs_gtp_node_t *ogs_gtp_node_new(ogs_sockaddr_t *sa_list);
 void ogs_gtp_node_free(ogs_gtp_node_t *node);
 
 ogs_gtp_node_t *ogs_gtp_node_add_by_f_teid(
-        ogs_list_t *list, ogs_gtp_f_teid_t *f_teid, uint16_t port);
+        ogs_list_t *list, ogs_gtp2_f_teid_t *f_teid, uint16_t port);
 ogs_gtp_node_t *ogs_gtp_node_add_by_addr(
         ogs_list_t *list, ogs_sockaddr_t *addr);
 void ogs_gtp_node_remove(ogs_list_t *list, ogs_gtp_node_t *node);
@@ -99,7 +101,7 @@ void ogs_gtp_node_remove_all(ogs_list_t *list);
 ogs_gtp_node_t *ogs_gtp_node_find_by_addr(
         ogs_list_t *list, ogs_sockaddr_t *addr);
 ogs_gtp_node_t *ogs_gtp_node_find_by_f_teid(
-        ogs_list_t *list, ogs_gtp_f_teid_t *f_teid);
+        ogs_list_t *list, ogs_gtp2_f_teid_t *f_teid);
 
 ogs_gtp_node_t *ogs_gtp_node_add_by_ip(
         ogs_list_t *list, ogs_ip_t *ip, uint16_t port);

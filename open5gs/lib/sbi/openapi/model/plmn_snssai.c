@@ -10,10 +10,9 @@ OpenAPI_plmn_snssai_t *OpenAPI_plmn_snssai_create(
     char *nid
 )
 {
-    OpenAPI_plmn_snssai_t *plmn_snssai_local_var = OpenAPI_malloc(sizeof(OpenAPI_plmn_snssai_t));
-    if (!plmn_snssai_local_var) {
-        return NULL;
-    }
+    OpenAPI_plmn_snssai_t *plmn_snssai_local_var = ogs_malloc(sizeof(OpenAPI_plmn_snssai_t));
+    ogs_assert(plmn_snssai_local_var);
+
     plmn_snssai_local_var->plmn_id = plmn_id;
     plmn_snssai_local_var->s_nssai_list = s_nssai_list;
     plmn_snssai_local_var->nid = nid;
@@ -120,6 +119,12 @@ OpenAPI_plmn_snssai_t *OpenAPI_plmn_snssai_parseFromJSON(cJSON *plmn_snssaiJSON)
         }
         OpenAPI_ext_snssai_t *s_nssai_listItem = OpenAPI_ext_snssai_parseFromJSON(s_nssai_list_local_nonprimitive);
 
+        if (!s_nssai_listItem) {
+            ogs_error("No s_nssai_listItem");
+            OpenAPI_list_free(s_nssai_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(s_nssai_listList, s_nssai_listItem);
     }
 
@@ -135,7 +140,7 @@ OpenAPI_plmn_snssai_t *OpenAPI_plmn_snssai_parseFromJSON(cJSON *plmn_snssaiJSON)
     plmn_snssai_local_var = OpenAPI_plmn_snssai_create (
         plmn_id_local_nonprim,
         s_nssai_listList,
-        nid ? ogs_strdup_or_assert(nid->valuestring) : NULL
+        nid ? ogs_strdup(nid->valuestring) : NULL
     );
 
     return plmn_snssai_local_var;

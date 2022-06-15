@@ -8,10 +8,9 @@ OpenAPI_enhanced_coverage_restriction_data_t *OpenAPI_enhanced_coverage_restrict
     OpenAPI_list_t *plmn_ec_info_list
 )
 {
-    OpenAPI_enhanced_coverage_restriction_data_t *enhanced_coverage_restriction_data_local_var = OpenAPI_malloc(sizeof(OpenAPI_enhanced_coverage_restriction_data_t));
-    if (!enhanced_coverage_restriction_data_local_var) {
-        return NULL;
-    }
+    OpenAPI_enhanced_coverage_restriction_data_t *enhanced_coverage_restriction_data_local_var = ogs_malloc(sizeof(OpenAPI_enhanced_coverage_restriction_data_t));
+    ogs_assert(enhanced_coverage_restriction_data_local_var);
+
     enhanced_coverage_restriction_data_local_var->plmn_ec_info_list = plmn_ec_info_list;
 
     return enhanced_coverage_restriction_data_local_var;
@@ -85,6 +84,12 @@ OpenAPI_enhanced_coverage_restriction_data_t *OpenAPI_enhanced_coverage_restrict
             goto end;
         }
         OpenAPI_plmn_ec_info_t *plmn_ec_info_listItem = OpenAPI_plmn_ec_info_parseFromJSON(plmn_ec_info_list_local_nonprimitive);
+
+        if (!plmn_ec_info_listItem) {
+            ogs_error("No plmn_ec_info_listItem");
+            OpenAPI_list_free(plmn_ec_info_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(plmn_ec_info_listList, plmn_ec_info_listItem);
     }

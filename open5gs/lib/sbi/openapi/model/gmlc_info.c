@@ -8,10 +8,9 @@ OpenAPI_gmlc_info_t *OpenAPI_gmlc_info_create(
     OpenAPI_list_t *serving_client_types
 )
 {
-    OpenAPI_gmlc_info_t *gmlc_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_gmlc_info_t));
-    if (!gmlc_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_gmlc_info_t *gmlc_info_local_var = ogs_malloc(sizeof(OpenAPI_gmlc_info_t));
+    ogs_assert(gmlc_info_local_var);
+
     gmlc_info_local_var->serving_client_types = serving_client_types;
 
     return gmlc_info_local_var;
@@ -85,6 +84,12 @@ OpenAPI_gmlc_info_t *OpenAPI_gmlc_info_parseFromJSON(cJSON *gmlc_infoJSON)
             goto end;
         }
         OpenAPI_external_client_type_t *serving_client_typesItem = OpenAPI_external_client_type_parseFromJSON(serving_client_types_local_nonprimitive);
+
+        if (!serving_client_typesItem) {
+            ogs_error("No serving_client_typesItem");
+            OpenAPI_list_free(serving_client_typesList);
+            goto end;
+        }
 
         OpenAPI_list_add(serving_client_typesList, serving_client_typesItem);
     }

@@ -23,10 +23,9 @@ OpenAPI_subscription_data_t *OpenAPI_subscription_data_create(
     OpenAPI_list_t *serving_scope
 )
 {
-    OpenAPI_subscription_data_t *subscription_data_local_var = OpenAPI_malloc(sizeof(OpenAPI_subscription_data_t));
-    if (!subscription_data_local_var) {
-        return NULL;
-    }
+    OpenAPI_subscription_data_t *subscription_data_local_var = ogs_malloc(sizeof(OpenAPI_subscription_data_t));
+    ogs_assert(subscription_data_local_var);
+
     subscription_data_local_var->nf_status_notification_uri = nf_status_notification_uri;
     subscription_data_local_var->req_nf_instance_id = req_nf_instance_id;
     subscription_data_local_var->subscr_cond = subscr_cond;
@@ -429,6 +428,12 @@ OpenAPI_subscription_data_t *OpenAPI_subscription_data_parseFromJSON(cJSON *subs
         }
         OpenAPI_snssai_t *req_snssaisItem = OpenAPI_snssai_parseFromJSON(req_snssais_local_nonprimitive);
 
+        if (!req_snssaisItem) {
+            ogs_error("No req_snssaisItem");
+            OpenAPI_list_free(req_snssaisList);
+            goto end;
+        }
+
         OpenAPI_list_add(req_snssaisList, req_snssaisItem);
     }
     }
@@ -451,6 +456,12 @@ OpenAPI_subscription_data_t *OpenAPI_subscription_data_parseFromJSON(cJSON *subs
             goto end;
         }
         OpenAPI_plmn_snssai_t *req_per_plmn_snssaisItem = OpenAPI_plmn_snssai_parseFromJSON(req_per_plmn_snssais_local_nonprimitive);
+
+        if (!req_per_plmn_snssaisItem) {
+            ogs_error("No req_per_plmn_snssaisItem");
+            OpenAPI_list_free(req_per_plmn_snssaisList);
+            goto end;
+        }
 
         OpenAPI_list_add(req_per_plmn_snssaisList, req_per_plmn_snssaisItem);
     }
@@ -475,6 +486,12 @@ OpenAPI_subscription_data_t *OpenAPI_subscription_data_parseFromJSON(cJSON *subs
         }
         OpenAPI_plmn_id_t *req_plmn_listItem = OpenAPI_plmn_id_parseFromJSON(req_plmn_list_local_nonprimitive);
 
+        if (!req_plmn_listItem) {
+            ogs_error("No req_plmn_listItem");
+            OpenAPI_list_free(req_plmn_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(req_plmn_listList, req_plmn_listItem);
     }
     }
@@ -498,6 +515,12 @@ OpenAPI_subscription_data_t *OpenAPI_subscription_data_parseFromJSON(cJSON *subs
         }
         OpenAPI_plmn_id_nid_t *req_snpn_listItem = OpenAPI_plmn_id_nid_parseFromJSON(req_snpn_list_local_nonprimitive);
 
+        if (!req_snpn_listItem) {
+            ogs_error("No req_snpn_listItem");
+            OpenAPI_list_free(req_snpn_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(req_snpn_listList, req_snpn_listItem);
     }
     }
@@ -518,22 +541,22 @@ OpenAPI_subscription_data_t *OpenAPI_subscription_data_parseFromJSON(cJSON *subs
         ogs_error("OpenAPI_subscription_data_parseFromJSON() failed [serving_scope]");
         goto end;
     }
-    OpenAPI_list_add(serving_scopeList , ogs_strdup_or_assert(serving_scope_local->valuestring));
+    OpenAPI_list_add(serving_scopeList , ogs_strdup(serving_scope_local->valuestring));
     }
     }
 
     subscription_data_local_var = OpenAPI_subscription_data_create (
-        ogs_strdup_or_assert(nf_status_notification_uri->valuestring),
-        req_nf_instance_id ? ogs_strdup_or_assert(req_nf_instance_id->valuestring) : NULL,
+        ogs_strdup(nf_status_notification_uri->valuestring),
+        req_nf_instance_id ? ogs_strdup(req_nf_instance_id->valuestring) : NULL,
         subscr_cond ? subscr_cond_local_nonprim : NULL,
-        subscription_id ? ogs_strdup_or_assert(subscription_id->valuestring) : NULL,
-        validity_time ? ogs_strdup_or_assert(validity_time->valuestring) : NULL,
+        subscription_id ? ogs_strdup(subscription_id->valuestring) : NULL,
+        validity_time ? ogs_strdup(validity_time->valuestring) : NULL,
         req_notif_events ? req_notif_eventsList : NULL,
         plmn_id ? plmn_id_local_nonprim : NULL,
-        nid ? ogs_strdup_or_assert(nid->valuestring) : NULL,
+        nid ? ogs_strdup(nid->valuestring) : NULL,
         notif_condition ? notif_condition_local_nonprim : NULL,
         req_nf_type ? req_nf_typeVariable : 0,
-        req_nf_fqdn ? ogs_strdup_or_assert(req_nf_fqdn->valuestring) : NULL,
+        req_nf_fqdn ? ogs_strdup(req_nf_fqdn->valuestring) : NULL,
         req_snssais ? req_snssaisList : NULL,
         req_per_plmn_snssais ? req_per_plmn_snssaisList : NULL,
         req_plmn_list ? req_plmn_listList : NULL,

@@ -10,10 +10,9 @@ OpenAPI_traffic_descriptor_t *OpenAPI_traffic_descriptor_create(
     OpenAPI_list_t *ddd_traffic_descriptor_list
 )
 {
-    OpenAPI_traffic_descriptor_t *traffic_descriptor_local_var = OpenAPI_malloc(sizeof(OpenAPI_traffic_descriptor_t));
-    if (!traffic_descriptor_local_var) {
-        return NULL;
-    }
+    OpenAPI_traffic_descriptor_t *traffic_descriptor_local_var = ogs_malloc(sizeof(OpenAPI_traffic_descriptor_t));
+    ogs_assert(traffic_descriptor_local_var);
+
     traffic_descriptor_local_var->dnn = dnn;
     traffic_descriptor_local_var->s_nssai = s_nssai;
     traffic_descriptor_local_var->ddd_traffic_descriptor_list = ddd_traffic_descriptor_list;
@@ -128,12 +127,18 @@ OpenAPI_traffic_descriptor_t *OpenAPI_traffic_descriptor_parseFromJSON(cJSON *tr
         }
         OpenAPI_ddd_traffic_descriptor_t *ddd_traffic_descriptor_listItem = OpenAPI_ddd_traffic_descriptor_parseFromJSON(ddd_traffic_descriptor_list_local_nonprimitive);
 
+        if (!ddd_traffic_descriptor_listItem) {
+            ogs_error("No ddd_traffic_descriptor_listItem");
+            OpenAPI_list_free(ddd_traffic_descriptor_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(ddd_traffic_descriptor_listList, ddd_traffic_descriptor_listItem);
     }
     }
 
     traffic_descriptor_local_var = OpenAPI_traffic_descriptor_create (
-        dnn ? ogs_strdup_or_assert(dnn->valuestring) : NULL,
+        dnn ? ogs_strdup(dnn->valuestring) : NULL,
         s_nssai ? s_nssai_local_nonprim : NULL,
         ddd_traffic_descriptor_list ? ddd_traffic_descriptor_listList : NULL
     );

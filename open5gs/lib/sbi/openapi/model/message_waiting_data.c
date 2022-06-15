@@ -8,10 +8,9 @@ OpenAPI_message_waiting_data_t *OpenAPI_message_waiting_data_create(
     OpenAPI_list_t *mwd_list
 )
 {
-    OpenAPI_message_waiting_data_t *message_waiting_data_local_var = OpenAPI_malloc(sizeof(OpenAPI_message_waiting_data_t));
-    if (!message_waiting_data_local_var) {
-        return NULL;
-    }
+    OpenAPI_message_waiting_data_t *message_waiting_data_local_var = ogs_malloc(sizeof(OpenAPI_message_waiting_data_t));
+    ogs_assert(message_waiting_data_local_var);
+
     message_waiting_data_local_var->mwd_list = mwd_list;
 
     return message_waiting_data_local_var;
@@ -85,6 +84,12 @@ OpenAPI_message_waiting_data_t *OpenAPI_message_waiting_data_parseFromJSON(cJSON
             goto end;
         }
         OpenAPI_smsc_data_t *mwd_listItem = OpenAPI_smsc_data_parseFromJSON(mwd_list_local_nonprimitive);
+
+        if (!mwd_listItem) {
+            ogs_error("No mwd_listItem");
+            OpenAPI_list_free(mwd_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(mwd_listList, mwd_listItem);
     }

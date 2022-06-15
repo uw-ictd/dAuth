@@ -3,7 +3,7 @@ Name=ogstun
 
 [Network]
 Address=10.45.0.1/16
-Address=2001:230:cafe::1/48
+Address=2001:db8:cafe::1/48
 
 [Link]
 RequiredForOnline=false

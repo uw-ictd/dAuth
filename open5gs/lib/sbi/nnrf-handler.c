@@ -161,6 +161,9 @@ bool ogs_sbi_nnrf_handle_nf_profile(ogs_sbi_nf_instance_t *nf_instance,
 
     OpenAPI_lnode_t *node;
     ogs_sbi_nf_service_t *nf_service = NULL, *next_nf_service = NULL;
+#if SBI_FQDN_WITH_ONE_OCTET_LENGTH
+    char fqdn[OGS_MAX_FQDN_LEN+1];
+#endif
 
     ogs_assert(nf_instance);
     ogs_assert(NFProfile);
@@ -247,10 +250,24 @@ bool ogs_sbi_nnrf_handle_nf_profile(ogs_sbi_nf_instance_t *nf_instance,
     if (NFProfile->is_heart_beat_timer == true)
         nf_instance->time.heartbeat_interval = NFProfile->heart_beat_timer;
 
-    if (NFProfile->fqdn)
-        ogs_assert(0 < ogs_fqdn_parse(
-                nf_instance->fqdn, NFProfile->fqdn,
-                ogs_min(strlen(NFProfile->fqdn), OGS_MAX_FQDN_LEN+1)));
+    if (NFProfile->fqdn) {
+#if SBI_FQDN_WITH_ONE_OCTET_LENGTH
+        if (ogs_fqdn_parse(
+                fqdn, NFProfile->fqdn,
+                ogs_min(strlen(NFProfile->fqdn), OGS_MAX_FQDN_LEN)) > 0) {
+
+            /* Nothing : succeeded to parse FQDN */
+            nf_instance->fqdn = ogs_strdup(fqdn);
+            ogs_assert(nf_instance);
+
+        } else {
+            ogs_error("ogs_fqdn_parse() failed[%s]", NFProfile->fqdn);
+            return false;
+        }
+#else
+        nf_instance->fqdn = ogs_strdup(NFProfile->fqdn);
+#endif
+    }
 
     if (NFProfile->is_priority == true)
         nf_instance->priority = NFProfile->priority;
@@ -328,10 +345,25 @@ bool ogs_sbi_nnrf_handle_nf_profile(ogs_sbi_nf_instance_t *nf_instance,
                         NFServiceVersion->expiry);
         }
 
-        if (NFService->fqdn)
-            ogs_assert(0 < ogs_fqdn_parse(
-                nf_service->fqdn, NFService->fqdn,
-                ogs_min(strlen(NFService->fqdn), OGS_MAX_FQDN_LEN+1)));
+        if (NFService->fqdn) {
+#if SBI_FQDN_WITH_ONE_OCTET_LENGTH
+            if (ogs_fqdn_parse(
+                    fqdn, NFService->fqdn,
+                    ogs_min(strlen(NFService->fqdn), OGS_MAX_FQDN_LEN)) > 0) {
+
+                /* Nothing : succeeded to parse FQDN */
+                nf_service->fqdn = ogs_strdup(fqdn);
+                ogs_assert(nf_service);
+
+            } else {
+                ogs_error("ogs_fqdn_parse() failed[%s]", NFService->fqdn);
+                return false;
+            }
+#else
+            nf_service->fqdn = ogs_strdup(NFService->fqdn);
+            ogs_assert(nf_service);
+#endif
+        }
 
         OpenAPI_list_for_each(IpEndPointList, node2) {
             OpenAPI_ip_end_point_t *IpEndPoint = node2->data;

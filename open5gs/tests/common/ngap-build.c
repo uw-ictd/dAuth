@@ -21,7 +21,11 @@
 
 static ogs_pkbuf_t *testngap_build_pdu_session_resource_setup_response_trasfer(
         test_sess_t *sess);
+static ogs_pkbuf_t *testngap_build_pdu_session_resource_setup_unsuccessful_trasfer(
+        test_sess_t *sess, NGAP_Cause_PR group, long cause);
 static ogs_pkbuf_t *testngap_build_pdu_session_resource_modify_response_trasfer(
+        test_sess_t *sess);
+static ogs_pkbuf_t *testngap_build_qos_flow_resource_release_response_trasfer(
         test_bearer_t *qos_flow);
 static ogs_pkbuf_t *testngap_build_path_switch_request_trasfer(
         test_sess_t *sess);
@@ -1067,7 +1071,206 @@ ogs_pkbuf_t *testngap_sess_build_pdu_session_resource_setup_response(
     return ogs_ngap_encode(&pdu);
 }
 
-ogs_pkbuf_t *testngap_build_pdu_session_resource_modify_response(
+ogs_pkbuf_t *testngap_sess_build_pdu_session_resource_failed_to_setup(
+        test_sess_t *sess, NGAP_Cause_PR group, long cause)
+{
+    int rv;
+
+    test_ue_t *test_ue = NULL;
+
+    ogs_pkbuf_t *n2smbuf = NULL;
+    ogs_pkbuf_t *ngapbuf = NULL;
+
+    NGAP_NGAP_PDU_t pdu;
+    NGAP_SuccessfulOutcome_t *successfulOutcome = NULL;
+    NGAP_PDUSessionResourceSetupResponse_t *PDUSessionResourceSetupResponse;
+
+    NGAP_PDUSessionResourceSetupResponseIEs_t *ie = NULL;
+    NGAP_AMF_UE_NGAP_ID_t *AMF_UE_NGAP_ID = NULL;
+    NGAP_RAN_UE_NGAP_ID_t *RAN_UE_NGAP_ID = NULL;
+    NGAP_PDUSessionResourceFailedToSetupListSURes_t
+        *PDUSessionFailedList = NULL;
+    NGAP_PDUSessionResourceFailedToSetupItemSURes_t
+        *PDUSessionFailedItem = NULL;
+    OCTET_STRING_t *transfer = NULL;
+
+    ogs_assert(sess);
+    test_ue = sess->test_ue;
+    ogs_assert(test_ue);
+
+    memset(&pdu, 0, sizeof (NGAP_NGAP_PDU_t));
+    pdu.present = NGAP_NGAP_PDU_PR_successfulOutcome;
+    pdu.choice.successfulOutcome = CALLOC(1, sizeof(NGAP_SuccessfulOutcome_t));
+
+    successfulOutcome = pdu.choice.successfulOutcome;
+    successfulOutcome->procedureCode =
+        NGAP_ProcedureCode_id_PDUSessionResourceSetup;
+    successfulOutcome->criticality = NGAP_Criticality_reject;
+    successfulOutcome->value.present =
+        NGAP_SuccessfulOutcome__value_PR_PDUSessionResourceSetupResponse;
+
+    PDUSessionResourceSetupResponse =
+        &successfulOutcome->value.choice.PDUSessionResourceSetupResponse;
+
+    ie = CALLOC(1, sizeof(NGAP_PDUSessionResourceSetupResponseIEs_t));
+    ASN_SEQUENCE_ADD(&PDUSessionResourceSetupResponse->protocolIEs, ie);
+
+    ie->id = NGAP_ProtocolIE_ID_id_AMF_UE_NGAP_ID;
+    ie->criticality = NGAP_Criticality_ignore;
+    ie->value.present =
+        NGAP_PDUSessionResourceSetupResponseIEs__value_PR_AMF_UE_NGAP_ID;
+
+    AMF_UE_NGAP_ID = &ie->value.choice.AMF_UE_NGAP_ID;
+
+    ie = CALLOC(1, sizeof(NGAP_PDUSessionResourceSetupResponseIEs_t));
+    ASN_SEQUENCE_ADD(&PDUSessionResourceSetupResponse->protocolIEs, ie);
+
+    ie->id = NGAP_ProtocolIE_ID_id_RAN_UE_NGAP_ID;
+    ie->criticality = NGAP_Criticality_ignore;
+    ie->value.present =
+        NGAP_PDUSessionResourceSetupResponseIEs__value_PR_RAN_UE_NGAP_ID;
+
+    RAN_UE_NGAP_ID = &ie->value.choice.RAN_UE_NGAP_ID;
+
+    ie = CALLOC(1, sizeof(NGAP_PDUSessionResourceSetupResponseIEs_t));
+    ASN_SEQUENCE_ADD(&PDUSessionResourceSetupResponse->protocolIEs, ie);
+
+    ie->id = NGAP_ProtocolIE_ID_id_PDUSessionResourceFailedToSetupListSURes;
+    ie->criticality = NGAP_Criticality_reject;
+    ie->value.present = NGAP_PDUSessionResourceSetupResponseIEs__value_PR_PDUSessionResourceFailedToSetupListSURes;
+
+    PDUSessionFailedList =
+        &ie->value.choice.PDUSessionResourceFailedToSetupListSURes;
+
+    asn_uint642INTEGER(AMF_UE_NGAP_ID, test_ue->amf_ue_ngap_id);
+    *RAN_UE_NGAP_ID = test_ue->ran_ue_ngap_id;
+
+    PDUSessionFailedItem =
+        CALLOC(1, sizeof(struct NGAP_PDUSessionResourceFailedToSetupItemSURes));
+    ASN_SEQUENCE_ADD(&PDUSessionFailedList->list, PDUSessionFailedItem);
+
+    PDUSessionFailedItem->pDUSessionID = sess->psi;
+
+    n2smbuf = testngap_build_pdu_session_resource_setup_unsuccessful_trasfer(
+            sess, group, cause);
+    ogs_assert(n2smbuf);
+    transfer =
+        &PDUSessionFailedItem->pDUSessionResourceSetupUnsuccessfulTransfer;
+
+    transfer->size = n2smbuf->len;
+    transfer->buf = CALLOC(transfer->size, sizeof(uint8_t));
+    memcpy(transfer->buf, n2smbuf->data, transfer->size);
+    ogs_pkbuf_free(n2smbuf);
+
+    return ogs_ngap_encode(&pdu);
+}
+
+ogs_pkbuf_t *testngap_sess_build_pdu_session_resource_modify_response(
+        test_sess_t *sess)
+{
+    int rv;
+
+    test_ue_t *test_ue = NULL;
+
+    ogs_pkbuf_t *n2smbuf = NULL;
+    ogs_pkbuf_t *ngapbuf = NULL;
+
+    NGAP_NGAP_PDU_t pdu;
+    NGAP_SuccessfulOutcome_t *successfulOutcome = NULL;
+    NGAP_PDUSessionResourceModifyResponse_t *PDUSessionResourceModifyResponse;
+
+    NGAP_PDUSessionResourceModifyResponseIEs_t *ie = NULL;
+    NGAP_AMF_UE_NGAP_ID_t *AMF_UE_NGAP_ID = NULL;
+    NGAP_RAN_UE_NGAP_ID_t *RAN_UE_NGAP_ID = NULL;
+    NGAP_PDUSessionResourceModifyListModRes_t *PDUSessionList = NULL;
+    NGAP_PDUSessionResourceModifyItemModRes_t *PDUSessionItem = NULL;
+    OCTET_STRING_t *transfer = NULL;
+
+    ogs_assert(sess);
+    test_ue = sess->test_ue;
+    ogs_assert(test_ue);
+
+    memset(&pdu, 0, sizeof (NGAP_NGAP_PDU_t));
+    pdu.present = NGAP_NGAP_PDU_PR_successfulOutcome;
+    pdu.choice.successfulOutcome = CALLOC(1, sizeof(NGAP_SuccessfulOutcome_t));
+
+    successfulOutcome = pdu.choice.successfulOutcome;
+    successfulOutcome->procedureCode =
+        NGAP_ProcedureCode_id_PDUSessionResourceModify;
+    successfulOutcome->criticality = NGAP_Criticality_reject;
+    successfulOutcome->value.present =
+        NGAP_SuccessfulOutcome__value_PR_PDUSessionResourceModifyResponse;
+
+    PDUSessionResourceModifyResponse =
+        &successfulOutcome->value.choice.PDUSessionResourceModifyResponse;
+
+    ie = CALLOC(1, sizeof(NGAP_PDUSessionResourceModifyResponseIEs_t));
+    ASN_SEQUENCE_ADD(&PDUSessionResourceModifyResponse->protocolIEs, ie);
+
+    ie->id = NGAP_ProtocolIE_ID_id_AMF_UE_NGAP_ID;
+    ie->criticality = NGAP_Criticality_ignore;
+    ie->value.present =
+        NGAP_PDUSessionResourceModifyResponseIEs__value_PR_AMF_UE_NGAP_ID;
+
+    AMF_UE_NGAP_ID = &ie->value.choice.AMF_UE_NGAP_ID;
+
+    ie = CALLOC(1, sizeof(NGAP_PDUSessionResourceModifyResponseIEs_t));
+    ASN_SEQUENCE_ADD(&PDUSessionResourceModifyResponse->protocolIEs, ie);
+
+    ie->id = NGAP_ProtocolIE_ID_id_RAN_UE_NGAP_ID;
+    ie->criticality = NGAP_Criticality_ignore;
+    ie->value.present =
+        NGAP_PDUSessionResourceModifyResponseIEs__value_PR_RAN_UE_NGAP_ID;
+
+    RAN_UE_NGAP_ID = &ie->value.choice.RAN_UE_NGAP_ID;
+
+    ie = CALLOC(1, sizeof(NGAP_PDUSessionResourceModifyResponseIEs_t));
+    ASN_SEQUENCE_ADD(&PDUSessionResourceModifyResponse->protocolIEs, ie);
+
+    ie->id = NGAP_ProtocolIE_ID_id_PDUSessionResourceModifyListModRes;
+    ie->criticality = NGAP_Criticality_reject;
+    ie->value.present = NGAP_PDUSessionResourceModifyResponseIEs__value_PR_PDUSessionResourceModifyListModRes;
+
+    PDUSessionList = &ie->value.choice.PDUSessionResourceModifyListModRes;
+
+    asn_uint642INTEGER(AMF_UE_NGAP_ID, test_ue->amf_ue_ngap_id);
+    *RAN_UE_NGAP_ID = test_ue->ran_ue_ngap_id;
+
+    PDUSessionItem =
+        CALLOC(1, sizeof(struct NGAP_PDUSessionResourceModifyItemModRes));
+    ASN_SEQUENCE_ADD(&PDUSessionList->list, PDUSessionItem);
+
+    PDUSessionItem->pDUSessionID = sess->psi;
+
+    n2smbuf = testngap_build_pdu_session_resource_modify_response_trasfer(sess);
+    ogs_assert(n2smbuf);
+    transfer = &PDUSessionItem->pDUSessionResourceModifyResponseTransfer;
+
+    transfer->size = n2smbuf->len;
+    transfer->buf = CALLOC(transfer->size, sizeof(uint8_t));
+    memcpy(transfer->buf, n2smbuf->data, transfer->size);
+    ogs_pkbuf_free(n2smbuf);
+
+    return ogs_ngap_encode(&pdu);
+}
+
+ogs_pkbuf_t *testngap_build_qos_flow_resource_modify_response(
+        test_bearer_t *qos_flow)
+{
+    int rv;
+    test_sess_t *sess = NULL;
+
+    ogs_assert(qos_flow);
+    sess = qos_flow->sess;
+    ogs_assert(sess);
+
+    ogs_list_init(&sess->qos_flow_to_modify_list);
+    ogs_list_add(&sess->qos_flow_to_modify_list, &qos_flow->to_modify_node);
+
+    return testngap_sess_build_pdu_session_resource_modify_response(sess);
+}
+
+ogs_pkbuf_t *testngap_build_qos_flow_resource_release_response(
         test_bearer_t *qos_flow)
 {
     int rv;
@@ -1147,7 +1350,7 @@ ogs_pkbuf_t *testngap_build_pdu_session_resource_modify_response(
 
     PDUSessionItem->pDUSessionID = sess->psi;
 
-    n2smbuf = testngap_build_pdu_session_resource_modify_response_trasfer(
+    n2smbuf = testngap_build_qos_flow_resource_release_response_trasfer(
             qos_flow);
     ogs_assert(n2smbuf);
     transfer = &PDUSessionItem->pDUSessionResourceModifyResponseTransfer;
@@ -2112,7 +2315,7 @@ static ogs_pkbuf_t *testngap_build_pdu_session_resource_setup_response_trasfer(
     int rv;
     test_bearer_t *qos_flow = NULL;
 
-    ogs_gtp_f_teid_t f_teid;
+    ogs_gtp2_f_teid_t f_teid;
     ogs_ip_t ip;
     int len;
 
@@ -2141,11 +2344,11 @@ static ogs_pkbuf_t *testngap_build_pdu_session_resource_setup_response_trasfer(
     uPTransportLayerInformation->choice.gTPTunnel = gTPTunnel;
 
     ogs_assert(sess->gnb_n3_addr || sess->gnb_n3_addr6);
-    rv = ogs_gtp_sockaddr_to_f_teid(
+    rv = ogs_gtp2_sockaddr_to_f_teid(
             sess->gnb_n3_addr, sess->gnb_n3_addr6, &f_teid, &len);
     ogs_assert(rv == OGS_OK);
 
-    rv = ogs_gtp_f_teid_to_ip(&f_teid, &ip);
+    rv = ogs_gtp2_f_teid_to_ip(&f_teid, &ip);
     ogs_assert(rv == OGS_OK);
 
     ogs_asn_ip_to_BIT_STRING(&ip, &gTPTunnel->transportLayerAddress);
@@ -2165,27 +2368,67 @@ static ogs_pkbuf_t *testngap_build_pdu_session_resource_setup_response_trasfer(
             &asn_DEF_NGAP_PDUSessionResourceSetupResponseTransfer, &message);
 }
 
-static ogs_pkbuf_t *testngap_build_pdu_session_resource_modify_response_trasfer(
-        test_bearer_t *qos_flow)
+static ogs_pkbuf_t *testngap_build_pdu_session_resource_setup_unsuccessful_trasfer(
+        test_sess_t *sess, NGAP_Cause_PR group, long cause)
 {
-    ogs_assert(qos_flow);
+    int rv;
 
+    ogs_assert(sess);
+
+    NGAP_PDUSessionResourceSetupUnsuccessfulTransfer_t message;
+    NGAP_Cause_t *Cause = NULL;
+
+    memset(&message, 0, sizeof(message));
+
+    Cause = &message.cause;
+
+    Cause->present = group;
+    Cause->choice.radioNetwork = cause;
+
+    return ogs_asn_encode(
+        &asn_DEF_NGAP_PDUSessionResourceSetupUnsuccessfulTransfer, &message);
+}
+
+static ogs_pkbuf_t *testngap_build_pdu_session_resource_modify_response_trasfer(
+        test_sess_t *sess)
+{
     NGAP_PDUSessionResourceModifyResponseTransfer_t message;
 
     NGAP_QosFlowAddOrModifyResponseList_t *qosFlowAddOrModifyResponseList;
     NGAP_QosFlowAddOrModifyResponseItem_t *qosFlowAddOrModifyResponseItem;
+
+    test_bearer_t *qos_flow = NULL;
+
+    ogs_assert(sess);
 
     memset(&message, 0, sizeof(message));
 
     message.qosFlowAddOrModifyResponseList =
         qosFlowAddOrModifyResponseList =
             CALLOC(1, sizeof(struct NGAP_QosFlowAddOrModifyResponseList));
-    qosFlowAddOrModifyResponseItem =
-        CALLOC(1, sizeof(struct NGAP_QosFlowAddOrModifyResponseItem));
-    ASN_SEQUENCE_ADD(&qosFlowAddOrModifyResponseList->list,
-            qosFlowAddOrModifyResponseItem);
 
-    qosFlowAddOrModifyResponseItem->qosFlowIdentifier = qos_flow->qfi;
+    ogs_list_for_each_entry(
+                &sess->qos_flow_to_modify_list, qos_flow, to_modify_node) {
+
+        qosFlowAddOrModifyResponseItem =
+            CALLOC(1, sizeof(struct NGAP_QosFlowAddOrModifyResponseItem));
+        ASN_SEQUENCE_ADD(&qosFlowAddOrModifyResponseList->list,
+                qosFlowAddOrModifyResponseItem);
+
+        qosFlowAddOrModifyResponseItem->qosFlowIdentifier = qos_flow->qfi;
+    }
+
+    return ogs_asn_encode(
+            &asn_DEF_NGAP_PDUSessionResourceModifyResponseTransfer, &message);
+}
+
+static ogs_pkbuf_t *testngap_build_qos_flow_resource_release_response_trasfer(
+        test_bearer_t *qos_flow)
+{
+    ogs_assert(qos_flow);
+
+    NGAP_PDUSessionResourceModifyResponseTransfer_t message;
+    memset(&message, 0, sizeof(message));
 
     return ogs_asn_encode(
             &asn_DEF_NGAP_PDUSessionResourceModifyResponseTransfer, &message);
@@ -2198,7 +2441,7 @@ static ogs_pkbuf_t *testngap_build_path_switch_request_trasfer(
 
     test_bearer_t *qos_flow = NULL;
 
-    ogs_gtp_f_teid_t f_teid;
+    ogs_gtp2_f_teid_t f_teid;
     ogs_ip_t ip;
     int len;
 
@@ -2222,11 +2465,11 @@ static ogs_pkbuf_t *testngap_build_path_switch_request_trasfer(
     dL_NGU_UP_TNLInformation->choice.gTPTunnel = gTPTunnel;
 
     ogs_assert(sess->gnb_n3_addr || sess->gnb_n3_addr6);
-    rv = ogs_gtp_sockaddr_to_f_teid(
+    rv = ogs_gtp2_sockaddr_to_f_teid(
             sess->gnb_n3_addr, sess->gnb_n3_addr6, &f_teid, &len);
     ogs_assert(rv == OGS_OK);
 
-    rv = ogs_gtp_f_teid_to_ip(&f_teid, &ip);
+    rv = ogs_gtp2_f_teid_to_ip(&f_teid, &ip);
     ogs_assert(rv == OGS_OK);
 
     ogs_asn_ip_to_BIT_STRING(&ip, &gTPTunnel->transportLayerAddress);
@@ -2252,7 +2495,7 @@ static ogs_pkbuf_t *testngap_build_handover_required_transfer(
 
     test_bearer_t *qos_flow = NULL;
 
-    ogs_gtp_f_teid_t f_teid;
+    ogs_gtp2_f_teid_t f_teid;
     ogs_ip_t ip;
     int len;
 
@@ -2283,7 +2526,7 @@ static ogs_pkbuf_t *testngap_build_handover_request_ack_transfer(
     int rv;
     test_bearer_t *qos_flow = NULL;
 
-    ogs_gtp_f_teid_t f_teid;
+    ogs_gtp2_f_teid_t f_teid;
     ogs_ip_t ip;
     int len;
 
@@ -2308,11 +2551,11 @@ static ogs_pkbuf_t *testngap_build_handover_request_ack_transfer(
     ogs_assert(gTPTunnel);
 
     ogs_assert(sess->gnb_n3_addr || sess->gnb_n3_addr6);
-    rv = ogs_gtp_sockaddr_to_f_teid(
+    rv = ogs_gtp2_sockaddr_to_f_teid(
             sess->gnb_n3_addr, sess->gnb_n3_addr6, &f_teid, &len);
     ogs_assert(rv == OGS_OK);
 
-    rv = ogs_gtp_f_teid_to_ip(&f_teid, &ip);
+    rv = ogs_gtp2_f_teid_to_ip(&f_teid, &ip);
     ogs_assert(rv == OGS_OK);
 
     ogs_asn_ip_to_BIT_STRING(&ip, &gTPTunnel->transportLayerAddress);

@@ -29,7 +29,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.                                                             *
  *********************************************************************************************************/
 
-/* 
+/*
  * Dictionary definitions for objects specified for DCCA by 3GPP.
  *
  * This extensions contains a lot of AVPs from various 3GPP standards
@@ -87,6 +87,7 @@
  * uses some AVPs from the former, but not this one.
 */
 #include <freeDiameter/extension.h>
+#include "ogs-diameter-gx.h"
 
 
 /* The content of this file follows the same structure as dict_base_proto.c */
@@ -145,11 +146,11 @@ struct local_rules_definition {
 int ogs_dict_gx_entry(char *conffile)
 {
   /* Applications section */
-  {    
+  {
   {
     struct dict_object * vendor;
     CHECK_FCT(fd_dict_search(fd_g_config->cnf_dict, DICT_VENDOR, VENDOR_BY_NAME, "3GPP", &vendor, ENOENT));
-    struct dict_application_data app_data = { 16777238, "Gx" };
+    struct dict_application_data app_data = { OGS_DIAM_GX_APPLICATION_ID, "Gx" };
     CHECK_FCT(fd_dict_new(fd_g_config->cnf_dict, DICT_APPLICATION, &app_data, vendor, NULL));
   }
 
@@ -276,7 +277,7 @@ int ogs_dict_gx_entry(char *conffile)
     CHECK_dict_search( DICT_COMMAND, CMD_BY_NAME, "Credit-Control-Answer", &cmd);
     PARSE_loc_rules( rules, cmd );
   }
-  
+
   LOG_D( "Extension 'Dictionary definitions for DCCA 3GPP' initialized");
   return 0;
 }

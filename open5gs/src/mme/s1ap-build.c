@@ -285,7 +285,14 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
 
     ogs_assert(mme_ue);
     enb_ue = enb_ue_cycle(mme_ue->enb_ue);
-    ogs_assert(enb_ue);
+    if (!enb_ue) {
+        ogs_error("S1 context has already been removed");
+        if (emmbuf && emmbuf->len) {
+            ogs_error("NAS message is forcibly removed");
+            ogs_pkbuf_free(emmbuf);
+        }
+        return NULL;
+    }
 
     ogs_debug("InitialContextSetupRequest");
 
@@ -348,6 +355,9 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
 
     *MME_UE_S1AP_ID = enb_ue->mme_ue_s1ap_id;
     *ENB_UE_S1AP_ID = enb_ue->enb_ue_s1ap_id;
+
+    ogs_debug("    AMBR[DL:%lld,UL:%lld]",
+        (long long)mme_ue->ambr.downlink, (long long)mme_ue->ambr.uplink);
 
     asn_uint642INTEGER(
             &UEAggregateMaximumBitrate->uEaggregateMaximumBitRateUL, 
@@ -414,6 +424,10 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
 
             ogs_debug("    EBI[%d] QCI[%d] SGW-S1U-TEID[%d]",
                     bearer->ebi, bearer->qos.index, bearer->sgw_s1u_teid);
+            ogs_debug("    ARP[%d:%d:%d]",
+                    bearer->qos.arp.priority_level,
+                    bearer->qos.arp.pre_emption_capability,
+                    bearer->qos.arp.pre_emption_vulnerability);
 
             e_rab->e_RABlevelQoSParameters.allocationRetentionPriority.
                 priorityLevel = bearer->qos.arp.priority_level;
@@ -430,6 +444,13 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
                 ogs_assert(bearer->qos.mbr.uplink);
                 ogs_assert(bearer->qos.gbr.downlink);
                 ogs_assert(bearer->qos.gbr.uplink);
+
+                ogs_debug("    MBR[DL:%lld,UL:%lld]",
+                    (long long)bearer->qos.mbr.downlink,
+                    (long long)bearer->qos.mbr.uplink);
+                ogs_debug("    GBR[DL:%lld,UL:%lld]",
+                    (long long)bearer->qos.gbr.downlink,
+                    (long long)bearer->qos.gbr.uplink);
 
                 gbrQosInformation = 
                         CALLOC(1, sizeof(struct S1AP_GBR_QosInformation));
@@ -452,12 +473,16 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
                     bearer->sgw_s1u_teid, &e_rab->gTP_TEID);
 
             if (emmbuf && emmbuf->len) {
+                ogs_debug("    NASPdu[%p:%d]", emmbuf, emmbuf->len);
+
                 nasPdu = (S1AP_NAS_PDU_t *)CALLOC(1, sizeof(S1AP_NAS_PDU_t));
                 nasPdu->size = emmbuf->len;
                 nasPdu->buf = CALLOC(nasPdu->size, sizeof(uint8_t));
                 memcpy(nasPdu->buf, emmbuf->data, nasPdu->size);
                 e_rab->nAS_PDU = nasPdu;
                 ogs_pkbuf_free(emmbuf);
+
+                ogs_log_hexdump(OGS_LOG_DEBUG, nasPdu->buf, nasPdu->size);
 
                 /* Since Tracking area update accept is used only once,
                  * set emmbuf to NULL as shown below */
@@ -482,6 +507,7 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
     ie->value.present =
         S1AP_InitialContextSetupRequestIEs__value_PR_UESecurityCapabilities;
 
+    ogs_debug("    UESecurityCapabilities");
     UESecurityCapabilities = &ie->value.choice.UESecurityCapabilities;
 
     UESecurityCapabilities->encryptionAlgorithms.size = 2;
@@ -492,6 +518,10 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
     UESecurityCapabilities->encryptionAlgorithms.buf[0] =
         (mme_ue->ue_network_capability.eea << 1);
 
+    ogs_log_hexdump(OGS_LOG_DEBUG,
+            UESecurityCapabilities->encryptionAlgorithms.buf,
+            UESecurityCapabilities->encryptionAlgorithms.size);
+
     UESecurityCapabilities->integrityProtectionAlgorithms.size = 2;
     UESecurityCapabilities->integrityProtectionAlgorithms.buf =
         CALLOC(UESecurityCapabilities->
@@ -499,6 +529,10 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
     UESecurityCapabilities->integrityProtectionAlgorithms.bits_unused = 0;
     UESecurityCapabilities->integrityProtectionAlgorithms.buf[0] =
         (mme_ue->ue_network_capability.eia << 1);
+
+    ogs_log_hexdump(OGS_LOG_DEBUG,
+            UESecurityCapabilities->integrityProtectionAlgorithms.buf,
+            UESecurityCapabilities->integrityProtectionAlgorithms.size);
 
     ie = CALLOC(1, sizeof(S1AP_InitialContextSetupRequestIEs_t));
     ASN_SEQUENCE_ADD(&InitialContextSetupRequest->protocolIEs, ie);
@@ -508,6 +542,7 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
     ie->value.present =
         S1AP_InitialContextSetupRequestIEs__value_PR_SecurityKey;
 
+    ogs_debug("    SecurityKey");
     SecurityKey = &ie->value.choice.SecurityKey;
 
     SecurityKey->size = OGS_SHA256_DIGEST_SIZE;
@@ -515,6 +550,8 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
         CALLOC(SecurityKey->size, sizeof(uint8_t));
     SecurityKey->bits_unused = 0;
     memcpy(SecurityKey->buf, mme_ue->kenb, SecurityKey->size);
+
+    ogs_log_hexdump(OGS_LOG_DEBUG, SecurityKey->buf, SecurityKey->size);
 
     if (mme_ue->nas_eps.type == MME_EPS_TYPE_EXTENDED_SERVICE_REQUEST &&
         MME_P_TMSI_IS_AVAILABLE(mme_ue)) {
@@ -531,6 +568,7 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
         ie->value.present =
             S1AP_InitialContextSetupRequestIEs__value_PR_CSFallbackIndicator;
 
+        ogs_debug("    CSFallbackIndicator");
         CSFallbackIndicator = &ie->value.choice.CSFallbackIndicator;
         ogs_assert(CSFallbackIndicator);
 
@@ -544,6 +582,7 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
         ie->value.present =
             S1AP_InitialContextSetupRequestIEs__value_PR_LAI;
 
+        ogs_debug("    LAI");
         LAI = &ie->value.choice.LAI;
         ogs_assert(LAI);
 
@@ -559,6 +598,10 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
         /* Set UeRadioCapability if exists */
         S1AP_UERadioCapability_t *UERadioCapability = NULL;
 
+        ogs_debug("    UERadioCapability[%p:%d]",
+                    mme_ue->ueRadioCapability.buf,
+                    (int)mme_ue->ueRadioCapability.size);
+
         ie = CALLOC(1, sizeof(S1AP_InitialContextSetupRequestIEs_t));
         ASN_SEQUENCE_ADD(&InitialContextSetupRequest->protocolIEs, ie);
 
@@ -573,6 +616,9 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
         ogs_s1ap_buffer_to_OCTET_STRING(
                 mme_ue->ueRadioCapability.buf, mme_ue->ueRadioCapability.size,
                 UERadioCapability);
+
+        ogs_log_hexdump(OGS_LOG_DEBUG,
+                UERadioCapability->buf, UERadioCapability->size);
     }
 
     /* TS23.003 6.2.2 Composition of IMEISV
@@ -592,12 +638,15 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
         ie->value.present =
             S1AP_InitialContextSetupRequestIEs__value_PR_Masked_IMEISV;
 
+        ogs_debug("    Masked_IMEISV");
         Masked_IMEISV = &ie->value.choice.Masked_IMEISV;
 
         Masked_IMEISV->size = mme_ue->masked_imeisv_len;
         Masked_IMEISV->buf = CALLOC(Masked_IMEISV->size, sizeof(uint8_t));
         Masked_IMEISV->bits_unused = 0;
         memcpy(Masked_IMEISV->buf, mme_ue->masked_imeisv, Masked_IMEISV->size);
+
+        ogs_log_hexdump(OGS_LOG_DEBUG, Masked_IMEISV->buf, Masked_IMEISV->size);
     }
 
     if (mme_ue->ue_additional_security_capability.length) {
@@ -608,6 +657,7 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
         ie->criticality = S1AP_Criticality_ignore;
         ie->value.present = S1AP_InitialContextSetupRequestIEs__value_PR_NRUESecurityCapabilities;
 
+        ogs_debug("    NRUESecurityCapabilities");
         NRUESecurityCapabilities = &ie->value.choice.NRUESecurityCapabilities;
 
         NRUESecurityCapabilities->nRencryptionAlgorithms.size = 2;
@@ -618,6 +668,10 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
         NRUESecurityCapabilities->nRencryptionAlgorithms.buf[0] =
             (mme_ue->ue_additional_security_capability.nea << 1);
 
+        ogs_log_hexdump(OGS_LOG_DEBUG,
+            NRUESecurityCapabilities->nRencryptionAlgorithms.buf,
+            NRUESecurityCapabilities->nRencryptionAlgorithms.size);
+
         NRUESecurityCapabilities->nRintegrityProtectionAlgorithms.size = 2;
         NRUESecurityCapabilities->nRintegrityProtectionAlgorithms.buf =
             CALLOC(NRUESecurityCapabilities->
@@ -627,6 +681,9 @@ ogs_pkbuf_t *s1ap_build_initial_context_setup_request(
         NRUESecurityCapabilities->nRintegrityProtectionAlgorithms.buf[0] =
             (mme_ue->ue_additional_security_capability.nia << 1);
 
+        ogs_log_hexdump(OGS_LOG_DEBUG,
+            NRUESecurityCapabilities->nRintegrityProtectionAlgorithms.buf,
+            NRUESecurityCapabilities->nRintegrityProtectionAlgorithms.size);
     }
 
     return ogs_s1ap_encode(&pdu);
@@ -1499,7 +1556,8 @@ ogs_pkbuf_t *s1ap_build_mme_configuration_transfer(
     return ogs_s1ap_encode(&pdu);
 }
 
-ogs_pkbuf_t *s1ap_build_path_switch_ack(mme_ue_t *mme_ue)
+ogs_pkbuf_t *s1ap_build_path_switch_ack(
+        mme_ue_t *mme_ue, bool e_rab_to_switched_in_uplink_list)
 {
     S1AP_S1AP_PDU_t pdu;
     S1AP_SuccessfulOutcome_t *successfulOutcome = NULL;
@@ -1508,8 +1566,11 @@ ogs_pkbuf_t *s1ap_build_path_switch_ack(mme_ue_t *mme_ue)
     S1AP_PathSwitchRequestAcknowledgeIEs_t *ie = NULL;
     S1AP_MME_UE_S1AP_ID_t *MME_UE_S1AP_ID = NULL;
     S1AP_ENB_UE_S1AP_ID_t *ENB_UE_S1AP_ID = NULL;
+    S1AP_E_RABToBeSwitchedULList_t *E_RABToBeSwitchedULList = NULL;
     S1AP_SecurityContext_t *SecurityContext = NULL;
 
+    mme_sess_t *sess = NULL;
+    mme_bearer_t *bearer = NULL;
     enb_ue_t *enb_ue = NULL;
 
     ogs_assert(mme_ue);
@@ -1551,6 +1612,18 @@ ogs_pkbuf_t *s1ap_build_path_switch_ack(mme_ue_t *mme_ue)
 
     ENB_UE_S1AP_ID = &ie->value.choice.ENB_UE_S1AP_ID;
 
+    if (e_rab_to_switched_in_uplink_list == true) {
+        ie = CALLOC(1, sizeof(S1AP_PathSwitchRequestAcknowledgeIEs_t));
+        ASN_SEQUENCE_ADD(&PathSwitchRequestAcknowledge->protocolIEs, ie);
+
+        ie->id = S1AP_ProtocolIE_ID_id_E_RABToBeSwitchedULList;
+        ie->criticality = S1AP_Criticality_ignore;
+        ie->value.present =
+            S1AP_PathSwitchRequestAcknowledgeIEs__value_PR_E_RABToBeSwitchedULList;
+
+        E_RABToBeSwitchedULList = &ie->value.choice.E_RABToBeSwitchedULList;
+    }
+
     ie = CALLOC(1, sizeof(S1AP_PathSwitchRequestAcknowledgeIEs_t));
     ASN_SEQUENCE_ADD(&PathSwitchRequestAcknowledge->protocolIEs, ie);
 
@@ -1566,6 +1639,31 @@ ogs_pkbuf_t *s1ap_build_path_switch_ack(mme_ue_t *mme_ue)
 
     *MME_UE_S1AP_ID = enb_ue->mme_ue_s1ap_id;
     *ENB_UE_S1AP_ID = enb_ue->enb_ue_s1ap_id;
+
+    if (e_rab_to_switched_in_uplink_list == true) {
+        ogs_list_for_each(&mme_ue->sess_list, sess) {
+            ogs_list_for_each(&sess->bearer_list, bearer) {
+                S1AP_E_RABToBeSwitchedULItemIEs_t *item = NULL;
+                S1AP_E_RABToBeSwitchedULItem_t *e_rab = NULL;
+
+                item = CALLOC(1, sizeof(S1AP_E_RABToBeSwitchedULItemIEs_t));
+                ASN_SEQUENCE_ADD(&E_RABToBeSwitchedULList->list, item);
+
+                item->id = S1AP_ProtocolIE_ID_id_E_RABToBeSwitchedULItem;
+                item->criticality = S1AP_Criticality_ignore;
+                item->value.present = S1AP_E_RABToBeSwitchedULItemIEs__value_PR_E_RABToBeSwitchedULItem;
+
+                e_rab = &item->value.choice.E_RABToBeSwitchedULItem;
+
+                e_rab->e_RAB_ID = bearer->ebi;
+
+                ogs_assert(OGS_OK == ogs_asn_ip_to_BIT_STRING(
+                        &bearer->sgw_s1u_ip, &e_rab->transportLayerAddress));
+                ogs_asn_uint32_to_OCTET_STRING(
+                        bearer->sgw_s1u_teid, &e_rab->gTP_TEID);
+            }
+        }
+    }
 
     SecurityContext->nextHopChainingCount = mme_ue->nhcc;
     SecurityContext->nextHopParameter.size = OGS_SHA256_DIGEST_SIZE;

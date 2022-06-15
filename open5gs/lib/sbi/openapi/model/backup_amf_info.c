@@ -9,10 +9,9 @@ OpenAPI_backup_amf_info_t *OpenAPI_backup_amf_info_create(
     OpenAPI_list_t *guami_list
 )
 {
-    OpenAPI_backup_amf_info_t *backup_amf_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_backup_amf_info_t));
-    if (!backup_amf_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_backup_amf_info_t *backup_amf_info_local_var = ogs_malloc(sizeof(OpenAPI_backup_amf_info_t));
+    ogs_assert(backup_amf_info_local_var);
+
     backup_amf_info_local_var->backup_amf = backup_amf;
     backup_amf_info_local_var->guami_list = guami_list;
 
@@ -105,12 +104,18 @@ OpenAPI_backup_amf_info_t *OpenAPI_backup_amf_info_parseFromJSON(cJSON *backup_a
         }
         OpenAPI_guami_t *guami_listItem = OpenAPI_guami_parseFromJSON(guami_list_local_nonprimitive);
 
+        if (!guami_listItem) {
+            ogs_error("No guami_listItem");
+            OpenAPI_list_free(guami_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(guami_listList, guami_listItem);
     }
     }
 
     backup_amf_info_local_var = OpenAPI_backup_amf_info_create (
-        ogs_strdup_or_assert(backup_amf->valuestring),
+        ogs_strdup(backup_amf->valuestring),
         guami_list ? guami_listList : NULL
     );
 

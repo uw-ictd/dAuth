@@ -241,6 +241,7 @@ libcore_sources = files('''
     ogs-process.h
     ogs-sockaddr.h
     ogs-socket.h
+    ogs-sockopt.h
     ogs-sockpair.h
     ogs-socknode.h
     ogs-udp.h
@@ -275,6 +276,7 @@ libcore_sources = files('''
     ogs-process.c
     ogs-sockaddr.c
     ogs-socket.c
+    ogs-sockopt.c
     ogs-sockpair.c
     ogs-socknode.c
     ogs-udp.c
@@ -304,15 +306,17 @@ endif
 
 libcore_inc = include_directories('.')
 
+libtalloc_dep = dependency('talloc')
+
 libcore = library('ogscore',
     sources : libcore_sources,
     version : libogslib_version,
     c_args : '-DOGS_CORE_COMPILATION',
     include_directories : [libcore_inc, libinc],
-    dependencies : [threads, librt, libexecinfo, libsocket],
+    dependencies : [threads, librt, libexecinfo, libsocket, libtalloc_dep],
     install : true)
 
 libcore_dep = declare_dependency(
     link_with : libcore,
     include_directories : [libcore_inc, libinc],
-    dependencies : [threads, librt, libexecinfo, libsocket])
+    dependencies : [threads, librt, libexecinfo, libsocket, libtalloc_dep])

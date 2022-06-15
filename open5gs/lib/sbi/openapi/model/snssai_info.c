@@ -8,10 +8,9 @@ OpenAPI_snssai_info_t *OpenAPI_snssai_info_create(
     OpenAPI_list_t *dnn_infos
 )
 {
-    OpenAPI_snssai_info_t *snssai_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_snssai_info_t));
-    if (!snssai_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_snssai_info_t *snssai_info_local_var = ogs_malloc(sizeof(OpenAPI_snssai_info_t));
+    ogs_assert(snssai_info_local_var);
+
     snssai_info_local_var->dnn_infos = dnn_infos;
 
     return snssai_info_local_var;
@@ -86,6 +85,12 @@ OpenAPI_snssai_info_t *OpenAPI_snssai_info_parseFromJSON(cJSON *snssai_infoJSON)
             goto end;
         }
         OpenAPI_dnn_info_t *dnn_infosItem = OpenAPI_dnn_info_parseFromJSON(dnn_infos_local_nonprimitive);
+
+        if (!dnn_infosItem) {
+            ogs_error("No dnn_infosItem");
+            OpenAPI_list_free(dnn_infosList);
+            goto end;
+        }
 
         OpenAPI_list_add(dnn_infosList, dnn_infosItem);
     }

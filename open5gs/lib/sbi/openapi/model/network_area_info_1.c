@@ -11,10 +11,9 @@ OpenAPI_network_area_info_1_t *OpenAPI_network_area_info_1_create(
     OpenAPI_list_t *tais
 )
 {
-    OpenAPI_network_area_info_1_t *network_area_info_1_local_var = OpenAPI_malloc(sizeof(OpenAPI_network_area_info_1_t));
-    if (!network_area_info_1_local_var) {
-        return NULL;
-    }
+    OpenAPI_network_area_info_1_t *network_area_info_1_local_var = ogs_malloc(sizeof(OpenAPI_network_area_info_1_t));
+    ogs_assert(network_area_info_1_local_var);
+
     network_area_info_1_local_var->ecgis = ecgis;
     network_area_info_1_local_var->ncgis = ncgis;
     network_area_info_1_local_var->g_ran_node_ids = g_ran_node_ids;
@@ -164,6 +163,12 @@ OpenAPI_network_area_info_1_t *OpenAPI_network_area_info_1_parseFromJSON(cJSON *
         }
         OpenAPI_ecgi_1_t *ecgisItem = OpenAPI_ecgi_1_parseFromJSON(ecgis_local_nonprimitive);
 
+        if (!ecgisItem) {
+            ogs_error("No ecgisItem");
+            OpenAPI_list_free(ecgisList);
+            goto end;
+        }
+
         OpenAPI_list_add(ecgisList, ecgisItem);
     }
     }
@@ -186,6 +191,12 @@ OpenAPI_network_area_info_1_t *OpenAPI_network_area_info_1_parseFromJSON(cJSON *
             goto end;
         }
         OpenAPI_ncgi_1_t *ncgisItem = OpenAPI_ncgi_1_parseFromJSON(ncgis_local_nonprimitive);
+
+        if (!ncgisItem) {
+            ogs_error("No ncgisItem");
+            OpenAPI_list_free(ncgisList);
+            goto end;
+        }
 
         OpenAPI_list_add(ncgisList, ncgisItem);
     }
@@ -210,6 +221,12 @@ OpenAPI_network_area_info_1_t *OpenAPI_network_area_info_1_parseFromJSON(cJSON *
         }
         OpenAPI_global_ran_node_id_1_t *g_ran_node_idsItem = OpenAPI_global_ran_node_id_1_parseFromJSON(g_ran_node_ids_local_nonprimitive);
 
+        if (!g_ran_node_idsItem) {
+            ogs_error("No g_ran_node_idsItem");
+            OpenAPI_list_free(g_ran_node_idsList);
+            goto end;
+        }
+
         OpenAPI_list_add(g_ran_node_idsList, g_ran_node_idsItem);
     }
     }
@@ -232,6 +249,12 @@ OpenAPI_network_area_info_1_t *OpenAPI_network_area_info_1_parseFromJSON(cJSON *
             goto end;
         }
         OpenAPI_tai_1_t *taisItem = OpenAPI_tai_1_parseFromJSON(tais_local_nonprimitive);
+
+        if (!taisItem) {
+            ogs_error("No taisItem");
+            OpenAPI_list_free(taisList);
+            goto end;
+        }
 
         OpenAPI_list_add(taisList, taisItem);
     }

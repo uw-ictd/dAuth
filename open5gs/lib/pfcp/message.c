@@ -20,7 +20,7 @@
 /*******************************************************************************
  * This file had been created by pfcp-tlv.py script v0.1.0
  * Please do not modify this file but regenerate it via script.
- * Created on: 2021-10-04 22:09:12.905975 by acetcom
+ * Created on: 2022-05-10 22:56:07.851458 by acetcom
  * from 29244-g10.docx
  ******************************************************************************/
 
@@ -468,10 +468,10 @@ ogs_tlv_desc_t ogs_pfcp_tlv_desc_measurement_method =
 
 ogs_tlv_desc_t ogs_pfcp_tlv_desc_usage_report_trigger =
 {
-    OGS_TLV_VAR_STR,
+    OGS_TLV_UINT24,
     "Usage Report Trigger",
     OGS_PFCP_USAGE_REPORT_TRIGGER_TYPE,
-    0,
+    3,
     0,
     sizeof(ogs_pfcp_tlv_usage_report_trigger_t),
     { NULL }
@@ -512,10 +512,10 @@ ogs_tlv_desc_t ogs_pfcp_tlv_desc_volume_measurement =
 
 ogs_tlv_desc_t ogs_pfcp_tlv_desc_duration_measurement =
 {
-    OGS_TLV_VAR_STR,
+    OGS_TLV_UINT32,
     "Duration Measurement",
     OGS_PFCP_DURATION_MEASUREMENT_TYPE,
-    0,
+    4,
     0,
     sizeof(ogs_pfcp_tlv_duration_measurement_t),
     { NULL }
@@ -523,10 +523,10 @@ ogs_tlv_desc_t ogs_pfcp_tlv_desc_duration_measurement =
 
 ogs_tlv_desc_t ogs_pfcp_tlv_desc_time_of_first_packet =
 {
-    OGS_TLV_VAR_STR,
+    OGS_TLV_UINT32,
     "Time of First Packet",
     OGS_PFCP_TIME_OF_FIRST_PACKET_TYPE,
-    0,
+    4,
     0,
     sizeof(ogs_pfcp_tlv_time_of_first_packet_t),
     { NULL }
@@ -534,10 +534,10 @@ ogs_tlv_desc_t ogs_pfcp_tlv_desc_time_of_first_packet =
 
 ogs_tlv_desc_t ogs_pfcp_tlv_desc_time_of_last_packet =
 {
-    OGS_TLV_VAR_STR,
+    OGS_TLV_UINT32,
     "Time of Last Packet",
     OGS_PFCP_TIME_OF_LAST_PACKET_TYPE,
-    0,
+    4,
     0,
     sizeof(ogs_pfcp_tlv_time_of_last_packet_t),
     { NULL }
@@ -589,10 +589,10 @@ ogs_tlv_desc_t ogs_pfcp_tlv_desc_time_quota =
 
 ogs_tlv_desc_t ogs_pfcp_tlv_desc_start_time =
 {
-    OGS_TLV_VAR_STR,
+    OGS_TLV_UINT32,
     "Start Time",
     OGS_PFCP_START_TIME_TYPE,
-    0,
+    4,
     0,
     sizeof(ogs_pfcp_tlv_start_time_t),
     { NULL }
@@ -600,10 +600,10 @@ ogs_tlv_desc_t ogs_pfcp_tlv_desc_start_time =
 
 ogs_tlv_desc_t ogs_pfcp_tlv_desc_end_time =
 {
-    OGS_TLV_VAR_STR,
+    OGS_TLV_UINT32,
     "End Time",
     OGS_PFCP_END_TIME_TYPE,
-    0,
+    4,
     0,
     sizeof(ogs_pfcp_tlv_end_time_t),
     { NULL }
@@ -798,10 +798,10 @@ ogs_tlv_desc_t ogs_pfcp_tlv_desc_remote_gtp_u_peer =
 
 ogs_tlv_desc_t ogs_pfcp_tlv_desc_ur_seqn =
 {
-    OGS_TLV_VAR_STR,
+    OGS_TLV_UINT32,
     "UR-SEQN",
     OGS_PFCP_UR_SEQN_TYPE,
-    0,
+    4,
     0,
     sizeof(ogs_pfcp_tlv_ur_seqn_t),
     { NULL }
@@ -1575,6 +1575,7 @@ ogs_tlv_desc_t ogs_pfcp_tlv_desc_create_pdr =
         &ogs_pfcp_tlv_desc_outer_header_removal,
         &ogs_pfcp_tlv_desc_far_id,
         &ogs_pfcp_tlv_desc_urr_id,
+        &ogs_tlv_desc_more8,
         &ogs_pfcp_tlv_desc_qer_id,
         &ogs_pfcp_tlv_desc_activate_predefined_rules,
         &ogs_pfcp_tlv_desc_activation_time,
@@ -1758,6 +1759,7 @@ ogs_tlv_desc_t ogs_pfcp_tlv_desc_access_forwarding_action_information_1 =
         &ogs_pfcp_tlv_desc_weight,
         &ogs_pfcp_tlv_desc_priority,
         &ogs_pfcp_tlv_desc_urr_id,
+        &ogs_tlv_desc_more8,
         NULL,
     }
 };
@@ -1775,6 +1777,7 @@ ogs_tlv_desc_t ogs_pfcp_tlv_desc_access_forwarding_action_information_2 =
         &ogs_pfcp_tlv_desc_weight,
         &ogs_pfcp_tlv_desc_priority,
         &ogs_pfcp_tlv_desc_urr_id,
+        &ogs_tlv_desc_more8,
         NULL,
     }
 };
@@ -2681,6 +2684,7 @@ ogs_tlv_desc_t ogs_pfcp_msg_desc_pfcp_session_modification_response =
         &ogs_pfcp_tlv_desc_load_control_information,
         &ogs_pfcp_tlv_desc_overload_control_information,
         &ogs_pfcp_tlv_desc_usage_report_session_modification_response,
+        &ogs_tlv_desc_more8,
         &ogs_pfcp_tlv_desc_failed_rule_id,
         &ogs_pfcp_tlv_desc_additional_usage_reports_information,
         &ogs_pfcp_tlv_desc_created_traffic_endpoint,
@@ -2705,6 +2709,7 @@ ogs_tlv_desc_t ogs_pfcp_msg_desc_pfcp_session_deletion_response =
         &ogs_pfcp_tlv_desc_load_control_information,
         &ogs_pfcp_tlv_desc_overload_control_information,
         &ogs_pfcp_tlv_desc_usage_report_session_deletion_response,
+        &ogs_tlv_desc_more8,
     NULL,
 }};
 
@@ -2716,6 +2721,7 @@ ogs_tlv_desc_t ogs_pfcp_msg_desc_pfcp_session_report_request =
         &ogs_pfcp_tlv_desc_report_type,
         &ogs_pfcp_tlv_desc_downlink_data_report,
         &ogs_pfcp_tlv_desc_usage_report_session_report_request,
+        &ogs_tlv_desc_more8,
         &ogs_pfcp_tlv_desc_error_indication_report,
         &ogs_pfcp_tlv_desc_load_control_information,
         &ogs_pfcp_tlv_desc_overload_control_information,
@@ -2753,7 +2759,7 @@ int ogs_pfcp_parse_msg(ogs_pfcp_message_t *pfcp_message, ogs_pkbuf_t *pkbuf)
 
     h = (ogs_pfcp_header_t *)pkbuf->data;
     ogs_assert(h);
-    
+
     memset(pfcp_message, 0, sizeof(ogs_pfcp_message_t));
 
     if (h->seid_presence)
@@ -2768,7 +2774,6 @@ int ogs_pfcp_parse_msg(ogs_pfcp_message_t *pfcp_message, ogs_pkbuf_t *pkbuf)
         pfcp_message->h.seid = be64toh(pfcp_message->h.seid);
     } else {
         pfcp_message->h.sqn = pfcp_message->h.sqn_only;
-        pfcp_message->h.sqn_only = pfcp_message->h.sqn_only;
     }
 
     if (pkbuf->len == 0)

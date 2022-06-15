@@ -30,10 +30,9 @@ OpenAPI_immediate_mdt_conf_t *OpenAPI_immediate_mdt_conf_create(
     OpenAPI_list_t *sensor_measurement_list
 )
 {
-    OpenAPI_immediate_mdt_conf_t *immediate_mdt_conf_local_var = OpenAPI_malloc(sizeof(OpenAPI_immediate_mdt_conf_t));
-    if (!immediate_mdt_conf_local_var) {
-        return NULL;
-    }
+    OpenAPI_immediate_mdt_conf_t *immediate_mdt_conf_local_var = ogs_malloc(sizeof(OpenAPI_immediate_mdt_conf_t));
+    ogs_assert(immediate_mdt_conf_local_var);
+
     immediate_mdt_conf_local_var->job_type = job_type;
     immediate_mdt_conf_local_var->measurement_lte_list = measurement_lte_list;
     immediate_mdt_conf_local_var->measurement_nr_list = measurement_nr_list;
@@ -526,6 +525,12 @@ OpenAPI_immediate_mdt_conf_t *OpenAPI_immediate_mdt_conf_parseFromJSON(cJSON *im
             goto end;
         }
         OpenAPI_plmn_id_t *mdt_allowed_plmn_id_listItem = OpenAPI_plmn_id_parseFromJSON(mdt_allowed_plmn_id_list_local_nonprimitive);
+
+        if (!mdt_allowed_plmn_id_listItem) {
+            ogs_error("No mdt_allowed_plmn_id_listItem");
+            OpenAPI_list_free(mdt_allowed_plmn_id_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(mdt_allowed_plmn_id_listList, mdt_allowed_plmn_id_listItem);
     }

@@ -29,14 +29,19 @@ extern "C" {
 int sgwc_pfcp_open(void);
 void sgwc_pfcp_close(void);
 
+int sgwc_pfcp_send_bearer_to_modify_list(
+        sgwc_sess_t *sess, ogs_pfcp_xact_t *xact);
+
 int sgwc_pfcp_send_session_establishment_request(
         sgwc_sess_t *sess, ogs_gtp_xact_t *gtp_xact, ogs_pkbuf_t *gtpbuf);
-int sgwc_pfcp_send_sess_modification_request(
+
+int sgwc_pfcp_send_session_modification_request(
         sgwc_sess_t *sess, ogs_gtp_xact_t *gtp_xact,
         ogs_pkbuf_t *gtpbuf, uint64_t flags);
 int sgwc_pfcp_send_bearer_modification_request(
         sgwc_bearer_t *bearer, ogs_gtp_xact_t *gtp_xact,
         ogs_pkbuf_t *gtpbuf, uint64_t flags);
+
 int sgwc_pfcp_send_session_deletion_request(
         sgwc_sess_t *sess, ogs_gtp_xact_t *gtp_xact, ogs_pkbuf_t *gtpbuf);
 

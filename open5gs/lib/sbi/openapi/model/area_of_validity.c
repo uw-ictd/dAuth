@@ -8,10 +8,9 @@ OpenAPI_area_of_validity_t *OpenAPI_area_of_validity_create(
     OpenAPI_list_t *tai_list
 )
 {
-    OpenAPI_area_of_validity_t *area_of_validity_local_var = OpenAPI_malloc(sizeof(OpenAPI_area_of_validity_t));
-    if (!area_of_validity_local_var) {
-        return NULL;
-    }
+    OpenAPI_area_of_validity_t *area_of_validity_local_var = ogs_malloc(sizeof(OpenAPI_area_of_validity_t));
+    ogs_assert(area_of_validity_local_var);
+
     area_of_validity_local_var->tai_list = tai_list;
 
     return area_of_validity_local_var;
@@ -86,6 +85,12 @@ OpenAPI_area_of_validity_t *OpenAPI_area_of_validity_parseFromJSON(cJSON *area_o
             goto end;
         }
         OpenAPI_tai_t *tai_listItem = OpenAPI_tai_parseFromJSON(tai_list_local_nonprimitive);
+
+        if (!tai_listItem) {
+            ogs_error("No tai_listItem");
+            OpenAPI_list_free(tai_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(tai_listList, tai_listItem);
     }

@@ -12,10 +12,9 @@ OpenAPI_udr_info_t *OpenAPI_udr_info_create(
     OpenAPI_list_t *supported_data_sets
 )
 {
-    OpenAPI_udr_info_t *udr_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_udr_info_t));
-    if (!udr_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_udr_info_t *udr_info_local_var = ogs_malloc(sizeof(OpenAPI_udr_info_t));
+    ogs_assert(udr_info_local_var);
+
     udr_info_local_var->group_id = group_id;
     udr_info_local_var->supi_ranges = supi_ranges;
     udr_info_local_var->gpsi_ranges = gpsi_ranges;
@@ -175,6 +174,12 @@ OpenAPI_udr_info_t *OpenAPI_udr_info_parseFromJSON(cJSON *udr_infoJSON)
         }
         OpenAPI_supi_range_t *supi_rangesItem = OpenAPI_supi_range_parseFromJSON(supi_ranges_local_nonprimitive);
 
+        if (!supi_rangesItem) {
+            ogs_error("No supi_rangesItem");
+            OpenAPI_list_free(supi_rangesList);
+            goto end;
+        }
+
         OpenAPI_list_add(supi_rangesList, supi_rangesItem);
     }
     }
@@ -198,6 +203,12 @@ OpenAPI_udr_info_t *OpenAPI_udr_info_parseFromJSON(cJSON *udr_infoJSON)
         }
         OpenAPI_identity_range_t *gpsi_rangesItem = OpenAPI_identity_range_parseFromJSON(gpsi_ranges_local_nonprimitive);
 
+        if (!gpsi_rangesItem) {
+            ogs_error("No gpsi_rangesItem");
+            OpenAPI_list_free(gpsi_rangesList);
+            goto end;
+        }
+
         OpenAPI_list_add(gpsi_rangesList, gpsi_rangesItem);
     }
     }
@@ -220,6 +231,12 @@ OpenAPI_udr_info_t *OpenAPI_udr_info_parseFromJSON(cJSON *udr_infoJSON)
             goto end;
         }
         OpenAPI_identity_range_t *external_group_identifiers_rangesItem = OpenAPI_identity_range_parseFromJSON(external_group_identifiers_ranges_local_nonprimitive);
+
+        if (!external_group_identifiers_rangesItem) {
+            ogs_error("No external_group_identifiers_rangesItem");
+            OpenAPI_list_free(external_group_identifiers_rangesList);
+            goto end;
+        }
 
         OpenAPI_list_add(external_group_identifiers_rangesList, external_group_identifiers_rangesItem);
     }
@@ -248,7 +265,7 @@ OpenAPI_udr_info_t *OpenAPI_udr_info_parseFromJSON(cJSON *udr_infoJSON)
     }
 
     udr_info_local_var = OpenAPI_udr_info_create (
-        group_id ? ogs_strdup_or_assert(group_id->valuestring) : NULL,
+        group_id ? ogs_strdup(group_id->valuestring) : NULL,
         supi_ranges ? supi_rangesList : NULL,
         gpsi_ranges ? gpsi_rangesList : NULL,
         external_group_identifiers_ranges ? external_group_identifiers_rangesList : NULL,

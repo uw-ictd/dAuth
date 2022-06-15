@@ -12,10 +12,9 @@ OpenAPI_lmf_info_t *OpenAPI_lmf_info_create(
     OpenAPI_list_t *serving_rat_types
 )
 {
-    OpenAPI_lmf_info_t *lmf_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_lmf_info_t));
-    if (!lmf_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_lmf_info_t *lmf_info_local_var = ogs_malloc(sizeof(OpenAPI_lmf_info_t));
+    ogs_assert(lmf_info_local_var);
+
     lmf_info_local_var->serving_client_types = serving_client_types;
     lmf_info_local_var->lmf_id = lmf_id;
     lmf_info_local_var->serving_access_types = serving_access_types;
@@ -150,6 +149,12 @@ OpenAPI_lmf_info_t *OpenAPI_lmf_info_parseFromJSON(cJSON *lmf_infoJSON)
         }
         OpenAPI_external_client_type_t *serving_client_typesItem = OpenAPI_external_client_type_parseFromJSON(serving_client_types_local_nonprimitive);
 
+        if (!serving_client_typesItem) {
+            ogs_error("No serving_client_typesItem");
+            OpenAPI_list_free(serving_client_typesList);
+            goto end;
+        }
+
         OpenAPI_list_add(serving_client_typesList, serving_client_typesItem);
     }
     }
@@ -231,7 +236,7 @@ OpenAPI_lmf_info_t *OpenAPI_lmf_info_parseFromJSON(cJSON *lmf_infoJSON)
 
     lmf_info_local_var = OpenAPI_lmf_info_create (
         serving_client_types ? serving_client_typesList : NULL,
-        lmf_id ? ogs_strdup_or_assert(lmf_id->valuestring) : NULL,
+        lmf_id ? ogs_strdup(lmf_id->valuestring) : NULL,
         serving_access_types ? serving_access_typesList : NULL,
         serving_an_node_types ? serving_an_node_typesList : NULL,
         serving_rat_types ? serving_rat_typesList : NULL

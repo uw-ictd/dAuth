@@ -11,10 +11,9 @@ OpenAPI_bsf_info_t *OpenAPI_bsf_info_create(
     OpenAPI_list_t *ipv6_prefix_ranges
 )
 {
-    OpenAPI_bsf_info_t *bsf_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_bsf_info_t));
-    if (!bsf_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_bsf_info_t *bsf_info_local_var = ogs_malloc(sizeof(OpenAPI_bsf_info_t));
+    ogs_assert(bsf_info_local_var);
+
     bsf_info_local_var->dnn_list = dnn_list;
     bsf_info_local_var->ip_domain_list = ip_domain_list;
     bsf_info_local_var->ipv4_address_ranges = ipv4_address_ranges;
@@ -153,7 +152,7 @@ OpenAPI_bsf_info_t *OpenAPI_bsf_info_parseFromJSON(cJSON *bsf_infoJSON)
         ogs_error("OpenAPI_bsf_info_parseFromJSON() failed [dnn_list]");
         goto end;
     }
-    OpenAPI_list_add(dnn_listList , ogs_strdup_or_assert(dnn_list_local->valuestring));
+    OpenAPI_list_add(dnn_listList , ogs_strdup(dnn_list_local->valuestring));
     }
     }
 
@@ -173,7 +172,7 @@ OpenAPI_bsf_info_t *OpenAPI_bsf_info_parseFromJSON(cJSON *bsf_infoJSON)
         ogs_error("OpenAPI_bsf_info_parseFromJSON() failed [ip_domain_list]");
         goto end;
     }
-    OpenAPI_list_add(ip_domain_listList , ogs_strdup_or_assert(ip_domain_list_local->valuestring));
+    OpenAPI_list_add(ip_domain_listList , ogs_strdup(ip_domain_list_local->valuestring));
     }
     }
 
@@ -195,6 +194,12 @@ OpenAPI_bsf_info_t *OpenAPI_bsf_info_parseFromJSON(cJSON *bsf_infoJSON)
             goto end;
         }
         OpenAPI_ipv4_address_range_t *ipv4_address_rangesItem = OpenAPI_ipv4_address_range_parseFromJSON(ipv4_address_ranges_local_nonprimitive);
+
+        if (!ipv4_address_rangesItem) {
+            ogs_error("No ipv4_address_rangesItem");
+            OpenAPI_list_free(ipv4_address_rangesList);
+            goto end;
+        }
 
         OpenAPI_list_add(ipv4_address_rangesList, ipv4_address_rangesItem);
     }
@@ -218,6 +223,12 @@ OpenAPI_bsf_info_t *OpenAPI_bsf_info_parseFromJSON(cJSON *bsf_infoJSON)
             goto end;
         }
         OpenAPI_ipv6_prefix_range_t *ipv6_prefix_rangesItem = OpenAPI_ipv6_prefix_range_parseFromJSON(ipv6_prefix_ranges_local_nonprimitive);
+
+        if (!ipv6_prefix_rangesItem) {
+            ogs_error("No ipv6_prefix_rangesItem");
+            OpenAPI_list_free(ipv6_prefix_rangesList);
+            goto end;
+        }
 
         OpenAPI_list_add(ipv6_prefix_rangesList, ipv6_prefix_rangesItem);
     }

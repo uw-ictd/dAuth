@@ -33,11 +33,13 @@ extern "C" {
  */
 typedef struct ogs_pfcp_xact_s {
     ogs_lnode_t     lnode;          /**< A node of list */
+    ogs_lnode_t     tmpnode;        /**< A node of temp-list */
+
     ogs_index_t     index;
-    
+
 #define OGS_PFCP_LOCAL_ORIGINATOR  0
 #define OGS_PFCP_REMOTE_ORIGINATOR 1
-    uint8_t         org;            /**< Transaction' originator. 
+    uint8_t         org;            /**< Transaction' originator.
                                          local or remote */
 
     uint32_t        xid;            /**< Transaction ID */
@@ -48,8 +50,8 @@ typedef struct ogs_pfcp_xact_s {
     void            *data;
 
     int             step;           /**< Current step in the sequence.
-                                         1 : Initial 
-                                         2 : Triggered 
+                                         1 : Initial
+                                         2 : Triggered
                                          3 : Triggered-Reply */
     struct {
         uint8_t     type;           /**< Message type history */
@@ -66,6 +68,9 @@ typedef struct ogs_pfcp_xact_s {
     void            *assoc_xact;    /**< Associated GTP transaction */
     ogs_pkbuf_t     *gtpbuf;        /**< GTP packet buffer */
 
+    uint8_t         gtp_pti;        /**< GTP Procedure transaction identity */
+    uint8_t         gtp_cause;      /**< GTP Cause Value */
+
     void            *assoc_stream;  /**< Associated SBI session */
 
     bool            epc;            /**< EPC or 5GC */
@@ -74,52 +79,63 @@ typedef struct ogs_pfcp_xact_s {
 #define OGS_PFCP_MODIFY_DL_ONLY ((uint64_t)1<<1)
 #define OGS_PFCP_MODIFY_UL_ONLY ((uint64_t)1<<2)
 #define OGS_PFCP_MODIFY_INDIRECT ((uint64_t)1<<3)
-#define OGS_PFCP_MODIFY_CREATE ((uint64_t)1<<4)
-#define OGS_PFCP_MODIFY_REMOVE ((uint64_t)1<<5)
-#define OGS_PFCP_MODIFY_TFT_UPDATE ((uint64_t)1<<6)
-#define OGS_PFCP_MODIFY_QOS_UPDATE ((uint64_t)1<<7)
-#define OGS_PFCP_MODIFY_ACTIVATE ((uint64_t)1<<8)
-#define OGS_PFCP_MODIFY_DEACTIVATE ((uint64_t)1<<9)
-#define OGS_PFCP_MODIFY_END_MARKER ((uint64_t)1<<10)
-#define OGS_PFCP_MODIFY_ERROR_INDICATION ((uint64_t)1<<11)
-#define OGS_PFCP_MODIFY_XN_HANDOVER ((uint64_t)1<<12)
-#define OGS_PFCP_MODIFY_N2_HANDOVER ((uint64_t)1<<13)
-#define OGS_PFCP_MODIFY_HANDOVER_CANCEL ((uint64_t)1<<14)
+#define OGS_PFCP_MODIFY_UE_REQUESTED ((uint64_t)1<<4)
+#define OGS_PFCP_MODIFY_NETWORK_REQUESTED ((uint64_t)1<<5)
+#define OGS_PFCP_MODIFY_CREATE ((uint64_t)1<<6)
+#define OGS_PFCP_MODIFY_REMOVE ((uint64_t)1<<7)
+#define OGS_PFCP_MODIFY_EPC_TFT_UPDATE ((uint64_t)1<<8)
+#define OGS_PFCP_MODIFY_EPC_QOS_UPDATE ((uint64_t)1<<9)
+#define OGS_PFCP_MODIFY_TFT_NEW ((uint64_t)1<<10)
+#define OGS_PFCP_MODIFY_TFT_ADD ((uint64_t)1<<11)
+#define OGS_PFCP_MODIFY_TFT_REPLACE ((uint64_t)1<<12)
+#define OGS_PFCP_MODIFY_TFT_DELETE ((uint64_t)1<<13)
+#define OGS_PFCP_MODIFY_QOS_CREATE ((uint64_t)1<<14)
+#define OGS_PFCP_MODIFY_QOS_MODIFY ((uint64_t)1<<15)
+#define OGS_PFCP_MODIFY_QOS_DELETE ((uint64_t)1<<16)
+#define OGS_PFCP_MODIFY_ACTIVATE ((uint64_t)1<<17)
+#define OGS_PFCP_MODIFY_DEACTIVATE ((uint64_t)1<<18)
+#define OGS_PFCP_MODIFY_END_MARKER ((uint64_t)1<<19)
+#define OGS_PFCP_MODIFY_ERROR_INDICATION ((uint64_t)1<<20)
+#define OGS_PFCP_MODIFY_XN_HANDOVER ((uint64_t)1<<21)
+#define OGS_PFCP_MODIFY_N2_HANDOVER ((uint64_t)1<<22)
+#define OGS_PFCP_MODIFY_HANDOVER_CANCEL ((uint64_t)1<<23)
+#define OGS_PFCP_MODIFY_URR  ((uint64_t)1<<24) /* type of trigger */
+#define OGS_PFCP_MODIFY_URR_MEAS_METHOD ((uint64_t)1<<25)
+#define OGS_PFCP_MODIFY_URR_REPORT_TRIGGER ((uint64_t)1<<26)
+#define OGS_PFCP_MODIFY_URR_VOLUME_THRESH ((uint64_t)1<<27)
+#define OGS_PFCP_MODIFY_URR_TIME_THRESH ((uint64_t)1<<28)
+
     uint64_t        modify_flags;
 
-#define OGS_PFCP_DELETE_TRIGGER_UE_REQUESTED 1
-#define OGS_PFCP_DELETE_TRIGGER_PCF_INITIATED 2
-#define OGS_PFCP_DELETE_TRIGGER_RAN_INITIATED 3
-#define OGS_PFCP_DELETE_TRIGGER_SMF_INITIATED 4
-#define OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT 5
-#define OGS_PFCP_DELETE_TRIGGER_AMF_UPDATE_SM_CONTEXT 6
+#define OGS_PFCP_DELETE_TRIGGER_LOCAL_INITIATED 1
+#define OGS_PFCP_DELETE_TRIGGER_UE_REQUESTED 2
+#define OGS_PFCP_DELETE_TRIGGER_PCF_INITIATED 3
+#define OGS_PFCP_DELETE_TRIGGER_RAN_INITIATED 4
+#define OGS_PFCP_DELETE_TRIGGER_SMF_INITIATED 5
+#define OGS_PFCP_DELETE_TRIGGER_AMF_RELEASE_SM_CONTEXT 6
+#define OGS_PFCP_DELETE_TRIGGER_AMF_UPDATE_SM_CONTEXT 7
     int             delete_trigger;
+
+    ogs_list_t      pdr_to_create_list;
+    ogs_list_t      bearer_to_modify_list;
 } ogs_pfcp_xact_t;
 
 int ogs_pfcp_xact_init(void);
 void ogs_pfcp_xact_final(void);
 
 ogs_pfcp_xact_t *ogs_pfcp_xact_local_create(ogs_pfcp_node_t *node,
-        ogs_pfcp_header_t *hdesc, ogs_pkbuf_t *pkbuf,
         void (*cb)(ogs_pfcp_xact_t *xact, void *data), void *data);
-ogs_pfcp_xact_t *ogs_pfcp_xact_remote_create(
-        ogs_pfcp_node_t *node, uint32_t sqn);
 ogs_pfcp_xact_t *ogs_pfcp_xact_cycle(ogs_pfcp_xact_t *xact);
 void ogs_pfcp_xact_delete_all(ogs_pfcp_node_t *node);
 
 int ogs_pfcp_xact_update_tx(ogs_pfcp_xact_t *xact,
         ogs_pfcp_header_t *hdesc, ogs_pkbuf_t *pkbuf);
-int ogs_pfcp_xact_update_rx(ogs_pfcp_xact_t *xact, uint8_t type);
 
 int ogs_pfcp_xact_commit(ogs_pfcp_xact_t *xact);
 void ogs_pfcp_xact_delayed_commit(ogs_pfcp_xact_t *xact, ogs_time_t duration);
 
 int ogs_pfcp_xact_receive(ogs_pfcp_node_t *node,
         ogs_pfcp_header_t *h, ogs_pfcp_xact_t **xact);
-
-ogs_pfcp_xact_t *ogs_pfcp_xact_find(ogs_index_t index);
-ogs_pfcp_xact_t *ogs_pfcp_xact_find_by_xid(
-        ogs_pfcp_node_t *node, uint8_t type, uint32_t xid);
 
 #ifdef __cplusplus
 }

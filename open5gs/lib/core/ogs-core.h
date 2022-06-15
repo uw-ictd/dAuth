@@ -24,6 +24,8 @@
 
 #define OGS_CORE_INSIDE
 
+#define OGS_USE_TALLOC 1
+
 #include "core/ogs-compat.h"
 #include "core/ogs-macros.h"
 #include "core/ogs-list.h"
@@ -45,6 +47,7 @@
 #include "core/ogs-signal.h"
 #include "core/ogs-sockaddr.h"
 #include "core/ogs-socket.h"
+#include "core/ogs-sockopt.h"
 #include "core/ogs-sockpair.h"
 #include "core/ogs-socknode.h"
 #include "core/ogs-udp.h"

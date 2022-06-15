@@ -56,8 +56,23 @@ bool smf_nudm_sdm_handle_get(smf_sess_t *sess, ogs_sbi_stream_t *stream,
 
     ogs_assert(recvmsg);
 
-    SessionManagementSubscriptionData =
-        recvmsg->SessionManagementSubscriptionData;
+
+    if ((!recvmsg->SessionManagementSubscriptionDataList) ||
+        (recvmsg->SessionManagementSubscriptionDataList->count == 0))
+    {
+        strerror = ogs_msprintf("[%s:%d] No SessionManagementSubscriptionDataList",
+                smf_ue->supi, sess->psi);
+        goto cleanup;
+    }
+
+    OpenAPI_list_for_each(recvmsg->SessionManagementSubscriptionDataList, node)
+    {
+        SessionManagementSubscriptionData = node->data;
+
+        /* currently supported to parse only first element of the array */
+        break;
+    }
+    
     if (!SessionManagementSubscriptionData) {
         strerror = ogs_msprintf("[%s:%d] No SessionManagementSubscriptionData",
                 smf_ue->supi, sess->psi);
@@ -114,14 +129,14 @@ bool smf_nudm_sdm_handle_get(smf_sess_t *sess, ogs_sbi_stream_t *stream,
                     dnnConfigurationMap->key) != 0)
                 continue;
 
-            if (sess->ue_pdu_session_type) {
+            if (sess->ue_session_type) {
                 OpenAPI_list_for_each(
                     pduSessionTypeList->allowed_session_types, node2) {
                     if (node2->data) {
                         uint8_t allowed_session_type = (uintptr_t)node2->data;
-                        if (sess->ue_pdu_session_type == allowed_session_type) {
+                        if (sess->ue_session_type == allowed_session_type) {
                             sess->session.session_type =
-                                sess->ue_pdu_session_type;
+                                sess->ue_session_type;
                             break;
                         }
                     }

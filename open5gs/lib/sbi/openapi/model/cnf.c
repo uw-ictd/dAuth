@@ -8,10 +8,9 @@ OpenAPI_cnf_t *OpenAPI_cnf_create(
     OpenAPI_list_t *cnf_units
 )
 {
-    OpenAPI_cnf_t *cnf_local_var = OpenAPI_malloc(sizeof(OpenAPI_cnf_t));
-    if (!cnf_local_var) {
-        return NULL;
-    }
+    OpenAPI_cnf_t *cnf_local_var = ogs_malloc(sizeof(OpenAPI_cnf_t));
+    ogs_assert(cnf_local_var);
+
     cnf_local_var->cnf_units = cnf_units;
 
     return cnf_local_var;
@@ -86,6 +85,12 @@ OpenAPI_cnf_t *OpenAPI_cnf_parseFromJSON(cJSON *cnfJSON)
             goto end;
         }
         OpenAPI_cnf_unit_t *cnf_unitsItem = OpenAPI_cnf_unit_parseFromJSON(cnf_units_local_nonprimitive);
+
+        if (!cnf_unitsItem) {
+            ogs_error("No cnf_unitsItem");
+            OpenAPI_list_free(cnf_unitsList);
+            goto end;
+        }
 
         OpenAPI_list_add(cnf_unitsList, cnf_unitsItem);
     }

@@ -9,10 +9,9 @@ OpenAPI_assign_ebi_failed_t *OpenAPI_assign_ebi_failed_create(
     OpenAPI_list_t *failed_arp_list
 )
 {
-    OpenAPI_assign_ebi_failed_t *assign_ebi_failed_local_var = OpenAPI_malloc(sizeof(OpenAPI_assign_ebi_failed_t));
-    if (!assign_ebi_failed_local_var) {
-        return NULL;
-    }
+    OpenAPI_assign_ebi_failed_t *assign_ebi_failed_local_var = ogs_malloc(sizeof(OpenAPI_assign_ebi_failed_t));
+    ogs_assert(assign_ebi_failed_local_var);
+
     assign_ebi_failed_local_var->pdu_session_id = pdu_session_id;
     assign_ebi_failed_local_var->failed_arp_list = failed_arp_list;
 
@@ -103,6 +102,12 @@ OpenAPI_assign_ebi_failed_t *OpenAPI_assign_ebi_failed_parseFromJSON(cJSON *assi
             goto end;
         }
         OpenAPI_arp_t *failed_arp_listItem = OpenAPI_arp_parseFromJSON(failed_arp_list_local_nonprimitive);
+
+        if (!failed_arp_listItem) {
+            ogs_error("No failed_arp_listItem");
+            OpenAPI_list_free(failed_arp_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(failed_arp_listList, failed_arp_listItem);
     }

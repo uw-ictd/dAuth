@@ -32,7 +32,7 @@ struct ogs_list_s {
     struct ogs_list_s *prev, *next;
 };
 typedef struct ogs_list_s ogs_list_t;
-typedef struct ogs_list_s ogs_lnode_t;;
+typedef struct ogs_list_s ogs_lnode_t;
 
 #define OGS_LIST(name) \
     ogs_list_t name = { NULL, NULL }
@@ -40,6 +40,11 @@ typedef struct ogs_list_s ogs_lnode_t;;
 #define ogs_list_init(list) do { \
     (list)->prev = (NULL); \
     (list)->next = (NULL); \
+} while (0)
+
+#define ogs_list_copy(dst, src) do { \
+    (dst)->prev = (src)->prev; \
+    (dst)->next = (src)->next; \
 } while (0)
 
 static ogs_inline void *ogs_list_first(const ogs_list_t *list)
@@ -64,7 +69,8 @@ static ogs_inline void *ogs_list_prev(void *lnode)
     return (void *)node->prev;
 }
 
-#define ogs_list_entry(ptr, type, member) ogs_container_of(ptr, type, member)
+#define ogs_list_entry(ptr, type, member) \
+    ptr ? ogs_container_of(ptr, type, member) : NULL
 
 #define ogs_list_for_each(list, node) \
     for (node = ogs_list_first(list); (node); \
@@ -73,6 +79,10 @@ static ogs_inline void *ogs_list_prev(void *lnode)
 #define ogs_typed_list_for_each(list, node) \
     for (node = (ogs_list_t *)ogs_list_first(list); (node); \
         node = (ogs_list_t *)ogs_list_next(node))
+
+#define ogs_list_reverse_for_each(list, node) \
+    for (node = ogs_list_last(list); (node); \
+        node = ogs_list_prev(node))
 
 #define ogs_list_for_each_entry(list, node, member) \
     for (node = ogs_list_entry(ogs_list_first(list), typeof(*node), member); \
@@ -122,7 +132,7 @@ static ogs_inline void ogs_list_remove(ogs_list_t *list, void *lnode)
 {
     ogs_list_t *node = (ogs_list_t *)lnode;
     ogs_list_t *prev = node->prev;
-    ogs_list_t *next = node->next;;
+    ogs_list_t *next = node->next;
 
     if (prev)
         prev->next = next;

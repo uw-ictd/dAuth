@@ -35,6 +35,14 @@ logger:
 #    pfcp:
 #      - name: localhost
 #
+#  o PFCP Option (Default)
+#    - so_bindtodevice : NULL
+#
+#    pfcp:
+#      addr: 127.0.0.6
+#      option:
+#        so_bindtodevice: vrf-blue
+#
 #  <GTP-U Server>
 #
 #  o GTP-U Server(127.0.0.6:2152, [::1]:2152)
@@ -80,6 +88,14 @@ logger:
 #      - dev: ens3
 #        advertise: sgw1.epc.mnc001.mcc001.3gppnetwork.org
 #
+#  o GTP-U Option (Default)
+#    - so_bindtodevice : NULL
+#
+#    gtpu:
+#      addr: 127.0.0.6
+#      option:
+#        so_bindtodevice: vrf-blue
+#
 sgwu:
     pfcp:
       - addr: 127.0.0.6
@@ -101,9 +117,6 @@ sgwc:
 #
 # parameter:
 #
-#  o Number of output streams per SCTP associations.
-#      sctp_streams: 30
-#
 #  o Disable use of IPv4 addresses (only IPv6)
 #      no_ipv4: true
 #
@@ -121,33 +134,9 @@ parameter:
 # o Maximum Number of UE per AMF/MME
 #    ue: 1024
 # o Maximum Number of gNB/eNB per AMF/MME
-#    gnb: 32
+#    gnb: 64
 #
 max:
-
-#
-# pool:
-#
-# o The default memory pool size was set assuming 1024 UEs.
-#   To connect more UEs, you need to increase the size further.
-#
-#   - Pool-size 128         => 65536 Number
-#   - Pool-size 256         => 16384 Number
-#   - Pool-size 512         => 4096 Number
-#   - Pool-size 1024        => 1024 Number
-#   - Pool-size 2048        => 512 Number
-#   - Pool-size 8192        => 128 Number
-#   - Pool-size 1024*1024   => 8 Number
-#
-#    128:  65536
-#    256:  16384
-#    512:  4096
-#    1024: 1024
-#    2048: 512
-#    8192: 128
-#    big:  8
-#
-pool:
 
 #
 # time:
