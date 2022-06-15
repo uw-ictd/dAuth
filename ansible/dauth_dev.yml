@@ -80,6 +80,7 @@
           - libcurl4-gnutls-dev
           - libnghttp2-dev
           - libtins-dev
+          - libtalloc-dev
           - meson
           - debhelper
         state: present
