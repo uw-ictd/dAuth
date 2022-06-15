@@ -10,10 +10,9 @@ OpenAPI_group_identifiers_t *OpenAPI_group_identifiers_create(
     OpenAPI_list_t *ue_id_list
 )
 {
-    OpenAPI_group_identifiers_t *group_identifiers_local_var = OpenAPI_malloc(sizeof(OpenAPI_group_identifiers_t));
-    if (!group_identifiers_local_var) {
-        return NULL;
-    }
+    OpenAPI_group_identifiers_t *group_identifiers_local_var = ogs_malloc(sizeof(OpenAPI_group_identifiers_t));
+    ogs_assert(group_identifiers_local_var);
+
     group_identifiers_local_var->ext_group_id = ext_group_id;
     group_identifiers_local_var->int_group_id = int_group_id;
     group_identifiers_local_var->ue_id_list = ue_id_list;
@@ -124,13 +123,19 @@ OpenAPI_group_identifiers_t *OpenAPI_group_identifiers_parseFromJSON(cJSON *grou
         }
         OpenAPI_ue_id_t *ue_id_listItem = OpenAPI_ue_id_parseFromJSON(ue_id_list_local_nonprimitive);
 
+        if (!ue_id_listItem) {
+            ogs_error("No ue_id_listItem");
+            OpenAPI_list_free(ue_id_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(ue_id_listList, ue_id_listItem);
     }
     }
 
     group_identifiers_local_var = OpenAPI_group_identifiers_create (
-        ext_group_id ? ogs_strdup_or_assert(ext_group_id->valuestring) : NULL,
-        int_group_id ? ogs_strdup_or_assert(int_group_id->valuestring) : NULL,
+        ext_group_id ? ogs_strdup(ext_group_id->valuestring) : NULL,
+        int_group_id ? ogs_strdup(int_group_id->valuestring) : NULL,
         ue_id_list ? ue_id_listList : NULL
     );
 

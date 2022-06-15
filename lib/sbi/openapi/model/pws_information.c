@@ -14,10 +14,9 @@ OpenAPI_pws_information_t *OpenAPI_pws_information_create(
     char *omc_id
 )
 {
-    OpenAPI_pws_information_t *pws_information_local_var = OpenAPI_malloc(sizeof(OpenAPI_pws_information_t));
-    if (!pws_information_local_var) {
-        return NULL;
-    }
+    OpenAPI_pws_information_t *pws_information_local_var = ogs_malloc(sizeof(OpenAPI_pws_information_t));
+    ogs_assert(pws_information_local_var);
+
     pws_information_local_var->message_identifier = message_identifier;
     pws_information_local_var->serial_number = serial_number;
     pws_information_local_var->pws_container = pws_container;
@@ -166,6 +165,12 @@ OpenAPI_pws_information_t *OpenAPI_pws_information_parseFromJSON(cJSON *pws_info
         }
         OpenAPI_global_ran_node_id_t *bc_empty_area_listItem = OpenAPI_global_ran_node_id_parseFromJSON(bc_empty_area_list_local_nonprimitive);
 
+        if (!bc_empty_area_listItem) {
+            ogs_error("No bc_empty_area_listItem");
+            OpenAPI_list_free(bc_empty_area_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(bc_empty_area_listList, bc_empty_area_listItem);
     }
     }
@@ -197,7 +202,7 @@ OpenAPI_pws_information_t *OpenAPI_pws_information_parseFromJSON(cJSON *pws_info
         bc_empty_area_list ? bc_empty_area_listList : NULL,
         send_ran_response ? true : false,
         send_ran_response ? send_ran_response->valueint : 0,
-        omc_id ? ogs_strdup_or_assert(omc_id->valuestring) : NULL
+        omc_id ? ogs_strdup(omc_id->valuestring) : NULL
     );
 
     return pws_information_local_var;

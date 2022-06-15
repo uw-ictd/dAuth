@@ -20,6 +20,7 @@
 #include "sbi-path.h"
 #include "nnrf-handler.h"
 #include "nausf-handler.h"
+#include "dauth-c-binding.h"
 
 bool ausf_nausf_auth_handle_authenticate(ausf_ue_t *ausf_ue,
         ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg)
@@ -54,10 +55,15 @@ bool ausf_nausf_auth_handle_authenticate(ausf_ue_t *ausf_ue,
     ausf_ue->serving_network_name = ogs_strdup(serving_network_name);
     ogs_assert(ausf_ue->serving_network_name);
 
-    ogs_assert(true ==
-        ausf_sbi_discover_and_send(OpenAPI_nf_type_UDM, ausf_ue, stream,
-            AuthenticationInfo->resynchronization_info,
-            ausf_nudm_ueau_build_get));
+    bool vector_request_success =
+        ausf_dauth_shim_request_auth_vector(ausf_ue, AuthenticationInfo, stream);
+
+    ogs_assert(vector_request_success == true);
+
+    // ogs_assert(true ==
+    //     ausf_sbi_discover_and_send(OpenAPI_nf_type_UDM, ausf_ue, stream,
+    //         AuthenticationInfo->resynchronization_info,
+    //         ausf_nudm_ueau_build_get));
 
     return true;
 }
@@ -94,18 +100,8 @@ bool ausf_nausf_auth_handle_authenticate_confirmation(ausf_ue_t *ausf_ue,
     ogs_ascii_to_hex(res_star_string, strlen(res_star_string),
             res_star, sizeof(res_star));
 
-    if (memcmp(res_star, ausf_ue->xres_star, OGS_MAX_RES_LEN) != 0) {
-        ogs_log_hexdump(OGS_LOG_WARN, res_star, OGS_MAX_RES_LEN);
-        ogs_log_hexdump(OGS_LOG_WARN, ausf_ue->xres_star, OGS_MAX_RES_LEN);
-
-        ausf_ue->auth_result = OpenAPI_auth_result_AUTHENTICATION_FAILURE;
-    } else {
-        ausf_ue->auth_result = OpenAPI_auth_result_AUTHENTICATION_SUCCESS;
-    }
-
-    ogs_assert(true ==
-        ausf_sbi_discover_and_send(OpenAPI_nf_type_UDM, ausf_ue, stream, NULL,
-            ausf_nudm_ueau_build_result_confirmation_inform));
+    // TODO(matt9j) Handle invalid key errors more gracefully than asserting.
+    ogs_assert(true == ausf_dauth_shim_request_confirm_auth(ausf_ue, res_star, stream));
 
     return true;
 }

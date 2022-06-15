@@ -359,9 +359,12 @@ bool udr_nudr_dr_handle_subscription_provisioned(
 
     rv = ogs_dbi_subscription_data(supi, &subscription_data);
     if (rv != OGS_OK) {
-        strerror = ogs_msprintf("[%s] Cannot find SUPI in DB", supi);
-        status = OGS_SBI_HTTP_STATUS_NOT_FOUND;
-        goto cleanup;
+        rv = ogs_dbi_default_subscription_data(supi, &subscription_data);
+        if (rv != OGS_OK) {
+            strerror = ogs_msprintf("[%s] Cannot find SUPI in DB and failed to make default", supi);
+            status = OGS_SBI_HTTP_STATUS_NOT_FOUND;
+            goto cleanup;
+        }
     }
 
     if (!subscription_data.ambr.uplink && !subscription_data.ambr.downlink) {
@@ -793,12 +796,18 @@ bool udr_nudr_dr_handle_subscription_provisioned(
                 dnnConfigurationList;
 
         memset(&sendmsg, 0, sizeof(sendmsg));
-        sendmsg.SessionManagementSubscriptionData =
-            &SessionManagementSubscriptionData;
+        
+        sendmsg.SessionManagementSubscriptionDataList = OpenAPI_list_create();
+        ogs_assert(sendmsg.SessionManagementSubscriptionDataList);
+
+        OpenAPI_list_add(sendmsg.SessionManagementSubscriptionDataList,
+            &SessionManagementSubscriptionData);
 
         response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_OK);
         ogs_assert(response);
         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+
+        OpenAPI_list_free(sendmsg.SessionManagementSubscriptionDataList);
 
         if (singleNSSAI.sd)
             ogs_free(singleNSSAI.sd);
@@ -926,9 +935,20 @@ bool udr_nudr_dr_handle_policy_data(
         CASE(OGS_SBI_HTTP_METHOD_GET)
             OpenAPI_lnode_t *node = NULL, *node2 = NULL;
 
-            rv = ogs_dbi_subscription_data(supi, &subscription_data);
+            // DAUTH
+            // rv = ogs_dbi_subscription_data(supi, &subscription_data);
+            // if (rv != OGS_OK) {
+            //     rv = ogs_dbi_default_subscription_data(supi, &subscription_data);
+            //     if (rv != OGS_OK) {
+            //         strerror = ogs_msprintf("[%s] Cannot find SUPI in DB and failed to make default", supi);
+            //         status = OGS_SBI_HTTP_STATUS_NOT_FOUND;
+            //         goto cleanup;
+            //     }
+            // }
+
+            rv = ogs_dbi_default_subscription_data(supi, &subscription_data);
             if (rv != OGS_OK) {
-                strerror = ogs_msprintf("[%s] Cannot find SUPI in DB", supi);
+                strerror = ogs_msprintf("[%s] Failed to make default", supi);
                 status = OGS_SBI_HTTP_STATUS_NOT_FOUND;
                 goto cleanup;
             }

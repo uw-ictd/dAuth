@@ -10,10 +10,9 @@ OpenAPI_external_unrelated_class_t *OpenAPI_external_unrelated_class_create(
     OpenAPI_list_t *lcs_client_group_externals
 )
 {
-    OpenAPI_external_unrelated_class_t *external_unrelated_class_local_var = OpenAPI_malloc(sizeof(OpenAPI_external_unrelated_class_t));
-    if (!external_unrelated_class_local_var) {
-        return NULL;
-    }
+    OpenAPI_external_unrelated_class_t *external_unrelated_class_local_var = ogs_malloc(sizeof(OpenAPI_external_unrelated_class_t));
+    ogs_assert(external_unrelated_class_local_var);
+
     external_unrelated_class_local_var->lcs_client_externals = lcs_client_externals;
     external_unrelated_class_local_var->af_externals = af_externals;
     external_unrelated_class_local_var->lcs_client_group_externals = lcs_client_group_externals;
@@ -138,6 +137,12 @@ OpenAPI_external_unrelated_class_t *OpenAPI_external_unrelated_class_parseFromJS
         }
         OpenAPI_lcs_client_external_t *lcs_client_externalsItem = OpenAPI_lcs_client_external_parseFromJSON(lcs_client_externals_local_nonprimitive);
 
+        if (!lcs_client_externalsItem) {
+            ogs_error("No lcs_client_externalsItem");
+            OpenAPI_list_free(lcs_client_externalsList);
+            goto end;
+        }
+
         OpenAPI_list_add(lcs_client_externalsList, lcs_client_externalsItem);
     }
     }
@@ -161,6 +166,12 @@ OpenAPI_external_unrelated_class_t *OpenAPI_external_unrelated_class_parseFromJS
         }
         OpenAPI_af_external_t *af_externalsItem = OpenAPI_af_external_parseFromJSON(af_externals_local_nonprimitive);
 
+        if (!af_externalsItem) {
+            ogs_error("No af_externalsItem");
+            OpenAPI_list_free(af_externalsList);
+            goto end;
+        }
+
         OpenAPI_list_add(af_externalsList, af_externalsItem);
     }
     }
@@ -183,6 +194,12 @@ OpenAPI_external_unrelated_class_t *OpenAPI_external_unrelated_class_parseFromJS
             goto end;
         }
         OpenAPI_lcs_client_group_external_t *lcs_client_group_externalsItem = OpenAPI_lcs_client_group_external_parseFromJSON(lcs_client_group_externals_local_nonprimitive);
+
+        if (!lcs_client_group_externalsItem) {
+            ogs_error("No lcs_client_group_externalsItem");
+            OpenAPI_list_free(lcs_client_group_externalsList);
+            goto end;
+        }
 
         OpenAPI_list_add(lcs_client_group_externalsList, lcs_client_group_externalsItem);
     }

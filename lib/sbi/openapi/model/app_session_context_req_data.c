@@ -38,10 +38,9 @@ OpenAPI_app_session_context_req_data_t *OpenAPI_app_session_context_req_data_cre
     OpenAPI_list_t *tsn_port_man_cont_nwtts
 )
 {
-    OpenAPI_app_session_context_req_data_t *app_session_context_req_data_local_var = OpenAPI_malloc(sizeof(OpenAPI_app_session_context_req_data_t));
-    if (!app_session_context_req_data_local_var) {
-        return NULL;
-    }
+    OpenAPI_app_session_context_req_data_t *app_session_context_req_data_local_var = ogs_malloc(sizeof(OpenAPI_app_session_context_req_data_t));
+    ogs_assert(app_session_context_req_data_local_var);
+
     app_session_context_req_data_local_var->af_app_id = af_app_id;
     app_session_context_req_data_local_var->af_charg_id = af_charg_id;
     app_session_context_req_data_local_var->af_req_data = af_req_data;
@@ -94,6 +93,7 @@ void OpenAPI_app_session_context_req_data_free(OpenAPI_app_session_context_req_d
     ogs_free(app_session_context_req_data->mc_video_id);
     OpenAPI_list_for_each(app_session_context_req_data->med_components, node) {
         OpenAPI_map_t *localKeyValue = (OpenAPI_map_t*)node->data;
+        ogs_free(localKeyValue->key);
         OpenAPI_media_component_free(localKeyValue->value);
         ogs_free(localKeyValue);
     }
@@ -223,7 +223,9 @@ cJSON *OpenAPI_app_session_context_req_data_convertToJSON(OpenAPI_app_session_co
     if (app_session_context_req_data->med_components) {
         OpenAPI_list_for_each(app_session_context_req_data->med_components, med_components_node) {
             OpenAPI_map_t *localKeyValue = (OpenAPI_map_t*)med_components_node->data;
-        cJSON *itemLocal = OpenAPI_media_component_convertToJSON(localKeyValue->value);
+        cJSON *itemLocal = localKeyValue->value ?
+            OpenAPI_media_component_convertToJSON(localKeyValue->value) :
+            cJSON_CreateNull();
         if (itemLocal == NULL) {
             ogs_error("OpenAPI_app_session_context_req_data_convertToJSON() failed [med_components]");
             goto end;
@@ -508,12 +510,15 @@ OpenAPI_app_session_context_req_data_t *OpenAPI_app_session_context_req_data_par
     OpenAPI_map_t *localMapKeyPair = NULL;
     cJSON_ArrayForEach(med_components_local_map, med_components) {
         cJSON *localMapObject = med_components_local_map;
-        if (!cJSON_IsObject(med_components_local_map)) {
+        if (cJSON_IsObject(med_components_local_map)) {
+            localMapKeyPair = OpenAPI_map_create(
+                ogs_strdup(localMapObject->string), OpenAPI_media_component_parseFromJSON(localMapObject));
+        } else if (cJSON_IsNull(med_components_local_map)) {
+            localMapKeyPair = OpenAPI_map_create(ogs_strdup(localMapObject->string), NULL);
+        } else {
             ogs_error("OpenAPI_app_session_context_req_data_parseFromJSON() failed [med_components]");
             goto end;
         }
-        localMapKeyPair = OpenAPI_map_create(
-            localMapObject->string, OpenAPI_media_component_parseFromJSON(localMapObject));
         OpenAPI_list_add(med_componentsList , localMapKeyPair);
     }
     }
@@ -714,39 +719,45 @@ OpenAPI_app_session_context_req_data_t *OpenAPI_app_session_context_req_data_par
         }
         OpenAPI_port_management_container_t *tsn_port_man_cont_nwttsItem = OpenAPI_port_management_container_parseFromJSON(tsn_port_man_cont_nwtts_local_nonprimitive);
 
+        if (!tsn_port_man_cont_nwttsItem) {
+            ogs_error("No tsn_port_man_cont_nwttsItem");
+            OpenAPI_list_free(tsn_port_man_cont_nwttsList);
+            goto end;
+        }
+
         OpenAPI_list_add(tsn_port_man_cont_nwttsList, tsn_port_man_cont_nwttsItem);
     }
     }
 
     app_session_context_req_data_local_var = OpenAPI_app_session_context_req_data_create (
-        af_app_id ? ogs_strdup_or_assert(af_app_id->valuestring) : NULL,
-        af_charg_id ? ogs_strdup_or_assert(af_charg_id->valuestring) : NULL,
+        af_app_id ? ogs_strdup(af_app_id->valuestring) : NULL,
+        af_charg_id ? ogs_strdup(af_charg_id->valuestring) : NULL,
         af_req_data ? af_req_dataVariable : 0,
         af_rout_req ? af_rout_req_local_nonprim : NULL,
-        asp_id ? ogs_strdup_or_assert(asp_id->valuestring) : NULL,
-        bdt_ref_id ? ogs_strdup_or_assert(bdt_ref_id->valuestring) : NULL,
-        dnn ? ogs_strdup_or_assert(dnn->valuestring) : NULL,
+        asp_id ? ogs_strdup(asp_id->valuestring) : NULL,
+        bdt_ref_id ? ogs_strdup(bdt_ref_id->valuestring) : NULL,
+        dnn ? ogs_strdup(dnn->valuestring) : NULL,
         ev_subsc ? ev_subsc_local_nonprim : NULL,
-        mcptt_id ? ogs_strdup_or_assert(mcptt_id->valuestring) : NULL,
-        mc_video_id ? ogs_strdup_or_assert(mc_video_id->valuestring) : NULL,
+        mcptt_id ? ogs_strdup(mcptt_id->valuestring) : NULL,
+        mc_video_id ? ogs_strdup(mc_video_id->valuestring) : NULL,
         med_components ? med_componentsList : NULL,
-        ip_domain ? ogs_strdup_or_assert(ip_domain->valuestring) : NULL,
-        mps_id ? ogs_strdup_or_assert(mps_id->valuestring) : NULL,
-        mcs_id ? ogs_strdup_or_assert(mcs_id->valuestring) : NULL,
+        ip_domain ? ogs_strdup(ip_domain->valuestring) : NULL,
+        mps_id ? ogs_strdup(mps_id->valuestring) : NULL,
+        mcs_id ? ogs_strdup(mcs_id->valuestring) : NULL,
         preempt_control_info ? preempt_control_infoVariable : 0,
         res_prio ? res_prioVariable : 0,
         serv_inf_status ? serv_inf_statusVariable : 0,
-        ogs_strdup_or_assert(notif_uri->valuestring),
-        serv_urn ? ogs_strdup_or_assert(serv_urn->valuestring) : NULL,
+        ogs_strdup(notif_uri->valuestring),
+        serv_urn ? ogs_strdup(serv_urn->valuestring) : NULL,
         slice_info ? slice_info_local_nonprim : NULL,
-        spon_id ? ogs_strdup_or_assert(spon_id->valuestring) : NULL,
+        spon_id ? ogs_strdup(spon_id->valuestring) : NULL,
         spon_status ? spon_statusVariable : 0,
-        supi ? ogs_strdup_or_assert(supi->valuestring) : NULL,
-        gpsi ? ogs_strdup_or_assert(gpsi->valuestring) : NULL,
-        ogs_strdup_or_assert(supp_feat->valuestring),
-        ue_ipv4 ? ogs_strdup_or_assert(ue_ipv4->valuestring) : NULL,
-        ue_ipv6 ? ogs_strdup_or_assert(ue_ipv6->valuestring) : NULL,
-        ue_mac ? ogs_strdup_or_assert(ue_mac->valuestring) : NULL,
+        supi ? ogs_strdup(supi->valuestring) : NULL,
+        gpsi ? ogs_strdup(gpsi->valuestring) : NULL,
+        ogs_strdup(supp_feat->valuestring),
+        ue_ipv4 ? ogs_strdup(ue_ipv4->valuestring) : NULL,
+        ue_ipv6 ? ogs_strdup(ue_ipv6->valuestring) : NULL,
+        ue_mac ? ogs_strdup(ue_mac->valuestring) : NULL,
         tsn_bridge_man_cont ? tsn_bridge_man_cont_local_nonprim : NULL,
         tsn_port_man_cont_dstt ? tsn_port_man_cont_dstt_local_nonprim : NULL,
         tsn_port_man_cont_nwtts ? tsn_port_man_cont_nwttsList : NULL

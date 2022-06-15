@@ -13,10 +13,9 @@ OpenAPI_chf_info_t *OpenAPI_chf_info_create(
     char *secondary_chf_instance
 )
 {
-    OpenAPI_chf_info_t *chf_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_chf_info_t));
-    if (!chf_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_chf_info_t *chf_info_local_var = ogs_malloc(sizeof(OpenAPI_chf_info_t));
+    ogs_assert(chf_info_local_var);
+
     chf_info_local_var->supi_range_list = supi_range_list;
     chf_info_local_var->gpsi_range_list = gpsi_range_list;
     chf_info_local_var->plmn_range_list = plmn_range_list;
@@ -168,6 +167,12 @@ OpenAPI_chf_info_t *OpenAPI_chf_info_parseFromJSON(cJSON *chf_infoJSON)
         }
         OpenAPI_supi_range_t *supi_range_listItem = OpenAPI_supi_range_parseFromJSON(supi_range_list_local_nonprimitive);
 
+        if (!supi_range_listItem) {
+            ogs_error("No supi_range_listItem");
+            OpenAPI_list_free(supi_range_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(supi_range_listList, supi_range_listItem);
     }
     }
@@ -191,6 +196,12 @@ OpenAPI_chf_info_t *OpenAPI_chf_info_parseFromJSON(cJSON *chf_infoJSON)
         }
         OpenAPI_identity_range_t *gpsi_range_listItem = OpenAPI_identity_range_parseFromJSON(gpsi_range_list_local_nonprimitive);
 
+        if (!gpsi_range_listItem) {
+            ogs_error("No gpsi_range_listItem");
+            OpenAPI_list_free(gpsi_range_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(gpsi_range_listList, gpsi_range_listItem);
     }
     }
@@ -213,6 +224,12 @@ OpenAPI_chf_info_t *OpenAPI_chf_info_parseFromJSON(cJSON *chf_infoJSON)
             goto end;
         }
         OpenAPI_plmn_range_t *plmn_range_listItem = OpenAPI_plmn_range_parseFromJSON(plmn_range_list_local_nonprimitive);
+
+        if (!plmn_range_listItem) {
+            ogs_error("No plmn_range_listItem");
+            OpenAPI_list_free(plmn_range_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(plmn_range_listList, plmn_range_listItem);
     }
@@ -249,9 +266,9 @@ OpenAPI_chf_info_t *OpenAPI_chf_info_parseFromJSON(cJSON *chf_infoJSON)
         supi_range_list ? supi_range_listList : NULL,
         gpsi_range_list ? gpsi_range_listList : NULL,
         plmn_range_list ? plmn_range_listList : NULL,
-        group_id ? ogs_strdup_or_assert(group_id->valuestring) : NULL,
-        primary_chf_instance ? ogs_strdup_or_assert(primary_chf_instance->valuestring) : NULL,
-        secondary_chf_instance ? ogs_strdup_or_assert(secondary_chf_instance->valuestring) : NULL
+        group_id ? ogs_strdup(group_id->valuestring) : NULL,
+        primary_chf_instance ? ogs_strdup(primary_chf_instance->valuestring) : NULL,
+        secondary_chf_instance ? ogs_strdup(secondary_chf_instance->valuestring) : NULL
     );
 
     return chf_info_local_var;

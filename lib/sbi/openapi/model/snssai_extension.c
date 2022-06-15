@@ -10,10 +10,9 @@ OpenAPI_snssai_extension_t *OpenAPI_snssai_extension_create(
     int wildcard_sd
 )
 {
-    OpenAPI_snssai_extension_t *snssai_extension_local_var = OpenAPI_malloc(sizeof(OpenAPI_snssai_extension_t));
-    if (!snssai_extension_local_var) {
-        return NULL;
-    }
+    OpenAPI_snssai_extension_t *snssai_extension_local_var = ogs_malloc(sizeof(OpenAPI_snssai_extension_t));
+    ogs_assert(snssai_extension_local_var);
+
     snssai_extension_local_var->sd_ranges = sd_ranges;
     snssai_extension_local_var->is_wildcard_sd = is_wildcard_sd;
     snssai_extension_local_var->wildcard_sd = wildcard_sd;
@@ -96,6 +95,12 @@ OpenAPI_snssai_extension_t *OpenAPI_snssai_extension_parseFromJSON(cJSON *snssai
             goto end;
         }
         OpenAPI_sd_range_t *sd_rangesItem = OpenAPI_sd_range_parseFromJSON(sd_ranges_local_nonprimitive);
+
+        if (!sd_rangesItem) {
+            ogs_error("No sd_rangesItem");
+            OpenAPI_list_free(sd_rangesList);
+            goto end;
+        }
 
         OpenAPI_list_add(sd_rangesList, sd_rangesItem);
     }

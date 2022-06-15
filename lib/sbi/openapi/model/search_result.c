@@ -15,10 +15,9 @@ OpenAPI_search_result_t *OpenAPI_search_result_create(
     char *nrf_supported_features
 )
 {
-    OpenAPI_search_result_t *search_result_local_var = OpenAPI_malloc(sizeof(OpenAPI_search_result_t));
-    if (!search_result_local_var) {
-        return NULL;
-    }
+    OpenAPI_search_result_t *search_result_local_var = ogs_malloc(sizeof(OpenAPI_search_result_t));
+    ogs_assert(search_result_local_var);
+
     search_result_local_var->is_validity_period = is_validity_period;
     search_result_local_var->validity_period = validity_period;
     search_result_local_var->nf_instances = nf_instances;
@@ -154,6 +153,12 @@ OpenAPI_search_result_t *OpenAPI_search_result_parseFromJSON(cJSON *search_resul
         }
         OpenAPI_nf_profile_t *nf_instancesItem = OpenAPI_nf_profile_parseFromJSON(nf_instances_local_nonprimitive);
 
+        if (!nf_instancesItem) {
+            ogs_error("No nf_instancesItem");
+            OpenAPI_list_free(nf_instancesList);
+            goto end;
+        }
+
         OpenAPI_list_add(nf_instancesList, nf_instancesItem);
     }
 
@@ -195,11 +200,11 @@ OpenAPI_search_result_t *OpenAPI_search_result_parseFromJSON(cJSON *search_resul
         validity_period ? true : false,
         validity_period ? validity_period->valuedouble : 0,
         nf_instancesList,
-        search_id ? ogs_strdup_or_assert(search_id->valuestring) : NULL,
+        search_id ? ogs_strdup(search_id->valuestring) : NULL,
         num_nf_inst_complete ? true : false,
         num_nf_inst_complete ? num_nf_inst_complete->valuedouble : 0,
         preferred_search ? preferred_search_local_nonprim : NULL,
-        nrf_supported_features ? ogs_strdup_or_assert(nrf_supported_features->valuestring) : NULL
+        nrf_supported_features ? ogs_strdup(nrf_supported_features->valuestring) : NULL
     );
 
     return search_result_local_var;

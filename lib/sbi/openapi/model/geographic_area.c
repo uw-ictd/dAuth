@@ -19,10 +19,9 @@ OpenAPI_geographic_area_t *OpenAPI_geographic_area_create(
     int included_angle
 )
 {
-    OpenAPI_geographic_area_t *geographic_area_local_var = OpenAPI_malloc(sizeof(OpenAPI_geographic_area_t));
-    if (!geographic_area_local_var) {
-        return NULL;
-    }
+    OpenAPI_geographic_area_t *geographic_area_local_var = ogs_malloc(sizeof(OpenAPI_geographic_area_t));
+    ogs_assert(geographic_area_local_var);
+
     geographic_area_local_var->shape = shape;
     geographic_area_local_var->point = point;
     geographic_area_local_var->uncertainty = uncertainty;
@@ -233,6 +232,12 @@ OpenAPI_geographic_area_t *OpenAPI_geographic_area_parseFromJSON(cJSON *geograph
             goto end;
         }
         OpenAPI_geographical_coordinates_t *point_listItem = OpenAPI_geographical_coordinates_parseFromJSON(point_list_local_nonprimitive);
+
+        if (!point_listItem) {
+            ogs_error("No point_listItem");
+            OpenAPI_list_free(point_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(point_listList, point_listItem);
     }

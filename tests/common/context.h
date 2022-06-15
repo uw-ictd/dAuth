@@ -34,7 +34,7 @@ extern "C" {
 #define TEST_GNB_IPV4           TEST_ENB_IPV4
 
 #define TEST_PING_IPV4          "10.45.0.1"
-#define TEST_PING_IPV6          "2001:230:cafe::1"
+#define TEST_PING_IPV6          "2001:db8:cafe::1"
 
 #define MAX_NUM_OF_SERVED_GUAMI     8
 
@@ -118,8 +118,7 @@ typedef struct test_initial_ue_param_s {
 
 typedef struct test_registration_request_param_s {
     struct {
-    ED8(uint8_t integrity_protected:1;,
-        uint8_t ciphered:1;,
+    ED7(uint8_t spare1:1;,
         uint8_t guti:1;,
         uint8_t gmm_capability:1;,
         uint8_t requested_nssai:1;,
@@ -143,8 +142,7 @@ typedef struct test_registration_request_param_s {
 
 typedef struct test_attach_request_param_s {
     struct {
-    ED8(uint8_t integrity_protected:1;,
-        uint8_t ciphered:1;,
+    ED7(uint8_t spare1:1;,
         uint8_t guti:1;,
         uint8_t last_visited_registered_tai:1;,
         uint8_t drx_parameter:1;,
@@ -196,26 +194,19 @@ typedef struct test_tau_request_param_s {
         uint8_t supported_codecs:1;)
     };
     struct {
-    ED8(uint8_t additional_update_type:1;,
+    ED3(uint8_t additional_update_type:1;,
         uint8_t device_properties:1;,
-        uint8_t integrity_protected:1;,
-        uint8_t ciphered:1;,
-        uint8_t spare5:1;,
-        uint8_t spare6:1;,
-        uint8_t spare7:1;,
-        uint8_t spare8:1;)
+        uint8_t spare2:6;)
     };
 } __attribute__ ((packed)) test_tau_request_param_t;
 
 typedef struct test_service_request_param_s {
     union {
         struct {
-        ED6(uint8_t integrity_protected:1;,
-            uint8_t ciphered:1;,
-            uint8_t pdu_session_status:1;,
+        ED4(uint8_t pdu_session_status:1;,
             uint8_t uplink_data_status:1;,
             uint8_t allowed_pdu_session_status:1;,
-            uint8_t reserved:3;)
+            uint8_t reserved:5;)
         };
         uint8_t value;
     };
@@ -229,12 +220,9 @@ typedef struct test_service_request_param_s {
 typedef struct test_extended_service_request_param_s {
     union {
         struct {
-        ED6(uint8_t ciphered:1;,
-            uint8_t csfb_response:1;,
+        ED3(uint8_t csfb_response:1;,
             uint8_t eps_bearer_context_status:1;,
-            uint8_t spare1:1;,
-            uint8_t spare2:1;,
-            uint8_t spare3:3;)
+            uint8_t spare:6;)
         };
         uint8_t value;
     };
@@ -273,7 +261,7 @@ typedef struct test_pdn_connectivity_param_s {
             uint8_t eit_no_required:1;,
             uint8_t apn:1;,
             uint8_t pco:1;,
-            uint8_t integrity_protected:1;,
+            uint8_t spare:1;,
             uint8_t request_type:3;)
         };
         uint8_t value;
@@ -471,11 +459,16 @@ typedef struct test_sess_s {
 
     ogs_list_t bearer_list;
 
+    ogs_list_t qos_flow_to_modify_list;
+
     test_ue_t *test_ue;
 } test_sess_t;
 
 typedef struct test_bearer_s {
     ogs_lnode_t     lnode;          /**< A node of list_t */
+
+    ogs_lnode_t     to_modify_node;
+
     uint32_t        index;
 
     uint8_t         qfi;            /* 5GC */
@@ -535,7 +528,8 @@ bson_t *test_db_new_simple(test_ue_t *test_ue);
 bson_t *test_db_new_qos_flow(test_ue_t *test_ue);
 bson_t *test_db_new_session(test_ue_t *test_ue);
 bson_t *test_db_new_ims(test_ue_t *test_ue);
-bson_t *test_db_new_slice(test_ue_t *test_ue);
+bson_t *test_db_new_slice_with_same_dnn(test_ue_t *test_ue);
+bson_t *test_db_new_slice_with_different_dnn(test_ue_t *test_ue);
 bson_t *test_db_new_non3gpp(test_ue_t *test_ue);
 
 #ifdef __cplusplus

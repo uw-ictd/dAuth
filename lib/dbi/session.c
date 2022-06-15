@@ -43,7 +43,6 @@ int ogs_dbi_session_data(char *supi, ogs_s_nssai_t *s_nssai, char *dnn,
     ogs_session_data_t zero_data;
 
     ogs_assert(supi);
-    ogs_assert(s_nssai);
     ogs_assert(dnn);
     ogs_assert(session_data);
 
@@ -122,9 +121,10 @@ int ogs_dbi_session_data(char *supi, ogs_s_nssai_t *s_nssai, char *dnn,
                     continue;
                 }
 
-                if (s_nssai->sst != sst) continue;
+                if (s_nssai && s_nssai->sst != sst) continue;
 
-                if (s_nssai->sd.v != OGS_S_NSSAI_NO_SD_VALUE &&
+                if (s_nssai &&
+                    s_nssai->sd.v != OGS_S_NSSAI_NO_SD_VALUE &&
                     sd.v != OGS_S_NSSAI_NO_SD_VALUE) {
                     if (s_nssai->sd.v != sd.v) continue;
                 }
@@ -150,7 +150,10 @@ int ogs_dbi_session_data(char *supi, ogs_s_nssai_t *s_nssai, char *dnn,
 done:
     if (found == false) {
         ogs_error("Cannot find SUPI[%s] S_NSSAI[SST:%d SD:0x%x] DNN[%s] in DB",
-                supi_id, s_nssai->sst, s_nssai->sd.v, dnn);
+                supi_id,
+                s_nssai ? s_nssai->sst : 0,
+                s_nssai ? s_nssai->sd.v : 0,
+                dnn);
 
         rv = OGS_ERROR;
         goto out;
@@ -452,7 +455,7 @@ done:
                                     BSON_ITER_HOLDS_UTF8(&child8_iter)) {
                                     utf8 = bson_iter_utf8(
                                             &child8_iter, &length);
-                                    flow->description = ogs_malloc(length+1);
+                                    flow->description = ogs_calloc(1, length+1);
                                     ogs_assert(flow->description);
                                     ogs_cpystrn((char*)flow->description,
                                         utf8, length+1);
@@ -477,7 +480,7 @@ done:
                     ogs_error("PCC Rule Id has already been defined");
                     ogs_free(pcc_rule->id);
                 }
-                pcc_rule->id = ogs_msprintf("%d", pcc_rule_index+1);
+                pcc_rule->id = ogs_msprintf("%s-n%d", dnn, pcc_rule_index+1);
                 ogs_assert(pcc_rule->id);
 
                 pcc_rule->precedence = pcc_rule_index+1;
@@ -486,6 +489,79 @@ done:
             session_data->num_of_pcc_rule = pcc_rule_index;
         }
     }
+
+out:
+    if (query) bson_destroy(query);
+    if (opts) bson_destroy(opts);
+    if (cursor) mongoc_cursor_destroy(cursor);
+
+    ogs_free(supi_type);
+    ogs_free(supi_id);
+
+    return rv;
+}
+
+int ogs_dbi_session_default_data(char *supi, ogs_s_nssai_t *s_nssai, char *dnn,
+        ogs_session_data_t *session_data)
+{
+    int rv = OGS_OK;
+    mongoc_cursor_t *cursor = NULL;
+    bson_t *query = NULL;
+    bson_t *opts = NULL;
+    bool found = false;
+
+    ogs_session_t *session = NULL;
+
+    char *supi_type = NULL;
+    char *supi_id = NULL;
+
+    ogs_session_data_t zero_data;
+
+    ogs_assert(supi);
+    ogs_assert(s_nssai);
+    ogs_assert(dnn);
+    ogs_assert(session_data);
+
+    memset(&zero_data, 0, sizeof(zero_data));
+
+    /* session_data should be initialized to zero */
+    ogs_assert(memcmp(session_data, &zero_data, sizeof(zero_data)) == 0);
+
+    supi_type = ogs_id_get_type(supi);
+    ogs_assert(supi_type);
+    supi_id = ogs_id_get_value(supi);
+    ogs_assert(supi_id);
+
+    // The subscriber is created on demand, so use the default subscriber
+    // parameters.
+    if ((ogs_strncasecmp("internet\0", dnn, 9) == 0) && (s_nssai->sst == 1) ) {
+        found = true;
+        goto done;
+    }
+
+done:
+    if (found == false) {
+        ogs_error("Cannot find SUPI[%s] S_NSSAI[SST:%d SD:0x%x] DNN[%s] in DB",
+                supi_id, s_nssai->sst, s_nssai->sd.v, dnn);
+
+        rv = OGS_ERROR;
+        goto out;
+    }
+
+    session = &session_data->session;
+    session->name = ogs_strndup("internet", 9);
+    ogs_assert(session->name);
+    session->session_type = 1;
+
+    session->qos.index = 9;
+    session->qos.arp.priority_level = 8;
+    session->qos.arp.pre_emption_capability = 1;
+    session->qos.arp.pre_emption_vulnerability = 2;
+
+    session->ambr.downlink = (0x1 << 19); // AMBR bits/s 100Mibit
+    session->ambr.uplink = (0x1 << 19); // AMBR bits/s 100Mibit
+
+    session_data->num_of_pcc_rule = 0;
 
 out:
     if (query) bson_destroy(query);

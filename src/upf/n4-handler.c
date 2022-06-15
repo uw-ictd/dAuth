@@ -22,8 +22,32 @@
 #include "gtp-path.h"
 #include "n4-handler.h"
 
+static void upf_n4_handle_create_urr(upf_sess_t *sess, ogs_pfcp_tlv_create_urr_t *create_urr_arr,
+                              uint8_t *cause_value, uint8_t *offending_ie_value)
+{
+    int i;
+    ogs_pfcp_urr_t *urr;
+
+    *cause_value = OGS_PFCP_CAUSE_REQUEST_ACCEPTED;
+
+    for (i = 0; i < OGS_MAX_NUM_OF_URR; i++) {
+        urr = ogs_pfcp_handle_create_urr(&sess->pfcp, &create_urr_arr[i],
+                    cause_value, offending_ie_value);
+        if (!urr)
+            return;
+
+        /* TODO: here we should check for Reporting Triggers IMTH=1 instead? */
+        if ((urr->meas_method & OGS_PFCP_MEASUREMENT_METHOD_DURATION) && urr->time_threshold > 0) {
+            /* if ISTM bit set in Measurement Information: */
+            if (urr->meas_info.istm) {
+                upf_sess_urr_acc_time_threshold_setup(sess, urr);
+            } /* else: TODO: call upf_sess_urr_acc_time_threshold_setup() upon first pkt received */
+        }
+    }
+}
+
 void upf_n4_handle_session_establishment_request(
-        upf_sess_t *sess, ogs_pfcp_xact_t *xact, 
+        upf_sess_t *sess, ogs_pfcp_xact_t *xact,
         ogs_pfcp_session_establishment_request_t *req)
 {
     ogs_pfcp_pdr_t *pdr = NULL;
@@ -67,11 +91,7 @@ void upf_n4_handle_session_establishment_request(
     if (cause_value != OGS_PFCP_CAUSE_REQUEST_ACCEPTED)
         goto cleanup;
 
-    for (i = 0; i < OGS_MAX_NUM_OF_URR; i++) {
-        if (ogs_pfcp_handle_create_urr(&sess->pfcp, &req->create_urr[i],
-                    &cause_value, &offending_ie_value) == NULL)
-            break;
-    }
+    upf_n4_handle_create_urr(sess, &req->create_urr[0], &cause_value, &offending_ie_value);
     if (cause_value != OGS_PFCP_CAUSE_REQUEST_ACCEPTED)
         goto cleanup;
 
@@ -100,14 +120,18 @@ void upf_n4_handle_session_establishment_request(
         ogs_assert(pdr);
 
         /* Setup UE IP address */
-        if (req->pdn_type.presence && pdr->ue_ip_addr_len) {
-            ogs_assert(OGS_PFCP_CAUSE_REQUEST_ACCEPTED ==
-                    upf_sess_set_ue_ip(sess, req->pdn_type.u8, pdr));
+        if (pdr->ue_ip_addr_len) {
+            if (req->pdn_type.presence == 1) {
+                ogs_assert(OGS_PFCP_CAUSE_REQUEST_ACCEPTED ==
+                        upf_sess_set_ue_ip(sess, req->pdn_type.u8, pdr));
+            } else {
+                ogs_error("No PDN Type");
+            }
         }
 
         /* Setup UPF-N3-TEID & QFI Hash */
         if (pdr->f_teid_len) {
-            ogs_pfcp_object_type_e type = OGS_PFCP_OBJ_PDR_TYPE;
+            ogs_pfcp_object_type_e type = OGS_PFCP_OBJ_SESS_TYPE;
 
             if (ogs_pfcp_self()->up_function_features.ftup &&
                 pdr->f_teid.ch) {
@@ -115,19 +139,20 @@ void upf_n4_handle_session_establishment_request(
                 ogs_pfcp_pdr_t *choosed_pdr = NULL;
 
                 if (pdr->f_teid.chid) {
-                    type = OGS_PFCP_OBJ_SESS_TYPE;
-
                     choosed_pdr = ogs_pfcp_pdr_find_by_choose_id(
                             &sess->pfcp, pdr->f_teid.choose_id);
                     if (!choosed_pdr) {
                         pdr->chid = true;
                         pdr->choose_id = pdr->f_teid.choose_id;
                     }
+                } else {
+                    type = OGS_PFCP_OBJ_PDR_TYPE;
                 }
 
                 if (choosed_pdr) {
                     pdr->f_teid_len = choosed_pdr->f_teid_len;
                     memcpy(&pdr->f_teid, &choosed_pdr->f_teid, pdr->f_teid_len);
+
                 } else {
                     ogs_gtpu_resource_t *resource = NULL;
                     resource = ogs_pfcp_find_gtpu_resource(
@@ -172,13 +197,13 @@ void upf_n4_handle_session_establishment_request(
 
 cleanup:
     ogs_pfcp_sess_clear(&sess->pfcp);
-    ogs_pfcp_send_error_message(xact, sess ? sess->smf_n4_seid : 0,
+    ogs_pfcp_send_error_message(xact, sess ? sess->smf_n4_f_seid.seid : 0,
             OGS_PFCP_SESSION_ESTABLISHMENT_RESPONSE_TYPE,
             cause_value, offending_ie_value);
 }
 
 void upf_n4_handle_session_modification_request(
-        upf_sess_t *sess, ogs_pfcp_xact_t *xact, 
+        upf_sess_t *sess, ogs_pfcp_xact_t *xact,
         ogs_pfcp_session_modification_request_t *req)
 {
     ogs_pfcp_pdr_t *pdr = NULL;
@@ -248,9 +273,11 @@ void upf_n4_handle_session_modification_request(
 
     /* Send End Marker to gNB */
     ogs_list_for_each(&sess->pfcp.pdr_list, pdr) {
-        far = pdr->far;
-        if (far && far->smreq_flags.send_end_marker_packets)
-            ogs_assert(OGS_ERROR != ogs_pfcp_send_end_marker(pdr));
+        if (pdr->src_if == OGS_PFCP_INTERFACE_CORE) { /* Downlink */
+            far = pdr->far;
+            if (far && far->smreq_flags.send_end_marker_packets)
+                ogs_assert(OGS_ERROR != ogs_pfcp_send_end_marker(pdr));
+        }
     }
     /* Clear PFCPSMReq-Flags */
     ogs_list_for_each(&sess->pfcp.far_list, far)
@@ -272,11 +299,7 @@ void upf_n4_handle_session_modification_request(
     if (cause_value != OGS_PFCP_CAUSE_REQUEST_ACCEPTED)
         goto cleanup;
 
-    for (i = 0; i < OGS_MAX_NUM_OF_URR; i++) {
-        if (ogs_pfcp_handle_create_urr(&sess->pfcp, &req->create_urr[i],
-                    &cause_value, &offending_ie_value) == NULL)
-            break;
-    }
+    upf_n4_handle_create_urr(sess, &req->create_urr[0], &cause_value, &offending_ie_value);
     if (cause_value != OGS_PFCP_CAUSE_REQUEST_ACCEPTED)
         goto cleanup;
 
@@ -343,7 +366,7 @@ void upf_n4_handle_session_modification_request(
         ogs_assert(pdr);
 
         if (pdr->f_teid_len) {
-            ogs_pfcp_object_type_e type = OGS_PFCP_OBJ_PDR_TYPE;
+            ogs_pfcp_object_type_e type = OGS_PFCP_OBJ_SESS_TYPE;
 
             if (ogs_pfcp_self()->up_function_features.ftup &&
                 pdr->f_teid.ch) {
@@ -351,14 +374,14 @@ void upf_n4_handle_session_modification_request(
                 ogs_pfcp_pdr_t *choosed_pdr = NULL;
 
                 if (pdr->f_teid.chid) {
-                    type = OGS_PFCP_OBJ_SESS_TYPE;
-
                     choosed_pdr = ogs_pfcp_pdr_find_by_choose_id(
                             &sess->pfcp, pdr->f_teid.choose_id);
                     if (!choosed_pdr) {
                         pdr->chid = true;
                         pdr->choose_id = pdr->f_teid.choose_id;
                     }
+                } else {
+                    type = OGS_PFCP_OBJ_PDR_TYPE;
                 }
 
                 if (choosed_pdr) {
@@ -409,7 +432,7 @@ void upf_n4_handle_session_modification_request(
 
 cleanup:
     ogs_pfcp_sess_clear(&sess->pfcp);
-    ogs_pfcp_send_error_message(xact, sess ? sess->smf_n4_seid : 0,
+    ogs_pfcp_send_error_message(xact, sess ? sess->smf_n4_f_seid.seid : 0,
             OGS_PFCP_SESSION_MODIFICATION_RESPONSE_TYPE,
             cause_value, offending_ie_value);
 }
@@ -449,7 +472,7 @@ void upf_n4_handle_session_report_response(
 
     ogs_pfcp_xact_commit(xact);
 
-    ogs_debug("Session report resopnse");
+    ogs_debug("Session Report Response");
 
     cause_value = OGS_PFCP_CAUSE_REQUEST_ACCEPTED;
 

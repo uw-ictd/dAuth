@@ -1,3 +1,219 @@
+open5gs (2.4.7) unstable; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Sat, 21 May 2022 19:20:07 +0900
+
+open5gs (2.4.7~jammy) jammy; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Sat, 21 May 2022 19:19:10 +0900
+
+open5gs (2.4.7~focal) focal; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Sat, 21 May 2022 19:18:11 +0900
+
+open5gs (2.4.7~bionic) bionic; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Sat, 21 May 2022 19:17:08 +0900
+
+open5gs (2.4.7~impish) impish; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Sat, 21 May 2022 19:14:58 +0900
+
+open5gs (2.4.6) unstable; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Tue, 17 May 2022 22:41:32 +0900
+
+open5gs (2.4.6~jammy) jammy; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Tue, 17 May 2022 22:40:16 +0900
+
+open5gs (2.4.6~focal) focal; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Tue, 17 May 2022 22:38:38 +0900
+
+open5gs (2.4.6~bionic) bionic; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Tue, 17 May 2022 22:37:22 +0900
+
+open5gs (2.4.6~impish) impish; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Tue, 17 May 2022 22:34:40 +0900
+
+open5gs (2.4.5) unstable; urgency=medium
+
+  * GTP-1C(GGSN) provided by sysmocom
+
+ -- Sukchan Lee <acetcom@gmail.com>  Sun, 27 Mar 2022 18:41:04 +0900
+
+open5gs (2.4.5~focal) focal; urgency=medium
+
+  * GTP-1C(GGSN) provided by sysmocom
+
+ -- Sukchan Lee <acetcom@gmail.com>  Sun, 27 Mar 2022 18:40:06 +0900
+
+open5gs (2.4.5~bionic) bionic; urgency=medium
+
+  * GTP-1C(GGSN) provided by sysmocom
+
+ -- Sukchan Lee <acetcom@gmail.com>  Sun, 27 Mar 2022 18:38:55 +0900
+
+open5gs (2.4.5~impish) impish; urgency=medium
+
+  * GTP-1C(GGSN) provided by sysmocom
+
+ -- Sukchan Lee <acetcom@gmail.com>  Sun, 27 Mar 2022 18:37:40 +0900
+
+open5gs (2.4.4) unstable; urgency=medium
+
+  * Fixed Memory leak
+
+ -- Sukchan Lee <acetcom@gmail.com>  Tue, 01 Feb 2022 15:03:37 +0900
+
+open5gs (2.4.4~focal) focal; urgency=medium
+
+  * Fixed Memory leak
+
+ -- Sukchan Lee <acetcom@gmail.com>  Tue, 01 Feb 2022 15:02:35 +0900
+
+open5gs (2.4.4~bionic) bionic; urgency=medium
+
+  * Fixed Memory leak
+
+ -- Sukchan Lee <acetcom@gmail.com>  Tue, 01 Feb 2022 15:01:31 +0900
+
+open5gs (2.4.4~impish) impish; urgency=medium
+
+  * Fixed Memory leak
+
+ -- Sukchan Lee <acetcom@gmail.com>  Tue, 01 Feb 2022 14:58:13 +0900
+
+open5gs (2.4.3) unstable; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Thu, 20 Jan 2022 17:09:51 +0900
+
+open5gs (2.4.3~bionic) bionic; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Thu, 20 Jan 2022 17:08:55 +0900
+
+open5gs (2.4.3~focal) focal; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Thu, 20 Jan 2022 17:08:01 +0900
+
+open5gs (2.4.3~hirsute) hirsute; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Thu, 20 Jan 2022 17:06:53 +0900
+
+open5gs (2.4.3~impish) impish; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Thu, 20 Jan 2022 17:05:35 +0900
+
+open5gs (2.4.2) unstable; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Fri, 14 Jan 2022 20:39:46 +0900
+
+open5gs (2.4.2~impish) impish; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Fri, 14 Jan 2022 20:38:43 +0900
+
+open5gs (2.4.2~bionic) bionic; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Fri, 14 Jan 2022 20:37:33 +0900
+
+open5gs (2.4.2~focal) focal; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Fri, 14 Jan 2022 20:36:17 +0900
+
+open5gs (2.4.2~hirsute) hirsute; urgency=medium
+
+  * Bug Fixed
+
+ -- Sukchan Lee <acetcom@gmail.com>  Fri, 14 Jan 2022 20:34:57 +0900
+
+open5gs (2.4.1) unstable; urgency=medium
+
+  * Use talloc & S1AP/NGAP r16.7.0
+
+ -- Sukchan Lee <acetcom@gmail.com>  Tue, 04 Jan 2022 17:34:08 +0900
+
+open5gs (2.4.1~bionic) bionic; urgency=medium
+
+  * Use talloc & S1AP/NGAP r16.7.0
+
+ -- Sukchan Lee <acetcom@gmail.com>  Tue, 04 Jan 2022 17:33:09 +0900
+
+open5gs (2.4.1~focal) focal; urgency=medium
+
+  * Use talloc & S1AP/NGAP r16.7.0
+
+ -- Sukchan Lee <acetcom@gmail.com>  Tue, 04 Jan 2022 17:31:56 +0900
+
+open5gs (2.4.1~hirsute) hirsute; urgency=medium
+
+  * Use talloc & S1AP/NGAP r16.7.0
+
+ -- Sukchan Lee <acetcom@gmail.com>  Tue, 04 Jan 2022 17:27:54 +0900
+
+open5gs (2.4.0) unstable; urgency=medium
+
+  * VoNR Added
+
+ -- Sukchan Lee <acetcom@gmail.com>  Sat, 11 Dec 2021 22:21:31 +0900
+
+open5gs (2.4.0~bionic) bionic; urgency=medium
+
+  * VoNR added
+
+ -- Sukchan Lee <acetcom@gmail.com>  Sat, 11 Dec 2021 22:19:42 +0900
+
+open5gs (2.4.0~focal) focal; urgency=medium
+
+  * VoNR added
+
+ -- Sukchan Lee <acetcom@gmail.com>  Sat, 11 Dec 2021 22:18:26 +0900
+
+open5gs (2.4.0~hirsute) hirsute; urgency=medium
+
+  * VoNR added
+
+ -- Sukchan Lee <acetcom@gmail.com>  Sat, 11 Dec 2021 21:22:12 +0900
+
 open5gs (2.3.6) unstable; urgency=medium
 
   * Bug Fixed

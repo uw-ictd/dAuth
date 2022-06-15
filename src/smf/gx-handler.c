@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2019 by Sukchan Lee <acetcom@gmail.com>
+ * Copyright (C) 2022 by sysmocom - s.f.m.c. GmbH <info@sysmocom.de>
  *
  * This file is part of Open5GS.
  *
@@ -20,28 +21,12 @@
 #include "context.h"
 #include "gtp-path.h"
 #include "pfcp-path.h"
+#include "fd-path.h"
 #include "gx-handler.h"
 #include "binding.h"
 
-static uint8_t gtp_cause_from_diameter(
-        const uint32_t *dia_err, const uint32_t *dia_exp_err)
-{
-    if (dia_exp_err) {
-    }
-    if (dia_err) {
-        switch (*dia_err) {
-        case OGS_DIAM_UNKNOWN_SESSION_ID:
-            return OGS_GTP_CAUSE_APN_ACCESS_DENIED_NO_SUBSCRIPTION;
-        }
-    }
-
-    ogs_error("Unexpected Diameter Result Code %d/%d, defaulting to severe "
-              "network failure",
-              dia_err ? *dia_err : -1, dia_exp_err ? *dia_exp_err : -1);
-    return OGS_GTP_CAUSE_UE_NOT_AUTHORISED_BY_OCS_OR_EXTERNAL_AAA_SERVER;
-}
-
-void smf_gx_handle_cca_initial_request(
+/* Returns ER_DIAMETER_SUCCESS on success, Diameter error code on failue. */
+uint32_t smf_gx_handle_cca_initial_request(
         smf_sess_t *sess, ogs_diam_gx_message_t *gx_message,
         ogs_gtp_xact_t *gtp_xact)
 {
@@ -66,18 +51,14 @@ void smf_gx_handle_cca_initial_request(
     ogs_debug("    SGW_S5C_TEID[0x%x] PGW_S5C_TEID[0x%x]",
             sess->sgw_s5c_teid, sess->smf_n4_teid);
 
-    if (gx_message->result_code != ER_DIAMETER_SUCCESS) {
-        uint8_t cause_value = gtp_cause_from_diameter(
-            gx_message->err, gx_message->exp_err);
+    if (gx_message->result_code != ER_DIAMETER_SUCCESS)
+        return gx_message->err ? *gx_message->err :
+                                 ER_DIAMETER_AUTHENTICATION_REJECTED;
 
-        ogs_gtp_send_error_message(gtp_xact, sess ? sess->sgw_s5c_teid : 0,
-                OGS_GTP_CREATE_SESSION_RESPONSE_TYPE, cause_value);
-        return;
-    }
 
-    sess->num_of_pcc_rule = gx_message->session_data.num_of_pcc_rule;
+    sess->policy.num_of_pcc_rule = gx_message->session_data.num_of_pcc_rule;
     for (i = 0; i < gx_message->session_data.num_of_pcc_rule; i++)
-        OGS_STORE_PCC_RULE(&sess->pcc_rule[i],
+        OGS_STORE_PCC_RULE(&sess->policy.pcc_rule[i],
                 &gx_message->session_data.pcc_rule[i]);
 
     /* APN-AMBR
@@ -202,14 +183,7 @@ void smf_gx_handle_cca_initial_request(
         up2cp_pdr->f_teid.choose_id = OGS_PFCP_DEFAULT_CHOOSE_ID;
         up2cp_pdr->f_teid_len = 2;
     } else {
-        char buf[OGS_ADDRSTRLEN];
         ogs_gtpu_resource_t *resource = NULL;
-        ogs_sockaddr_t *addr = sess->pfcp_node->sa_list;
-        ogs_assert(addr);
-
-        ogs_error("F-TEID allocation/release not supported with peer [%s]:%d",
-                OGS_ADDR(addr, buf), OGS_PORT(addr));
-
         resource = ogs_pfcp_find_gtpu_resource(
                 &sess->pfcp_node->gtpu_resource_list,
                 sess->session.name, OGS_PFCP_INTERFACE_ACCESS);
@@ -218,10 +192,10 @@ void smf_gx_handle_cca_initial_request(
                 &bearer->pgw_s5u_addr, &bearer->pgw_s5u_addr6);
             if (resource->info.teidri)
                 bearer->pgw_s5u_teid = OGS_PFCP_GTPU_INDEX_TO_TEID(
-                        bearer->index, resource->info.teidri,
+                        ul_pdr->index, resource->info.teidri,
                         resource->info.teid_range);
             else
-                bearer->pgw_s5u_teid = bearer->index;
+                bearer->pgw_s5u_teid = ul_pdr->index;
         } else {
             if (sess->pfcp_node->addr.ogs_sa_family == AF_INET)
                 ogs_assert(OGS_OK ==
@@ -234,7 +208,7 @@ void smf_gx_handle_cca_initial_request(
             else
                 ogs_assert_if_reached();
 
-            bearer->pgw_s5u_teid = bearer->index;
+            bearer->pgw_s5u_teid = ul_pdr->index;
         }
 
         ogs_assert(OGS_OK ==
@@ -245,9 +219,9 @@ void smf_gx_handle_cca_initial_request(
 
         ogs_assert(OGS_OK ==
             ogs_pfcp_sockaddr_to_f_teid(
-                ogs_gtp_self()->gtpu_addr, ogs_gtp_self()->gtpu_addr6,
+                bearer->pgw_s5u_addr, bearer->pgw_s5u_addr6,
                 &cp2up_pdr->f_teid, &cp2up_pdr->f_teid_len));
-        cp2up_pdr->f_teid.teid = bearer->index;
+        cp2up_pdr->f_teid.teid = cp2up_pdr->index;
 
         ogs_assert(OGS_OK ==
             ogs_pfcp_sockaddr_to_f_teid(
@@ -266,31 +240,21 @@ void smf_gx_handle_cca_initial_request(
         ogs_pfcp_pdr_associate_qer(dl_pdr, qer);
         ogs_pfcp_pdr_associate_qer(ul_pdr, qer);
     }
-
-    ogs_assert(OGS_OK ==
-        smf_epc_pfcp_send_session_establishment_request(sess, gtp_xact));
+    return ER_DIAMETER_SUCCESS;
 }
 
-void smf_gx_handle_cca_termination_request(
+uint32_t smf_gx_handle_cca_termination_request(
         smf_sess_t *sess, ogs_diam_gx_message_t *gx_message,
         ogs_gtp_xact_t *gtp_xact)
 {
     ogs_assert(sess);
     ogs_assert(gx_message);
-    ogs_assert(gtp_xact);
 
     ogs_debug("[SMF] Delete Session Response");
     ogs_debug("    SGW_S5C_TEID[0x%x] SMF_N4_TEID[0x%x]",
             sess->sgw_s5c_teid, sess->smf_n4_teid);
 
-    /*
-     * << 'gtp_xact' is NOT NULL >>
-     *
-     * 1. MME sends Delete Session Request to SGW/SMF.
-     * 2. SMF sends Delete Session Response to SGW/MME.
-     */
-    ogs_assert(OGS_OK ==
-        smf_epc_pfcp_send_session_deletion_request(sess, gtp_xact));
+    return ER_DIAMETER_SUCCESS;
 }
 
 void smf_gx_handle_re_auth_request(
@@ -298,9 +262,9 @@ void smf_gx_handle_re_auth_request(
 {
     int i;
 
-    sess->num_of_pcc_rule = gx_message->session_data.num_of_pcc_rule;
+    sess->policy.num_of_pcc_rule = gx_message->session_data.num_of_pcc_rule;
     for (i = 0; i < gx_message->session_data.num_of_pcc_rule; i++)
-        OGS_STORE_PCC_RULE(&sess->pcc_rule[i],
+        OGS_STORE_PCC_RULE(&sess->policy.pcc_rule[i],
                 &gx_message->session_data.pcc_rule[i]);
 
     smf_bearer_binding(sess);

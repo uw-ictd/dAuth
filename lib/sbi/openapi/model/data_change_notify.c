@@ -13,10 +13,9 @@ OpenAPI_data_change_notify_t *OpenAPI_data_change_notify_create(
     OpenAPI_list_t *subscription_data_subscriptions
 )
 {
-    OpenAPI_data_change_notify_t *data_change_notify_local_var = OpenAPI_malloc(sizeof(OpenAPI_data_change_notify_t));
-    if (!data_change_notify_local_var) {
-        return NULL;
-    }
+    OpenAPI_data_change_notify_t *data_change_notify_local_var = ogs_malloc(sizeof(OpenAPI_data_change_notify_t));
+    ogs_assert(data_change_notify_local_var);
+
     data_change_notify_local_var->original_callback_reference = original_callback_reference;
     data_change_notify_local_var->ue_id = ue_id;
     data_change_notify_local_var->notify_items = notify_items;
@@ -183,7 +182,7 @@ OpenAPI_data_change_notify_t *OpenAPI_data_change_notify_parseFromJSON(cJSON *da
         ogs_error("OpenAPI_data_change_notify_parseFromJSON() failed [original_callback_reference]");
         goto end;
     }
-    OpenAPI_list_add(original_callback_referenceList , ogs_strdup_or_assert(original_callback_reference_local->valuestring));
+    OpenAPI_list_add(original_callback_referenceList , ogs_strdup(original_callback_reference_local->valuestring));
     }
     }
 
@@ -215,6 +214,12 @@ OpenAPI_data_change_notify_t *OpenAPI_data_change_notify_parseFromJSON(cJSON *da
         }
         OpenAPI_notify_item_t *notify_itemsItem = OpenAPI_notify_item_parseFromJSON(notify_items_local_nonprimitive);
 
+        if (!notify_itemsItem) {
+            ogs_error("No notify_itemsItem");
+            OpenAPI_list_free(notify_itemsList);
+            goto end;
+        }
+
         OpenAPI_list_add(notify_itemsList, notify_itemsItem);
     }
     }
@@ -245,6 +250,12 @@ OpenAPI_data_change_notify_t *OpenAPI_data_change_notify_parseFromJSON(cJSON *da
         }
         OpenAPI_sdm_subscription_1_t *additional_sdm_subscriptionsItem = OpenAPI_sdm_subscription_1_parseFromJSON(additional_sdm_subscriptions_local_nonprimitive);
 
+        if (!additional_sdm_subscriptionsItem) {
+            ogs_error("No additional_sdm_subscriptionsItem");
+            OpenAPI_list_free(additional_sdm_subscriptionsList);
+            goto end;
+        }
+
         OpenAPI_list_add(additional_sdm_subscriptionsList, additional_sdm_subscriptionsItem);
     }
     }
@@ -268,13 +279,19 @@ OpenAPI_data_change_notify_t *OpenAPI_data_change_notify_parseFromJSON(cJSON *da
         }
         OpenAPI_subscription_data_subscriptions_t *subscription_data_subscriptionsItem = OpenAPI_subscription_data_subscriptions_parseFromJSON(subscription_data_subscriptions_local_nonprimitive);
 
+        if (!subscription_data_subscriptionsItem) {
+            ogs_error("No subscription_data_subscriptionsItem");
+            OpenAPI_list_free(subscription_data_subscriptionsList);
+            goto end;
+        }
+
         OpenAPI_list_add(subscription_data_subscriptionsList, subscription_data_subscriptionsItem);
     }
     }
 
     data_change_notify_local_var = OpenAPI_data_change_notify_create (
         original_callback_reference ? original_callback_referenceList : NULL,
-        ue_id ? ogs_strdup_or_assert(ue_id->valuestring) : NULL,
+        ue_id ? ogs_strdup(ue_id->valuestring) : NULL,
         notify_items ? notify_itemsList : NULL,
         sdm_subscription ? sdm_subscription_local_nonprim : NULL,
         additional_sdm_subscriptions ? additional_sdm_subscriptionsList : NULL,

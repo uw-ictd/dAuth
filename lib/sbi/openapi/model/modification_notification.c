@@ -8,10 +8,9 @@ OpenAPI_modification_notification_t *OpenAPI_modification_notification_create(
     OpenAPI_list_t *notify_items
 )
 {
-    OpenAPI_modification_notification_t *modification_notification_local_var = OpenAPI_malloc(sizeof(OpenAPI_modification_notification_t));
-    if (!modification_notification_local_var) {
-        return NULL;
-    }
+    OpenAPI_modification_notification_t *modification_notification_local_var = ogs_malloc(sizeof(OpenAPI_modification_notification_t));
+    ogs_assert(modification_notification_local_var);
+
     modification_notification_local_var->notify_items = notify_items;
 
     return modification_notification_local_var;
@@ -86,6 +85,12 @@ OpenAPI_modification_notification_t *OpenAPI_modification_notification_parseFrom
             goto end;
         }
         OpenAPI_notify_item_t *notify_itemsItem = OpenAPI_notify_item_parseFromJSON(notify_items_local_nonprimitive);
+
+        if (!notify_itemsItem) {
+            ogs_error("No notify_itemsItem");
+            OpenAPI_list_free(notify_itemsList);
+            goto end;
+        }
 
         OpenAPI_list_add(notify_itemsList, notify_itemsItem);
     }

@@ -25,6 +25,7 @@
 #include "ogs-sbi.h"
 
 #include "ausf-sm.h"
+#include "dauth-c-binding.h"
 #include "timer.h"
 
 #ifdef __cplusplus
@@ -45,6 +46,7 @@ typedef struct ausf_context_s {
     ogs_hash_t      *suci_hash;
     ogs_hash_t      *supi_hash;
 
+    dauth_context_t dauth_context;
 } ausf_context_t;
 
 struct ausf_ue_s {
@@ -60,11 +62,14 @@ struct ausf_ue_s {
     char *auth_events_url;
     OpenAPI_auth_result_e auth_result;
 
+    dauth_ue_context_t dauth_context;
+
     uint8_t rand[OGS_RAND_LEN];
     uint8_t xres_star[OGS_MAX_RES_LEN];
     uint8_t hxres_star[OGS_MAX_RES_LEN];
     uint8_t kausf[OGS_SHA256_DIGEST_SIZE];
     uint8_t kseaf[OGS_SHA256_DIGEST_SIZE];
+};
 
 #define AUSF_NF_INSTANCE_CLEAR(_cAUSE, _nFInstance) \
     do { \
@@ -81,7 +86,6 @@ struct ausf_ue_s {
         } \
         ogs_sbi_nf_instance_remove(_nFInstance); \
     } while(0)
-};
 
 void ausf_context_init(void);
 void ausf_context_final(void);
@@ -92,7 +96,7 @@ int ausf_context_parse_config(void);
 ausf_ue_t *ausf_ue_add(char *suci);
 void ausf_ue_remove(ausf_ue_t *ausf_ue);
 void ausf_ue_remove_all(void);
-ausf_ue_t *ausf_ue_find_by_suci(char *suci);
+ausf_ue_t *ausf_ue_find_by_suci(const char *suci);
 ausf_ue_t *ausf_ue_find_by_supi(char *supi);
 ausf_ue_t *ausf_ue_find_by_suci_or_supi(char *suci_or_supi);
 ausf_ue_t *ausf_ue_find_by_ctx_id(char *ctx_id);

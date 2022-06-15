@@ -94,20 +94,9 @@ int amf_nnssf_nsselection_handle_get(
         ogs_assert(client);
     }
 
-    if (sess->nssf.nrf.client && sess->nssf.nrf.client != client) {
-        ogs_warn("NSSF NRF URI Updated [%s]", sess->nssf.nrf.id);
-        ogs_sbi_client_remove(sess->nssf.nrf.client);
-    }
-    OGS_SETUP_SBI_CLIENT(&sess->nssf.nrf, client);
+    OGS_SBI_SETUP_CLIENT(&sess->nssf.nrf, client);
 
     ogs_freeaddrinfo(addr);
-
-    if (NsiInformation->nsi_id) {
-        if (sess->nssf.nsi_id)
-            ogs_free(sess->nssf.nsi_id);
-        sess->nssf.nsi_id = ogs_strdup(NsiInformation->nsi_id);
-        ogs_assert(sess->nssf.nsi_id);
-    }
 
     ogs_assert(true == amf_sess_sbi_discover_by_nsi(OpenAPI_nf_type_SMF, sess));
 

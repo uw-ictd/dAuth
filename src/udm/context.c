@@ -135,6 +135,8 @@ udm_ue_t *udm_ue_add(char *suci)
     ogs_assert(udm_ue->suci);
     ogs_hash_set(self.suci_hash, udm_ue->suci, strlen(udm_ue->suci), udm_ue);
 
+    ogs_info("Attempting to decode from suci {%s}", suci);
+
     udm_ue->supi = ogs_supi_from_suci(udm_ue->suci);
     ogs_assert(udm_ue->supi);
     ogs_hash_set(self.supi_hash, udm_ue->supi, strlen(udm_ue->supi), udm_ue);

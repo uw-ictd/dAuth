@@ -21,22 +21,27 @@
 #include "context.h"
 
 static OGS_POOL(pool, smf_event_t);
+static ogs_thread_mutex_t smf_event_alloc_mutex;
 
 void smf_event_init(void)
 {
     ogs_pool_init(&pool, ogs_app()->pool.event);
+    ogs_thread_mutex_init(&smf_event_alloc_mutex);
 }
 
 void smf_event_final(void)
 {
     ogs_pool_final(&pool);
+    ogs_thread_mutex_destroy(&smf_event_alloc_mutex);
 }
 
 smf_event_t *smf_event_new(smf_event_e id)
 {
     smf_event_t *e = NULL;
 
+    ogs_thread_mutex_lock(&smf_event_alloc_mutex);
     ogs_pool_alloc(&pool, &e);
+    ogs_thread_mutex_unlock(&smf_event_alloc_mutex);
     ogs_assert(e);
     memset(e, 0, sizeof(*e));
 
@@ -48,7 +53,9 @@ smf_event_t *smf_event_new(smf_event_e id)
 void smf_event_free(smf_event_t *e)
 {
     ogs_assert(e);
+    ogs_thread_mutex_lock(&smf_event_alloc_mutex);
     ogs_pool_free(&pool, e);
+    ogs_thread_mutex_unlock(&smf_event_alloc_mutex);
 }
 
 const char *smf_event_get_name(smf_event_t *e)
@@ -57,15 +64,21 @@ const char *smf_event_get_name(smf_event_t *e)
         return OGS_FSM_NAME_INIT_SIG;
 
     switch (e->id) {
-    case OGS_FSM_ENTRY_SIG: 
+    case OGS_FSM_ENTRY_SIG:
         return OGS_FSM_NAME_ENTRY_SIG;
-    case OGS_FSM_EXIT_SIG: 
+    case OGS_FSM_EXIT_SIG:
         return OGS_FSM_NAME_EXIT_SIG;
 
     case SMF_EVT_S5C_MESSAGE:
         return "SMF_EVT_S5C_MESSAGE";
+    case SMF_EVT_S6B_MESSAGE:
+        return "SMF_EVT_S6B_MESSAGE";
+    case SMF_EVT_GN_MESSAGE:
+        return "SMF_EVT_GN_MESSAGE";
     case SMF_EVT_GX_MESSAGE:
         return "SMF_EVT_GX_MESSAGE";
+    case SMF_EVT_GY_MESSAGE:
+        return "SMF_EVT_GY_MESSAGE";
     case SMF_EVT_N4_MESSAGE:
         return "SMF_EVT_N4_MESSAGE";
     case SMF_EVT_N4_TIMER:
@@ -90,7 +103,7 @@ const char *smf_event_get_name(smf_event_t *e)
     case SMF_EVT_5GSM_TIMER:
         return "SMF_EVT_5GSM_TIMER";
 
-    default: 
+    default:
        break;
     }
 

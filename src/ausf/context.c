@@ -19,6 +19,8 @@
 
 #include "sbi-path.h"
 
+#include "dauth-c-binding.h"
+
 static ausf_context_t self;
 
 int __ausf_log_domain;
@@ -44,6 +46,8 @@ void ausf_context_init(void)
     self.supi_hash = ogs_hash_make();
     ogs_assert(self.supi_hash);
 
+    ogs_assert(dauth_context_init(&self.dauth_context));
+
     context_initialized = 1;
 }
 
@@ -52,6 +56,8 @@ void ausf_context_final(void)
     ogs_assert(context_initialized == 1);
 
     ausf_ue_remove_all();
+
+    ogs_assert(dauth_context_final(&self.dauth_context));
 
     ogs_assert(self.suci_hash);
     ogs_hash_destroy(self.suci_hash);
@@ -193,7 +199,7 @@ void ausf_ue_remove_all()
         ausf_ue_remove(ausf_ue);
 }
 
-ausf_ue_t *ausf_ue_find_by_suci(char *suci)
+ausf_ue_t *ausf_ue_find_by_suci(const char *suci)
 {
     ogs_assert(suci);
     return (ausf_ue_t *)ogs_hash_get(self.suci_hash, suci, strlen(suci));

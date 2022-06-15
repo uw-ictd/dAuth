@@ -46,10 +46,9 @@ OpenAPI_access_token_req_t *OpenAPI_access_token_req_create(
     char *target_nf_service_set_id
 )
 {
-    OpenAPI_access_token_req_t *access_token_req_local_var = OpenAPI_malloc(sizeof(OpenAPI_access_token_req_t));
-    if (!access_token_req_local_var) {
-        return NULL;
-    }
+    OpenAPI_access_token_req_t *access_token_req_local_var = ogs_malloc(sizeof(OpenAPI_access_token_req_t));
+    ogs_assert(access_token_req_local_var);
+
     access_token_req_local_var->grant_type = grant_type;
     access_token_req_local_var->nf_instance_id = nf_instance_id;
     access_token_req_local_var->nf_type = nf_type;
@@ -395,6 +394,12 @@ OpenAPI_access_token_req_t *OpenAPI_access_token_req_parseFromJSON(cJSON *access
         }
         OpenAPI_plmn_id_t *requester_plmn_listItem = OpenAPI_plmn_id_parseFromJSON(requester_plmn_list_local_nonprimitive);
 
+        if (!requester_plmn_listItem) {
+            ogs_error("No requester_plmn_listItem");
+            OpenAPI_list_free(requester_plmn_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(requester_plmn_listList, requester_plmn_listItem);
     }
     }
@@ -417,6 +422,12 @@ OpenAPI_access_token_req_t *OpenAPI_access_token_req_parseFromJSON(cJSON *access
             goto end;
         }
         OpenAPI_snssai_t *requester_snssai_listItem = OpenAPI_snssai_parseFromJSON(requester_snssai_list_local_nonprimitive);
+
+        if (!requester_snssai_listItem) {
+            ogs_error("No requester_snssai_listItem");
+            OpenAPI_list_free(requester_snssai_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(requester_snssai_listList, requester_snssai_listItem);
     }
@@ -450,6 +461,12 @@ OpenAPI_access_token_req_t *OpenAPI_access_token_req_parseFromJSON(cJSON *access
         }
         OpenAPI_plmn_id_nid_t *requester_snpn_listItem = OpenAPI_plmn_id_nid_parseFromJSON(requester_snpn_list_local_nonprimitive);
 
+        if (!requester_snpn_listItem) {
+            ogs_error("No requester_snpn_listItem");
+            OpenAPI_list_free(requester_snpn_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(requester_snpn_listList, requester_snpn_listItem);
     }
     }
@@ -480,6 +497,12 @@ OpenAPI_access_token_req_t *OpenAPI_access_token_req_parseFromJSON(cJSON *access
         }
         OpenAPI_snssai_t *target_snssai_listItem = OpenAPI_snssai_parseFromJSON(target_snssai_list_local_nonprimitive);
 
+        if (!target_snssai_listItem) {
+            ogs_error("No target_snssai_listItem");
+            OpenAPI_list_free(target_snssai_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(target_snssai_listList, target_snssai_listItem);
     }
     }
@@ -500,7 +523,7 @@ OpenAPI_access_token_req_t *OpenAPI_access_token_req_parseFromJSON(cJSON *access
         ogs_error("OpenAPI_access_token_req_parseFromJSON() failed [target_nsi_list]");
         goto end;
     }
-    OpenAPI_list_add(target_nsi_listList , ogs_strdup_or_assert(target_nsi_list_local->valuestring));
+    OpenAPI_list_add(target_nsi_listList , ogs_strdup(target_nsi_list_local->valuestring));
     }
     }
 
@@ -524,21 +547,21 @@ OpenAPI_access_token_req_t *OpenAPI_access_token_req_parseFromJSON(cJSON *access
 
     access_token_req_local_var = OpenAPI_access_token_req_create (
         grant_typeVariable,
-        ogs_strdup_or_assert(nf_instance_id->valuestring),
+        ogs_strdup(nf_instance_id->valuestring),
         nf_type ? nf_typeVariable : 0,
         target_nf_type ? target_nf_typeVariable : 0,
-        ogs_strdup_or_assert(scope->valuestring),
-        target_nf_instance_id ? ogs_strdup_or_assert(target_nf_instance_id->valuestring) : NULL,
+        ogs_strdup(scope->valuestring),
+        target_nf_instance_id ? ogs_strdup(target_nf_instance_id->valuestring) : NULL,
         requester_plmn ? requester_plmn_local_nonprim : NULL,
         requester_plmn_list ? requester_plmn_listList : NULL,
         requester_snssai_list ? requester_snssai_listList : NULL,
-        requester_fqdn ? ogs_strdup_or_assert(requester_fqdn->valuestring) : NULL,
+        requester_fqdn ? ogs_strdup(requester_fqdn->valuestring) : NULL,
         requester_snpn_list ? requester_snpn_listList : NULL,
         target_plmn ? target_plmn_local_nonprim : NULL,
         target_snssai_list ? target_snssai_listList : NULL,
         target_nsi_list ? target_nsi_listList : NULL,
-        target_nf_set_id ? ogs_strdup_or_assert(target_nf_set_id->valuestring) : NULL,
-        target_nf_service_set_id ? ogs_strdup_or_assert(target_nf_service_set_id->valuestring) : NULL
+        target_nf_set_id ? ogs_strdup(target_nf_set_id->valuestring) : NULL,
+        target_nf_service_set_id ? ogs_strdup(target_nf_service_set_id->valuestring) : NULL
     );
 
     return access_token_req_local_var;

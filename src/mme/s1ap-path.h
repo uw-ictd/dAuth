@@ -44,7 +44,9 @@ int s1ap_delayed_send_to_enb_ue(enb_ue_t *enb_ue,
         ogs_pkbuf_t *pkbuf, ogs_time_t duration);
 int s1ap_send_to_nas(enb_ue_t *enb_ue,
         S1AP_ProcedureCode_t procedureCode, S1AP_NAS_PDU_t *nasPdu);
-int s1ap_send_to_esm(mme_ue_t *mme_ue, ogs_pkbuf_t *esmbuf, uint8_t nas_type);
+int s1ap_send_to_esm(
+        mme_ue_t *mme_ue, ogs_pkbuf_t *esmbuf,
+        uint8_t nas_type, int create_action);
 
 int s1ap_send_s1_setup_response(mme_enb_t *enb);
 int s1ap_send_s1_setup_failure(
@@ -64,7 +66,8 @@ int s1ap_send_mme_configuration_transfer(
 
 int s1ap_send_e_rab_modification_confirm(mme_ue_t *mme_ue);
 
-int s1ap_send_path_switch_ack(mme_ue_t *mme_ue);
+int s1ap_send_path_switch_ack(
+        mme_ue_t *mme_ue, bool e_rab_to_switched_in_uplink_list);
 
 int s1ap_send_handover_command(enb_ue_t *source_ue);
 int s1ap_send_handover_preparation_failure(

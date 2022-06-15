@@ -15,10 +15,9 @@ OpenAPI_af_routing_requirement_rm_t *OpenAPI_af_routing_requirement_rm_create(
     int addr_preser_ind
 )
 {
-    OpenAPI_af_routing_requirement_rm_t *af_routing_requirement_rm_local_var = OpenAPI_malloc(sizeof(OpenAPI_af_routing_requirement_rm_t));
-    if (!af_routing_requirement_rm_local_var) {
-        return NULL;
-    }
+    OpenAPI_af_routing_requirement_rm_t *af_routing_requirement_rm_local_var = ogs_malloc(sizeof(OpenAPI_af_routing_requirement_rm_t));
+    ogs_assert(af_routing_requirement_rm_local_var);
+
     af_routing_requirement_rm_local_var->is_app_reloc = is_app_reloc;
     af_routing_requirement_rm_local_var->app_reloc = app_reloc;
     af_routing_requirement_rm_local_var->route_to_locs = route_to_locs;
@@ -175,6 +174,12 @@ OpenAPI_af_routing_requirement_rm_t *OpenAPI_af_routing_requirement_rm_parseFrom
         }
         OpenAPI_route_to_location_t *route_to_locsItem = OpenAPI_route_to_location_parseFromJSON(route_to_locs_local_nonprimitive);
 
+        if (!route_to_locsItem) {
+            ogs_error("No route_to_locsItem");
+            OpenAPI_list_free(route_to_locsList);
+            goto end;
+        }
+
         OpenAPI_list_add(route_to_locsList, route_to_locsItem);
     }
     }
@@ -204,6 +209,12 @@ OpenAPI_af_routing_requirement_rm_t *OpenAPI_af_routing_requirement_rm_parseFrom
             goto end;
         }
         OpenAPI_temporal_validity_t *temp_valsItem = OpenAPI_temporal_validity_parseFromJSON(temp_vals_local_nonprimitive);
+
+        if (!temp_valsItem) {
+            ogs_error("No temp_valsItem");
+            OpenAPI_list_free(temp_valsList);
+            goto end;
+        }
 
         OpenAPI_list_add(temp_valsList, temp_valsItem);
     }

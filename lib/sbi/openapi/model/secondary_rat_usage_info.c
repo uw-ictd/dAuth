@@ -10,10 +10,9 @@ OpenAPI_secondary_rat_usage_info_t *OpenAPI_secondary_rat_usage_info_create(
     OpenAPI_list_t *pdu_session_usage_data
 )
 {
-    OpenAPI_secondary_rat_usage_info_t *secondary_rat_usage_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_secondary_rat_usage_info_t));
-    if (!secondary_rat_usage_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_secondary_rat_usage_info_t *secondary_rat_usage_info_local_var = ogs_malloc(sizeof(OpenAPI_secondary_rat_usage_info_t));
+    ogs_assert(secondary_rat_usage_info_local_var);
+
     secondary_rat_usage_info_local_var->secondary_rat_type = secondary_rat_type;
     secondary_rat_usage_info_local_var->qos_flows_usage_data = qos_flows_usage_data;
     secondary_rat_usage_info_local_var->pdu_session_usage_data = pdu_session_usage_data;
@@ -132,6 +131,12 @@ OpenAPI_secondary_rat_usage_info_t *OpenAPI_secondary_rat_usage_info_parseFromJS
         }
         OpenAPI_qos_flow_usage_report_t *qos_flows_usage_dataItem = OpenAPI_qos_flow_usage_report_parseFromJSON(qos_flows_usage_data_local_nonprimitive);
 
+        if (!qos_flows_usage_dataItem) {
+            ogs_error("No qos_flows_usage_dataItem");
+            OpenAPI_list_free(qos_flows_usage_dataList);
+            goto end;
+        }
+
         OpenAPI_list_add(qos_flows_usage_dataList, qos_flows_usage_dataItem);
     }
     }
@@ -154,6 +159,12 @@ OpenAPI_secondary_rat_usage_info_t *OpenAPI_secondary_rat_usage_info_parseFromJS
             goto end;
         }
         OpenAPI_volume_timed_report_t *pdu_session_usage_dataItem = OpenAPI_volume_timed_report_parseFromJSON(pdu_session_usage_data_local_nonprimitive);
+
+        if (!pdu_session_usage_dataItem) {
+            ogs_error("No pdu_session_usage_dataItem");
+            OpenAPI_list_free(pdu_session_usage_dataList);
+            goto end;
+        }
 
         OpenAPI_list_add(pdu_session_usage_dataList, pdu_session_usage_dataItem);
     }

@@ -35,6 +35,14 @@ logger:
 #    pfcp:
 #      name: localhost
 #
+#  o PFCP Option (Default)
+#    - so_bindtodevice : NULL
+#
+#    pfcp:
+#      addr: 127.0.0.7
+#      option:
+#        so_bindtodevice: vrf-blue
+#
 #  <GTP-U Server>>
 #
 #  o GTP-U Server(127.0.0.7:2152, [::1]:2152)
@@ -80,6 +88,14 @@ logger:
 #      - dev: ens3
 #        advertise: upf1.5gc.mnc001.mcc001.3gppnetwork.org
 #
+#  o GTP-U Option (Default)
+#    - so_bindtodevice : NULL
+#
+#    gtpu:
+#      addr: 127.0.0.7
+#      option:
+#        so_bindtodevice: vrf-blue
+#
 #  <Subnet for UE network>
 #
 #  Note that you need to setup your UE network using TUN device.
@@ -93,30 +109,30 @@ logger:
 #
 #  o IPv4/IPv6 Pool
 #    $ sudo ip addr add 10.45.0.1/16 dev ogstun
-#    $ sudo ip addr add 2001:230:cafe::1/48 dev ogstun
+#    $ sudo ip addr add 2001:db8:cafe::1/48 dev ogstun
 #
 #    subnet:
 #      - addr: 10.45.0.1/16
-#      - addr: 2001:230:cafe::1/48
+#      - addr: 2001:db8:cafe::1/48
 #
 #
-#  o Specific DNN/APN(e.g 'ims') uses 10.46.0.1/16, 2001:230:babe::1/48
-#    All other APNs use 10.45.0.1/16, 2001:230:cafe::1/48
+#  o Specific DNN/APN(e.g 'ims') uses 10.46.0.1/16, 2001:db8:babe::1/48
+#    All other APNs use 10.45.0.1/16, 2001:db8:cafe::1/48
 #    $ sudo ip addr add 10.45.0.1/16 dev ogstun
 #    $ sudo ip addr add 10.46.0.1/16 dev ogstun
-#    $ sudo ip addr add 2001:230:cafe::1/48 dev ogstun
-#    $ sudo ip addr add 2001:230:babe::1/48 dev ogstun
+#    $ sudo ip addr add 2001:db8:cafe::1/48 dev ogstun
+#    $ sudo ip addr add 2001:db8:babe::1/48 dev ogstun
 #
 #    ; If the UE has unknown DNN/APN(not internet/ims), SMF/UPF will crash.
 #
 #    subnet:
 #      - addr: 10.45.0.1/16
 #        dnn: internet
-#      - addr: 2001:230:cafe::1/48
+#      - addr: 2001:db8:cafe::1/48
 #        dnn: internet
 #      - addr: 10.46.0.1/16
 #        dnn: ims
-#      - addr: 2001:230:babe::1/48
+#      - addr: 2001:db8:babe::1/48
 #        dnn: ims
 #
 #  o Specific DNN/APN with the FALLBACK SUBNET(10.47.0.1/16)
@@ -131,20 +147,20 @@ logger:
 #
 #  o Multiple Devices (default: ogstun)
 #    $ sudo ip addr add 10.45.0.1/16 dev ogstun
-#    $ sudo ip addr add 2001:230:cafe::1/48 dev ogstun2
+#    $ sudo ip addr add 2001:db8:cafe::1/48 dev ogstun2
 #    $ sudo ip addr add 10.46.0.1/16 dev ogstun3
-#    $ sudo ip addr add 2001:230:babe::1/48 dev ogstun3
+#    $ sudo ip addr add 2001:db8:babe::1/48 dev ogstun3
 #
 #    subnet:
 #      - addr: 10.45.0.1/16
 #        dnn: internet
-#      - addr: 2001:230:cafe::1/48
+#      - addr: 2001:db8:cafe::1/48
 #        dnn: internet
 #        dev: ogstun2
 #      - addr: 10.46.0.1/16
 #        dnn: ims
 #        dev: ogstun3
-#      - addr: 2001:230:babe::1/48
+#      - addr: 2001:db8:babe::1/48
 #        dnn: ims
 #        dev: ogstun3
 #
@@ -155,7 +171,7 @@ upf:
       - addr: 127.0.0.7
     subnet:
       - addr: 10.45.0.1/16
-      - addr: 2001:230:cafe::1/48
+      - addr: 2001:db8:cafe::1/48
 
 #
 # smf:
@@ -192,33 +208,9 @@ parameter:
 # o Maximum Number of UE per AMF/MME
 #    ue: 1024
 # o Maximum Number of gNB/eNB per AMF/MME
-#    gnb: 32
+#    gnb: 64
 #
 max:
-
-#
-# pool:
-#
-# o The default memory pool size was set assuming 1024 UEs.
-#   To connect more UEs, you need to increase the size further.
-#
-#   - Pool-size 128         => 65536 Number
-#   - Pool-size 256         => 16384 Number
-#   - Pool-size 512         => 4096 Number
-#   - Pool-size 1024        => 1024 Number
-#   - Pool-size 2048        => 512 Number
-#   - Pool-size 8192        => 128 Number
-#   - Pool-size 1024*1024   => 8 Number
-#
-#    128:  65536
-#    256:  16384
-#    512:  4096
-#    1024: 1024
-#    2048: 512
-#    8192: 128
-#    big:  8
-#
-pool:
 
 #
 # time:

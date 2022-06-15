@@ -37,10 +37,9 @@ OpenAPI_events_subsc_put_data_t *OpenAPI_events_subsc_put_data_create(
     OpenAPI_list_t *tsn_port_man_cont_nwtts
 )
 {
-    OpenAPI_events_subsc_put_data_t *events_subsc_put_data_local_var = OpenAPI_malloc(sizeof(OpenAPI_events_subsc_put_data_t));
-    if (!events_subsc_put_data_local_var) {
-        return NULL;
-    }
+    OpenAPI_events_subsc_put_data_t *events_subsc_put_data_local_var = ogs_malloc(sizeof(OpenAPI_events_subsc_put_data_t));
+    ogs_assert(events_subsc_put_data_local_var);
+
     events_subsc_put_data_local_var->events = events;
     events_subsc_put_data_local_var->notif_uri = notif_uri;
     events_subsc_put_data_local_var->req_qos_mon_params = req_qos_mon_params;
@@ -596,6 +595,12 @@ OpenAPI_events_subsc_put_data_t *OpenAPI_events_subsc_put_data_parseFromJSON(cJS
         }
         OpenAPI_af_event_subscription_t *eventsItem = OpenAPI_af_event_subscription_parseFromJSON(events_local_nonprimitive);
 
+        if (!eventsItem) {
+            ogs_error("No eventsItem");
+            OpenAPI_list_free(eventsList);
+            goto end;
+        }
+
         OpenAPI_list_add(eventsList, eventsItem);
     }
 
@@ -726,6 +731,12 @@ OpenAPI_events_subsc_put_data_t *OpenAPI_events_subsc_put_data_parseFromJSON(cJS
         }
         OpenAPI_access_net_charging_identifier_t *an_charg_idsItem = OpenAPI_access_net_charging_identifier_parseFromJSON(an_charg_ids_local_nonprimitive);
 
+        if (!an_charg_idsItem) {
+            ogs_error("No an_charg_idsItem");
+            OpenAPI_list_free(an_charg_idsList);
+            goto end;
+        }
+
         OpenAPI_list_add(an_charg_idsList, an_charg_idsItem);
     }
     }
@@ -770,6 +781,12 @@ OpenAPI_events_subsc_put_data_t *OpenAPI_events_subsc_put_data_parseFromJSON(cJS
         }
         OpenAPI_af_event_notification_t *ev_notifsItem = OpenAPI_af_event_notification_parseFromJSON(ev_notifs_local_nonprimitive);
 
+        if (!ev_notifsItem) {
+            ogs_error("No ev_notifsItem");
+            OpenAPI_list_free(ev_notifsList);
+            goto end;
+        }
+
         OpenAPI_list_add(ev_notifsList, ev_notifsItem);
     }
 
@@ -791,6 +808,12 @@ OpenAPI_events_subsc_put_data_t *OpenAPI_events_subsc_put_data_parseFromJSON(cJS
             goto end;
         }
         OpenAPI_resources_allocation_info_t *failed_resourc_alloc_reportsItem = OpenAPI_resources_allocation_info_parseFromJSON(failed_resourc_alloc_reports_local_nonprimitive);
+
+        if (!failed_resourc_alloc_reportsItem) {
+            ogs_error("No failed_resourc_alloc_reportsItem");
+            OpenAPI_list_free(failed_resourc_alloc_reportsList);
+            goto end;
+        }
 
         OpenAPI_list_add(failed_resourc_alloc_reportsList, failed_resourc_alloc_reportsItem);
     }
@@ -814,6 +837,12 @@ OpenAPI_events_subsc_put_data_t *OpenAPI_events_subsc_put_data_parseFromJSON(cJS
             goto end;
         }
         OpenAPI_resources_allocation_info_t *succ_resourc_alloc_reportsItem = OpenAPI_resources_allocation_info_parseFromJSON(succ_resourc_alloc_reports_local_nonprimitive);
+
+        if (!succ_resourc_alloc_reportsItem) {
+            ogs_error("No succ_resourc_alloc_reportsItem");
+            OpenAPI_list_free(succ_resourc_alloc_reportsList);
+            goto end;
+        }
 
         OpenAPI_list_add(succ_resourc_alloc_reportsList, succ_resourc_alloc_reportsItem);
     }
@@ -849,6 +878,12 @@ OpenAPI_events_subsc_put_data_t *OpenAPI_events_subsc_put_data_parseFromJSON(cJS
         }
         OpenAPI_out_of_credit_information_t *out_of_cred_reportsItem = OpenAPI_out_of_credit_information_parseFromJSON(out_of_cred_reports_local_nonprimitive);
 
+        if (!out_of_cred_reportsItem) {
+            ogs_error("No out_of_cred_reportsItem");
+            OpenAPI_list_free(out_of_cred_reportsList);
+            goto end;
+        }
+
         OpenAPI_list_add(out_of_cred_reportsList, out_of_cred_reportsItem);
     }
     }
@@ -879,6 +914,12 @@ OpenAPI_events_subsc_put_data_t *OpenAPI_events_subsc_put_data_parseFromJSON(cJS
         }
         OpenAPI_qos_notification_control_info_t *qnc_reportsItem = OpenAPI_qos_notification_control_info_parseFromJSON(qnc_reports_local_nonprimitive);
 
+        if (!qnc_reportsItem) {
+            ogs_error("No qnc_reportsItem");
+            OpenAPI_list_free(qnc_reportsList);
+            goto end;
+        }
+
         OpenAPI_list_add(qnc_reportsList, qnc_reportsItem);
     }
     }
@@ -902,6 +943,12 @@ OpenAPI_events_subsc_put_data_t *OpenAPI_events_subsc_put_data_parseFromJSON(cJS
         }
         OpenAPI_qos_monitoring_report_t *qos_mon_reportsItem = OpenAPI_qos_monitoring_report_parseFromJSON(qos_mon_reports_local_nonprimitive);
 
+        if (!qos_mon_reportsItem) {
+            ogs_error("No qos_mon_reportsItem");
+            OpenAPI_list_free(qos_mon_reportsList);
+            goto end;
+        }
+
         OpenAPI_list_add(qos_mon_reportsList, qos_mon_reportsItem);
     }
     }
@@ -924,6 +971,12 @@ OpenAPI_events_subsc_put_data_t *OpenAPI_events_subsc_put_data_parseFromJSON(cJS
             goto end;
         }
         OpenAPI_ran_nas_rel_cause_t *ran_nas_rel_causesItem = OpenAPI_ran_nas_rel_cause_parseFromJSON(ran_nas_rel_causes_local_nonprimitive);
+
+        if (!ran_nas_rel_causesItem) {
+            ogs_error("No ran_nas_rel_causesItem");
+            OpenAPI_list_free(ran_nas_rel_causesList);
+            goto end;
+        }
 
         OpenAPI_list_add(ran_nas_rel_causesList, ran_nas_rel_causesItem);
     }
@@ -996,25 +1049,31 @@ OpenAPI_events_subsc_put_data_t *OpenAPI_events_subsc_put_data_parseFromJSON(cJS
         }
         OpenAPI_port_management_container_t *tsn_port_man_cont_nwttsItem = OpenAPI_port_management_container_parseFromJSON(tsn_port_man_cont_nwtts_local_nonprimitive);
 
+        if (!tsn_port_man_cont_nwttsItem) {
+            ogs_error("No tsn_port_man_cont_nwttsItem");
+            OpenAPI_list_free(tsn_port_man_cont_nwttsList);
+            goto end;
+        }
+
         OpenAPI_list_add(tsn_port_man_cont_nwttsList, tsn_port_man_cont_nwttsItem);
     }
     }
 
     events_subsc_put_data_local_var = OpenAPI_events_subsc_put_data_create (
         eventsList,
-        notif_uri ? ogs_strdup_or_assert(notif_uri->valuestring) : NULL,
+        notif_uri ? ogs_strdup(notif_uri->valuestring) : NULL,
         req_qos_mon_params ? req_qos_mon_paramsList : NULL,
         qos_mon ? qos_mon_local_nonprim : NULL,
         req_anis ? req_anisList : NULL,
         usg_thres ? usg_thres_local_nonprim : NULL,
-        notif_corre_id ? ogs_strdup_or_assert(notif_corre_id->valuestring) : NULL,
+        notif_corre_id ? ogs_strdup(notif_corre_id->valuestring) : NULL,
         access_type ? access_typeVariable : 0,
         add_access_info ? add_access_info_local_nonprim : NULL,
         rel_access_info ? rel_access_info_local_nonprim : NULL,
         an_charg_addr ? an_charg_addr_local_nonprim : NULL,
         an_charg_ids ? an_charg_idsList : NULL,
         an_gw_addr ? an_gw_addr_local_nonprim : NULL,
-        ogs_strdup_or_assert(ev_subs_uri->valuestring),
+        ogs_strdup(ev_subs_uri->valuestring),
         ev_notifsList,
         failed_resourc_alloc_reports ? failed_resourc_alloc_reportsList : NULL,
         succ_resourc_alloc_reports ? succ_resourc_alloc_reportsList : NULL,
@@ -1026,7 +1085,7 @@ OpenAPI_events_subsc_put_data_t *OpenAPI_events_subsc_put_data_parseFromJSON(cJS
         ran_nas_rel_causes ? ran_nas_rel_causesList : NULL,
         rat_type ? rat_typeVariable : 0,
         ue_loc ? ue_loc_local_nonprim : NULL,
-        ue_time_zone ? ogs_strdup_or_assert(ue_time_zone->valuestring) : NULL,
+        ue_time_zone ? ogs_strdup(ue_time_zone->valuestring) : NULL,
         usg_rep ? usg_rep_local_nonprim : NULL,
         tsn_bridge_man_cont ? tsn_bridge_man_cont_local_nonprim : NULL,
         tsn_port_man_cont_dstt ? tsn_port_man_cont_dstt_local_nonprim : NULL,

@@ -8,10 +8,9 @@ OpenAPI_amf_status_change_notification_t *OpenAPI_amf_status_change_notification
     OpenAPI_list_t *amf_status_info_list
 )
 {
-    OpenAPI_amf_status_change_notification_t *amf_status_change_notification_local_var = OpenAPI_malloc(sizeof(OpenAPI_amf_status_change_notification_t));
-    if (!amf_status_change_notification_local_var) {
-        return NULL;
-    }
+    OpenAPI_amf_status_change_notification_t *amf_status_change_notification_local_var = ogs_malloc(sizeof(OpenAPI_amf_status_change_notification_t));
+    ogs_assert(amf_status_change_notification_local_var);
+
     amf_status_change_notification_local_var->amf_status_info_list = amf_status_info_list;
 
     return amf_status_change_notification_local_var;
@@ -86,6 +85,12 @@ OpenAPI_amf_status_change_notification_t *OpenAPI_amf_status_change_notification
             goto end;
         }
         OpenAPI_amf_status_info_t *amf_status_info_listItem = OpenAPI_amf_status_info_parseFromJSON(amf_status_info_list_local_nonprimitive);
+
+        if (!amf_status_info_listItem) {
+            ogs_error("No amf_status_info_listItem");
+            OpenAPI_list_free(amf_status_info_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(amf_status_info_listList, amf_status_info_listItem);
     }

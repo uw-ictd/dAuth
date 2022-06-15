@@ -9,10 +9,9 @@ OpenAPI_steering_info_t *OpenAPI_steering_info_create(
     OpenAPI_list_t *access_tech_list
 )
 {
-    OpenAPI_steering_info_t *steering_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_steering_info_t));
-    if (!steering_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_steering_info_t *steering_info_local_var = ogs_malloc(sizeof(OpenAPI_steering_info_t));
+    ogs_assert(steering_info_local_var);
+
     steering_info_local_var->plmn_id = plmn_id;
     steering_info_local_var->access_tech_list = access_tech_list;
 
@@ -108,6 +107,12 @@ OpenAPI_steering_info_t *OpenAPI_steering_info_parseFromJSON(cJSON *steering_inf
             goto end;
         }
         OpenAPI_access_tech_t *access_tech_listItem = OpenAPI_access_tech_parseFromJSON(access_tech_list_local_nonprimitive);
+
+        if (!access_tech_listItem) {
+            ogs_error("No access_tech_listItem");
+            OpenAPI_list_free(access_tech_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(access_tech_listList, access_tech_listItem);
     }

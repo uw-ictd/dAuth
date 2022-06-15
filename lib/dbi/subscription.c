@@ -148,6 +148,47 @@ int ogs_dbi_update_sqn(char *supi, uint64_t sqn)
     return rv;
 }
 
+int ogs_dbi_update_imeisv(char *supi, char *imeisv)
+{
+    int rv = OGS_OK;
+    bson_t *query = NULL;
+    bson_t *update = NULL;
+    bson_error_t error;
+
+    char *supi_type = NULL;
+    char *supi_id = NULL;
+
+    ogs_assert(supi);
+
+    supi_type = ogs_id_get_type(supi);
+    ogs_assert(supi_type);
+    supi_id = ogs_id_get_value(supi);
+    ogs_assert(supi_id);
+
+    ogs_debug("SUPI type: %s, SUPI id: %s, imeisv: %s",
+            supi_type, supi_id, imeisv);
+
+    query = BCON_NEW(supi_type, BCON_UTF8(supi_id));
+    update = BCON_NEW("$set",
+            "{",
+                "imeisv", BCON_UTF8(imeisv),
+            "}");
+    if (!mongoc_collection_update(ogs_mongoc()->collection.subscriber,
+            MONGOC_UPDATE_UPSERT, query, update, NULL, &error)) {
+        ogs_error("mongoc_collection_update() failure: %s", error.message);
+
+        rv = OGS_ERROR;
+    }
+
+    if (query) bson_destroy(query);
+    if (update) bson_destroy(update);
+
+    ogs_free(supi_type);
+    ogs_free(supi_id);
+
+    return rv;
+}
+
 int ogs_dbi_increment_sqn(char *supi)
 {
     int rv = OGS_OK;
@@ -614,6 +655,81 @@ int ogs_dbi_subscription_data(char *supi,
 out:
     if (query) bson_destroy(query);
     if (cursor) mongoc_cursor_destroy(cursor);
+
+    ogs_free(supi_type);
+    ogs_free(supi_id);
+
+    return rv;
+}
+
+int ogs_dbi_default_subscription_data(char *supi,
+        ogs_subscription_data_t *subscription_data)
+{
+    int rv = OGS_OK;
+
+    char *supi_type = NULL;
+    char *supi_id = NULL;
+
+    ogs_subscription_data_t zero_data;
+
+    ogs_assert(subscription_data);
+    ogs_assert(supi);
+
+    ogs_info("[%s] Returning default for supi not found in DB", supi);
+
+    memset(&zero_data, 0, sizeof(zero_data));
+
+    /* subscription_data should be initialized to zero */
+    ogs_assert(memcmp(subscription_data, &zero_data, sizeof(zero_data)) == 0);
+
+    supi_type = ogs_id_get_type(supi);
+    ogs_assert(supi_type);
+    supi_id = ogs_id_get_value(supi);
+    ogs_assert(supi_id);
+
+    // MSISDN
+    subscription_data->num_of_msisdn = 0;
+    // ogs_cpystrn(subscription_data->msisdn[msisdn_index].bcd,
+    //     utf8, ogs_min(length, OGS_MAX_MSISDN_BCD_LEN)+1);
+    // ogs_bcd_to_buffer(
+    //     subscription_data->msisdn[msisdn_index].bcd,
+    //     subscription_data->msisdn[msisdn_index].buf,
+    //     &subscription_data->msisdn[msisdn_index].len);
+
+    subscription_data->access_restriction_data = 32; // bson i32
+    subscription_data->subscriber_status = 0; // bson i32
+    subscription_data->network_access_mode = 0; // bson i32
+    subscription_data->subscribed_rau_tau_timer = 12; // bson i32
+
+    // Overall AMBR
+    subscription_data->ambr.downlink = (0x1 << 19); // AMBR bits/s 100Mibit
+    subscription_data->ambr.uplink = (0x1 << 19); // AMBR bits/s 100Mibit
+
+    // Slice Config
+    subscription_data->num_of_slice = 1;
+    ogs_assert(subscription_data->num_of_slice < OGS_MAX_NUM_OF_SLICE);
+    ogs_slice_data_t *slice_data = &subscription_data->slice[0];
+
+    slice_data->s_nssai.sst = 1; // bson i32
+    slice_data->s_nssai.sd.v = OGS_S_NSSAI_NO_SD_VALUE;
+    // slice_data->s_nssai.sd = ogs_s_nssai_sd_from_string(utf8);
+
+    slice_data->default_indicator = true; // bson bool
+
+    // Session config within slice
+    slice_data->num_of_session = 1;
+    ogs_session_t *session = &slice_data->session[0];
+
+    session->name = ogs_strndup("internet\0", 9);
+
+    session->session_type = 1; // bson i32
+
+    session->qos.index = 9; //bson i32
+    session->qos.arp.priority_level = 8; //bson i32;
+    session->qos.arp.pre_emption_capability = 1; //bson i32
+    session->qos.arp.pre_emption_vulnerability = 2; //bson i32
+    session->ambr.downlink = (0x1 << 19); // AMBR bits/s 100Mibit
+    session->ambr.uplink = (0x1 << 19); // AMBR bits/s 100Mibit
 
     ogs_free(supi_type);
     ogs_free(supi_id);

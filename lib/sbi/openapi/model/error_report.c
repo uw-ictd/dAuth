@@ -12,10 +12,9 @@ OpenAPI_error_report_t *OpenAPI_error_report_create(
     char *alt_qos_param_id
 )
 {
-    OpenAPI_error_report_t *error_report_local_var = OpenAPI_malloc(sizeof(OpenAPI_error_report_t));
-    if (!error_report_local_var) {
-        return NULL;
-    }
+    OpenAPI_error_report_t *error_report_local_var = ogs_malloc(sizeof(OpenAPI_error_report_t));
+    ogs_assert(error_report_local_var);
+
     error_report_local_var->error = error;
     error_report_local_var->rule_reports = rule_reports;
     error_report_local_var->sess_rule_reports = sess_rule_reports;
@@ -163,6 +162,12 @@ OpenAPI_error_report_t *OpenAPI_error_report_parseFromJSON(cJSON *error_reportJS
         }
         OpenAPI_rule_report_t *rule_reportsItem = OpenAPI_rule_report_parseFromJSON(rule_reports_local_nonprimitive);
 
+        if (!rule_reportsItem) {
+            ogs_error("No rule_reportsItem");
+            OpenAPI_list_free(rule_reportsList);
+            goto end;
+        }
+
         OpenAPI_list_add(rule_reportsList, rule_reportsItem);
     }
     }
@@ -185,6 +190,12 @@ OpenAPI_error_report_t *OpenAPI_error_report_parseFromJSON(cJSON *error_reportJS
             goto end;
         }
         OpenAPI_session_rule_report_t *sess_rule_reportsItem = OpenAPI_session_rule_report_parseFromJSON(sess_rule_reports_local_nonprimitive);
+
+        if (!sess_rule_reportsItem) {
+            ogs_error("No sess_rule_reportsItem");
+            OpenAPI_list_free(sess_rule_reportsList);
+            goto end;
+        }
 
         OpenAPI_list_add(sess_rule_reportsList, sess_rule_reportsItem);
     }
@@ -226,7 +237,7 @@ OpenAPI_error_report_t *OpenAPI_error_report_parseFromJSON(cJSON *error_reportJS
         rule_reports ? rule_reportsList : NULL,
         sess_rule_reports ? sess_rule_reportsList : NULL,
         pol_dec_failure_reports ? pol_dec_failure_reportsList : NULL,
-        alt_qos_param_id ? ogs_strdup_or_assert(alt_qos_param_id->valuestring) : NULL
+        alt_qos_param_id ? ogs_strdup(alt_qos_param_id->valuestring) : NULL
     );
 
     return error_report_local_var;

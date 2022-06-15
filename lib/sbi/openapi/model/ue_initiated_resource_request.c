@@ -13,10 +13,9 @@ OpenAPI_ue_initiated_resource_request_t *OpenAPI_ue_initiated_resource_request_c
     OpenAPI_requested_qos_t *req_qos
 )
 {
-    OpenAPI_ue_initiated_resource_request_t *ue_initiated_resource_request_local_var = OpenAPI_malloc(sizeof(OpenAPI_ue_initiated_resource_request_t));
-    if (!ue_initiated_resource_request_local_var) {
-        return NULL;
-    }
+    OpenAPI_ue_initiated_resource_request_t *ue_initiated_resource_request_local_var = ogs_malloc(sizeof(OpenAPI_ue_initiated_resource_request_t));
+    ogs_assert(ue_initiated_resource_request_local_var);
+
     ue_initiated_resource_request_local_var->pcc_rule_id = pcc_rule_id;
     ue_initiated_resource_request_local_var->rule_op = rule_op;
     ue_initiated_resource_request_local_var->is_precedence = is_precedence;
@@ -162,6 +161,12 @@ OpenAPI_ue_initiated_resource_request_t *OpenAPI_ue_initiated_resource_request_p
         }
         OpenAPI_packet_filter_info_t *pack_filt_infoItem = OpenAPI_packet_filter_info_parseFromJSON(pack_filt_info_local_nonprimitive);
 
+        if (!pack_filt_infoItem) {
+            ogs_error("No pack_filt_infoItem");
+            OpenAPI_list_free(pack_filt_infoList);
+            goto end;
+        }
+
         OpenAPI_list_add(pack_filt_infoList, pack_filt_infoItem);
     }
 
@@ -173,7 +178,7 @@ OpenAPI_ue_initiated_resource_request_t *OpenAPI_ue_initiated_resource_request_p
     }
 
     ue_initiated_resource_request_local_var = OpenAPI_ue_initiated_resource_request_create (
-        pcc_rule_id ? ogs_strdup_or_assert(pcc_rule_id->valuestring) : NULL,
+        pcc_rule_id ? ogs_strdup(pcc_rule_id->valuestring) : NULL,
         rule_opVariable,
         precedence ? true : false,
         precedence ? precedence->valuedouble : 0,

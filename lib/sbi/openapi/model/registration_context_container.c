@@ -33,10 +33,9 @@ OpenAPI_registration_context_container_t *OpenAPI_registration_context_container
     OpenAPI_npn_access_info_t *npn_access_info
 )
 {
-    OpenAPI_registration_context_container_t *registration_context_container_local_var = OpenAPI_malloc(sizeof(OpenAPI_registration_context_container_t));
-    if (!registration_context_container_local_var) {
-        return NULL;
-    }
+    OpenAPI_registration_context_container_t *registration_context_container_local_var = ogs_malloc(sizeof(OpenAPI_registration_context_container_t));
+    ogs_assert(registration_context_container_local_var);
+
     registration_context_container_local_var->ue_context = ue_context;
     registration_context_container_local_var->local_time_zone = local_time_zone;
     registration_context_container_local_var->an_type = an_type;
@@ -489,6 +488,12 @@ OpenAPI_registration_context_container_t *OpenAPI_registration_context_container
         }
         OpenAPI_configured_snssai_t *configured_nssaiItem = OpenAPI_configured_snssai_parseFromJSON(configured_nssai_local_nonprimitive);
 
+        if (!configured_nssaiItem) {
+            ogs_error("No configured_nssaiItem");
+            OpenAPI_list_free(configured_nssaiList);
+            goto end;
+        }
+
         OpenAPI_list_add(configured_nssaiList, configured_nssaiItem);
     }
     }
@@ -512,6 +517,12 @@ OpenAPI_registration_context_container_t *OpenAPI_registration_context_container
         }
         OpenAPI_snssai_t *rejected_nssai_in_plmnItem = OpenAPI_snssai_parseFromJSON(rejected_nssai_in_plmn_local_nonprimitive);
 
+        if (!rejected_nssai_in_plmnItem) {
+            ogs_error("No rejected_nssai_in_plmnItem");
+            OpenAPI_list_free(rejected_nssai_in_plmnList);
+            goto end;
+        }
+
         OpenAPI_list_add(rejected_nssai_in_plmnList, rejected_nssai_in_plmnItem);
     }
     }
@@ -534,6 +545,12 @@ OpenAPI_registration_context_container_t *OpenAPI_registration_context_container
             goto end;
         }
         OpenAPI_snssai_t *rejected_nssai_in_taItem = OpenAPI_snssai_parseFromJSON(rejected_nssai_in_ta_local_nonprimitive);
+
+        if (!rejected_nssai_in_taItem) {
+            ogs_error("No rejected_nssai_in_taItem");
+            OpenAPI_list_free(rejected_nssai_in_taList);
+            goto end;
+        }
 
         OpenAPI_list_add(rejected_nssai_in_taList, rejected_nssai_in_taItem);
     }
@@ -587,20 +604,20 @@ OpenAPI_registration_context_container_t *OpenAPI_registration_context_container
 
     registration_context_container_local_var = OpenAPI_registration_context_container_create (
         ue_context_local_nonprim,
-        local_time_zone ? ogs_strdup_or_assert(local_time_zone->valuestring) : NULL,
+        local_time_zone ? ogs_strdup(local_time_zone->valuestring) : NULL,
         an_typeVariable,
         
         an_n2_ap_id->valuedouble,
         ran_node_id_local_nonprim,
-        ogs_strdup_or_assert(initial_amf_name->valuestring),
+        ogs_strdup(initial_amf_name->valuestring),
         user_location_local_nonprim,
-        rrc_est_cause ? ogs_strdup_or_assert(rrc_est_cause->valuestring) : NULL,
+        rrc_est_cause ? ogs_strdup(rrc_est_cause->valuestring) : NULL,
         ue_context_request ? true : false,
         ue_context_request ? ue_context_request->valueint : 0,
         initial_amf_n2_ap_id ? true : false,
         initial_amf_n2_ap_id ? initial_amf_n2_ap_id->valuedouble : 0,
-        an_n2_ipv4_addr ? ogs_strdup_or_assert(an_n2_ipv4_addr->valuestring) : NULL,
-        an_n2_ipv6_addr ? ogs_strdup_or_assert(an_n2_ipv6_addr->valuestring) : NULL,
+        an_n2_ipv4_addr ? ogs_strdup(an_n2_ipv4_addr->valuestring) : NULL,
+        an_n2_ipv6_addr ? ogs_strdup(an_n2_ipv6_addr->valuestring) : NULL,
         allowed_nssai ? allowed_nssai_local_nonprim : NULL,
         configured_nssai ? configured_nssaiList : NULL,
         rejected_nssai_in_plmn ? rejected_nssai_in_plmnList : NULL,

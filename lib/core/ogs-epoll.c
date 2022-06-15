@@ -54,7 +54,7 @@ struct epoll_context_s {
     int epfd;
 
     ogs_hash_t *map_hash;
-	struct epoll_event *event_list;
+    struct epoll_event *event_list;
 };
 
 static void epoll_init(ogs_pollset_t *pollset)
@@ -66,9 +66,9 @@ static void epoll_init(ogs_pollset_t *pollset)
     ogs_assert(context);
     pollset->context = context;
 
-	context->event_list = ogs_calloc(
+    context->event_list = ogs_calloc(
             pollset->capacity, sizeof(struct epoll_event));
-	ogs_assert(context->event_list);
+    ogs_assert(context->event_list);
 
     context->map_hash = ogs_hash_make();
     ogs_assert(context->map_hash);
@@ -89,7 +89,7 @@ static void epoll_cleanup(ogs_pollset_t *pollset)
 
     ogs_notify_final(pollset);
     close(context->epfd);
-	ogs_free(context->event_list);
+    ogs_free(context->event_list);
     ogs_hash_destroy(context->map_hash);
 
     ogs_free(context);
@@ -125,18 +125,20 @@ static int epoll_add(ogs_poll_t *poll)
     if (poll->when & OGS_POLLOUT)
         map->write = poll;
 
+    memset(&ee, 0, sizeof ee);
+
     ee.events = 0;
     if (map->read)
         ee.events |= (EPOLLIN|EPOLLRDHUP);
     if (map->write)
         ee.events |= EPOLLOUT;
-    ee.data.ptr = map;
+    ee.data.fd = poll->fd;
 
     rv = epoll_ctl(context->epfd, op, poll->fd, &ee);
     if (rv < 0) {
-		ogs_log_message(OGS_LOG_ERROR, ogs_socket_errno,
+        ogs_log_message(OGS_LOG_ERROR, ogs_socket_errno,
                 "epoll_ctl[%d] failed", op);
-		return OGS_ERROR;
+        return OGS_ERROR;
     }
 
     return OGS_OK;
@@ -164,6 +166,8 @@ static int epoll_remove(ogs_poll_t *poll)
     if (poll->when & OGS_POLLOUT)
         map->write = NULL;
 
+    memset(&ee, 0, sizeof ee);
+
     ee.events = 0;
     if (map->read)
         ee.events |= (EPOLLIN|EPOLLRDHUP);
@@ -172,18 +176,18 @@ static int epoll_remove(ogs_poll_t *poll)
 
     if (map->read || map->write) {
         op = EPOLL_CTL_MOD;
-        ee.data.ptr = map;
+        ee.data.fd = poll->fd;
     } else {
         op = EPOLL_CTL_DEL;
-        ee.data.ptr = NULL;
+        ee.data.fd = INVALID_SOCKET;
 
-        ogs_free(map);
         ogs_hash_set(context->map_hash, &poll->fd, sizeof(poll->fd), NULL);
+        ogs_free(map);
     }
 
     rv = epoll_ctl(context->epfd, op, poll->fd, &ee);
     if (rv < 0) {
-		ogs_log_message(OGS_LOG_ERROR, ogs_socket_errno,
+        ogs_log_message(OGS_LOG_ERROR, ogs_socket_errno,
                 "epoll_remove[%d] failed", op);
         return OGS_ERROR;
     }
@@ -194,14 +198,14 @@ static int epoll_remove(ogs_poll_t *poll)
 static int epoll_process(ogs_pollset_t *pollset, ogs_time_t timeout)
 {
     struct epoll_context_s *context = NULL;
-	int num_of_poll;
-	int i;
+    int num_of_poll;
+    int i;
 
     ogs_assert(pollset);
     context = pollset->context;
     ogs_assert(context);
 
-	num_of_poll = epoll_wait(context->epfd, context->event_list,
+    num_of_poll = epoll_wait(context->epfd, context->event_list,
             pollset->capacity,
             timeout == OGS_INFINITE_TIME ? OGS_INFINITE_TIME :
                 ogs_time_to_msec(timeout));
@@ -212,35 +216,52 @@ static int epoll_process(ogs_pollset_t *pollset, ogs_time_t timeout)
         return OGS_TIMEUP;
     }
 
-	for (i = 0; i < num_of_poll; i++) {
+    for (i = 0; i < num_of_poll; i++) {
         struct epoll_map_s *map = NULL;
-		uint32_t received;
+        uint32_t received;
         short when = 0;
+        ogs_socket_t fd;
 
-		received = context->event_list[i].events;
-		if (received & (EPOLLERR|EPOLLHUP)) {
+        received = context->event_list[i].events;
+        if (received & EPOLLERR) {
             when = OGS_POLLIN|OGS_POLLOUT;
-		} else {
-            if (received & (EPOLLIN|EPOLLRDHUP)) {
+        } else if ((received & EPOLLHUP) && !(received & EPOLLRDHUP)) {
+            when = OGS_POLLIN|OGS_POLLOUT;
+        } else {
+            if (received & EPOLLIN) {
                 when |= OGS_POLLIN;
             }
             if (received & EPOLLOUT) {
                 when |= OGS_POLLOUT;
-            } 
+            }
+            if (received & EPOLLRDHUP) {
+                when |= OGS_POLLIN;
+            }
         }
 
         if (!when)
             continue;
 
-        map = context->event_list[i].data.ptr;
-        ogs_assert(map);
+        fd = context->event_list[i].data.fd;
+        ogs_assert(fd != INVALID_SOCKET);
+
+        map = ogs_hash_get(context->map_hash, &fd, sizeof(fd));
+        if (!map) continue;
 
         if (map->read && map->write && map->read == map->write) {
             map->read->handler(when, map->read->fd, map->read->data);
         } else {
-            if (map->read && (when & OGS_POLLIN))
+            if ((when & OGS_POLLIN) && map->read)
                 map->read->handler(when, map->read->fd, map->read->data);
-            if (map->write && (when & OGS_POLLOUT))
+
+            /*
+             * map->read->handler() can call ogs_remove_epoll()
+             * So, we need to check map instance
+             */
+            map = ogs_hash_get(context->map_hash, &fd, sizeof(fd));
+            if (!map) continue;
+
+            if ((when & OGS_POLLOUT) && map->write)
                 map->write->handler(when, map->write->fd, map->write->data);
         }
     }

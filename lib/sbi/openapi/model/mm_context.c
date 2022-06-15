@@ -32,10 +32,9 @@ OpenAPI_mm_context_t *OpenAPI_mm_context_create(
     OpenAPI_list_t *pending_nssai_mapping_list
 )
 {
-    OpenAPI_mm_context_t *mm_context_local_var = OpenAPI_malloc(sizeof(OpenAPI_mm_context_t));
-    if (!mm_context_local_var) {
-        return NULL;
-    }
+    OpenAPI_mm_context_t *mm_context_local_var = ogs_malloc(sizeof(OpenAPI_mm_context_t));
+    ogs_assert(mm_context_local_var);
+
     mm_context_local_var->access_type = access_type;
     mm_context_local_var->nas_security_mode = nas_security_mode;
     mm_context_local_var->eps_nas_security_mode = eps_nas_security_mode;
@@ -473,6 +472,12 @@ OpenAPI_mm_context_t *OpenAPI_mm_context_parseFromJSON(cJSON *mm_contextJSON)
         }
         OpenAPI_snssai_t *allowed_nssaiItem = OpenAPI_snssai_parseFromJSON(allowed_nssai_local_nonprimitive);
 
+        if (!allowed_nssaiItem) {
+            ogs_error("No allowed_nssaiItem");
+            OpenAPI_list_free(allowed_nssaiList);
+            goto end;
+        }
+
         OpenAPI_list_add(allowed_nssaiList, allowed_nssaiItem);
     }
     }
@@ -495,6 +500,12 @@ OpenAPI_mm_context_t *OpenAPI_mm_context_parseFromJSON(cJSON *mm_contextJSON)
             goto end;
         }
         OpenAPI_nssai_mapping_t *nssai_mapping_listItem = OpenAPI_nssai_mapping_parseFromJSON(nssai_mapping_list_local_nonprimitive);
+
+        if (!nssai_mapping_listItem) {
+            ogs_error("No nssai_mapping_listItem");
+            OpenAPI_list_free(nssai_mapping_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(nssai_mapping_listList, nssai_mapping_listItem);
     }
@@ -519,6 +530,12 @@ OpenAPI_mm_context_t *OpenAPI_mm_context_parseFromJSON(cJSON *mm_contextJSON)
         }
         OpenAPI_snssai_t *allowed_home_nssaiItem = OpenAPI_snssai_parseFromJSON(allowed_home_nssai_local_nonprimitive);
 
+        if (!allowed_home_nssaiItem) {
+            ogs_error("No allowed_home_nssaiItem");
+            OpenAPI_list_free(allowed_home_nssaiList);
+            goto end;
+        }
+
         OpenAPI_list_add(allowed_home_nssaiList, allowed_home_nssaiItem);
     }
     }
@@ -539,7 +556,7 @@ OpenAPI_mm_context_t *OpenAPI_mm_context_parseFromJSON(cJSON *mm_contextJSON)
         ogs_error("OpenAPI_mm_context_parseFromJSON() failed [ns_instance_list]");
         goto end;
     }
-    OpenAPI_list_add(ns_instance_listList , ogs_strdup_or_assert(ns_instance_list_local->valuestring));
+    OpenAPI_list_add(ns_instance_listList , ogs_strdup(ns_instance_list_local->valuestring));
     }
     }
 
@@ -633,6 +650,12 @@ OpenAPI_mm_context_t *OpenAPI_mm_context_parseFromJSON(cJSON *mm_contextJSON)
         }
         OpenAPI_nssaa_status_t *nssaa_status_listItem = OpenAPI_nssaa_status_parseFromJSON(nssaa_status_list_local_nonprimitive);
 
+        if (!nssaa_status_listItem) {
+            ogs_error("No nssaa_status_listItem");
+            OpenAPI_list_free(nssaa_status_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(nssaa_status_listList, nssaa_status_listItem);
     }
     }
@@ -656,6 +679,12 @@ OpenAPI_mm_context_t *OpenAPI_mm_context_parseFromJSON(cJSON *mm_contextJSON)
         }
         OpenAPI_nssai_mapping_t *pending_nssai_mapping_listItem = OpenAPI_nssai_mapping_parseFromJSON(pending_nssai_mapping_list_local_nonprimitive);
 
+        if (!pending_nssai_mapping_listItem) {
+            ogs_error("No pending_nssai_mapping_listItem");
+            OpenAPI_list_free(pending_nssai_mapping_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(pending_nssai_mapping_listList, pending_nssai_mapping_listItem);
     }
     }
@@ -678,7 +707,7 @@ OpenAPI_mm_context_t *OpenAPI_mm_context_parseFromJSON(cJSON *mm_contextJSON)
         ue_differentiation_info ? ue_differentiation_info_local_nonprim : NULL,
         plmn_assi_ue_radio_cap_id ? plmn_assi_ue_radio_cap_id->valueint : 0,
         man_assi_ue_radio_cap_id ? man_assi_ue_radio_cap_id->valueint : 0,
-        ucmf_dic_entry_id ? ogs_strdup_or_assert(ucmf_dic_entry_id->valuestring) : NULL,
+        ucmf_dic_entry_id ? ogs_strdup(ucmf_dic_entry_id->valuestring) : NULL,
         n3_iwf_id ? n3_iwf_id_local_nonprim : NULL,
         wagf_id ? wagf_id_local_nonprim : NULL,
         tngf_id ? tngf_id_local_nonprim : NULL,

@@ -62,10 +62,20 @@ bool pcf_nudr_dr_handle_query_am_data(
             goto cleanup;
         }
 
-        rv = ogs_dbi_subscription_data(pcf_ue->supi, &subscription_data);
+        // DAUTH
+        // rv = ogs_dbi_subscription_data(pcf_ue->supi, &subscription_data);
+        // if (rv != OGS_OK) {
+        //     rv = ogs_dbi_default_subscription_data(pcf_ue->supi, &subscription_data);
+        //     if (rv != OGS_OK) {
+        //         strerror = ogs_msprintf("[%s] Cannot find SUPI in DB and failed to make default", pcf_ue->supi);
+        //         status = OGS_SBI_HTTP_STATUS_NOT_FOUND;
+        //         goto cleanup;
+        //     }
+        // }
+
+        rv = ogs_dbi_default_subscription_data(pcf_ue->supi, &subscription_data);
         if (rv != OGS_OK) {
-            strerror = ogs_msprintf("[%s] Cannot find SUPI in DB",
-                    pcf_ue->supi);
+            strerror = ogs_msprintf("[%s] Failed to make default", pcf_ue->supi);
             status = OGS_SBI_HTTP_STATUS_NOT_FOUND;
             goto cleanup;
         }

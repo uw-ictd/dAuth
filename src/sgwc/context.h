@@ -59,6 +59,7 @@ typedef struct sgwc_ue_s {
     char            imsi_bcd[OGS_MAX_IMSI_BCD_LEN+1];
 
     /* User-Location-Info */
+    bool            uli_presence;
     ogs_eps_tai_t   e_tai;
     ogs_e_cgi_t     e_cgi;
 
@@ -80,21 +81,8 @@ typedef struct sgwc_sess_s {
     uint64_t        sgwc_sxa_seid;  /* SGW-C SEID is dervied from INDEX */
     uint64_t        sgwu_sxa_seid;  /* SGW-U SEID is received from Peer */
 
-    /*
-     * PFCP modification request is set to FALSE
-     * PFCP modifitation response is set to TRUE
-     *
-     * For example, when SGW-C is received Release Access Bearers Request,
-     * it is used to check if all sessions are deactivated.
-     */
-    struct {
-        bool            release_access_bearers;
-        bool            create_indirect_tunnel;
-        bool            delete_indirect_tunnel;
-    } state;
-
     /* APN Configuration */
-    ogs_session_t session;
+    ogs_session_t   session;
 
     ogs_list_t      bearer_list;
 
@@ -107,6 +95,7 @@ typedef struct sgwc_sess_s {
 
 typedef struct sgwc_bearer_s {
     ogs_lnode_t     lnode;
+    ogs_lnode_t     to_modify_node;
 
     uint8_t         ebi;
 
@@ -142,7 +131,7 @@ sgwc_context_t *sgwc_self(void);
 
 int sgwc_context_parse_config(void);
 
-sgwc_ue_t *sgwc_ue_add_by_message(ogs_gtp_message_t *message);
+sgwc_ue_t *sgwc_ue_add_by_message(ogs_gtp2_message_t *message);
 sgwc_ue_t *sgwc_ue_find_by_imsi(uint8_t *imsi, int imsi_len);
 sgwc_ue_t *sgwc_ue_find_by_imsi_bcd(char *imsi_bcd);
 sgwc_ue_t *sgwc_ue_find_by_teid(uint32_t teid);
@@ -165,6 +154,11 @@ sgwc_sess_t *sgwc_sess_find_by_seid(uint64_t seid);
 sgwc_sess_t *sgwc_sess_find_by_apn(sgwc_ue_t *sgwc_ue, char *apn);
 sgwc_sess_t *sgwc_sess_find_by_ebi(sgwc_ue_t *sgwc_ue, uint8_t ebi);
 sgwc_sess_t *sgwc_sess_cycle(sgwc_sess_t *sess);
+
+#define SGWC_SESSION_SYNC_DONE(__sGWC, __tYPE, __fLAGS) \
+    (sgwc_sess_pfcp_xact_count(__sGWC, __tYPE, __fLAGS) == 0)
+int sgwc_sess_pfcp_xact_count(
+        sgwc_ue_t *sgwc_ue, uint8_t pfcp_type, uint64_t modify_flags);
 
 sgwc_bearer_t *sgwc_bearer_add(sgwc_sess_t *sess);
 int sgwc_bearer_remove(sgwc_bearer_t *bearer);

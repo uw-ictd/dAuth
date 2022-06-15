@@ -16,15 +16,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 project('open5gs', 'c', 'cpp',
-    version : '2.3.6',
+    version : '2.4.7',
     license : 'AGPL-3.0-or-later',
-    meson_version : '>= 0.43.0',
+    meson_version : '>= 0.55.0',
     default_options : [
-        'c_std=gnu89',
+        'c_std=gnu17',
+        'cpp_std=c++20',
     ],
 )
 
-libogslib_version = '2.3.6'
+libogslib_version = '2.4.7'
 
 prefix = get_option('prefix')
 bindir = join_paths(prefix, get_option('bindir'))
@@ -51,7 +52,8 @@ if cc.get_id() == 'gcc' or cc.get_id() == 'clang'
     possible_cc_flags = [
         '-Wextra',
         '-Wlogical-op',
-        '-Werror=missing-include-dirs',
+        # '-Werror=missing-include-dirs',
+        '-Wno-error=missing-include-dirs',
         '-Werror=pointer-arith',
         '-Werror=init-self',
         '-Wfloat-equal',
