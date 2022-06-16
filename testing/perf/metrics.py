@@ -91,18 +91,21 @@ class PerfMetrics:
         
         if name not in self._results:
             self._results[name] = {
-                "nanoseconds_since_auth": list(),
-                "nanoseconds_since_registration": list(),
-                "nanoseconds_to_establish_session": list(),
+                "nanoseconds_since_auth":
+                    [dataset["nanoseconds_since_auth"]],
+                "nanoseconds_since_registration":
+                    [dataset["nanoseconds_since_registration"]],
+                "nanoseconds_to_establish_session":
+                    [dataset["nanoseconds_to_establish_session"]],
             }
-        
-        results: Dict[str, List[int]] = self._results[name]
-        results["nanoseconds_since_auth"].append(
-            dataset["nanoseconds_since_auth"])
-        results["nanoseconds_since_registration"].append(
-            dataset["nanoseconds_since_registration"])
-        results["nanoseconds_to_establish_session"].append(
-            dataset["nanoseconds_to_establish_session"])
+        else:
+            results: Dict[str, List[int]] = self._results[name]
+            results["nanoseconds_since_auth"].append(
+                dataset["nanoseconds_since_auth"])
+            results["nanoseconds_since_registration"].append(
+                dataset["nanoseconds_since_registration"])
+            results["nanoseconds_to_establish_session"].append(
+                dataset["nanoseconds_to_establish_session"])
         
         if name not in self._tags:
             self._tags[name] = list()

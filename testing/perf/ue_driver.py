@@ -31,7 +31,7 @@ class UeransimUe(object):
              "--no-routing-config",
              "-i", name],
             stderr=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
+            # stdout=subprocess.DEVNULL,
             #stdout=None,
             )
         # For now register a kill at exit for each process, I'm not sure if this breaks garbage collection though...
@@ -110,10 +110,10 @@ def run_test_loop(ue: UeransimUe, interval: float, iterations: int):
     for i in range(iterations):
         print(ue.send_command("deregister sync-disable-5g"), flush=True)
         # Sleeps here seem to help with open5gs stability : (
-        time.sleep(max(1, interval/2))
+        time.sleep(max(0.5, interval/2))
         print(ue.send_command("reconnect {}".format(i)), flush=True)
         # Sleep for interval time, or at least long enough for stability
-        time.sleep(max(1, interval/2))
+        time.sleep(max(0.5, interval/2))
 
 
 def main() -> None:
