@@ -26,8 +26,8 @@ class UeransimUe(object):
         # Start the actual UE process
         # ToDo Make sure the imsi and keys make sense when generating many ues
         self.process_handle = subprocess.Popen(
-            ["/home/vagrant/UERANSIM/build/nr-ue", 
-             "-c", "/home/vagrant/configs/ueransim/ue.yaml", 
+            ["/home/vagrant/ueransim/nr-ue",
+             "-c", "/home/vagrant/configs/ueransim/ue.yaml",
              "--no-routing-config",
              "-i", name],
             stderr=subprocess.PIPE,
