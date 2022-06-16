@@ -77,6 +77,9 @@ class NetworkSetup:
                     metrics.add_result_from_json(line)
                 except Exception as e:
                     TestingLogger.logger.debug("Failed<{}>: {}".format(e, line.rstrip()))
+                    
+                    if "[error]" in line:
+                        TestingLogger.logger.error("UERANSIM error detected: {}".format(line.rstrip()))
                 
             for line in err:
                 TestingLogger.logger.debug("Stderr:", line.rstrip())
