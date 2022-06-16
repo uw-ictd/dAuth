@@ -44,7 +44,7 @@ class UeransimUe(object):
         # Setup the control socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(("127.0.0.1", 0))
-        self.sock.settimeout(5.0)
+        self.sock.settimeout(25.0)
         log.info(f"Communicating with {name} at port {self.ue_process_control_port} from {self.sock.getsockname()}")
 
         # Communication metadata
@@ -84,7 +84,9 @@ class UeransimUe(object):
         encoded_value = data[8 + name_length + 4: 8 + name_length + 4 + value_length]
         if (8 + name_length + 4 + value_length) < len(data):
             log.warn("Extra bytes in message: %s", data[(8 + name_length + 4 + value_length):])
-        return (encoded_name.decode("utf8"), encoded_value.decode("utf8"))
+        
+        return encoded_value.decode("utf8")
+        # return (encoded_name.decode("utf8"), encoded_value.decode("utf8"))
 
     def request_echo(self, data: str) -> str:
         message = self._pack_message(data, UERANSIM_MESSAGE_KIND.ECHO)
@@ -104,14 +106,14 @@ class UeransimUe(object):
 
 
 def run_test_loop(ue: UeransimUe, interval: float, iterations: int):
-    time.sleep(0.5)
+    time.sleep(1)
     for i in range(iterations):
         print(ue.send_command("deregister sync-disable-5g"), flush=True)
         # Sleeps here seem to help with open5gs stability : (
-        time.sleep(0.5)
+        time.sleep(max(1, interval/2))
         print(ue.send_command("reconnect {}".format(i)), flush=True)
         # Sleep for interval time, or at least long enough for stability
-        time.sleep(max(0.5, interval))
+        time.sleep(max(1, interval/2))
 
 
 def main() -> None:
@@ -146,16 +148,23 @@ def main() -> None:
     args = parser.parse_args()
     
     num_ues = args.num_ues
+    interval = args.interval*0.001
+    
+    # Use this to space out the UE starts across half an interval
+    spawn_delay = interval / (num_ues * 2)
+    
     ues = []
     for i in range(num_ues):
         imsi = "imsi-90170{}".format(str(i+1).zfill(10))
         ues.append(UeransimUe(imsi))
+        time.sleep(spawn_delay)
     
     threads = []
     for ue in ues:
         threads.append(threading.Thread(
-            target= lambda: run_test_loop(ue, args.interval*0.001, args.iterations)))
+            target= lambda: run_test_loop(ue, interval, args.iterations)))
         threads[-1].start()
+        time.sleep(spawn_delay)
 
 if __name__ == "__main__":
     main()

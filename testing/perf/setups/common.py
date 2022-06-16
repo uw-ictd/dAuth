@@ -1,5 +1,6 @@
-from perf.state import NetworkStateConfig, NetworkState
-from paramiko.channel import ChannelFile
+from typing import Union
+from perf.state import NetworkState
+from paramiko.channel import ChannelFile, ChannelStderrFile
 
 
 class NetworkSetup:
@@ -15,6 +16,7 @@ class NetworkSetup:
         """
         Configures the network for the number of users and auth situation.
         """
+        pass
 
     def _start_gnb(self) -> None:
         """
@@ -25,7 +27,7 @@ class NetworkSetup:
         else:
             raise Exception("GNB config path not set")
         
-    def _start_ues(self, num_ues: int, interval: int, iterations: int) -> ChannelFile:
+    def _start_ues(self, num_ues: int, interval: int, iterations: int) -> Union[ChannelFile, ChannelStderrFile]:
         """
         Runs the ue driver with the provided arguments and returns the output stream.
         """
@@ -36,7 +38,8 @@ class NetworkSetup:
              "-t", str(iterations),
              ])
 
-        return self.state.ueransim.run_input_command(command)[1]
+        res = self.state.ueransim.run_input_command(command)
+        return res[1], res[2]
 
     def run_perf(self, num_ues: int, interval: int, iterations: int):
         """
