@@ -7,6 +7,7 @@ from logger import TestingLogger
 from perf.config import ServiceConfig
 from perf.setups.common import NetworkSetup
 from perf.state import NetworkState
+from perf.metrics import PerfMetrics
 
 
 class LocalAuthSetup(NetworkSetup):
@@ -68,11 +69,27 @@ class LocalAuthSetup(NetworkSetup):
             # Start gnb and ues
             TestingLogger.logger.info("Starting gNB and UEs")
             self._start_gnb()
-            output = self._start_ues(num_ues, interval, iterations)
+            output, err = self._start_ues(num_ues, interval, iterations)
             
             TestingLogger.logger.info("Processing output (varies by iterations*interval)")
+            metrics = PerfMetrics()
             for line in output:
-                print(line)
+                try:
+                    metrics.add_result_from_json(line)
+                except Exception as e:
+                    TestingLogger.logger.debug("Failed<{}>: {}".format(e, line.rstrip()))
+                
+            for line in err:
+                TestingLogger.logger.debug("Stderr:", line.rstrip())
+                
+            print("Results:")
+            for name in metrics.get_names():
+                print(" ", name)
+                print("   cmd tags:", metrics.get_command_tags(name))
+                print("   values  :", metrics.get_results(name))
+                print("   averages:", metrics.get_average(name))
+            print(" ", "All")
+            print("   averages:", metrics.get_total_average())
 
         except Exception as e:
             TestingLogger.logger.error("Failed to run: {}".format(e))
