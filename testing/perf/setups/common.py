@@ -1,6 +1,10 @@
 from typing import Union
-from perf.state import NetworkState
 from paramiko.channel import ChannelFile, ChannelStderrFile
+from time import sleep
+
+from perf.state import NetworkState
+from perf.metrics import PerfMetrics
+from logger import TestingLogger
 
 
 class NetworkSetup:
@@ -41,9 +45,52 @@ class NetworkSetup:
         res = self.state.ueransim.run_input_command(command)
         return res[1], res[2]
 
+
     def run_perf(self, num_ues: int, interval: int, iterations: int):
         """
         Configures the network for the provided setup.
         Runs and prints the resulting performance metrics.
         """
-        pass
+        TestingLogger.logger.info("Running perf test")
+        TestingLogger.logger.info(
+            "Num UEs: {}, Inteval: {}ms, iterations: {}"
+            .format(num_ues, interval, iterations))
+        
+        try:
+            # configure and reset the network state 
+            self._configure(num_ues)
+            self.state.reset()
+            
+            # wait for network to settle
+            TestingLogger.logger.info("Waiting for network to settle")
+            sleep(5)
+            
+            # Start gnb and ues
+            TestingLogger.logger.info("Starting gNB and UEs")
+            self._start_gnb()
+            output, err = self._start_ues(num_ues, interval, iterations)
+            
+            TestingLogger.logger.info("Processing output (varies by iterations*interval)")
+            metrics = PerfMetrics()
+            for line in output:
+                try:
+                    metrics.add_result_from_json(line)
+                except Exception as e:
+                    TestingLogger.logger.debug("Failed<{}>: {}".format(e, line.rstrip()))
+                
+            for line in err:
+                TestingLogger.logger.debug("Stderr:", line.rstrip())
+                
+            print("Results:")
+            for name in metrics.get_names():
+                print(" ", name)
+                print("   cmd tags:", metrics.get_command_tags(name))
+                print("   values  :", metrics.get_results(name))
+                print("   averages:", metrics.get_average(name))
+            print(" ", "All")
+            print("   averages:", metrics.get_total_average())
+
+        except Exception as e:
+            TestingLogger.logger.error("Failed to run: {}".format(e))
+        
+        TestingLogger.logger.info("Perf completed")
