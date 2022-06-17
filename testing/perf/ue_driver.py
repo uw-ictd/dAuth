@@ -44,7 +44,7 @@ class UeransimUe(object):
         # Setup the control socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(("127.0.0.1", 0))
-        self.sock.settimeout(25.0)
+        self.sock.settimeout(5.0)
         log.info(f"Communicating with {name} at port {self.ue_process_control_port} from {self.sock.getsockname()}")
 
         # Communication metadata
