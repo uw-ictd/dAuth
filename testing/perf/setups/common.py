@@ -59,7 +59,6 @@ class NetworkSetup:
         try:
             # configure and reset the network state 
             self._configure(num_ues)
-            self.state.reset()
             
             # wait for network to settle
             TestingLogger.logger.info("Waiting for network to settle")

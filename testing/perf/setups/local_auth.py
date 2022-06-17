@@ -43,4 +43,5 @@ class LocalAuthSetup(NetworkSetup):
                 service_config.add_user(imsi, sqn_slice_max, backup_network_ids)
         
         self.state.service1.change_config(service_config)
+        self.state.reset()
 
