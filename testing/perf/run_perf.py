@@ -4,6 +4,9 @@ from logger import TestingLogger
 
 from perf.state import NetworkState, NetworkStateConfig
 from perf.setups.local_auth import LocalAuthSetup
+from perf.setups.home_auth import HomeAuthSetup
+from perf.setups.backup_auth import BackupAuthSetup
+
 
 def main():
     TestingLogger.logger.setLevel(logging.INFO)
@@ -87,9 +90,9 @@ def main():
     if args.local_auth:
         setup = LocalAuthSetup(state)
     elif args.home_auth:
-        pass
+        setup = HomeAuthSetup(state)
     elif args.backup_auth:
-        pass
+        setup = BackupAuthSetup(state)
     else:
         raise Exception("No setup specified")
     

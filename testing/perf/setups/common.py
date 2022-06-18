@@ -16,9 +16,18 @@ class NetworkSetup:
         self.state: NetworkState = state
         self.gnb_config_path: str = None
         
+        self._max_ues_per_gnb = 10
+        self._max_gnbs = 50
+        
     def _configure(self, num_users: int):
         """
         Configures the network for the number of users and auth situation.
+        """
+        pass
+    
+    def _after_settle(self):
+        """
+        Operations to run after the network has time to settle.
         """
         pass
 
@@ -59,10 +68,14 @@ class NetworkSetup:
         try:
             # configure and reset the network state 
             self._configure(num_ues)
+            self.state.reset()
             
             # wait for network to settle
             TestingLogger.logger.info("Waiting for network to settle")
-            sleep(5)
+            sleep(10)
+            
+            TestingLogger.logger.info("Running after-settle commands")
+            self._after_settle()
             
             # Start gnb and ues
             TestingLogger.logger.info("Starting gNB and UEs")

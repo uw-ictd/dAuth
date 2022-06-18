@@ -54,10 +54,14 @@ impl HomeNetwork for HomeNetworkHandler {
                 .await
                 {
                     Ok(result) => Ok(result),
-                    Err(e) => Err(tonic::Status::new(
+                    Err(e) => {
+                        tracing::warn!("Home network get auth failed: {}", e);
+
+                        Err(tonic::Status::new(
                         tonic::Code::Aborted,
                         format!("Error while handling request: {}", e),
-                    )),
+                        ))
+                    },
                 }
             })
             .await;
@@ -227,12 +231,7 @@ impl HomeNetworkHandler {
             let av_result = core::auth_vectors::generate_local_vector(
                 context.clone(),
                 &user_id,
-                core::users::get_seqnum_slice(
-                    context.clone(),
-                    &user_id,
-                    &payload.serving_network_id,
-                )
-                .await?,
+                0,
             )
             .await?;
 

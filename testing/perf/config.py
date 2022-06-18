@@ -2,6 +2,7 @@ import io
 from typing import IO
 
 import yaml
+import copy
 
 
 class ServiceConfig:
@@ -26,6 +27,6 @@ class ServiceConfig:
         self.config["users"][imsi] = {
             "k": "465B5CE8B199B49FAA5F0A2EE238A6BC",
             "opc": "E8ED289DEBA952E4283B54E88E6183CA",
-            "sqn_slice_max": sqn_slice_max,
-            "backup_network_ids": backup_network_ids
+            "sqn_slice_max": copy.deepcopy(sqn_slice_max),
+            "backup_network_ids": copy.deepcopy(backup_network_ids)
         }
