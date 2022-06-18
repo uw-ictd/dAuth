@@ -10,7 +10,7 @@ from perf.state import NetworkState
 class BackupAuthSetup(NetworkSetup):
     def __init__(self, state: NetworkState) -> None:
         super().__init__(state)
-        self.gnb_config_path: str  = "./configs/ueransim/gnb-4.yaml"
+        self.gnb_config_name: str  = "gnb-4.yaml"
     
     def _configure(self, num_users: int):
         TestingLogger.logger.info("Configuring for {} UE(s) in backup auth".format(num_users))

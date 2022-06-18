@@ -7,6 +7,7 @@ import subprocess
 import threading
 import time
 import argparse
+import os
 
 from enum import IntEnum
 
@@ -22,12 +23,12 @@ class UERANSIM_MESSAGE_KIND(IntEnum):
     COMMAND = 4
 
 class UeransimUe(object):
-    def __init__(self, name):
+    def __init__(self, name: str, config: str):
         # Start the actual UE process
         # ToDo Make sure the imsi and keys make sense when generating many ues
         self.process_handle = subprocess.Popen(
             ["/home/vagrant/UERANSIM/build/nr-ue", 
-             "-c", "/home/vagrant/configs/ueransim/ue.yaml", 
+             "-c", config, 
              "--no-routing-config",
              "-i", name],
             stderr=subprocess.PIPE,
@@ -145,6 +146,14 @@ def main() -> None:
         help="Number of times to reconnect",
     )
     
+    parser.add_argument(
+        "-c",
+        "--config-dir",
+        required=True,
+        type=str,
+        help="Directory with the UE configs",
+    )
+    
     args = parser.parse_args()
     
     num_ues = args.num_ues
@@ -153,10 +162,19 @@ def main() -> None:
     # Use this to space out the UE starts across half an interval
     spawn_delay = interval / (num_ues * 2)
     
+    ue_configs = []
+    for filename in os.listdir(args.config_dir):
+        if filename.startswith("ue"):
+            ue_configs.append(os.path.join(args.config_dir, filename))
+            
+    if not ue_configs:
+        raise Exception("No ue configs!")
+    
     ues = []
     for i in range(num_ues):
+        config = ue_configs[i % len(ue_configs)]
         imsi = "imsi-90170{}".format(str(i+1).zfill(10))
-        ues.append(UeransimUe(imsi))
+        ues.append(UeransimUe(imsi, config))
         time.sleep(spawn_delay)
     
     threads = []

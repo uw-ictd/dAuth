@@ -10,12 +10,9 @@ from perf.state import NetworkState
 class LocalAuthSetup(NetworkSetup):
     def __init__(self, state: NetworkState) -> None:
         super().__init__(state)
-        self.gnb_config_path: str  = "./configs/ueransim/gnb-1.yaml"
+        self.gnb_config_name: str  = "gnb-1.yaml"
     
     def _configure(self, num_users: int):
-        """
-        Configures the network for the number of users and auth situation.
-        """
         TestingLogger.logger.info("Configuring for {} UE(s) in local auth".format(num_users))
     
         # Configure all unused state to use default empty config.
