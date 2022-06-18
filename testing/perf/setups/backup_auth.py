@@ -7,19 +7,15 @@ from perf.setups.common import NetworkSetup
 from perf.state import NetworkState
 
 
-class LocalAuthSetup(NetworkSetup):
+class BackupAuthSetup(NetworkSetup):
     def __init__(self, state: NetworkState) -> None:
         super().__init__(state)
-        self.gnb_config_path: str  = "./configs/ueransim/gnb-1.yaml"
+        self.gnb_config_path: str  = "./configs/ueransim/gnb-4.yaml"
     
     def _configure(self, num_users: int):
-        """
-        Configures the network for the number of users and auth situation.
-        """
-        TestingLogger.logger.info("Configuring for {} UE(s) in local auth".format(num_users))
+        TestingLogger.logger.info("Configuring for {} UE(s) in backup auth".format(num_users))
     
         # Configure all unused state to use default empty config.
-        # For local authentication, only one service is used.
         self.state.service2.change_config(
             ServiceConfig(os.path.join(self.state.config_dir, "service2.yaml")))
         self.state.service3.change_config(
@@ -30,8 +26,8 @@ class LocalAuthSetup(NetworkSetup):
         service_config = ServiceConfig(
             os.path.join(self.state.config_dir, "service1.yaml"))
 
-        sqn_slice_max = {0: 32}
-        backup_network_ids = dict()
+        sqn_slice_max = {0: 32, 1:33, 2: 34}
+        backup_network_ids = {"colte-2": 1, "colte-3": 2}
 
         if num_users < 1:
             raise Exception("Number of users is less than 1")
@@ -43,4 +39,7 @@ class LocalAuthSetup(NetworkSetup):
                 service_config.add_user(imsi, sqn_slice_max, backup_network_ids)
         
         self.state.service1.change_config(service_config)
-
+        
+    
+    def _after_settle(self):
+        self.state.service1.stop_service()
