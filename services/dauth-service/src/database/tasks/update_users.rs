@@ -48,7 +48,7 @@ pub async fn get_user_ids(
     transaction: &mut Transaction<'_, Sqlite>,
 ) -> Result<Vec<String>, DauthError> {
     let mut result = Vec::new();
-    let rows = sqlx::query("SELECT user_id FROM task_update_users_table")
+    let rows = sqlx::query("SELECT DISTINCT user_id FROM task_update_users_table")
         .fetch_all(transaction)
         .await?;
 
