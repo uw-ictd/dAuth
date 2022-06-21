@@ -19,12 +19,12 @@ services:
   - hostname: "colte2"
     id: "colte-2"
     is_vagrant: true
-    service_ip: "192.168.56.101"  # vagrant only
+    service_ip: "192.168.56.102"  # vagrant only
   - hostname: "colte3"
     id: "colte-3"
     is_vagrant: true
-    service_ip: "192.168.56.101"  # vagrant only
+    service_ip: "192.168.56.103"  # vagrant only
   - hostname: "colte4"
     id: "colte-4"
     is_vagrant: true
-    service_ip: "192.168.56.101"  # vagrant only
+    service_ip: "192.168.56.104"  # vagrant only
