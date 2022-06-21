@@ -6,6 +6,7 @@ from os import path
 from perf.state import NetworkState
 from perf.metrics import PerfMetrics
 from perf.config import UEConfig, GNBConfig
+from perf.exception import PerfException
 from logger import TestingLogger
 
 
@@ -16,7 +17,6 @@ class NetworkSetup:
     
     def __init__(self, state: NetworkState) -> None:
         self.state: NetworkState = state
-        self.gnb_config_name: str = None
         
         self._max_ues_per_gnb = 10
         self._max_gnbs = 10
@@ -34,7 +34,7 @@ class NetworkSetup:
         """
         pass
     
-    def _build_configs(self, num_ues: int) -> List[str]:
+    def _build_configs(self, num_ues: int, amf_addr: str) -> List[str]:
         """
         Generates all gNB and UE configs at the UERANSIM temp config location.
         """
@@ -45,7 +45,7 @@ class NetworkSetup:
             num_gnbs += 1
             
         if num_gnbs > self._max_gnbs:
-            raise Exception("Max number of UEs exceeded")
+            raise PerfException("Max number of UEs exceeded")
         
         # clear out previous configs if they exist
         self.state.ueransim.run_command(" ".join(["rm", "-rf", self._temp_dir]))
@@ -55,7 +55,7 @@ class NetworkSetup:
 
         # create and upload configs for all ues/gnbs
         for i in range(num_gnbs):
-            gnb_config = GNBConfig(path.join(self.state.config_dir, self.gnb_config_name))
+            gnb_config = GNBConfig(path.join(self.state.config_dir, "gnb.yaml"))
             ue_config = UEConfig(path.join(self.state.config_dir, "ue.yaml"))
             
             ip = "192.168.60.{}".format(200 + i)
@@ -63,8 +63,9 @@ class NetworkSetup:
             if i < 56:
                 gnb_config.set_ip(ip)
                 gnb_config.set_nci(i+1)
+                gnb_config.set_amf_addr(amf_addr)
             else:
-                raise Exception("Cannot represent IP")
+                raise PerfException("Cannot represent IP")
             
             ue_config.set_gnb_search_list([ip])
             
@@ -95,7 +96,7 @@ class NetworkSetup:
             for config_path in gnb_paths:
                 self.state.ueransim.add_gnb(config_path)
         else:
-            raise Exception("GNB configs not specified")
+            raise PerfException("GNB configs not specified")
         
     def _start_ues(self, num_ues: int, interval: int, iterations: int) -> Union[ChannelFile, ChannelStderrFile]:
         """
@@ -121,7 +122,7 @@ class NetworkSetup:
         TestingLogger.logger.info("Running perf test")
         
         if num_ues > self._max_gnbs * self._max_ues_per_gnb:
-            raise Exception("Too many UEs for max number of gNBS")
+            raise PerfException("Too many UEs for max number of gNBS")
         
         TestingLogger.logger.info(
             "Num UEs: {}, Inteval: {}ms, iterations: {}"
@@ -140,7 +141,7 @@ class NetworkSetup:
             self._after_settle()
             
             TestingLogger.logger.info("Building configs")
-            gnb_paths = self._build_configs(num_ues)
+            gnb_paths = self._build_configs(num_ues, self.state.services[0].get_amf_ip())
             
             # tart gnb and ues
             TestingLogger.logger.info("Starting gNB and UEs")
@@ -170,7 +171,7 @@ class NetworkSetup:
             print(" ", "All")
             print("   averages:", metrics.get_total_average())
 
-        except KeyboardInterrupt as e:
+        except PerfException as e:
             TestingLogger.logger.error("Failed to run: {}".format(e))
         
         TestingLogger.logger.info("Perf completed")

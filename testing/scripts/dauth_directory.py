@@ -1,15 +1,18 @@
 import argparse
+import io
 from multiprocessing.pool import ThreadPool
+import subprocess
 
-from vms.dauth_directory_vm import DauthDirectoryVM
+from connections.directory_connection import DauthDirectoryConnection
+from paramiko import SSHConfig
 
-def print_logs(dauth_directory: DauthDirectoryVM) -> None:
+def print_logs(dauth_directory: DauthDirectoryConnection) -> None:
     """
     Prints dauth service logs from the host.
     """
     print(dauth_directory.print_logs())
 
-def stream_logs(dauth_directory: DauthDirectoryVM) -> None:
+def stream_logs(dauth_directory: DauthDirectoryConnection) -> None:
     """
     Streams dauth service logs as they are created from the host.
     """
@@ -20,25 +23,25 @@ def stream_logs(dauth_directory: DauthDirectoryVM) -> None:
         print()
         pass
 
-def start_service(dauth_directory: DauthDirectoryVM) -> None:
+def start_service(dauth_directory: DauthDirectoryConnection) -> None:
     """
     Starts the dauth service if it is not started already.
     """
     print(dauth_directory.start_service())
 
-def stop_service(dauth_directory: DauthDirectoryVM) -> None:
+def stop_service(dauth_directory: DauthDirectoryConnection) -> None:
     """
     Stops the dauth service if it is not stopped already.
     """
     print(dauth_directory.stop_service())
     
-def remove_state(dauth_directory: DauthDirectoryVM) -> None:
+def remove_state(dauth_directory: DauthDirectoryConnection) -> None:
     """
     Removes all local state, including db and keys.
     """
     print(dauth_directory.remove_db())
 
-def reset_service(dauth_directory: DauthDirectoryVM) -> None:
+def reset_service(dauth_directory: DauthDirectoryConnection) -> None:
     """
     Resets all of the state of the dauth directory.
     Stops the service, removes state, and starts the service again.
@@ -104,10 +107,25 @@ def main():
     args = parser.parse_args()
     
     print("Building connection...")
-    directory_service = DauthDirectoryVM(args.vagrant_dir, args.host_name)
+    vagrant_config = SSHConfig()
+    vagrant_config.parse(
+        io.StringIO(subprocess.check_output(
+            ["vagrant", "ssh-config"], 
+            cwd=args.vagrant_dir).decode()
+        )
+    )
+        
+    ssh_info = vagrant_config.lookup(args.host_name)
+
+    directory_service = DauthDirectoryConnection(
+        ssh_info["hostname"],
+        ssh_info["user"],
+        int(ssh_info["port"]),
+        ssh_info["identityfile"][0]
+    )
     
     print("Running command...")
-    print(directory_service.host_name + ":")
+    print(directory_service.hostname + ":")
     if args.print_logs:
         print_logs(directory_service)
     elif args.stream_logs:

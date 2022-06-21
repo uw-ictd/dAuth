@@ -2,20 +2,22 @@ from typing import Union
 
 from paramiko.channel import ChannelFile
 
-from vms.vm import VM
+from connections.connection import Connection
 
 
-class DauthDirectoryVM(VM):
+class DauthDirectoryConnection(Connection):
     """
-    Represents a dAuth directory VM.
+    Represents a dAuth directory connection.
     """
 
-    def __init__(self, vagrant_dir: str, host_name: str) -> None:
-        super().__init__(vagrant_dir, host_name)
+    def __init__(self, hostname: str, id: str, username: str, port: int, keyfile: str) -> None:
+        super().__init__(hostname, id, username, port, keyfile)
 
         self.db_script_path = "~/scripts/open5gs-dbctl"
         self.service_name = "dauth-directory.service"
         self.db_location = "/var/lib/dauth/directory_db.sqlite3"
+        
+        self.directory_addr = None
 
     def start_service(self) -> Union[str, str]:
         """
@@ -62,3 +64,12 @@ class DauthDirectoryVM(VM):
         command = " ".join(["sudo", "journalctl", "--no-pager", "-n", "100", "-u", self.service_name])
         
         return self.run_command(command)[0]
+
+    def get_directory_addr(self) -> str:
+        """
+        Returns the address that the directory service hosts on.
+        """
+        if self.directory_addr:
+            return self.directory_addr
+        else:
+            return self.hostname + ":8900"

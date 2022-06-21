@@ -4,9 +4,9 @@ from time import sleep
 from paramiko.channel import ChannelFile
 
 from logger import TestingLogger
-from vms.dauth_directory_vm import DauthDirectoryVM
-from vms.dauth_service_vm import DauthServiceVM
-from vms.ueransim_vm import UeransimVM
+from connections.directory_connection import DauthDirectoryConnection
+from connections.service_connection import DauthServiceConnection
+from connections.ueransim_connection import UeransimConnection
 
 
 class TestingConfig:

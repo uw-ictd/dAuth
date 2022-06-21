@@ -1,11 +1,14 @@
 import argparse
+import io
+import subprocess
 from typing import List
 from multiprocessing.pool import ThreadPool
 
-from vms.dauth_service_vm import DauthServiceVM
+from connections.service_connection import DauthServiceConnection
+from paramiko import SSHConfig
 
 
-def upload_config(dauth_services: List[DauthServiceVM], config_path: str) -> None:
+def upload_config(dauth_services: List[DauthServiceConnection], config_path: str) -> None:
     """
     Uploads the config from the provided path.
     Should reset the service after calling this.
@@ -15,7 +18,7 @@ def upload_config(dauth_services: List[DauthServiceVM], config_path: str) -> Non
     with open(config_path, 'r') as f:
         service.upload_config(f)
     
-def print_logs(dauth_services: List[DauthServiceVM]) -> None:
+def print_logs(dauth_services: List[DauthServiceConnection]) -> None:
     """
     Prints dauth service logs from the host.
     """
@@ -23,7 +26,7 @@ def print_logs(dauth_services: List[DauthServiceVM]) -> None:
         print(dauth_service.host_name + ":")
         print(dauth_service.print_logs())
 
-def stream_logs(dauth_services: List[DauthServiceVM]) -> None:
+def stream_logs(dauth_services: List[DauthServiceConnection]) -> None:
     """
     Prints dauth service logs as they are created from the host.
     """
@@ -37,7 +40,7 @@ def stream_logs(dauth_services: List[DauthServiceVM]) -> None:
             print()
             pass
 
-def start_service(dauth_services: List[DauthServiceVM]) -> None:
+def start_service(dauth_services: List[DauthServiceConnection]) -> None:
     """
     Starts the dauth service if it is not started already.
     """
@@ -45,7 +48,7 @@ def start_service(dauth_services: List[DauthServiceVM]) -> None:
         print(dauth_service.host_name + ":")
         print(dauth_service.start_service())
 
-def stop_service(dauth_services: List[DauthServiceVM]) -> None:
+def stop_service(dauth_services: List[DauthServiceConnection]) -> None:
     """
     Stops the dauth service if it is not stopped already.
     """
@@ -53,7 +56,7 @@ def stop_service(dauth_services: List[DauthServiceVM]) -> None:
         print(dauth_service.host_name + ":")
         print(dauth_service.stop_service())
 
-def remove_state(dauth_services: List[DauthServiceVM]) -> None:
+def remove_state(dauth_services: List[DauthServiceConnection]) -> None:
     """
     Removes all local state, including db and keys.
     """
@@ -62,7 +65,7 @@ def remove_state(dauth_services: List[DauthServiceVM]) -> None:
         print(dauth_service.remove_db())
         print(dauth_service.remove_keys())
     
-def reset_service(dauth_services: List[DauthServiceVM]) -> None:
+def reset_service(dauth_services: List[DauthServiceConnection]) -> None:
     """
     Resets all of the state of the dauth service.
     Stops the service, removes state, and starts the service again.
@@ -70,12 +73,6 @@ def reset_service(dauth_services: List[DauthServiceVM]) -> None:
     stop_service(dauth_services)
     remove_state(dauth_services)
     start_service(dauth_services)
-    
-def build_vm(vagrant_dir: str, host_name: str) -> DauthServiceVM:
-    """
-    Builds a vm object.
-    """
-    return DauthServiceVM(vagrant_dir, host_name)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -141,14 +138,27 @@ def main():
     # build connections in parallel to save time
     # initial ssh connections take a while
     print("Building connections...")
-    pool = ThreadPool()
-    results = []
-    for host_name in args.host_names:
-        results.append(pool.apply_async(build_vm, (args.vagrant_dir, host_name)))
     
+    vagrant_config = SSHConfig()
+    vagrant_config.parse(
+        io.StringIO(subprocess.check_output(
+            ["vagrant", "ssh-config"], 
+            cwd=args.vagrant_dir).decode()
+        )
+    )
+        
     dauth_services = []
-    for result in results:
-        dauth_services.append(result.get())
+    
+    for host_name in args.host_names:
+        ssh_info = vagrant_config.lookup(host_name)
+
+        dauth_services.append(DauthServiceConnection(
+            ssh_info["hostname"],
+            ssh_info["user"],
+            int(ssh_info["port"]),
+            ssh_info["identityfile"][0]
+        ))
+        
         
     print("Running commands...")
     if args.upload_config:

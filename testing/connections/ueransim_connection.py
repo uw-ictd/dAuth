@@ -3,21 +3,20 @@ from os import path
 from typing import List, Set, Union
 from paramiko.client import SSHClient
 
-from vms.vm import VM
+from connections.connection import Connection
 from logger import TestingLogger
 from tests.config import UEConfig
 
 
-class UeransimVM(VM):
+class UeransimConnection(Connection):
     """
-    Represents the UERANSIM testing node VM.
+    Represents the UERANSIM connection.
     """
 
-    def __init__(self, vagrant_dir: str, host_name: str,
-                             build_path: str="./UERANSIM/build/") -> None:
-        super().__init__(vagrant_dir, host_name)
+    def __init__(self, hostname: str, id: str, username: str,  port: int, keyfile: str) -> None:
+        super().__init__(hostname, id, username, port, keyfile)
 
-        self.build_path: str = build_path
+        self.build_path: str = "./ueransim/build"
         self.gnbs: List[GNB] = []
         self.ues: List[UE] = []
         
@@ -85,8 +84,8 @@ class DeviceInstance:
     May be either a GNB or a UE.
     """
 
-    def __init__(self, node: UeransimVM, config_path: str) -> None:
-        self.node: UeransimVM = node
+    def __init__(self, node: UeransimConnection, config_path: str) -> None:
+        self.node: UeransimConnection = node
         self.config_path: str = config_path
     
         self.id: str = None
@@ -115,7 +114,7 @@ class DeviceInstance:
 
             command = " ".join(command_comps)
             
-            TestingLogger.log_cammand(self.node.host_name, command)
+            TestingLogger.log_cammand(self.node.hostname, command)
 
             channels = self.connection.exec_command(command, get_pty=True)
             
@@ -175,7 +174,7 @@ class GNB(DeviceInstance):
     Represents a gNodeB instance on the ueransim node.
     """
 
-    def __init__(self, node: UeransimVM, config_path: str) -> None:
+    def __init__(self, node: UeransimConnection, config_path: str) -> None:
         super().__init__(node, config_path)
         self.device_type: str = "nr-gnb"
 
@@ -249,7 +248,7 @@ class UE(DeviceInstance):
     Represents a UE instance on the ueransim node.
     """
 
-    def __init__(self, node: UeransimVM, config_path: str, imsi: str, num: int) -> None:
+    def __init__(self, node: UeransimConnection, config_path: str, imsi: str, num: int) -> None:
         super().__init__(node, config_path)
         self.device_type: str = "nr-ue"
         self.imsi = imsi
