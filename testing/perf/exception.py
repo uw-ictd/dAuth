@@ -1,0 +1,2 @@
+class PerfException(Exception):
+    pass

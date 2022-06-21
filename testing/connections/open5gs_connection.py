@@ -1,15 +1,15 @@
 from typing import Union
 
-from vms.vm import VM
+from connections.connection import Connection
 
 
-class Open5gsVM(VM):
+class Open5gsConnection(Connection):
     """
-    Represents an colte core node VM.
+    Represents a colte core connection.
     """
 
-    def __init__(self, vagrant_dir: str, host_name: str) -> None:
-        super().__init__(vagrant_dir, host_name)
+    def __init__(self, hostname: str, id: str, username: str, port: int, keyfile: str) -> None:
+        super().__init__(hostname, id, username, port, keyfile)
 
         self.db_script_path = "~/scripts/open5gs-dbctl"
 
