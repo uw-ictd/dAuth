@@ -16,7 +16,7 @@ class BackupAuthSetup(NetworkSetup):
     def _configure(self, num_users: int):
         TestingLogger.logger.info("Configuring for {} UE(s) in backup auth".format(num_users))
     
-        if len(self.state.services) < 1:
+        if len(self.state.services) < 3:
             raise PerfException("At least 3 services needed for backup auth")
     
         # Configure all state to defaults
