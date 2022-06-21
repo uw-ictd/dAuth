@@ -11,6 +11,7 @@ from perf.state import NetworkState
 class HomeAuthSetup(NetworkSetup):
     def __init__(self, state: NetworkState) -> None:
         super().__init__(state)
+        self.gnb_index = 1
     
     def _configure(self, num_users: int):
         TestingLogger.logger.info("Configuring for {} UE(s) in home auth".format(num_users))

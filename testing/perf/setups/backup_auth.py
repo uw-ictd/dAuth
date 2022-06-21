@@ -11,6 +11,7 @@ from perf.state import NetworkState
 class BackupAuthSetup(NetworkSetup):
     def __init__(self, state: NetworkState) -> None:
         super().__init__(state)
+        self.gnb_index = 1
     
     def _configure(self, num_users: int):
         TestingLogger.logger.info("Configuring for {} UE(s) in backup auth".format(num_users))
@@ -32,8 +33,18 @@ class BackupAuthSetup(NetworkSetup):
         service_config.set_host_addr(main_service.get_host_addr())
         service_config.set_id(main_service.id)
 
-        sqn_slice_max = {0: 32, 1:33, 2: 34}
-        backup_network_ids = {"colte-2": 1, "colte-3": 2}
+        sqn_slice_max = {0: 32}
+        backup_network_ids = {}
+        
+        index = 1
+        for service in self.state.services[2:]:
+            if index > 31:
+                break
+
+            sqn_slice_max[index] = 32 + index
+            backup_network_ids[service.id] = index
+            
+        TestingLogger.logger.info("Setting {} network(s) as backups".format(len(backup_network_ids)))
 
         if num_users < 1:
             raise PerfException("Number of users is less than 1")

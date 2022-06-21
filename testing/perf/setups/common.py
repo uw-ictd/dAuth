@@ -22,6 +22,8 @@ class NetworkSetup:
         self._max_gnbs = 10
         self._temp_dir = "/tmp/ueransim-perf-configs"
         
+        self.gnb_index = 0
+        
     def _configure(self, num_users: int) -> None:
         """
         Configures the network for the number of users and auth situation.
@@ -141,7 +143,7 @@ class NetworkSetup:
             self._after_settle()
             
             TestingLogger.logger.info("Building configs")
-            gnb_paths = self._build_configs(num_ues, self.state.services[0].get_amf_ip())
+            gnb_paths = self._build_configs(num_ues, self.state.services[self.gnb_index].get_amf_ip())
             
             # tart gnb and ues
             TestingLogger.logger.info("Starting gNB and UEs")

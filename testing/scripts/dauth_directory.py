@@ -119,6 +119,7 @@ def main():
 
     directory_service = DauthDirectoryConnection(
         ssh_info["hostname"],
+        args.host_name,
         ssh_info["user"],
         int(ssh_info["port"]),
         ssh_info["identityfile"][0]

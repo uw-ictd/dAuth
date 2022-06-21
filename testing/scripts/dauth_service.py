@@ -23,7 +23,7 @@ def print_logs(dauth_services: List[DauthServiceConnection]) -> None:
     Prints dauth service logs from the host.
     """
     for dauth_service in dauth_services:
-        print(dauth_service.host_name + ":")
+        print(dauth_service.hostname + ":")
         print(dauth_service.print_logs())
 
 def stream_logs(dauth_services: List[DauthServiceConnection]) -> None:
@@ -31,7 +31,7 @@ def stream_logs(dauth_services: List[DauthServiceConnection]) -> None:
     Prints dauth service logs as they are created from the host.
     """
     for dauth_service in dauth_services:
-        print(dauth_service.host_name + ":")
+        print(dauth_service.hostname + ":")
         
         try:
             for line in dauth_service.streams_logs():
@@ -45,7 +45,7 @@ def start_service(dauth_services: List[DauthServiceConnection]) -> None:
     Starts the dauth service if it is not started already.
     """
     for dauth_service in dauth_services:
-        print(dauth_service.host_name + ":")
+        print(dauth_service.hostname + ":")
         print(dauth_service.start_service())
 
 def stop_service(dauth_services: List[DauthServiceConnection]) -> None:
@@ -53,7 +53,7 @@ def stop_service(dauth_services: List[DauthServiceConnection]) -> None:
     Stops the dauth service if it is not stopped already.
     """
     for dauth_service in dauth_services:
-        print(dauth_service.host_name + ":")
+        print(dauth_service.hostname + ":")
         print(dauth_service.stop_service())
 
 def remove_state(dauth_services: List[DauthServiceConnection]) -> None:
@@ -61,7 +61,7 @@ def remove_state(dauth_services: List[DauthServiceConnection]) -> None:
     Removes all local state, including db and keys.
     """
     for dauth_service in dauth_services:
-        print(dauth_service.host_name + ":")
+        print(dauth_service.hostname + ":")
         print(dauth_service.remove_db())
         print(dauth_service.remove_keys())
     
@@ -154,6 +154,7 @@ def main():
 
         dauth_services.append(DauthServiceConnection(
             ssh_info["hostname"],
+            host_name,
             ssh_info["user"],
             int(ssh_info["port"]),
             ssh_info["identityfile"][0]

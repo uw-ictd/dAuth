@@ -11,6 +11,7 @@ from perf.exception import PerfException
 class LocalAuthSetup(NetworkSetup):
     def __init__(self, state: NetworkState) -> None:
         super().__init__(state)
+        self.gnb_index = 0
     
     def _configure(self, num_users: int):
         TestingLogger.logger.info("Configuring for {} UE(s) in local auth".format(num_users))
