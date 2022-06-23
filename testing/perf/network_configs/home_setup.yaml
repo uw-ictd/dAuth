@@ -1,4 +1,4 @@
-# Test setup for local auth only
+# Test setup for home auth
 
 directory:
   hostname: "100.78.102.100"
@@ -11,6 +11,9 @@ ueransim:
   is_vagrant: false
 
 services:
+  - hostname: "100.87.240.90"
+    id: "Prothean-home"
+    is_vagrant: false
   - hostname: "100.78.102.100"
-    id: "Hestia-home"
+    id: "Hestia-serving"
     is_vagrant: false

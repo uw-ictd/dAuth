@@ -60,7 +60,7 @@ class NetworkSetup:
             gnb_config = GNBConfig(path.join(self.state.config_dir, "gnb.yaml"))
             ue_config = UEConfig(path.join(self.state.config_dir, "ue.yaml"))
             
-            ip = "192.168.60.{}".format(200 + i)
+            ip = "127.0.0.{}".format(200 + i)
             
             if i < 56:
                 gnb_config.set_ip(ip)
@@ -162,7 +162,7 @@ class NetworkSetup:
                         TestingLogger.logger.error("UERANSIM error detected: {}".format(line.rstrip()))
                 
             for line in err:
-                TestingLogger.logger.debug("Stderr:", line.rstrip())
+                TestingLogger.logger.debug("Stderr: " + line.rstrip())
                 
             print("Results:")
             for name in metrics.get_names():

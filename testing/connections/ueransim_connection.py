@@ -16,7 +16,7 @@ class UeransimConnection(Connection):
     def __init__(self, hostname: str, id: str, username: str,  port: int, keyfile: str) -> None:
         super().__init__(hostname, id, username, port, keyfile)
 
-        self.build_path: str = "./ueransim/build"
+        self.build_path: str = "./ueransim/"
         self.gnbs: List[GNB] = []
         self.ues: List[UE] = []
         

@@ -387,11 +387,11 @@ if __name__ == "__main__":
         for host in args.dest_host:
             deploy_open5gs_5gc_packages(Path("../open5gs-debs"), host)
             
-            if '@' in host:
-                name, ip = host.split("@", 2)
-                Connection(host).sudo(f"/home/{name}/scripts/open5gs-ip-config.py parse_ip={ip}")
-            else:
-                Connection(host).sudo("/home/vagrant/scripts/open5gs-ip-config.py")
+            # if '@' in host:
+            #     name, ip = host.split("@", 2)
+            #     Connection(host).sudo(f"/home/{name}/scripts/open5gs-ip-config.py {ip}")
+            # else:
+            #     Connection(host).sudo("/home/vagrant/scripts/open5gs-ip-config.py")
                 
 
     if args.build_ueransim:
