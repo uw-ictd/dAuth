@@ -15,17 +15,20 @@ all:
         dauth-gcp-1.tail:
       vars:
         primary_login_user: "ictd"
-    uw_nodes:
+    uw_ubuntu_nodes:
+      hosts:
+        dauth-hestia.tail:
+        uwbts3.tail:
+      vars:
+        primary_login_user: "ictd"
+    uw_debian_nodes:
       hosts:
         prothean.tail:
         cobble.tail:
-        prothean.tail:
-        dauth-hestia.tail:
         uwbts2.tail:
-        uwbts3.tail:
       vars:
         primary_login_user: "ictd"
     safe_nodes:
       children:
-        uw_nodes:
+        uw_ubuntu_nodes:
         cloud_nodes:
