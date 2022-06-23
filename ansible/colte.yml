@@ -38,7 +38,7 @@
     - name: Copy scripts
       copy:
         src: "../scripts/"
-        dest: "/home/vagrant/scripts"
+        dest: "/home/{{ primary_login_user }}/scripts"
         remote_src: no
         mode: u=rwx,g=rwx,o=rwx
 
@@ -47,7 +47,7 @@
       become: yes
 
     - name: Configure forwarding and rounting (script)
-      command: /home/vagrant/scripts/configure-fwd
+      command: /home/{{ primary_login_user }}/scripts/configure-fwd
       become: yes
 
     - name: Create dauth config directory if it doesn't already exist
@@ -61,7 +61,7 @@
         dest: "/etc/dauth/host-config.yaml"
 
     # - name: Configure open5gs ips
-    #   command: /home/vagrant/scripts/open5gs-ip-config.py {{ colte_ip }}
+    #   command: /home/{{ primary_login_user }}/scripts/open5gs-ip-config.py {{ colte_ip }}
     #   become: yes
 
     - name: "Copy in config file"

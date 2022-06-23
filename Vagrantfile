@@ -43,7 +43,8 @@ Vagrant.configure(2) do |config|
       ansible.extra_vars = {
         colte_ip: machine_ip,
         prompt_color: "yellow",
-        tmux_color: "yellow"
+        tmux_color: "yellow",
+        primary_login_user: "vagrant"
       }
     end
 
@@ -71,7 +72,8 @@ Vagrant.configure(2) do |config|
         colte_ip: machine_ip,
         test_net_index: 1,
         prompt_color: "cyan",
-        tmux_color: "cyan"
+        tmux_color: "cyan",
+        primary_login_user: "vagrant"
       }
     end
 
@@ -99,7 +101,8 @@ Vagrant.configure(2) do |config|
         colte_ip: machine_ip,
         test_net_index: 2,
         prompt_color: "36",
-        tmux_color: "cyan"
+        tmux_color: "cyan",
+        primary_login_user: "vagrant"
       }
     end
   end
@@ -126,7 +129,8 @@ Vagrant.configure(2) do |config|
         colte_ip: machine_ip,
         test_net_index: 3,
         prompt_color: "44",
-        tmux_color: "cyan"
+        tmux_color: "cyan",
+        primary_login_user: "vagrant"
       }
     end
   end
@@ -153,7 +157,8 @@ Vagrant.configure(2) do |config|
         colte_ip: machine_ip,
         test_net_index: 4,
         prompt_color: "26",
-        tmux_color: "cyan"
+        tmux_color: "cyan",
+        primary_login_user: "vagrant"
       }
     end
   end
@@ -179,7 +184,8 @@ Vagrant.configure(2) do |config|
       ansible.extra_vars = {
         colte_ip: machine_ip,
         prompt_color: "56",
-        tmux_color: "56"
+        tmux_color: "56",
+        primary_login_user: "vagrant"
       }
     end
   end
@@ -214,7 +220,8 @@ Vagrant.configure(2) do |config|
       ansible.extra_vars = {
         colte_ip: machine_ip,
         prompt_color: "green",
-        tmux_color: "green"
+        tmux_color: "green",
+        primary_login_user: "vagrant"
       }
     end
   end

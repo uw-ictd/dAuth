@@ -16,15 +16,15 @@
 - name: "Setup tmux config file"
   ansible.builtin.template:
     src: "templates/tmux-dotfile.j2"
-    dest: "/home/vagrant/.tmux.conf"
+    dest: "/home/{{ primary_login_user }}/.tmux.conf"
 
 - name: "Use zsh for sanity"
   become: yes
   user:
-    name: "vagrant"
+    name: "{{ primary_login_user }}"
     shell: /bin/zsh
 
 - name: "Setup zshrc config file"
   ansible.builtin.template:
     src: "templates/zshrc-dotfile.j2"
-    dest: "/home/vagrant/.zshrc"
+    dest: "/home/{{ primary_login_user }}/.zshrc"
