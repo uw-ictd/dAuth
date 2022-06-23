@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2019 by Sukchan Lee <acetcom@gmail.com>
+ * Copyright (C) 2022 by sysmocom - s.f.m.c. GmbH <info@sysmocom.de>
  *
  * This file is part of Open5GS.
  *
@@ -28,9 +29,9 @@
 extern "C" {
 #endif
 
-/* 
+/*
  * p225-226 Chapter 7.6 in TS 29.274 V15.9.0
- * 
+ *
  * A Sequence Number used for a Command message shall have the most significant
  * bit set to 1. A Sequence Number in a message, which was triggered by
  * a Command message, as well as respective Triggered Reply message
@@ -48,16 +49,21 @@ extern "C" {
 #define OGS_GTP_MIN_XACT_ID             1
 #define OGS_GTP_CMD_XACT_ID             0x800000
 
+#define OGS_GTP1_MIN_XACT_ID             0
+#define OGS_GTP1_MAX_XACT_ID             65535
+
 /**
  * Transaction context
  */
 typedef struct ogs_gtp_xact_s {
     ogs_lnode_t     node;           /**< A node of list */
     ogs_index_t     index;
-    
+
+    uint8_t gtp_version;            /**< 1 or 2 */
+
 #define OGS_GTP_LOCAL_ORIGINATOR  0
 #define OGS_GTP_REMOTE_ORIGINATOR 1
-    uint8_t         org;            /**< Transaction' originator. 
+    uint8_t         org;            /**< Transaction' originator.
                                          local or remote */
 
     uint32_t        xid;            /**< Transaction ID */
@@ -67,8 +73,8 @@ typedef struct ogs_gtp_xact_s {
     void            *data;          /**< Transaction Data */
 
     int             step;           /**< Current step in the sequence.
-                                         1 : Initial 
-                                         2 : Triggered 
+                                         1 : Initial
+                                         2 : Triggered
                                          3 : Triggered-Reply */
     struct {
         uint8_t     type;           /**< Message type history */
@@ -92,6 +98,8 @@ typedef struct ogs_gtp_xact_s {
 #define OGS_GTP_DELETE_SEND_DEACTIVATE_BEARER_CONTEXT_REQUEST 3
 #define OGS_GTP_DELETE_SEND_UE_CONTEXT_RELEASE_COMMAND 4
 #define OGS_GTP_DELETE_HANDLE_PDN_CONNECTIVITY_REQUEST 5
+#define OGS_GTP_DELETE_UE_CONTEXT_REMOVE 6
+#define OGS_GTP_DELETE_IN_PATH_SWITCH_REQUEST 7
     int             delete_action;
 
 #define OGS_GTP_RELEASE_SEND_UE_CONTEXT_RELEASE_COMMAND     1
@@ -103,31 +111,42 @@ typedef struct ogs_gtp_xact_s {
 #define OGS_GTP_DELETE_INDIRECT_HANDOVER_COMPLETE 1
 #define OGS_GTP_DELETE_INDIRECT_HANDOVER_CANCEL 2
     int             delete_indirect_action;
+
+#define OGS_GTP_CREATE_IN_ATTACH_REQUEST 1
+#define OGS_GTP_CREATE_IN_UPLINK_NAS_TRANSPORT 2
+#define OGS_GTP_CREATE_IN_PATH_SWITCH_REQUEST 3
+    int             create_action;
+
+#define OGS_GTP_MODIFY_IN_PATH_SWITCH_REQUEST 1
+#define OGS_GTP_MODIFY_IN_E_RAB_MODIFICATION 2
+    int             modify_action;
 } ogs_gtp_xact_t;
 
 int ogs_gtp_xact_init(void);
 void ogs_gtp_xact_final(void);
 
-ogs_gtp_xact_t *ogs_gtp_xact_local_create(ogs_gtp_node_t *gnode,
-        ogs_gtp_header_t *hdesc, ogs_pkbuf_t *pkbuf,
+ogs_gtp_xact_t *ogs_gtp1_xact_local_create(ogs_gtp_node_t *gnode,
+        ogs_gtp1_header_t *hdesc, ogs_pkbuf_t *pkbuf,
         void (*cb)(ogs_gtp_xact_t *xact, void *data), void *data);
-ogs_gtp_xact_t *ogs_gtp_xact_remote_create(
-        ogs_gtp_node_t *gnode, uint32_t sqn);
+ogs_gtp_xact_t *ogs_gtp_xact_local_create(ogs_gtp_node_t *gnode,
+        ogs_gtp2_header_t *hdesc, ogs_pkbuf_t *pkbuf,
+        void (*cb)(ogs_gtp_xact_t *xact, void *data), void *data);
+
 ogs_gtp_xact_t *ogs_gtp_xact_cycle(ogs_gtp_xact_t *xact);
 void ogs_gtp_xact_delete_all(ogs_gtp_node_t *gnode);
 
+int ogs_gtp1_xact_update_tx(ogs_gtp_xact_t *xact,
+        ogs_gtp1_header_t *hdesc, ogs_pkbuf_t *pkbuf);
 int ogs_gtp_xact_update_tx(ogs_gtp_xact_t *xact,
-        ogs_gtp_header_t *hdesc, ogs_pkbuf_t *pkbuf);
-int ogs_gtp_xact_update_rx(ogs_gtp_xact_t *xact, uint8_t type);
+        ogs_gtp2_header_t *hdesc, ogs_pkbuf_t *pkbuf);
 
 int ogs_gtp_xact_commit(ogs_gtp_xact_t *xact);
 
+int ogs_gtp1_xact_receive(ogs_gtp_node_t *gnode,
+        ogs_gtp1_header_t *h, ogs_gtp_xact_t **xact);
 int ogs_gtp_xact_receive(ogs_gtp_node_t *gnode,
-        ogs_gtp_header_t *h, ogs_gtp_xact_t **xact);
+        ogs_gtp2_header_t *h, ogs_gtp_xact_t **xact);
 
-ogs_gtp_xact_t *ogs_gtp_xact_find(ogs_index_t index);
-ogs_gtp_xact_t *ogs_gtp_xact_find_by_xid(
-        ogs_gtp_node_t *gnode, uint8_t type, uint32_t xid);
 void ogs_gtp_xact_associate(ogs_gtp_xact_t *xact1, ogs_gtp_xact_t *xact2);
 void ogs_gtp_xact_deassociate(ogs_gtp_xact_t *xact1, ogs_gtp_xact_t *xact2);
 

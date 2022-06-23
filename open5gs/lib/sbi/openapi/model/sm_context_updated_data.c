@@ -28,10 +28,9 @@ OpenAPI_sm_context_updated_data_t *OpenAPI_sm_context_updated_data_create(
     char *selected_old_smf_id
 )
 {
-    OpenAPI_sm_context_updated_data_t *sm_context_updated_data_local_var = OpenAPI_malloc(sizeof(OpenAPI_sm_context_updated_data_t));
-    if (!sm_context_updated_data_local_var) {
-        return NULL;
-    }
+    OpenAPI_sm_context_updated_data_t *sm_context_updated_data_local_var = ogs_malloc(sizeof(OpenAPI_sm_context_updated_data_t));
+    ogs_assert(sm_context_updated_data_local_var);
+
     sm_context_updated_data_local_var->up_cnx_state = up_cnx_state;
     sm_context_updated_data_local_var->ho_state = ho_state;
     sm_context_updated_data_local_var->release_ebi_list = release_ebi_list;
@@ -401,6 +400,12 @@ OpenAPI_sm_context_updated_data_t *OpenAPI_sm_context_updated_data_parseFromJSON
         }
         OpenAPI_ebi_arp_mapping_t *allocated_ebi_listItem = OpenAPI_ebi_arp_mapping_parseFromJSON(allocated_ebi_list_local_nonprimitive);
 
+        if (!allocated_ebi_listItem) {
+            ogs_error("No allocated_ebi_listItem");
+            OpenAPI_list_free(allocated_ebi_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(allocated_ebi_listList, allocated_ebi_listItem);
     }
     }
@@ -423,6 +428,12 @@ OpenAPI_sm_context_updated_data_t *OpenAPI_sm_context_updated_data_parseFromJSON
             goto end;
         }
         OpenAPI_ebi_arp_mapping_t *modified_ebi_listItem = OpenAPI_ebi_arp_mapping_parseFromJSON(modified_ebi_list_local_nonprimitive);
+
+        if (!modified_ebi_listItem) {
+            ogs_error("No modified_ebi_listItem");
+            OpenAPI_list_free(modified_ebi_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(modified_ebi_listList, modified_ebi_listItem);
     }
@@ -469,7 +480,7 @@ OpenAPI_sm_context_updated_data_t *OpenAPI_sm_context_updated_data_parseFromJSON
         ogs_error("OpenAPI_sm_context_updated_data_parseFromJSON() failed [eps_bearer_setup]");
         goto end;
     }
-    OpenAPI_list_add(eps_bearer_setupList , ogs_strdup_or_assert(eps_bearer_setup_local->valuestring));
+    OpenAPI_list_add(eps_bearer_setupList , ogs_strdup(eps_bearer_setup_local->valuestring));
     }
     }
 
@@ -501,6 +512,12 @@ OpenAPI_sm_context_updated_data_t *OpenAPI_sm_context_updated_data_parseFromJSON
         }
         OpenAPI_indirect_data_forwarding_tunnel_info_t *n3_dl_forwarding_tnl_listItem = OpenAPI_indirect_data_forwarding_tunnel_info_parseFromJSON(n3_dl_forwarding_tnl_list_local_nonprimitive);
 
+        if (!n3_dl_forwarding_tnl_listItem) {
+            ogs_error("No n3_dl_forwarding_tnl_listItem");
+            OpenAPI_list_free(n3_dl_forwarding_tnl_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(n3_dl_forwarding_tnl_listList, n3_dl_forwarding_tnl_listItem);
     }
     }
@@ -523,6 +540,12 @@ OpenAPI_sm_context_updated_data_t *OpenAPI_sm_context_updated_data_parseFromJSON
             goto end;
         }
         OpenAPI_indirect_data_forwarding_tunnel_info_t *n3_ul_forwarding_tnl_listItem = OpenAPI_indirect_data_forwarding_tunnel_info_parseFromJSON(n3_ul_forwarding_tnl_list_local_nonprimitive);
+
+        if (!n3_ul_forwarding_tnl_listItem) {
+            ogs_error("No n3_ul_forwarding_tnl_listItem");
+            OpenAPI_list_free(n3_ul_forwarding_tnl_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(n3_ul_forwarding_tnl_listList, n3_ul_forwarding_tnl_listItem);
     }
@@ -582,7 +605,7 @@ OpenAPI_sm_context_updated_data_t *OpenAPI_sm_context_updated_data_parseFromJSON
         ogs_error("OpenAPI_sm_context_updated_data_parseFromJSON() failed [forwarding_bearer_contexts]");
         goto end;
     }
-    OpenAPI_list_add(forwarding_bearer_contextsList , ogs_strdup_or_assert(forwarding_bearer_contexts_local->valuestring));
+    OpenAPI_list_add(forwarding_bearer_contextsList , ogs_strdup(forwarding_bearer_contexts_local->valuestring));
     }
     }
 
@@ -621,11 +644,11 @@ OpenAPI_sm_context_updated_data_t *OpenAPI_sm_context_updated_data_parseFromJSON
         cause ? causeVariable : 0,
         ma_accepted_ind ? true : false,
         ma_accepted_ind ? ma_accepted_ind->valueint : 0,
-        supported_features ? ogs_strdup_or_assert(supported_features->valuestring) : NULL,
+        supported_features ? ogs_strdup(supported_features->valuestring) : NULL,
         forwarding_f_teid ? forwarding_f_teid->valueint : 0,
         forwarding_bearer_contexts ? forwarding_bearer_contextsList : NULL,
-        selected_smf_id ? ogs_strdup_or_assert(selected_smf_id->valuestring) : NULL,
-        selected_old_smf_id ? ogs_strdup_or_assert(selected_old_smf_id->valuestring) : NULL
+        selected_smf_id ? ogs_strdup(selected_smf_id->valuestring) : NULL,
+        selected_old_smf_id ? ogs_strdup(selected_old_smf_id->valuestring) : NULL
     );
 
     return sm_context_updated_data_local_var;

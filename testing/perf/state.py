@@ -72,9 +72,8 @@ class NetworkState:
             config.ueransim_config.id,
             config.ueransim_config.username,
             config.ueransim_config.port,
-            config.ueransim_config.keyfile,
         )
-        
+
         for service_config in config.service_configs:
             connection = DauthServiceConnection(
                 service_config.hostname,
@@ -86,30 +85,4 @@ class NetworkState:
             connection.service_ip = service_config.service_ip
 
             self.services.append(connection)
-        
-        with open(config.ue_driver_path, "r") as f:
-            self.ueransim.upload_file(f, "./ue_driver.py")
-
-    def reset(self):
-        """
-        Resets all system state by restarting all services and
-        clearing databases and keys.
-        """
-        self.ueransim.remove_devices()
-        
         for service in self.services:
-            service.stop_service()
-
-        self.directory.stop_service()
-        self.directory.remove_db()
-        self.directory.start_service()
-        
-        for service in self.services:
-            service.remove_db()
-            service.remove_keys()
-            service.start_service()
-            
-        # Not ideal, but UERANSIM seems to need this delay to work correctly.
-        # Without it, immediately adding gNBs and UEs causes the first 
-        # connection request to fail.
-        sleep(2)

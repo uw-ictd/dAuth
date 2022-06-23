@@ -9,10 +9,9 @@ OpenAPI_allowed_nssai_t *OpenAPI_allowed_nssai_create(
     OpenAPI_access_type_e access_type
 )
 {
-    OpenAPI_allowed_nssai_t *allowed_nssai_local_var = OpenAPI_malloc(sizeof(OpenAPI_allowed_nssai_t));
-    if (!allowed_nssai_local_var) {
-        return NULL;
-    }
+    OpenAPI_allowed_nssai_t *allowed_nssai_local_var = ogs_malloc(sizeof(OpenAPI_allowed_nssai_t));
+    ogs_assert(allowed_nssai_local_var);
+
     allowed_nssai_local_var->allowed_snssai_list = allowed_snssai_list;
     allowed_nssai_local_var->access_type = access_type;
 
@@ -93,6 +92,12 @@ OpenAPI_allowed_nssai_t *OpenAPI_allowed_nssai_parseFromJSON(cJSON *allowed_nssa
             goto end;
         }
         OpenAPI_allowed_snssai_t *allowed_snssai_listItem = OpenAPI_allowed_snssai_parseFromJSON(allowed_snssai_list_local_nonprimitive);
+
+        if (!allowed_snssai_listItem) {
+            ogs_error("No allowed_snssai_listItem");
+            OpenAPI_list_free(allowed_snssai_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(allowed_snssai_listList, allowed_snssai_listItem);
     }

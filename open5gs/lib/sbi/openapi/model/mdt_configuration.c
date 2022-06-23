@@ -38,10 +38,9 @@ OpenAPI_mdt_configuration_t *OpenAPI_mdt_configuration_create(
     OpenAPI_list_t *inter_freq_target_list
 )
 {
-    OpenAPI_mdt_configuration_t *mdt_configuration_local_var = OpenAPI_malloc(sizeof(OpenAPI_mdt_configuration_t));
-    if (!mdt_configuration_local_var) {
-        return NULL;
-    }
+    OpenAPI_mdt_configuration_t *mdt_configuration_local_var = ogs_malloc(sizeof(OpenAPI_mdt_configuration_t));
+    ogs_assert(mdt_configuration_local_var);
+
     mdt_configuration_local_var->job_type = job_type;
     mdt_configuration_local_var->report_type = report_type;
     mdt_configuration_local_var->area_scope = area_scope;
@@ -741,6 +740,12 @@ OpenAPI_mdt_configuration_t *OpenAPI_mdt_configuration_parseFromJSON(cJSON *mdt_
         }
         OpenAPI_plmn_id_t *mdt_allowed_plmn_id_listItem = OpenAPI_plmn_id_parseFromJSON(mdt_allowed_plmn_id_list_local_nonprimitive);
 
+        if (!mdt_allowed_plmn_id_listItem) {
+            ogs_error("No mdt_allowed_plmn_id_listItem");
+            OpenAPI_list_free(mdt_allowed_plmn_id_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(mdt_allowed_plmn_id_listList, mdt_allowed_plmn_id_listItem);
     }
     }
@@ -764,6 +769,12 @@ OpenAPI_mdt_configuration_t *OpenAPI_mdt_configuration_parseFromJSON(cJSON *mdt_
         }
         OpenAPI_mbsfn_area_t *mbsfn_area_listItem = OpenAPI_mbsfn_area_parseFromJSON(mbsfn_area_list_local_nonprimitive);
 
+        if (!mbsfn_area_listItem) {
+            ogs_error("No mbsfn_area_listItem");
+            OpenAPI_list_free(mbsfn_area_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(mbsfn_area_listList, mbsfn_area_listItem);
     }
     }
@@ -786,6 +797,12 @@ OpenAPI_mdt_configuration_t *OpenAPI_mdt_configuration_parseFromJSON(cJSON *mdt_
             goto end;
         }
         OpenAPI_inter_freq_target_info_t *inter_freq_target_listItem = OpenAPI_inter_freq_target_info_parseFromJSON(inter_freq_target_list_local_nonprimitive);
+
+        if (!inter_freq_target_listItem) {
+            ogs_error("No inter_freq_target_listItem");
+            OpenAPI_list_free(inter_freq_target_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(inter_freq_target_listList, inter_freq_target_listItem);
     }

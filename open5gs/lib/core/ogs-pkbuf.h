@@ -35,7 +35,11 @@ typedef struct ogs_cluster_s {
     unsigned int ref;
 } ogs_cluster_t;
 
+#if OGS_USE_TALLOC
+typedef void ogs_pkbuf_pool_t;
+#else
 typedef struct ogs_pkbuf_pool_s ogs_pkbuf_pool_t;
+#endif
 typedef struct ogs_pkbuf_s {
     ogs_lnode_t lnode;
 
@@ -54,6 +58,8 @@ typedef struct ogs_pkbuf_s {
     const char *file_line;
     
     ogs_pkbuf_pool_t *pool;
+
+    unsigned char _data[0]; /*!< optional immediate data array */
 } ogs_pkbuf_t;
 
 typedef struct ogs_pkbuf_config_s {
@@ -108,11 +114,11 @@ static ogs_inline void *ogs_pkbuf_put(ogs_pkbuf_t *pkbuf, unsigned int len)
 {
     void *tmp = pkbuf->tail;
 
+    if (ogs_unlikely(ogs_pkbuf_tailroom(pkbuf) < (int)len))
+        ogs_assert_if_reached();
+
     pkbuf->tail += len;
     pkbuf->len += len;
-
-    if (ogs_unlikely(pkbuf->tail > pkbuf->end))
-        ogs_assert_if_reached();
 
     return tmp;
 }
@@ -138,11 +144,11 @@ static ogs_inline void ogs_pkbuf_put_u32(ogs_pkbuf_t *pkbuf, uint32_t val)
 
 static ogs_inline void *ogs_pkbuf_push(ogs_pkbuf_t *pkbuf, unsigned int len)
 {
+    if (ogs_unlikely(ogs_pkbuf_headroom(pkbuf) < (int)len))
+        ogs_assert_if_reached();
+
     pkbuf->data -= len;
     pkbuf->len += len;
-
-    if (ogs_unlikely(pkbuf->data < pkbuf->head))
-        ogs_assert_if_reached();
 
     return pkbuf->data;
 }
@@ -160,12 +166,19 @@ static ogs_inline void *ogs_pkbuf_pull(ogs_pkbuf_t *pkbuf, unsigned int len)
         NULL : ogs_pkbuf_pull_inline(pkbuf, len);
 }
 
-static ogs_inline void ogs_pkbuf_trim(ogs_pkbuf_t *pkbuf, unsigned int len)
+static ogs_inline int ogs_pkbuf_trim(ogs_pkbuf_t *pkbuf, int len)
 {
-    if (pkbuf->len > len) {
-        pkbuf->tail = pkbuf->data + len;
-        pkbuf->len = len;
+    if (ogs_unlikely(len < 0))
+        ogs_assert_if_reached();
+    if (ogs_unlikely(len > pkbuf->len)) {
+        ogs_error("len(%d) > pkbuf->len(%d)", len, pkbuf->len);
+        return OGS_ERROR;
     }
+
+    pkbuf->tail = pkbuf->data + len;
+    pkbuf->len = len;
+
+    return OGS_OK;
 }
 
 #ifdef __cplusplus

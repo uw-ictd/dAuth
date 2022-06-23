@@ -18,10 +18,9 @@ OpenAPI_expected_ue_behaviour_data_t *OpenAPI_expected_ue_behaviour_data_create(
     char *validity_time
 )
 {
-    OpenAPI_expected_ue_behaviour_data_t *expected_ue_behaviour_data_local_var = OpenAPI_malloc(sizeof(OpenAPI_expected_ue_behaviour_data_t));
-    if (!expected_ue_behaviour_data_local_var) {
-        return NULL;
-    }
+    OpenAPI_expected_ue_behaviour_data_t *expected_ue_behaviour_data_local_var = ogs_malloc(sizeof(OpenAPI_expected_ue_behaviour_data_t));
+    ogs_assert(expected_ue_behaviour_data_local_var);
+
     expected_ue_behaviour_data_local_var->stationary_indication = stationary_indication;
     expected_ue_behaviour_data_local_var->is_communication_duration_time = is_communication_duration_time;
     expected_ue_behaviour_data_local_var->communication_duration_time = communication_duration_time;
@@ -224,6 +223,12 @@ OpenAPI_expected_ue_behaviour_data_t *OpenAPI_expected_ue_behaviour_data_parseFr
         }
         OpenAPI_location_area_t *expected_umtsItem = OpenAPI_location_area_parseFromJSON(expected_umts_local_nonprimitive);
 
+        if (!expected_umtsItem) {
+            ogs_error("No expected_umtsItem");
+            OpenAPI_list_free(expected_umtsList);
+            goto end;
+        }
+
         OpenAPI_list_add(expected_umtsList, expected_umtsItem);
     }
     }
@@ -266,7 +271,7 @@ OpenAPI_expected_ue_behaviour_data_t *OpenAPI_expected_ue_behaviour_data_parseFr
         expected_umts ? expected_umtsList : NULL,
         traffic_profile ? traffic_profileVariable : 0,
         battery_indication ? battery_indication_local_nonprim : NULL,
-        validity_time ? ogs_strdup_or_assert(validity_time->valuestring) : NULL
+        validity_time ? ogs_strdup(validity_time->valuestring) : NULL
     );
 
     return expected_ue_behaviour_data_local_var;

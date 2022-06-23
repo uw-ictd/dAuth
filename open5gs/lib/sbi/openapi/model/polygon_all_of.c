@@ -8,10 +8,9 @@ OpenAPI_polygon_all_of_t *OpenAPI_polygon_all_of_create(
     OpenAPI_list_t *point_list
 )
 {
-    OpenAPI_polygon_all_of_t *polygon_all_of_local_var = OpenAPI_malloc(sizeof(OpenAPI_polygon_all_of_t));
-    if (!polygon_all_of_local_var) {
-        return NULL;
-    }
+    OpenAPI_polygon_all_of_t *polygon_all_of_local_var = ogs_malloc(sizeof(OpenAPI_polygon_all_of_t));
+    ogs_assert(polygon_all_of_local_var);
+
     polygon_all_of_local_var->point_list = point_list;
 
     return polygon_all_of_local_var;
@@ -86,6 +85,12 @@ OpenAPI_polygon_all_of_t *OpenAPI_polygon_all_of_parseFromJSON(cJSON *polygon_al
             goto end;
         }
         OpenAPI_geographical_coordinates_t *point_listItem = OpenAPI_geographical_coordinates_parseFromJSON(point_list_local_nonprimitive);
+
+        if (!point_listItem) {
+            ogs_error("No point_listItem");
+            OpenAPI_list_free(point_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(point_listList, point_listItem);
     }

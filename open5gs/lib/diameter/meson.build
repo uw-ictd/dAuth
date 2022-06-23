@@ -17,6 +17,7 @@
 
 subdir('common')
 subdir('gx')
+subdir('gy')
 subdir('rx')
 subdir('s6a')
 subdir('cx')

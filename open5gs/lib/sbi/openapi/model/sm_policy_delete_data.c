@@ -15,10 +15,9 @@ OpenAPI_sm_policy_delete_data_t *OpenAPI_sm_policy_delete_data_create(
     OpenAPI_list_t *qos_mon_reports
 )
 {
-    OpenAPI_sm_policy_delete_data_t *sm_policy_delete_data_local_var = OpenAPI_malloc(sizeof(OpenAPI_sm_policy_delete_data_t));
-    if (!sm_policy_delete_data_local_var) {
-        return NULL;
-    }
+    OpenAPI_sm_policy_delete_data_t *sm_policy_delete_data_local_var = ogs_malloc(sizeof(OpenAPI_sm_policy_delete_data_t));
+    ogs_assert(sm_policy_delete_data_local_var);
+
     sm_policy_delete_data_local_var->user_location_info = user_location_info;
     sm_policy_delete_data_local_var->ue_time_zone = ue_time_zone;
     sm_policy_delete_data_local_var->serving_network = serving_network;
@@ -231,6 +230,12 @@ OpenAPI_sm_policy_delete_data_t *OpenAPI_sm_policy_delete_data_parseFromJSON(cJS
         }
         OpenAPI_ran_nas_rel_cause_t *ran_nas_rel_causesItem = OpenAPI_ran_nas_rel_cause_parseFromJSON(ran_nas_rel_causes_local_nonprimitive);
 
+        if (!ran_nas_rel_causesItem) {
+            ogs_error("No ran_nas_rel_causesItem");
+            OpenAPI_list_free(ran_nas_rel_causesList);
+            goto end;
+        }
+
         OpenAPI_list_add(ran_nas_rel_causesList, ran_nas_rel_causesItem);
     }
     }
@@ -253,6 +258,12 @@ OpenAPI_sm_policy_delete_data_t *OpenAPI_sm_policy_delete_data_parseFromJSON(cJS
             goto end;
         }
         OpenAPI_accu_usage_report_t *accu_usage_reportsItem = OpenAPI_accu_usage_report_parseFromJSON(accu_usage_reports_local_nonprimitive);
+
+        if (!accu_usage_reportsItem) {
+            ogs_error("No accu_usage_reportsItem");
+            OpenAPI_list_free(accu_usage_reportsList);
+            goto end;
+        }
 
         OpenAPI_list_add(accu_usage_reportsList, accu_usage_reportsItem);
     }
@@ -288,15 +299,21 @@ OpenAPI_sm_policy_delete_data_t *OpenAPI_sm_policy_delete_data_parseFromJSON(cJS
         }
         OpenAPI_qos_monitoring_report_t *qos_mon_reportsItem = OpenAPI_qos_monitoring_report_parseFromJSON(qos_mon_reports_local_nonprimitive);
 
+        if (!qos_mon_reportsItem) {
+            ogs_error("No qos_mon_reportsItem");
+            OpenAPI_list_free(qos_mon_reportsList);
+            goto end;
+        }
+
         OpenAPI_list_add(qos_mon_reportsList, qos_mon_reportsItem);
     }
     }
 
     sm_policy_delete_data_local_var = OpenAPI_sm_policy_delete_data_create (
         user_location_info ? user_location_info_local_nonprim : NULL,
-        ue_time_zone ? ogs_strdup_or_assert(ue_time_zone->valuestring) : NULL,
+        ue_time_zone ? ogs_strdup(ue_time_zone->valuestring) : NULL,
         serving_network ? serving_network_local_nonprim : NULL,
-        user_location_info_time ? ogs_strdup_or_assert(user_location_info_time->valuestring) : NULL,
+        user_location_info_time ? ogs_strdup(user_location_info_time->valuestring) : NULL,
         ran_nas_rel_causes ? ran_nas_rel_causesList : NULL,
         accu_usage_reports ? accu_usage_reportsList : NULL,
         pdu_sess_rel_cause ? pdu_sess_rel_causeVariable : 0,

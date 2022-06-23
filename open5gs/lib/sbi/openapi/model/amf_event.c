@@ -22,10 +22,9 @@ OpenAPI_amf_event_t *OpenAPI_amf_event_create(
     int max_response_time
 )
 {
-    OpenAPI_amf_event_t *amf_event_local_var = OpenAPI_malloc(sizeof(OpenAPI_amf_event_t));
-    if (!amf_event_local_var) {
-        return NULL;
-    }
+    OpenAPI_amf_event_t *amf_event_local_var = ogs_malloc(sizeof(OpenAPI_amf_event_t));
+    ogs_assert(amf_event_local_var);
+
     amf_event_local_var->type = type;
     amf_event_local_var->is_immediate_flag = is_immediate_flag;
     amf_event_local_var->immediate_flag = immediate_flag;
@@ -241,6 +240,12 @@ OpenAPI_amf_event_t *OpenAPI_amf_event_parseFromJSON(cJSON *amf_eventJSON)
         }
         OpenAPI_amf_event_area_t *area_listItem = OpenAPI_amf_event_area_parseFromJSON(area_list_local_nonprimitive);
 
+        if (!area_listItem) {
+            ogs_error("No area_listItem");
+            OpenAPI_list_free(area_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(area_listList, area_listItem);
     }
     }
@@ -263,6 +268,12 @@ OpenAPI_amf_event_t *OpenAPI_amf_event_parseFromJSON(cJSON *amf_eventJSON)
             goto end;
         }
         OpenAPI_location_filter_t *location_filter_listItem = OpenAPI_location_filter_parseFromJSON(location_filter_list_local_nonprimitive);
+
+        if (!location_filter_listItem) {
+            ogs_error("No location_filter_listItem");
+            OpenAPI_list_free(location_filter_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(location_filter_listList, location_filter_listItem);
     }
@@ -295,6 +306,12 @@ OpenAPI_amf_event_t *OpenAPI_amf_event_parseFromJSON(cJSON *amf_eventJSON)
             goto end;
         }
         OpenAPI_traffic_descriptor_t *traffic_descriptor_listItem = OpenAPI_traffic_descriptor_parseFromJSON(traffic_descriptor_list_local_nonprimitive);
+
+        if (!traffic_descriptor_listItem) {
+            ogs_error("No traffic_descriptor_listItem");
+            OpenAPI_list_free(traffic_descriptor_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(traffic_descriptor_listList, traffic_descriptor_listItem);
     }

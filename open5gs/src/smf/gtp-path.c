@@ -39,13 +39,14 @@
 #include "gtp-path.h"
 #include "pfcp-path.h"
 #include "s5c-build.h"
+#include "gn-build.h"
 
 static bool check_if_router_solicit(ogs_pkbuf_t *pkbuf);
 static void send_router_advertisement(smf_sess_t *sess, uint8_t *ip6_dst);
 
 static void bearer_timeout(ogs_gtp_xact_t *xact, void *data);
 
-static void _gtpv2_c_recv_cb(short when, ogs_socket_t fd, void *data)
+static void _gtpv1v2_c_recv_cb(short when, ogs_socket_t fd, void *data)
 {
     smf_event_t *e = NULL;
     int rv;
@@ -53,6 +54,7 @@ static void _gtpv2_c_recv_cb(short when, ogs_socket_t fd, void *data)
     ogs_pkbuf_t *pkbuf = NULL;
     ogs_sockaddr_t from;
     ogs_gtp_node_t *gnode = NULL;
+    uint8_t gtp_ver;
 
     ogs_assert(fd != INVALID_SOCKET);
 
@@ -70,7 +72,20 @@ static void _gtpv2_c_recv_cb(short when, ogs_socket_t fd, void *data)
 
     ogs_pkbuf_trim(pkbuf, size);
 
-    e = smf_event_new(SMF_EVT_S5C_MESSAGE);
+    gtp_ver = ((ogs_gtp2_header_t *)pkbuf->data)->version;
+    switch (gtp_ver) {
+    case 1:
+        e = smf_event_new(SMF_EVT_GN_MESSAGE);
+        break;
+    case 2:
+        e = smf_event_new(SMF_EVT_S5C_MESSAGE);
+        break;
+    default:
+        ogs_warn("Rx unexpected GTP version %u", gtp_ver);
+        ogs_pkbuf_free(pkbuf);
+        return;
+    }
+
     gnode = ogs_gtp_node_find_by_addr(&smf_self()->sgw_s5c_list, &from);
     if (!gnode) {
         gnode = ogs_gtp_node_add_by_addr(&smf_self()->sgw_s5c_list, &from);
@@ -98,7 +113,7 @@ static void _gtpv1_u_recv_cb(short when, ogs_socket_t fd, void *data)
     ogs_pkbuf_t *pkbuf = NULL;
     ogs_sockaddr_t from;
 
-    ogs_gtp_header_t *gtp_h = NULL;
+    ogs_gtp2_header_t *gtp_h = NULL;
 
     uint32_t teid;
     uint8_t qfi;
@@ -121,8 +136,8 @@ static void _gtpv1_u_recv_cb(short when, ogs_socket_t fd, void *data)
     ogs_assert(pkbuf);
     ogs_assert(pkbuf->len);
 
-    gtp_h = (ogs_gtp_header_t *)pkbuf->data;
-    if (gtp_h->version != OGS_GTP_VERSION_1) {
+    gtp_h = (ogs_gtp2_header_t *)pkbuf->data;
+    if (gtp_h->version != OGS_GTP2_VERSION_1) {
         ogs_error("[DROP] Invalid GTPU version [%d]", gtp_h->version);
         ogs_log_hexdump(OGS_LOG_ERROR, pkbuf->data, pkbuf->len);
         goto cleanup;
@@ -132,7 +147,7 @@ static void _gtpv1_u_recv_cb(short when, ogs_socket_t fd, void *data)
         ogs_pkbuf_t *echo_rsp;
 
         ogs_debug("[RECV] Echo Request from [%s]", OGS_ADDR(&from, buf));
-        echo_rsp = ogs_gtp_handle_echo_req(pkbuf);
+        echo_rsp = ogs_gtp2_handle_echo_req(pkbuf);
         ogs_expect(echo_rsp);
         if (echo_rsp) {
             ssize_t sent;
@@ -165,13 +180,13 @@ static void _gtpv1_u_recv_cb(short when, ogs_socket_t fd, void *data)
          * Note 4 : For a GTP-PDU with several Extension Headers, the PDU
          *          Session Container should be the first Extension Header
          */
-        ogs_gtp_extension_header_t *extension_header =
-            (ogs_gtp_extension_header_t *)(pkbuf->data + OGS_GTPV1U_HEADER_LEN);
+        ogs_gtp2_extension_header_t *extension_header =
+            (ogs_gtp2_extension_header_t *)(pkbuf->data + OGS_GTPV1U_HEADER_LEN);
         ogs_assert(extension_header);
         if (extension_header->type ==
-                OGS_GTP_EXTENSION_HEADER_TYPE_PDU_SESSION_CONTAINER) {
+                OGS_GTP2_EXTENSION_HEADER_TYPE_PDU_SESSION_CONTAINER) {
             if (extension_header->pdu_type ==
-                OGS_GTP_EXTENSION_HEADER_PDU_TYPE_UL_PDU_SESSION_INFORMATION) {
+                OGS_GTP2_EXTENSION_HEADER_PDU_TYPE_UL_PDU_SESSION_INFORMATION) {
                     ogs_debug("   QFI [0x%x]",
                             extension_header->qos_flow_identifier);
                     qfi = extension_header->qos_flow_identifier;
@@ -183,6 +198,12 @@ static void _gtpv1_u_recv_cb(short when, ogs_socket_t fd, void *data)
     len = ogs_gtpu_header_len(pkbuf);
     if (len < 0) {
         ogs_error("[DROP] Cannot decode GTPU packet");
+        ogs_log_hexdump(OGS_LOG_ERROR, pkbuf->data, pkbuf->len);
+        goto cleanup;
+    }
+    if (gtp_h->type != OGS_GTPU_MSGTYPE_END_MARKER &&
+        pkbuf->len <= len) {
+        ogs_error("[DROP] Small GTPU packet(type:%d len:%d)", gtp_h->type, len);
         ogs_log_hexdump(OGS_LOG_ERROR, pkbuf->data, pkbuf->len);
         goto cleanup;
     }
@@ -234,9 +255,9 @@ int smf_gtp_open(void)
     ogs_list_for_each(&ogs_gtp_self()->gtpc_list, node) {
         sock = ogs_gtp_server(node);
         if (!sock) return OGS_ERROR;
-        
+
         node->poll = ogs_pollset_add(ogs_app()->pollset,
-                OGS_POLLIN, sock->fd, _gtpv2_c_recv_cb, sock);
+                OGS_POLLIN, sock->fd, _gtpv1v2_c_recv_cb, sock);
         ogs_assert(node->poll);
     }
     ogs_list_for_each(&ogs_gtp_self()->gtpc_list6, node) {
@@ -244,7 +265,7 @@ int smf_gtp_open(void)
         if (!sock) return OGS_ERROR;
 
         node->poll = ogs_pollset_add(ogs_app()->pollset,
-                OGS_POLLIN, sock->fd, _gtpv2_c_recv_cb, sock);
+                OGS_POLLIN, sock->fd, _gtpv1v2_c_recv_cb, sock);
         ogs_assert(node->poll);
     }
 
@@ -266,29 +287,158 @@ int smf_gtp_open(void)
 
     OGS_SETUP_GTPU_SERVER;
 
+    /* Fetch link-local address for router advertisement */
+    if (ogs_gtp_self()->link_local_addr)
+        ogs_freeaddrinfo(ogs_gtp_self()->link_local_addr);
+    if (ogs_gtp_self()->gtpu_addr6)
+        ogs_gtp_self()->link_local_addr =
+            ogs_link_local_addr_by_sa(ogs_gtp_self()->gtpu_addr6);
+
     return OGS_OK;
 }
 
 void smf_gtp_close(void)
 {
+    if (ogs_gtp_self()->link_local_addr)
+        ogs_freeaddrinfo(ogs_gtp_self()->link_local_addr);
+
     ogs_socknode_remove_all(&ogs_gtp_self()->gtpc_list);
     ogs_socknode_remove_all(&ogs_gtp_self()->gtpc_list6);
 
     ogs_socknode_remove_all(&ogs_gtp_self()->gtpu_list);
 }
 
-int smf_gtp_send_create_session_response(
+int smf_gtp1_send_create_pdp_context_response(
         smf_sess_t *sess, ogs_gtp_xact_t *xact)
 {
     int rv;
-    ogs_gtp_header_t h;
+    ogs_gtp1_header_t h;
     ogs_pkbuf_t *pkbuf = NULL;
 
     ogs_assert(sess);
     ogs_assert(xact);
 
-    memset(&h, 0, sizeof(ogs_gtp_header_t));
-    h.type = OGS_GTP_CREATE_SESSION_RESPONSE_TYPE;
+    memset(&h, 0, sizeof(ogs_gtp1_header_t));
+    h.type = OGS_GTP1_CREATE_PDP_CONTEXT_RESPONSE_TYPE;
+    h.teid = sess->sgw_s5c_teid;
+
+    pkbuf = smf_gn_build_create_pdp_context_response(h.type, sess);
+    ogs_expect_or_return_val(pkbuf, OGS_ERROR);
+
+    rv = ogs_gtp1_xact_update_tx(xact, &h, pkbuf);
+    ogs_expect_or_return_val(rv == OGS_OK, OGS_ERROR);
+
+    rv = ogs_gtp_xact_commit(xact);
+    ogs_expect(rv == OGS_OK);
+
+    return rv;
+}
+
+int smf_gtp1_send_delete_pdp_context_response(
+        smf_sess_t *sess, ogs_gtp_xact_t *xact)
+{
+    int rv;
+    ogs_gtp1_header_t h;
+    ogs_pkbuf_t *pkbuf = NULL;
+
+    ogs_assert(sess);
+    ogs_assert(xact);
+
+    memset(&h, 0, sizeof(ogs_gtp1_header_t));
+    h.type = OGS_GTP1_DELETE_PDP_CONTEXT_RESPONSE_TYPE;
+    h.teid = sess->sgw_s5c_teid;
+
+    pkbuf = smf_gn_build_delete_pdp_context_response(h.type, sess);
+    ogs_expect_or_return_val(pkbuf, OGS_ERROR);
+
+    rv = ogs_gtp1_xact_update_tx(xact, &h, pkbuf);
+    ogs_expect_or_return_val(rv == OGS_OK, OGS_ERROR);
+
+    rv = ogs_gtp_xact_commit(xact);
+    ogs_expect(rv == OGS_OK);
+
+    return rv;
+}
+
+#if 0
+int smf_gtp1_send_update_pdp_context_request(
+        smf_bearer_t *bearer, uint8_t pti, uint8_t cause_value)
+{
+    int rv;
+
+    ogs_gtp_xact_t *xact = NULL;
+    ogs_gtp1_header_t h;
+    ogs_pkbuf_t *pkbuf = NULL;
+
+    smf_sess_t *sess = NULL;
+
+    ogs_assert(bearer);
+    sess = bearer->sess;
+    ogs_assert(sess);
+
+    memset(&h, 0, sizeof(ogs_gtp1_header_t));
+    h.type = OGS_GTP1_UPDATE_PDP_CONTEXT_REQUEST_TYPE;
+    h.teid = sess->sgw_s5c_teid;
+
+    pkbuf = smf_gn_build_update_pdp_context_request(
+                h.type, bearer, pti, cause_value);
+    ogs_expect_or_return_val(pkbuf, OGS_ERROR);
+
+    xact = ogs_gtp1_xact_local_create(
+            sess->gnode, &h, pkbuf, bearer_timeout, bearer);
+    ogs_expect_or_return_val(xact, OGS_ERROR);
+
+    rv = ogs_gtp_xact_commit(xact);
+    ogs_expect(rv == OGS_OK);
+
+    return rv;
+}
+#endif
+
+int smf_gtp1_send_update_pdp_context_response(
+        smf_bearer_t *bearer, ogs_gtp_xact_t *xact)
+{
+    int rv;
+
+    ogs_gtp1_header_t h;
+    ogs_pkbuf_t *pkbuf = NULL;
+
+    smf_sess_t *sess = NULL;
+
+    ogs_assert(bearer);
+    ogs_assert(xact);
+    sess = bearer->sess;
+    ogs_assert(sess);
+
+    memset(&h, 0, sizeof(ogs_gtp1_header_t));
+    h.type = OGS_GTP1_UPDATE_PDP_CONTEXT_RESPONSE_TYPE;
+    h.teid = sess->sgw_s5c_teid;
+
+    pkbuf = smf_gn_build_update_pdp_context_response(
+                h.type, sess, bearer);
+    ogs_expect_or_return_val(pkbuf, OGS_ERROR);
+
+    rv = ogs_gtp1_xact_update_tx(xact, &h, pkbuf);
+    ogs_expect_or_return_val(rv == OGS_OK, OGS_ERROR);
+
+    rv = ogs_gtp_xact_commit(xact);
+    ogs_expect(rv == OGS_OK);
+
+    return rv;
+}
+
+int smf_gtp2_send_create_session_response(
+        smf_sess_t *sess, ogs_gtp_xact_t *xact)
+{
+    int rv;
+    ogs_gtp2_header_t h;
+    ogs_pkbuf_t *pkbuf = NULL;
+
+    ogs_assert(sess);
+    ogs_assert(xact);
+
+    memset(&h, 0, sizeof(ogs_gtp2_header_t));
+    h.type = OGS_GTP2_CREATE_SESSION_RESPONSE_TYPE;
     h.teid = sess->sgw_s5c_teid;
 
     pkbuf = smf_s5c_build_create_session_response(h.type, sess);
@@ -303,18 +453,47 @@ int smf_gtp_send_create_session_response(
     return rv;
 }
 
-int smf_gtp_send_delete_session_response(
+int smf_gtp2_send_modify_bearer_response(
+        smf_sess_t *sess, ogs_gtp_xact_t *xact,
+        ogs_gtp2_modify_bearer_request_t *req, bool sgw_relocation)
+{
+    int rv;
+    ogs_gtp2_header_t h;
+    ogs_pkbuf_t *pkbuf = NULL;
+
+    ogs_assert(sess);
+    ogs_assert(xact);
+    ogs_assert(req);
+
+    memset(&h, 0, sizeof(ogs_gtp2_header_t));
+    h.type = OGS_GTP2_MODIFY_BEARER_RESPONSE_TYPE;
+    h.teid = sess->sgw_s5c_teid;
+
+    pkbuf = smf_s5c_build_modify_bearer_response(
+                h.type, sess, req, sgw_relocation);
+    ogs_expect_or_return_val(pkbuf, OGS_ERROR);
+
+    rv = ogs_gtp_xact_update_tx(xact, &h, pkbuf);
+    ogs_expect_or_return_val(rv == OGS_OK, OGS_ERROR);
+
+    rv = ogs_gtp_xact_commit(xact);
+    ogs_expect(rv == OGS_OK);
+
+    return rv;
+}
+
+int smf_gtp2_send_delete_session_response(
         smf_sess_t *sess, ogs_gtp_xact_t *xact)
 {
     int rv;
-    ogs_gtp_header_t h;
+    ogs_gtp2_header_t h;
     ogs_pkbuf_t *pkbuf = NULL;
 
     ogs_assert(xact);
     ogs_assert(sess);
 
-    memset(&h, 0, sizeof(ogs_gtp_header_t));
-    h.type = OGS_GTP_DELETE_SESSION_RESPONSE_TYPE;
+    memset(&h, 0, sizeof(ogs_gtp2_header_t));
+    h.type = OGS_GTP2_DELETE_SESSION_RESPONSE_TYPE;
     h.teid = sess->sgw_s5c_teid;
 
     pkbuf = smf_s5c_build_delete_session_response(h.type, sess);
@@ -329,13 +508,13 @@ int smf_gtp_send_delete_session_response(
     return rv;
 }
 
-int smf_gtp_send_delete_bearer_request(
+int smf_gtp2_send_delete_bearer_request(
         smf_bearer_t *bearer, uint8_t pti, uint8_t cause_value)
 {
     int rv;
 
     ogs_gtp_xact_t *xact = NULL;
-    ogs_gtp_header_t h;
+    ogs_gtp2_header_t h;
     ogs_pkbuf_t *pkbuf = NULL;
 
     smf_sess_t *sess = NULL;
@@ -344,8 +523,8 @@ int smf_gtp_send_delete_bearer_request(
     sess = bearer->sess;
     ogs_assert(sess);
 
-    memset(&h, 0, sizeof(ogs_gtp_header_t));
-    h.type = OGS_GTP_DELETE_BEARER_REQUEST_TYPE;
+    memset(&h, 0, sizeof(ogs_gtp2_header_t));
+    h.type = OGS_GTP2_DELETE_BEARER_REQUEST_TYPE;
     h.teid = sess->sgw_s5c_teid;
 
     pkbuf = smf_s5c_build_delete_bearer_request(
@@ -388,11 +567,14 @@ static bool check_if_router_solicit(ogs_pkbuf_t *pkbuf)
 
 static void send_router_advertisement(smf_sess_t *sess, uint8_t *ip6_dst)
 {
+    int rv;
+
     ogs_pkbuf_t *pkbuf = NULL;
 
     ogs_pfcp_pdr_t *pdr = NULL;
     ogs_pfcp_ue_ip_t *ue_ip = NULL;
     ogs_pfcp_subnet_t *subnet = NULL;
+    char ipstr[OGS_ADDRSTRLEN];
 
     ogs_ipsubnet_t src_ipsub;
     uint16_t plen = 0;
@@ -408,6 +590,20 @@ static void send_router_advertisement(smf_sess_t *sess, uint8_t *ip6_dst)
     subnet = ue_ip->subnet;
     ogs_assert(subnet);
 
+    /* Fetch link-local address for router advertisement */
+    if (ogs_gtp_self()->link_local_addr) {
+        OGS_ADDR(ogs_gtp_self()->link_local_addr, ipstr);
+        rv = ogs_ipsubnet(&src_ipsub, ipstr, NULL);
+        ogs_expect_or_return(rv == OGS_OK);
+    } else {
+        /* For the case of loopback used for GTPU link-local address is not
+         * available, hence set the source IP to fe80::1
+        */
+        memset(src_ipsub.sub, 0, sizeof(src_ipsub.sub));
+        src_ipsub.sub[0] = htobe32(0xfe800000);
+        src_ipsub.sub[3] = htobe32(0x00000001);
+    }
+
     ogs_debug("      Build Router Advertisement");
 
     pkbuf = ogs_pkbuf_alloc(NULL, OGS_GTPV1U_5GC_HEADER_LEN+200);
@@ -422,10 +618,6 @@ static void send_router_advertisement(smf_sess_t *sess, uint8_t *ip6_dst)
     advert_h = (struct nd_router_advert *)((uint8_t *)ip6_h + sizeof *ip6_h);
     prefix = (struct nd_opt_prefix_info *)
         ((uint8_t*)advert_h + sizeof *advert_h);
-
-    memcpy(src_ipsub.sub, subnet->gw.sub, sizeof(src_ipsub.sub));
-    src_ipsub.sub[0] =
-        htobe32((be32toh(src_ipsub.sub[0]) & 0x0000ffff) | 0xfe800000);
 
     advert_h->nd_ra_type = ND_ROUTER_ADVERT;
     advert_h->nd_ra_code = 0;
@@ -466,8 +658,9 @@ static void send_router_advertisement(smf_sess_t *sess, uint8_t *ip6_dst)
 
     ogs_list_for_each(&sess->pfcp.pdr_list, pdr) {
         if (pdr->src_if == OGS_PFCP_INTERFACE_CP_FUNCTION && pdr->gnode) {
-            ogs_gtp_header_t gtp_hdesc;
-            ogs_gtp_extension_header_t ext_hdesc;
+            ogs_gtp2_header_t gtp_hdesc;
+            ogs_gtp2_extension_header_t ext_hdesc;
+            ogs_pkbuf_t *newbuf = NULL;
 
             memset(&gtp_hdesc, 0, sizeof(gtp_hdesc));
             memset(&ext_hdesc, 0, sizeof(ext_hdesc));
@@ -475,7 +668,10 @@ static void send_router_advertisement(smf_sess_t *sess, uint8_t *ip6_dst)
             gtp_hdesc.type = OGS_GTPU_MSGTYPE_GPDU;
             gtp_hdesc.teid = pdr->f_teid.teid;
 
-            ogs_gtp_send_user_plane(pdr->gnode, &gtp_hdesc, &ext_hdesc, pkbuf);
+            newbuf = ogs_pkbuf_copy(pkbuf);
+            ogs_assert(newbuf);
+
+            ogs_gtp2_send_user_plane(pdr->gnode, &gtp_hdesc, &ext_hdesc, newbuf);
 
             ogs_debug("      Send Router Advertisement");
             break;
@@ -501,7 +697,7 @@ static void bearer_timeout(ogs_gtp_xact_t *xact, void *data)
     type = xact->seq[0].type;
 
     switch (type) {
-    case OGS_GTP_DELETE_BEARER_REQUEST_TYPE:
+    case OGS_GTP2_DELETE_BEARER_REQUEST_TYPE:
         ogs_error("[%s] No Delete Bearer Response", smf_ue->imsi_bcd);
         if (!smf_bearer_cycle(bearer)) {
             ogs_warn("[%s] Bearer has already been removed", smf_ue->imsi_bcd);
@@ -509,8 +705,10 @@ static void bearer_timeout(ogs_gtp_xact_t *xact, void *data)
         }
 
         ogs_assert(OGS_OK ==
-            smf_epc_pfcp_send_bearer_modification_request(
-                bearer, OGS_PFCP_MODIFY_REMOVE));
+            smf_epc_pfcp_send_one_bearer_modification_request(
+                bearer, NULL, OGS_PFCP_MODIFY_REMOVE,
+                OGS_NAS_PROCEDURE_TRANSACTION_IDENTITY_UNASSIGNED,
+                OGS_GTP2_CAUSE_UNDEFINED_VALUE));
         break;
     default:
         ogs_error("GTP Timeout : IMSI[%s] Message-Type[%d]",

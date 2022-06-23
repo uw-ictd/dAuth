@@ -28,10 +28,9 @@ OpenAPI_upf_info_t *OpenAPI_upf_info_create(
     int data_forwarding
 )
 {
-    OpenAPI_upf_info_t *upf_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_upf_info_t));
-    if (!upf_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_upf_info_t *upf_info_local_var = ogs_malloc(sizeof(OpenAPI_upf_info_t));
+    ogs_assert(upf_info_local_var);
+
     upf_info_local_var->s_nssai_upf_info_list = s_nssai_upf_info_list;
     upf_info_local_var->smf_serving_area = smf_serving_area;
     upf_info_local_var->interface_upf_info_list = interface_upf_info_list;
@@ -309,6 +308,12 @@ OpenAPI_upf_info_t *OpenAPI_upf_info_parseFromJSON(cJSON *upf_infoJSON)
         }
         OpenAPI_snssai_upf_info_item_t *s_nssai_upf_info_listItem = OpenAPI_snssai_upf_info_item_parseFromJSON(s_nssai_upf_info_list_local_nonprimitive);
 
+        if (!s_nssai_upf_info_listItem) {
+            ogs_error("No s_nssai_upf_info_listItem");
+            OpenAPI_list_free(s_nssai_upf_info_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(s_nssai_upf_info_listList, s_nssai_upf_info_listItem);
     }
 
@@ -328,7 +333,7 @@ OpenAPI_upf_info_t *OpenAPI_upf_info_parseFromJSON(cJSON *upf_infoJSON)
         ogs_error("OpenAPI_upf_info_parseFromJSON() failed [smf_serving_area]");
         goto end;
     }
-    OpenAPI_list_add(smf_serving_areaList , ogs_strdup_or_assert(smf_serving_area_local->valuestring));
+    OpenAPI_list_add(smf_serving_areaList , ogs_strdup(smf_serving_area_local->valuestring));
     }
     }
 
@@ -350,6 +355,12 @@ OpenAPI_upf_info_t *OpenAPI_upf_info_parseFromJSON(cJSON *upf_infoJSON)
             goto end;
         }
         OpenAPI_interface_upf_info_item_t *interface_upf_info_listItem = OpenAPI_interface_upf_info_item_parseFromJSON(interface_upf_info_list_local_nonprimitive);
+
+        if (!interface_upf_info_listItem) {
+            ogs_error("No interface_upf_info_listItem");
+            OpenAPI_list_free(interface_upf_info_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(interface_upf_info_listList, interface_upf_info_listItem);
     }
@@ -420,6 +431,12 @@ OpenAPI_upf_info_t *OpenAPI_upf_info_parseFromJSON(cJSON *upf_infoJSON)
             goto end;
         }
         OpenAPI_tai_t *tai_listItem = OpenAPI_tai_parseFromJSON(tai_list_local_nonprimitive);
+
+        if (!tai_listItem) {
+            ogs_error("No tai_listItem");
+            OpenAPI_list_free(tai_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(tai_listList, tai_listItem);
     }

@@ -61,7 +61,8 @@ pub async fn confirm_authentication(
                 tracing::info!("Auth started from backup network");
 
                 let mut key_shares = Vec::with_capacity(backup_network_ids.len());
-                let mut responses = Vec::with_capacity(backup_network_ids.len());
+                let mut request_set = tokio::task::JoinSet::new();
+
                 let share_threshold: u8 = std::cmp::min(
                     keys::TEMPORARY_CONSTANT_THRESHOLD,
                     backup_network_ids.len() as u8,
@@ -72,18 +73,23 @@ pub async fn confirm_authentication(
                         clients::directory::lookup_network(context.clone(), &backup_network_id)
                             .await?;
 
-                    responses.push(tokio::spawn(clients::backup_network::get_key_share(
+                    request_set.spawn(clients::backup_network::get_key_share(
                         context.clone(),
                         xres_star_hash.clone(),
                         res_star.clone(),
                         backup_address.to_string(),
-                    )));
+                    ));
                 }
 
-                for resp in responses {
-                    match resp.await {
+                while let Some(response_result) = request_set.join_one().await {
+                    match response_result {
                         Ok(key_share) => match key_share {
-                            Ok(share) => key_shares.push(share),
+                            Ok(share) => {
+                                key_shares.push(share);
+                                if key_shares.len() >= share_threshold.into() {
+                                    break;
+                                }
+                            }
                             Err(e) => tracing::warn!("Failed to get key share: {}", e),
                         },
                         Err(e) => {

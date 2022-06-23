@@ -97,6 +97,7 @@ void tests1ap_recv(test_ue_t *test_ue, ogs_pkbuf_t *pkbuf)
             tests1ap_handle_s1_setup_response(pdu);
             break;
         case S1AP_ProcedureCode_id_PathSwitchRequest:
+            tests1ap_handle_path_switch_request_ack(test_ue, pdu);
             break;
         case S1AP_ProcedureCode_id_HandoverPreparation:
             tests1ap_handle_handover_command(test_ue, pdu);
@@ -195,7 +196,9 @@ void tests1ap_send_to_nas(test_ue_t *test_ue, S1AP_NAS_PDU_t *nasPdu)
     h = (ogs_nas_emm_header_t *)nasbuf->data;
     ogs_assert(h);
 
-    if (h->message_type == OGS_NAS_EPS_SECURITY_MODE_COMMAND) {
+    if (sh->security_header_type ==
+        OGS_NAS_SECURITY_HEADER_INTEGRITY_PROTECTED_AND_NEW_SECURITY_CONTEXT &&
+        h->message_type == OGS_NAS_EPS_SECURITY_MODE_COMMAND) {
         ogs_nas_eps_message_t message;
         int rv;
 

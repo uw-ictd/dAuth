@@ -41,6 +41,8 @@ typedef struct connection_s {
     char **headers;
     struct curl_slist *header_list;
 
+    char *content;
+
     char *memory;
     size_t size;
 
@@ -80,6 +82,8 @@ void ogs_sbi_client_init(int num_of_sockinfo_pool, int num_of_connection_pool)
 }
 void ogs_sbi_client_final(void)
 {
+    ogs_sbi_client_remove_all();
+
     ogs_pool_final(&client_pool);
     ogs_pool_final(&sockinfo_pool);
     ogs_pool_final(&connection_pool);
@@ -98,6 +102,7 @@ ogs_sbi_client_t *ogs_sbi_client_add(ogs_sockaddr_t *addr)
     ogs_assert(client);
     memset(client, 0, sizeof(ogs_sbi_client_t));
 
+    client->reference_count++;
     ogs_trace("ogs_sbi_client_add()");
 
     ogs_assert(OGS_OK == ogs_copyaddrinfo(&client->node.addr, addr));
@@ -147,6 +152,14 @@ void ogs_sbi_client_remove(ogs_sbi_client_t *client)
     ogs_freeaddrinfo(client->node.addr);
 
     ogs_pool_free(&client_pool, client);
+}
+
+void ogs_sbi_client_remove_all(void)
+{
+    ogs_sbi_client_t *client = NULL, *next_client = NULL;
+
+    ogs_list_for_each_safe(&ogs_sbi_self()->client_list, next_client, client)
+        ogs_sbi_client_remove(client);
 }
 
 ogs_sbi_client_t *ogs_sbi_client_find(ogs_sockaddr_t *addr)
@@ -298,8 +311,11 @@ static connection_t *connection_add(
         curl_easy_setopt(conn->easy,
                 CURLOPT_CUSTOMREQUEST, request->h.method);
         if (request->http.content) {
+            conn->content = ogs_memdup(
+                    request->http.content, request->http.content_length);
+            ogs_assert(conn->content);
             curl_easy_setopt(conn->easy,
-                    CURLOPT_POSTFIELDS, request->http.content);
+                    CURLOPT_POSTFIELDS, conn->content);
             curl_easy_setopt(conn->easy,
                 CURLOPT_POSTFIELDSIZE, request->http.content_length);
 #if 1 /* Disable HTTP/1.1 100 Continue : Use "Expect:" in libcurl */
@@ -364,6 +380,9 @@ static void connection_remove(connection_t *conn)
 
     ogs_assert(conn->method);
     ogs_free(conn->method);
+
+    if (conn->content)
+        ogs_free(conn->content);
 
     if (conn->location)
         ogs_free(conn->location);
@@ -516,9 +535,10 @@ static size_t write_cb(void *contents, size_t size, size_t nmemb, void *data)
     ogs_assert(conn);
 
     realsize = size * nmemb;
-    ptr = ogs_realloc_or_assert(conn->memory, conn->size + realsize + 1);
+    ptr = ogs_realloc(conn->memory, conn->size + realsize + 1);
     if(!ptr) {
         ogs_fatal("not enough memory (realloc returned NULL)");
+        ogs_assert_if_reached();
         return 0;
     }
 

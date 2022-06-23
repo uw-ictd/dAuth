@@ -11,10 +11,9 @@ OpenAPI_assigned_ebi_data_t *OpenAPI_assigned_ebi_data_create(
     OpenAPI_list_t *released_ebi_list
 )
 {
-    OpenAPI_assigned_ebi_data_t *assigned_ebi_data_local_var = OpenAPI_malloc(sizeof(OpenAPI_assigned_ebi_data_t));
-    if (!assigned_ebi_data_local_var) {
-        return NULL;
-    }
+    OpenAPI_assigned_ebi_data_t *assigned_ebi_data_local_var = ogs_malloc(sizeof(OpenAPI_assigned_ebi_data_t));
+    ogs_assert(assigned_ebi_data_local_var);
+
     assigned_ebi_data_local_var->pdu_session_id = pdu_session_id;
     assigned_ebi_data_local_var->assigned_ebi_list = assigned_ebi_list;
     assigned_ebi_data_local_var->failed_arp_list = failed_arp_list;
@@ -153,6 +152,12 @@ OpenAPI_assigned_ebi_data_t *OpenAPI_assigned_ebi_data_parseFromJSON(cJSON *assi
         }
         OpenAPI_ebi_arp_mapping_t *assigned_ebi_listItem = OpenAPI_ebi_arp_mapping_parseFromJSON(assigned_ebi_list_local_nonprimitive);
 
+        if (!assigned_ebi_listItem) {
+            ogs_error("No assigned_ebi_listItem");
+            OpenAPI_list_free(assigned_ebi_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(assigned_ebi_listList, assigned_ebi_listItem);
     }
 
@@ -174,6 +179,12 @@ OpenAPI_assigned_ebi_data_t *OpenAPI_assigned_ebi_data_parseFromJSON(cJSON *assi
             goto end;
         }
         OpenAPI_arp_t *failed_arp_listItem = OpenAPI_arp_parseFromJSON(failed_arp_list_local_nonprimitive);
+
+        if (!failed_arp_listItem) {
+            ogs_error("No failed_arp_listItem");
+            OpenAPI_list_free(failed_arp_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(failed_arp_listList, failed_arp_listItem);
     }

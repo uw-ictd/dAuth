@@ -57,9 +57,11 @@ typedef enum {
 typedef long S1AP_ProcedureCode_t;
 typedef struct S1AP_S1AP_PDU ogs_s1ap_message_t;
 typedef struct ogs_nas_eps_message_s ogs_nas_eps_message_t;
+typedef struct ogs_diam_s6a_message_s ogs_diam_s6a_message_t;
 typedef struct mme_vlr_s mme_vlr_t;
 typedef struct mme_enb_s mme_enb_t;
 typedef struct enb_ue_s enb_ue_t;
+typedef struct sgw_ue_s sgw_ue_t;
 typedef struct mme_ue_s mme_ue_t;
 typedef struct mme_sess_s mme_sess_t;
 typedef struct mme_bearer_s mme_bearer_t;
@@ -82,11 +84,15 @@ typedef struct mme_event_s {
     ogs_gtp_node_t *gnode;
 
     uint8_t nas_type;
+    int create_action;
     ogs_nas_eps_message_t *nas_message;
+
+    ogs_diam_s6a_message_t *s6a_message;
 
     mme_vlr_t *vlr;
     mme_enb_t *enb;
     enb_ue_t *enb_ue;
+    sgw_ue_t *sgw_ue;
     mme_ue_t *mme_ue;
     mme_sess_t *sess;
     mme_bearer_t *bearer;

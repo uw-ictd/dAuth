@@ -13,10 +13,9 @@ OpenAPI_service_area_restriction_t *OpenAPI_service_area_restriction_create(
     int max_num_of_tas_for_not_allowed_areas
 )
 {
-    OpenAPI_service_area_restriction_t *service_area_restriction_local_var = OpenAPI_malloc(sizeof(OpenAPI_service_area_restriction_t));
-    if (!service_area_restriction_local_var) {
-        return NULL;
-    }
+    OpenAPI_service_area_restriction_t *service_area_restriction_local_var = ogs_malloc(sizeof(OpenAPI_service_area_restriction_t));
+    ogs_assert(service_area_restriction_local_var);
+
     service_area_restriction_local_var->restriction_type = restriction_type;
     service_area_restriction_local_var->areas = areas;
     service_area_restriction_local_var->is_max_num_of_tas = is_max_num_of_tas;
@@ -127,6 +126,12 @@ OpenAPI_service_area_restriction_t *OpenAPI_service_area_restriction_parseFromJS
             goto end;
         }
         OpenAPI_area_t *areasItem = OpenAPI_area_parseFromJSON(areas_local_nonprimitive);
+
+        if (!areasItem) {
+            ogs_error("No areasItem");
+            OpenAPI_list_free(areasList);
+            goto end;
+        }
 
         OpenAPI_list_add(areasList, areasItem);
     }

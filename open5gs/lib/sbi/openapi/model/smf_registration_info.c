@@ -8,10 +8,9 @@ OpenAPI_smf_registration_info_t *OpenAPI_smf_registration_info_create(
     OpenAPI_list_t *smf_registration_list
 )
 {
-    OpenAPI_smf_registration_info_t *smf_registration_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_smf_registration_info_t));
-    if (!smf_registration_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_smf_registration_info_t *smf_registration_info_local_var = ogs_malloc(sizeof(OpenAPI_smf_registration_info_t));
+    ogs_assert(smf_registration_info_local_var);
+
     smf_registration_info_local_var->smf_registration_list = smf_registration_list;
 
     return smf_registration_info_local_var;
@@ -86,6 +85,12 @@ OpenAPI_smf_registration_info_t *OpenAPI_smf_registration_info_parseFromJSON(cJS
             goto end;
         }
         OpenAPI_smf_registration_t *smf_registration_listItem = OpenAPI_smf_registration_parseFromJSON(smf_registration_list_local_nonprimitive);
+
+        if (!smf_registration_listItem) {
+            ogs_error("No smf_registration_listItem");
+            OpenAPI_list_free(smf_registration_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(smf_registration_listList, smf_registration_listItem);
     }

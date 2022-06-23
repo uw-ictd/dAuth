@@ -9,10 +9,9 @@ OpenAPI_ddn_failure_sub_info_t *OpenAPI_ddn_failure_sub_info_create(
     OpenAPI_list_t *ddd_traffic_descriptor_list
 )
 {
-    OpenAPI_ddn_failure_sub_info_t *ddn_failure_sub_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_ddn_failure_sub_info_t));
-    if (!ddn_failure_sub_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_ddn_failure_sub_info_t *ddn_failure_sub_info_local_var = ogs_malloc(sizeof(OpenAPI_ddn_failure_sub_info_t));
+    ogs_assert(ddn_failure_sub_info_local_var);
+
     ddn_failure_sub_info_local_var->notify_correlation_id = notify_correlation_id;
     ddn_failure_sub_info_local_var->ddd_traffic_descriptor_list = ddd_traffic_descriptor_list;
 
@@ -105,12 +104,18 @@ OpenAPI_ddn_failure_sub_info_t *OpenAPI_ddn_failure_sub_info_parseFromJSON(cJSON
         }
         OpenAPI_ddd_traffic_descriptor_t *ddd_traffic_descriptor_listItem = OpenAPI_ddd_traffic_descriptor_parseFromJSON(ddd_traffic_descriptor_list_local_nonprimitive);
 
+        if (!ddd_traffic_descriptor_listItem) {
+            ogs_error("No ddd_traffic_descriptor_listItem");
+            OpenAPI_list_free(ddd_traffic_descriptor_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(ddd_traffic_descriptor_listList, ddd_traffic_descriptor_listItem);
     }
     }
 
     ddn_failure_sub_info_local_var = OpenAPI_ddn_failure_sub_info_create (
-        ogs_strdup_or_assert(notify_correlation_id->valuestring),
+        ogs_strdup(notify_correlation_id->valuestring),
         ddd_traffic_descriptor_list ? ddd_traffic_descriptor_listList : NULL
     );
 

@@ -8,10 +8,9 @@ OpenAPI_smf_subscription_info_t *OpenAPI_smf_subscription_info_create(
     OpenAPI_list_t *smf_subscription_list
 )
 {
-    OpenAPI_smf_subscription_info_t *smf_subscription_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_smf_subscription_info_t));
-    if (!smf_subscription_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_smf_subscription_info_t *smf_subscription_info_local_var = ogs_malloc(sizeof(OpenAPI_smf_subscription_info_t));
+    ogs_assert(smf_subscription_info_local_var);
+
     smf_subscription_info_local_var->smf_subscription_list = smf_subscription_list;
 
     return smf_subscription_info_local_var;
@@ -86,6 +85,12 @@ OpenAPI_smf_subscription_info_t *OpenAPI_smf_subscription_info_parseFromJSON(cJS
             goto end;
         }
         OpenAPI_smf_subscription_item_t *smf_subscription_listItem = OpenAPI_smf_subscription_item_parseFromJSON(smf_subscription_list_local_nonprimitive);
+
+        if (!smf_subscription_listItem) {
+            ogs_error("No smf_subscription_listItem");
+            OpenAPI_list_free(smf_subscription_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(smf_subscription_listList, smf_subscription_listItem);
     }

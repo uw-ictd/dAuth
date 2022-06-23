@@ -53,12 +53,12 @@ void ogs_socket_final(void)
 ogs_sock_t *ogs_sock_create(void)
 {
     ogs_sock_t *sock = NULL;
-    
+
     sock = ogs_calloc(1, sizeof(*sock));
     ogs_expect_or_return_val(sock, NULL);
 
     sock->fd = INVALID_SOCKET;
-    
+
     return sock;
 }
 
@@ -131,7 +131,7 @@ int ogs_sock_connect(ogs_sock_t *sock, ogs_sockaddr_t *addr)
     ogs_assert(addrlen);
 
     if (connect(sock->fd, &addr->sa, addrlen) != 0) {
-        ogs_log_message(OGS_LOG_ERROR, ogs_socket_errno, 
+        ogs_log_message(OGS_LOG_ERROR, ogs_socket_errno,
                 "socket connect[%s]:%d failed",
                 OGS_ADDR(addr, buf), OGS_PORT(addr));
         return OGS_ERROR;
@@ -252,82 +252,6 @@ int ogs_closesocket(ogs_socket_t fd)
         ogs_log_message(OGS_LOG_ERROR, ogs_socket_errno, "closesocket failed");
         return OGS_ERROR;
     }
-
-    return OGS_OK;
-}
-
-int ogs_nonblocking(ogs_socket_t fd)
-{
-#ifdef _WIN32
-    int rc;
-    ogs_assert(fd != INVALID_SOCKET);
-
-    u_long io_mode = 1;
-    rc = ioctlsocket(fd, FIONBIO, &io_mode);
-    if (rc != OGS_OK) {
-        ogs_log_message(OGS_LOG_ERROR, ogs_socket_errno, "ioctlsocket failed");
-        return OGS_ERROR;
-    }
-#else
-    int rc;
-    int flags;
-    ogs_assert(fd != INVALID_SOCKET);
-
-    flags = fcntl(fd, F_GETFL, NULL);
-    if (flags < 0) {
-        ogs_log_message(OGS_LOG_ERROR, ogs_socket_errno, "F_GETFL failed");
-        return OGS_ERROR;
-    }
-    if (!(flags & O_NONBLOCK)) {
-        rc = fcntl(fd, F_SETFL, (flags | O_NONBLOCK));
-        if (rc != OGS_OK) {
-            ogs_log_message(OGS_LOG_ERROR, ogs_socket_errno, "F_SETFL failed");
-            return OGS_ERROR;
-        }
-    }
-#endif
-
-    return OGS_OK;
-}
-
-int ogs_closeonexec(ogs_socket_t fd)
-{
-#ifndef _WIN32
-    int rc;
-    int flags;
-
-    ogs_assert(fd != INVALID_SOCKET);
-    flags = fcntl(fd, F_GETFD, NULL);
-    if (flags < 0) {
-        ogs_log_message(OGS_LOG_ERROR, ogs_socket_errno, "F_GETFD failed");
-        return OGS_ERROR;
-    }
-    if (!(flags & FD_CLOEXEC)) {
-        rc = fcntl(fd, F_SETFD, (flags | FD_CLOEXEC));
-        if (rc != OGS_OK) {
-            ogs_log_message(OGS_LOG_ERROR, ogs_socket_errno, "F_SETFD failed");
-            return OGS_ERROR;
-        }
-    }
-#endif
-
-    return OGS_OK;
-}
-
-int ogs_listen_reusable(ogs_socket_t fd)
-{
-#if defined(SO_REUSEADDR) && !defined(_WIN32)
-    int rc;
-    int on = 1;
-
-    ogs_assert(fd != INVALID_SOCKET);
-    rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&on, sizeof(int));
-    if (rc != OGS_OK) {
-        ogs_log_message(OGS_LOG_ERROR, ogs_socket_errno,
-                "setsockopt(SOL_SOCKET, SO_REUSEADDR) failed");
-        return OGS_ERROR;
-    }
-#endif
 
     return OGS_OK;
 }

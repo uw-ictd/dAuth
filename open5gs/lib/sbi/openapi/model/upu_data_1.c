@@ -10,10 +10,9 @@ OpenAPI_upu_data_1_t *OpenAPI_upu_data_1_create(
     char *routing_id
 )
 {
-    OpenAPI_upu_data_1_t *upu_data_1_local_var = OpenAPI_malloc(sizeof(OpenAPI_upu_data_1_t));
-    if (!upu_data_1_local_var) {
-        return NULL;
-    }
+    OpenAPI_upu_data_1_t *upu_data_1_local_var = ogs_malloc(sizeof(OpenAPI_upu_data_1_t));
+    ogs_assert(upu_data_1_local_var);
+
     upu_data_1_local_var->sec_packet = sec_packet;
     upu_data_1_local_var->default_conf_nssai = default_conf_nssai;
     upu_data_1_local_var->routing_id = routing_id;
@@ -115,6 +114,12 @@ OpenAPI_upu_data_1_t *OpenAPI_upu_data_1_parseFromJSON(cJSON *upu_data_1JSON)
         }
         OpenAPI_snssai_t *default_conf_nssaiItem = OpenAPI_snssai_parseFromJSON(default_conf_nssai_local_nonprimitive);
 
+        if (!default_conf_nssaiItem) {
+            ogs_error("No default_conf_nssaiItem");
+            OpenAPI_list_free(default_conf_nssaiList);
+            goto end;
+        }
+
         OpenAPI_list_add(default_conf_nssaiList, default_conf_nssaiItem);
     }
     }
@@ -129,9 +134,9 @@ OpenAPI_upu_data_1_t *OpenAPI_upu_data_1_parseFromJSON(cJSON *upu_data_1JSON)
     }
 
     upu_data_1_local_var = OpenAPI_upu_data_1_create (
-        sec_packet ? ogs_strdup_or_assert(sec_packet->valuestring) : NULL,
+        sec_packet ? ogs_strdup(sec_packet->valuestring) : NULL,
         default_conf_nssai ? default_conf_nssaiList : NULL,
-        routing_id ? ogs_strdup_or_assert(routing_id->valuestring) : NULL
+        routing_id ? ogs_strdup(routing_id->valuestring) : NULL
     );
 
     return upu_data_1_local_var;

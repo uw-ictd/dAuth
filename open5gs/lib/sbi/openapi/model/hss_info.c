@@ -12,10 +12,9 @@ OpenAPI_hss_info_t *OpenAPI_hss_info_create(
     OpenAPI_list_t *msisdn_ranges
 )
 {
-    OpenAPI_hss_info_t *hss_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_hss_info_t));
-    if (!hss_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_hss_info_t *hss_info_local_var = ogs_malloc(sizeof(OpenAPI_hss_info_t));
+    ogs_assert(hss_info_local_var);
+
     hss_info_local_var->group_id = group_id;
     hss_info_local_var->imsi_ranges = imsi_ranges;
     hss_info_local_var->ims_private_identity_ranges = ims_private_identity_ranges;
@@ -183,6 +182,12 @@ OpenAPI_hss_info_t *OpenAPI_hss_info_parseFromJSON(cJSON *hss_infoJSON)
         }
         OpenAPI_imsi_range_t *imsi_rangesItem = OpenAPI_imsi_range_parseFromJSON(imsi_ranges_local_nonprimitive);
 
+        if (!imsi_rangesItem) {
+            ogs_error("No imsi_rangesItem");
+            OpenAPI_list_free(imsi_rangesList);
+            goto end;
+        }
+
         OpenAPI_list_add(imsi_rangesList, imsi_rangesItem);
     }
     }
@@ -205,6 +210,12 @@ OpenAPI_hss_info_t *OpenAPI_hss_info_parseFromJSON(cJSON *hss_infoJSON)
             goto end;
         }
         OpenAPI_identity_range_t *ims_private_identity_rangesItem = OpenAPI_identity_range_parseFromJSON(ims_private_identity_ranges_local_nonprimitive);
+
+        if (!ims_private_identity_rangesItem) {
+            ogs_error("No ims_private_identity_rangesItem");
+            OpenAPI_list_free(ims_private_identity_rangesList);
+            goto end;
+        }
 
         OpenAPI_list_add(ims_private_identity_rangesList, ims_private_identity_rangesItem);
     }
@@ -229,6 +240,12 @@ OpenAPI_hss_info_t *OpenAPI_hss_info_parseFromJSON(cJSON *hss_infoJSON)
         }
         OpenAPI_identity_range_t *ims_public_identity_rangesItem = OpenAPI_identity_range_parseFromJSON(ims_public_identity_ranges_local_nonprimitive);
 
+        if (!ims_public_identity_rangesItem) {
+            ogs_error("No ims_public_identity_rangesItem");
+            OpenAPI_list_free(ims_public_identity_rangesList);
+            goto end;
+        }
+
         OpenAPI_list_add(ims_public_identity_rangesList, ims_public_identity_rangesItem);
     }
     }
@@ -252,12 +269,18 @@ OpenAPI_hss_info_t *OpenAPI_hss_info_parseFromJSON(cJSON *hss_infoJSON)
         }
         OpenAPI_identity_range_t *msisdn_rangesItem = OpenAPI_identity_range_parseFromJSON(msisdn_ranges_local_nonprimitive);
 
+        if (!msisdn_rangesItem) {
+            ogs_error("No msisdn_rangesItem");
+            OpenAPI_list_free(msisdn_rangesList);
+            goto end;
+        }
+
         OpenAPI_list_add(msisdn_rangesList, msisdn_rangesItem);
     }
     }
 
     hss_info_local_var = OpenAPI_hss_info_create (
-        group_id ? ogs_strdup_or_assert(group_id->valuestring) : NULL,
+        group_id ? ogs_strdup(group_id->valuestring) : NULL,
         imsi_ranges ? imsi_rangesList : NULL,
         ims_private_identity_ranges ? ims_private_identity_rangesList : NULL,
         ims_public_identity_ranges ? ims_public_identity_rangesList : NULL,

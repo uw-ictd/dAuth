@@ -47,8 +47,10 @@ ogs_socknode_t *test_gtpu_server(int index, int family)
     node = ogs_socknode_new(addr);
     ogs_assert(node);
 
-    sock = ogs_udp_server(node);
+    sock = ogs_udp_server(node->addr, NULL);
     ogs_assert(sock);
+
+    node->sock = sock;
 
     return node;
 }
@@ -106,7 +108,7 @@ void testgtpu_recv(test_ue_t *test_ue, ogs_pkbuf_t *pkbuf)
     test_sess_t *sess = NULL;
     test_bearer_t *bearer = NULL;
 
-    ogs_gtp_header_t *gtp_h = NULL;
+    ogs_gtp2_header_t *gtp_h = NULL;
     struct ip6_hdr *ip6_h =  NULL;
     struct nd_router_advert *advert_h = NULL;
     struct nd_opt_prefix_info *prefix = NULL;
@@ -117,10 +119,10 @@ void testgtpu_recv(test_ue_t *test_ue, ogs_pkbuf_t *pkbuf)
     ogs_assert(test_ue);
     ogs_assert(pkbuf);
 
-    gtp_h = (ogs_gtp_header_t *)pkbuf->data;
+    gtp_h = (ogs_gtp2_header_t *)pkbuf->data;
     ogs_assert(gtp_h);
 
-    ogs_assert(gtp_h->version == OGS_GTP_VERSION_1);
+    ogs_assert(gtp_h->version == OGS_GTP1_VERSION_1);
     ogs_assert(gtp_h->type == OGS_GTPU_MSGTYPE_GPDU);
 
     teid = be32toh(gtp_h->teid);
@@ -147,7 +149,7 @@ void testgtpu_recv(test_ue_t *test_ue, ogs_pkbuf_t *pkbuf)
 found:
     ogs_assert(sess);
 
-    ip6_h = pkbuf->data + OGS_GTPV1U_HEADER_LEN;
+    ip6_h = pkbuf->data + ogs_gtpu_header_len(pkbuf);
     ogs_assert(ip6_h);
     if (ip6_h->ip6_nxt == IPPROTO_ICMPV6) {
         struct nd_router_advert *advert_h = (struct nd_router_advert *)
@@ -170,7 +172,7 @@ found:
 
 int test_gtpu_send(
         ogs_socknode_t *node, test_bearer_t *bearer,
-        ogs_gtp_header_t *gtp_hdesc, ogs_gtp_extension_header_t *ext_hdesc,
+        ogs_gtp2_header_t *gtp_hdesc, ogs_gtp2_extension_header_t *ext_hdesc,
         ogs_pkbuf_t *pkbuf)
 {
     ogs_gtp_node_t gnode;
@@ -212,9 +214,9 @@ int test_gtpu_send(
     }
 
     ext_hdesc->pdu_type =
-        OGS_GTP_EXTENSION_HEADER_PDU_TYPE_UL_PDU_SESSION_INFORMATION;
+        OGS_GTP2_EXTENSION_HEADER_PDU_TYPE_UL_PDU_SESSION_INFORMATION;
 
-    return ogs_gtp_send_user_plane(&gnode, gtp_hdesc, ext_hdesc, pkbuf);
+    return ogs_gtp2_send_user_plane(&gnode, gtp_hdesc, ext_hdesc, pkbuf);
 }
 
 int test_gtpu_send_ping(
@@ -223,8 +225,8 @@ int test_gtpu_send_ping(
     int rv;
     test_sess_t *sess = NULL;
 
-    ogs_gtp_header_t gtp_hdesc;
-    ogs_gtp_extension_header_t ext_hdesc;
+    ogs_gtp2_header_t gtp_hdesc;
+    ogs_gtp2_extension_header_t ext_hdesc;
 
     ogs_pkbuf_t *pkbuf = NULL;
     ogs_ipsubnet_t dst_ipsub;
@@ -336,10 +338,12 @@ int test_gtpu_send_slacc_rs(ogs_socknode_t *node, test_bearer_t *bearer)
 {
     test_sess_t *sess = NULL;
 
-    ogs_gtp_header_t gtp_hdesc;
-    ogs_gtp_extension_header_t ext_hdesc;
+    ogs_gtp2_header_t gtp_hdesc;
+    ogs_gtp2_extension_header_t ext_hdesc;
 
     ogs_pkbuf_t *pkbuf = NULL;
+    struct ip6_hdr *ip6_h = NULL;
+    uint8_t *src_addr = NULL;
 
     const char *payload =
         "6000000000083aff fe80000000000000 0000000000000002"
@@ -361,6 +365,14 @@ int test_gtpu_send_slacc_rs(ogs_socknode_t *node, test_bearer_t *bearer)
     OGS_HEX(payload, strlen(payload), tmp);
     memcpy(pkbuf->data, tmp, payload_len);
 
+    ip6_h = pkbuf->data;
+    ogs_assert(ip6_h);
+
+    src_addr = (uint8_t *)ip6_h->ip6_src.s6_addr;
+    ogs_assert(src_addr);
+
+    memcpy(src_addr + 8, sess->ue_ip.addr6 + 8, 8);
+
     ogs_pkbuf_trim(pkbuf, payload_len);
 
     memset(&gtp_hdesc, 0, sizeof(gtp_hdesc));
@@ -372,10 +384,11 @@ int test_gtpu_send_slacc_rs(ogs_socknode_t *node, test_bearer_t *bearer)
     if (bearer->qfi) {
         gtp_hdesc.teid = sess->upf_n3_teid;
 
-/* CHECK: I guess that Router Soliciation does not include QFI in 5G Core */
-#if 0
+/*
+ * Discussion #1506
+ * Router Soliciation should include QFI in 5G Core
+ */
         ext_hdesc.qos_flow_identifier = bearer->qfi;
-#endif
 
     } else if (bearer->ebi) {
         gtp_hdesc.teid = bearer->sgw_s1u_teid;
@@ -394,8 +407,8 @@ int test_gtpu_send_error_indication(
     test_sess_t *sess = NULL;
     uint32_t teid = 0;
 
-    ogs_gtp_header_t gtp_hdesc;
-    ogs_gtp_extension_header_t ext_hdesc;
+    ogs_gtp2_header_t gtp_hdesc;
+    ogs_gtp2_extension_header_t ext_hdesc;
 
     ogs_pkbuf_t *pkbuf = NULL;
 
@@ -416,7 +429,7 @@ int test_gtpu_send_error_indication(
         ogs_assert_if_reached();
     }
 
-    pkbuf = ogs_gtp_build_error_indication(teid, node->addr);
+    pkbuf = ogs_gtp2_build_error_indication(teid, node->addr);
     ogs_assert(pkbuf);
 
     memset(&gtp_hdesc, 0, sizeof(gtp_hdesc));
@@ -424,7 +437,7 @@ int test_gtpu_send_error_indication(
 
     gtp_hdesc.type = OGS_GTPU_MSGTYPE_ERR_IND;
     gtp_hdesc.flags = OGS_GTPU_FLAGS_S|OGS_GTPU_FLAGS_E;
-    ext_hdesc.type = OGS_GTP_EXTENSION_HEADER_TYPE_UDP_PORT;
+    ext_hdesc.type = OGS_GTP2_EXTENSION_HEADER_TYPE_UDP_PORT;
 
     return test_gtpu_send(node, bearer, &gtp_hdesc, &ext_hdesc, pkbuf);
 }
@@ -434,8 +447,8 @@ int test_gtpu_send_indirect_data_forwarding(
 {
     test_sess_t *sess = NULL;
 
-    ogs_gtp_header_t gtp_hdesc;
-    ogs_gtp_extension_header_t ext_hdesc;
+    ogs_gtp2_header_t gtp_hdesc;
+    ogs_gtp2_extension_header_t ext_hdesc;
 
     ogs_assert(bearer);
     sess = bearer->sess;

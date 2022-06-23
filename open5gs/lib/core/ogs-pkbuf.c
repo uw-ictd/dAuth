@@ -22,6 +22,7 @@
 #undef OGS_LOG_DOMAIN
 #define OGS_LOG_DOMAIN __ogs_mem_domain
 
+#if OGS_USE_TALLOC == 0
 #define OGS_CLUSTER_128_SIZE    128
 #define OGS_CLUSTER_256_SIZE    256
 #define OGS_CLUSTER_512_SIZE    512
@@ -67,6 +68,7 @@ static ogs_pkbuf_pool_t *default_pool = NULL;
 static ogs_cluster_t *cluster_alloc(
         ogs_pkbuf_pool_t *pool, unsigned int size);
 static void cluster_free(ogs_pkbuf_pool_t *pool, ogs_cluster_t *cluster);
+#endif
 
 void *ogs_pkbuf_put_data(
         ogs_pkbuf_t *pkbuf, const void *data, unsigned int len)
@@ -79,16 +81,21 @@ void *ogs_pkbuf_put_data(
 
 void ogs_pkbuf_init(void)
 {
+#if OGS_USE_TALLOC == 0
     ogs_pool_init(&pkbuf_pool, ogs_core()->pkbuf.pool);
+#endif
 }
 
 void ogs_pkbuf_final(void)
 {
+#if OGS_USE_TALLOC == 0
     ogs_pool_final(&pkbuf_pool);
+#endif
 }
 
 void ogs_pkbuf_default_init(ogs_pkbuf_config_t *config)
 {
+#if OGS_USE_TALLOC == 0
     ogs_assert(config);
     memset(config, 0, sizeof *config);
 
@@ -99,21 +106,27 @@ void ogs_pkbuf_default_init(ogs_pkbuf_config_t *config)
     config->cluster_2048_pool = 1024;
     config->cluster_8192_pool = 512;
     config->cluster_big_pool = 8;
+#endif
 }
 
 void ogs_pkbuf_default_create(ogs_pkbuf_config_t *config)
 {
+#if OGS_USE_TALLOC == 0
     default_pool = ogs_pkbuf_pool_create(config);
+#endif
 }
 
 void ogs_pkbuf_default_destroy(void)
 {
+#if OGS_USE_TALLOC == 0
     ogs_pkbuf_pool_destroy(default_pool);
+#endif
 }
 
 ogs_pkbuf_pool_t *ogs_pkbuf_pool_create(ogs_pkbuf_config_t *config)
 {
     ogs_pkbuf_pool_t *pool = NULL;
+#if OGS_USE_TALLOC == 0
     int tmp = 0;
 
     ogs_assert(config);
@@ -139,6 +152,7 @@ ogs_pkbuf_pool_t *ogs_pkbuf_pool_create(ogs_pkbuf_config_t *config)
     ogs_pool_init(&pool->cluster_2048, config->cluster_2048_pool);
     ogs_pool_init(&pool->cluster_8192, config->cluster_8192_pool);
     ogs_pool_init(&pool->cluster_big, config->cluster_big_pool);
+#endif
 
     return pool;
 }
@@ -163,6 +177,7 @@ ogs_pkbuf_pool_t *ogs_pkbuf_pool_create(ogs_pkbuf_config_t *config)
 
 void ogs_pkbuf_pool_destroy(ogs_pkbuf_pool_t *pool)
 {
+#if OGS_USE_TALLOC == 0
     ogs_assert(pool);
 
     ogs_pkbuf_pool_final(&pool->pkbuf);
@@ -179,11 +194,33 @@ void ogs_pkbuf_pool_destroy(ogs_pkbuf_pool_t *pool)
     ogs_thread_mutex_destroy(&pool->mutex);
 
     ogs_pool_free(&pkbuf_pool, pool);
+#endif
 }
 
 ogs_pkbuf_t *ogs_pkbuf_alloc_debug(
         ogs_pkbuf_pool_t *pool, unsigned int size, const char *file_line)
 {
+#if OGS_USE_TALLOC
+    ogs_pkbuf_t *pkbuf = NULL;
+
+    pkbuf = ogs_talloc_zero_size(pool, sizeof(*pkbuf) + size, file_line);
+    if (!pkbuf) {
+        ogs_error("ogs_pkbuf_alloc() failed [size=%d]", size);
+        return NULL;
+    }
+
+    pkbuf->head = pkbuf->_data;
+    pkbuf->end = pkbuf->_data + size;
+
+    pkbuf->len = 0;
+
+    pkbuf->data = pkbuf->_data;
+    pkbuf->tail = pkbuf->_data;
+
+    pkbuf->file_line = file_line; /* For debug */
+
+    return pkbuf;
+#else
     ogs_pkbuf_t *pkbuf = NULL;
     ogs_cluster_t *cluster = NULL;
 
@@ -210,8 +247,6 @@ ogs_pkbuf_t *ogs_pkbuf_alloc_debug(
 
     cluster->ref++;
 
-    ogs_thread_mutex_unlock(&pool->mutex);
-
     pkbuf->cluster = cluster;
 
     pkbuf->len = 0;
@@ -225,11 +260,17 @@ ogs_pkbuf_t *ogs_pkbuf_alloc_debug(
 
     pkbuf->pool = pool;
 
+    ogs_thread_mutex_unlock(&pool->mutex);
+
     return pkbuf;
+#endif
 }
 
 void ogs_pkbuf_free(ogs_pkbuf_t *pkbuf)
 {
+#if OGS_USE_TALLOC
+    ogs_talloc_free(pkbuf, OGS_FILE_LINE);
+#else
     ogs_pkbuf_pool_t *pool = NULL;
     ogs_cluster_t *cluster = NULL;
     ogs_assert(pkbuf);
@@ -237,10 +278,10 @@ void ogs_pkbuf_free(ogs_pkbuf_t *pkbuf)
     pool = pkbuf->pool;
     ogs_assert(pool);
 
+    ogs_thread_mutex_lock(&pool->mutex);
+
     cluster = pkbuf->cluster;
     ogs_assert(cluster);
-
-    ogs_thread_mutex_lock(&pool->mutex);
 
     cluster->ref--;
     if (cluster->ref == 0)
@@ -249,10 +290,33 @@ void ogs_pkbuf_free(ogs_pkbuf_t *pkbuf)
     ogs_pool_free(&pool->pkbuf, pkbuf);
 
     ogs_thread_mutex_unlock(&pool->mutex);
+#endif
 }
 
 ogs_pkbuf_t *ogs_pkbuf_copy_debug(ogs_pkbuf_t *pkbuf, const char *file_line)
 {
+#if OGS_USE_TALLOC
+    ogs_pkbuf_t *newbuf;
+    int size = pkbuf->end - pkbuf->head;
+
+    ogs_assert(size > 0);
+    newbuf = ogs_pkbuf_alloc_debug(NULL, size, file_line);
+    if (!pkbuf) {
+        ogs_error("ogs_pkbuf_alloc() failed [size=%d]", size);
+        return NULL;
+    }
+
+    /* copy data */
+    memcpy(newbuf->_data, pkbuf->_data, size);
+
+    /* copy header */
+    newbuf->len = pkbuf->len;
+
+    newbuf->tail += pkbuf->tail - pkbuf->_data;
+    newbuf->data += pkbuf->data - pkbuf->_data;
+
+    return newbuf;
+#else
     ogs_pkbuf_pool_t *pool = NULL;
     ogs_pkbuf_t *newbuf = NULL;
 
@@ -274,10 +338,12 @@ ogs_pkbuf_t *ogs_pkbuf_copy_debug(ogs_pkbuf_t *pkbuf, const char *file_line)
     newbuf->cluster->ref++;
 
     ogs_thread_mutex_unlock(&pool->mutex);
+#endif
 
     return newbuf;
 }
 
+#if OGS_USE_TALLOC == 0
 static ogs_cluster_t *cluster_alloc(
         ogs_pkbuf_pool_t *pool, unsigned int size)
 {
@@ -363,3 +429,4 @@ static void cluster_free(ogs_pkbuf_pool_t *pool, ogs_cluster_t *cluster)
 
     ogs_pool_free(&pool->cluster, cluster);
 }
+#endif

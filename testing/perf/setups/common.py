@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from typing import List, Union
 from paramiko.channel import ChannelFile, ChannelStderrFile
 from time import sleep
@@ -7,6 +8,14 @@ from perf.state import NetworkState
 from perf.metrics import PerfMetrics
 from perf.config import UEConfig, GNBConfig
 from perf.exception import PerfException
+=======
+from typing import Union
+from paramiko.channel import ChannelFile, ChannelStderrFile
+from time import sleep
+
+from perf.state import NetworkState
+from perf.metrics import PerfMetrics
+>>>>>>> main
 from logger import TestingLogger
 
 
@@ -17,6 +26,7 @@ class NetworkSetup:
     
     def __init__(self, state: NetworkState) -> None:
         self.state: NetworkState = state
+<<<<<<< HEAD
         
         self._max_ues_per_gnb = 10
         self._max_gnbs = 10
@@ -25,10 +35,16 @@ class NetworkSetup:
         self.gnb_index = 0
         
     def _configure(self, num_users: int) -> None:
+=======
+        self.gnb_config_path: str = None
+        
+    def _configure(self, num_users: int):
+>>>>>>> main
         """
         Configures the network for the number of users and auth situation.
         """
         pass
+<<<<<<< HEAD
     
     def _after_settle(self) -> None:
         """
@@ -99,6 +115,17 @@ class NetworkSetup:
                 self.state.ueransim.add_gnb(config_path)
         else:
             raise PerfException("GNB configs not specified")
+=======
+
+    def _start_gnb(self) -> None:
+        """
+        Starts the gnb for this setup.
+        """
+        if self.gnb_config_path:
+            self.state.ueransim.add_gnb(self.gnb_config_path)
+        else:
+            raise Exception("GNB config path not set")
+>>>>>>> main
         
     def _start_ues(self, num_ues: int, interval: int, iterations: int) -> Union[ChannelFile, ChannelStderrFile]:
         """
@@ -109,7 +136,10 @@ class NetworkSetup:
              "-n", str(num_ues),
              "-i", str(interval),
              "-t", str(iterations),
+<<<<<<< HEAD
              "-c", self._temp_dir,
+=======
+>>>>>>> main
              ])
 
         res = self.state.ueransim.run_input_command(command)
@@ -122,10 +152,13 @@ class NetworkSetup:
         Runs and prints the resulting performance metrics.
         """
         TestingLogger.logger.info("Running perf test")
+<<<<<<< HEAD
         
         if num_ues > self._max_gnbs * self._max_ues_per_gnb:
             raise PerfException("Too many UEs for max number of gNBS")
         
+=======
+>>>>>>> main
         TestingLogger.logger.info(
             "Num UEs: {}, Inteval: {}ms, iterations: {}"
             .format(num_ues, interval, iterations))
@@ -137,6 +170,7 @@ class NetworkSetup:
             
             # wait for network to settle
             TestingLogger.logger.info("Waiting for network to settle")
+<<<<<<< HEAD
             sleep(10)
             
             TestingLogger.logger.info("Running after-settle commands")
@@ -148,6 +182,13 @@ class NetworkSetup:
             # tart gnb and ues
             TestingLogger.logger.info("Starting gNB and UEs")
             self._start_gnbs(gnb_paths)
+=======
+            sleep(5)
+            
+            # Start gnb and ues
+            TestingLogger.logger.info("Starting gNB and UEs")
+            self._start_gnb()
+>>>>>>> main
             output, err = self._start_ues(num_ues, interval, iterations)
             
             TestingLogger.logger.info("Processing output (varies by iterations*interval)")
@@ -157,9 +198,12 @@ class NetworkSetup:
                     metrics.add_result_from_json(line)
                 except Exception as e:
                     TestingLogger.logger.debug("Failed<{}>: {}".format(e, line.rstrip()))
+<<<<<<< HEAD
                     
                     if "[error]" in line:
                         TestingLogger.logger.error("UERANSIM error detected: {}".format(line.rstrip()))
+=======
+>>>>>>> main
                 
             for line in err:
                 TestingLogger.logger.debug("Stderr:", line.rstrip())
@@ -173,8 +217,15 @@ class NetworkSetup:
             print(" ", "All")
             print("   averages:", metrics.get_total_average())
 
+<<<<<<< HEAD
         except PerfException as e:
             TestingLogger.logger.error("Failed to run: {}".format(e))
         
         TestingLogger.logger.info("Perf completed")
         self.state.ueransim.remove_devices()
+=======
+        except Exception as e:
+            TestingLogger.logger.error("Failed to run: {}".format(e))
+        
+        TestingLogger.logger.info("Perf completed")
+>>>>>>> main

@@ -13,10 +13,9 @@ OpenAPI_udm_info_t *OpenAPI_udm_info_create(
     OpenAPI_list_t *internal_group_identifiers_ranges
 )
 {
-    OpenAPI_udm_info_t *udm_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_udm_info_t));
-    if (!udm_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_udm_info_t *udm_info_local_var = ogs_malloc(sizeof(OpenAPI_udm_info_t));
+    ogs_assert(udm_info_local_var);
+
     udm_info_local_var->group_id = group_id;
     udm_info_local_var->supi_ranges = supi_ranges;
     udm_info_local_var->gpsi_ranges = gpsi_ranges;
@@ -205,6 +204,12 @@ OpenAPI_udm_info_t *OpenAPI_udm_info_parseFromJSON(cJSON *udm_infoJSON)
         }
         OpenAPI_supi_range_t *supi_rangesItem = OpenAPI_supi_range_parseFromJSON(supi_ranges_local_nonprimitive);
 
+        if (!supi_rangesItem) {
+            ogs_error("No supi_rangesItem");
+            OpenAPI_list_free(supi_rangesList);
+            goto end;
+        }
+
         OpenAPI_list_add(supi_rangesList, supi_rangesItem);
     }
     }
@@ -227,6 +232,12 @@ OpenAPI_udm_info_t *OpenAPI_udm_info_parseFromJSON(cJSON *udm_infoJSON)
             goto end;
         }
         OpenAPI_identity_range_t *gpsi_rangesItem = OpenAPI_identity_range_parseFromJSON(gpsi_ranges_local_nonprimitive);
+
+        if (!gpsi_rangesItem) {
+            ogs_error("No gpsi_rangesItem");
+            OpenAPI_list_free(gpsi_rangesList);
+            goto end;
+        }
 
         OpenAPI_list_add(gpsi_rangesList, gpsi_rangesItem);
     }
@@ -251,6 +262,12 @@ OpenAPI_udm_info_t *OpenAPI_udm_info_parseFromJSON(cJSON *udm_infoJSON)
         }
         OpenAPI_identity_range_t *external_group_identifiers_rangesItem = OpenAPI_identity_range_parseFromJSON(external_group_identifiers_ranges_local_nonprimitive);
 
+        if (!external_group_identifiers_rangesItem) {
+            ogs_error("No external_group_identifiers_rangesItem");
+            OpenAPI_list_free(external_group_identifiers_rangesList);
+            goto end;
+        }
+
         OpenAPI_list_add(external_group_identifiers_rangesList, external_group_identifiers_rangesItem);
     }
     }
@@ -271,7 +288,7 @@ OpenAPI_udm_info_t *OpenAPI_udm_info_parseFromJSON(cJSON *udm_infoJSON)
         ogs_error("OpenAPI_udm_info_parseFromJSON() failed [routing_indicators]");
         goto end;
     }
-    OpenAPI_list_add(routing_indicatorsList , ogs_strdup_or_assert(routing_indicators_local->valuestring));
+    OpenAPI_list_add(routing_indicatorsList , ogs_strdup(routing_indicators_local->valuestring));
     }
     }
 
@@ -294,12 +311,18 @@ OpenAPI_udm_info_t *OpenAPI_udm_info_parseFromJSON(cJSON *udm_infoJSON)
         }
         OpenAPI_internal_group_id_range_t *internal_group_identifiers_rangesItem = OpenAPI_internal_group_id_range_parseFromJSON(internal_group_identifiers_ranges_local_nonprimitive);
 
+        if (!internal_group_identifiers_rangesItem) {
+            ogs_error("No internal_group_identifiers_rangesItem");
+            OpenAPI_list_free(internal_group_identifiers_rangesList);
+            goto end;
+        }
+
         OpenAPI_list_add(internal_group_identifiers_rangesList, internal_group_identifiers_rangesItem);
     }
     }
 
     udm_info_local_var = OpenAPI_udm_info_create (
-        group_id ? ogs_strdup_or_assert(group_id->valuestring) : NULL,
+        group_id ? ogs_strdup(group_id->valuestring) : NULL,
         supi_ranges ? supi_rangesList : NULL,
         gpsi_ranges ? gpsi_rangesList : NULL,
         external_group_identifiers_ranges ? external_group_identifiers_rangesList : NULL,

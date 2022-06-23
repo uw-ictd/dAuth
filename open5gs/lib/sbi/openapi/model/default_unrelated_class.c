@@ -12,10 +12,9 @@ OpenAPI_default_unrelated_class_t *OpenAPI_default_unrelated_class_create(
     OpenAPI_list_t *code_word_list
 )
 {
-    OpenAPI_default_unrelated_class_t *default_unrelated_class_local_var = OpenAPI_malloc(sizeof(OpenAPI_default_unrelated_class_t));
-    if (!default_unrelated_class_local_var) {
-        return NULL;
-    }
+    OpenAPI_default_unrelated_class_t *default_unrelated_class_local_var = ogs_malloc(sizeof(OpenAPI_default_unrelated_class_t));
+    ogs_assert(default_unrelated_class_local_var);
+
     default_unrelated_class_local_var->allowed_geographic_area = allowed_geographic_area;
     default_unrelated_class_local_var->privacy_check_related_action = privacy_check_related_action;
     default_unrelated_class_local_var->code_word_ind = code_word_ind;
@@ -142,6 +141,12 @@ OpenAPI_default_unrelated_class_t *OpenAPI_default_unrelated_class_parseFromJSON
         }
         OpenAPI_geographic_area_t *allowed_geographic_areaItem = OpenAPI_geographic_area_parseFromJSON(allowed_geographic_area_local_nonprimitive);
 
+        if (!allowed_geographic_areaItem) {
+            ogs_error("No allowed_geographic_areaItem");
+            OpenAPI_list_free(allowed_geographic_areaList);
+            goto end;
+        }
+
         OpenAPI_list_add(allowed_geographic_areaList, allowed_geographic_areaItem);
     }
     }
@@ -191,7 +196,7 @@ OpenAPI_default_unrelated_class_t *OpenAPI_default_unrelated_class_parseFromJSON
         ogs_error("OpenAPI_default_unrelated_class_parseFromJSON() failed [code_word_list]");
         goto end;
     }
-    OpenAPI_list_add(code_word_listList , ogs_strdup_or_assert(code_word_list_local->valuestring));
+    OpenAPI_list_add(code_word_listList , ogs_strdup(code_word_list_local->valuestring));
     }
     }
 

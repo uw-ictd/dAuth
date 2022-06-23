@@ -472,7 +472,7 @@ ogs_pkbuf_t *test_s1ap_build_initial_context_setup_response(test_ue_t *test_ue)
     test_sess_t *sess = NULL;
     test_bearer_t *bearer = NULL;
 
-    ogs_gtp_f_teid_t f_teid;
+    ogs_gtp2_f_teid_t f_teid;
     ogs_ip_t ip;
     int len;
 
@@ -553,11 +553,11 @@ ogs_pkbuf_t *test_s1ap_build_initial_context_setup_response(test_ue_t *test_ue)
 
         e_rab->e_RAB_ID = bearer->ebi;
 
-        rv = ogs_gtp_sockaddr_to_f_teid(
+        rv = ogs_gtp2_sockaddr_to_f_teid(
                 bearer->enb_s1u_addr, bearer->enb_s1u_addr6, &f_teid, &len);
         ogs_assert(rv == OGS_OK);
 
-        rv = ogs_gtp_f_teid_to_ip(&f_teid, &ip);
+        rv = ogs_gtp2_f_teid_to_ip(&f_teid, &ip);
         ogs_assert(rv == OGS_OK);
 
         rv = ogs_asn_ip_to_BIT_STRING(&ip, &e_rab->transportLayerAddress);
@@ -827,7 +827,7 @@ ogs_pkbuf_t *test_s1ap_build_e_rab_setup_response(test_bearer_t *bearer)
     S1AP_E_RABSetupItemBearerSUResIEs_t *item = NULL;
     S1AP_E_RABSetupItemBearerSURes_t *e_rab = NULL;
 
-    ogs_gtp_f_teid_t f_teid;
+    ogs_gtp2_f_teid_t f_teid;
     ogs_ip_t ip;
     int len;
 
@@ -893,16 +893,101 @@ ogs_pkbuf_t *test_s1ap_build_e_rab_setup_response(test_bearer_t *bearer)
 
     e_rab->e_RAB_ID = bearer->ebi;
 
-    rv = ogs_gtp_sockaddr_to_f_teid(
+    rv = ogs_gtp2_sockaddr_to_f_teid(
             bearer->enb_s1u_addr, bearer->enb_s1u_addr6, &f_teid, &len);
     ogs_assert(rv == OGS_OK);
 
-    rv = ogs_gtp_f_teid_to_ip(&f_teid, &ip);
+    rv = ogs_gtp2_f_teid_to_ip(&f_teid, &ip);
     ogs_assert(rv == OGS_OK);
 
     rv = ogs_asn_ip_to_BIT_STRING(&ip, &e_rab->transportLayerAddress);
     ogs_assert(rv == OGS_OK);
     ogs_asn_uint32_to_OCTET_STRING(bearer->enb_s1u_teid, &e_rab->gTP_TEID);
+
+    return ogs_s1ap_encode(&pdu);
+}
+
+ogs_pkbuf_t *test_s1ap_build_e_rab_failed_setup_response(
+        test_bearer_t *bearer, S1AP_Cause_PR group, long cause)
+{
+    int rv;
+
+    test_ue_t *test_ue = NULL;
+    test_sess_t *sess = NULL;
+
+    S1AP_S1AP_PDU_t pdu;
+    S1AP_SuccessfulOutcome_t *successfulOutcome = NULL;
+    S1AP_E_RABSetupResponse_t *E_RABSetupResponse = NULL;
+
+    S1AP_E_RABSetupResponseIEs_t *ie = NULL;
+    S1AP_MME_UE_S1AP_ID_t *MME_UE_S1AP_ID = NULL;
+    S1AP_ENB_UE_S1AP_ID_t *ENB_UE_S1AP_ID = NULL;
+    S1AP_E_RABList_t *E_RABList = NULL;
+
+    S1AP_E_RABItemIEs_t *item = NULL;
+    S1AP_E_RABItem_t *e_rab = NULL;
+
+    ogs_assert(bearer);
+    sess = bearer->sess;
+    ogs_assert(sess);
+    test_ue = sess->test_ue;
+    ogs_assert(test_ue);
+
+    memset(&pdu, 0, sizeof (S1AP_S1AP_PDU_t));
+    pdu.present = S1AP_S1AP_PDU_PR_successfulOutcome;
+    pdu.choice.successfulOutcome = CALLOC(1, sizeof(S1AP_SuccessfulOutcome_t));
+
+    successfulOutcome = pdu.choice.successfulOutcome;
+    successfulOutcome->procedureCode = S1AP_ProcedureCode_id_E_RABSetup;
+    successfulOutcome->criticality = S1AP_Criticality_reject;
+    successfulOutcome->value.present =
+        S1AP_SuccessfulOutcome__value_PR_E_RABSetupResponse;
+
+    E_RABSetupResponse = &successfulOutcome->value.choice.E_RABSetupResponse;
+
+    ie = CALLOC(1, sizeof(S1AP_E_RABSetupResponseIEs_t));
+    ASN_SEQUENCE_ADD(&E_RABSetupResponse->protocolIEs, ie);
+
+    ie->id = S1AP_ProtocolIE_ID_id_MME_UE_S1AP_ID;
+    ie->criticality = S1AP_Criticality_ignore;
+    ie->value.present = S1AP_E_RABSetupResponseIEs__value_PR_MME_UE_S1AP_ID;
+
+    MME_UE_S1AP_ID = &ie->value.choice.MME_UE_S1AP_ID;
+
+    *MME_UE_S1AP_ID = test_ue->mme_ue_s1ap_id;
+
+    ie = CALLOC(1, sizeof(S1AP_E_RABSetupResponseIEs_t));
+    ASN_SEQUENCE_ADD(&E_RABSetupResponse->protocolIEs, ie);
+
+    ie->id = S1AP_ProtocolIE_ID_id_eNB_UE_S1AP_ID;
+    ie->criticality = S1AP_Criticality_ignore;
+    ie->value.present = S1AP_E_RABSetupResponseIEs__value_PR_ENB_UE_S1AP_ID;
+
+    ENB_UE_S1AP_ID = &ie->value.choice.ENB_UE_S1AP_ID;
+
+    *ENB_UE_S1AP_ID = test_ue->enb_ue_s1ap_id;
+
+    ie = CALLOC(1, sizeof(S1AP_E_RABSetupResponseIEs_t));
+    ASN_SEQUENCE_ADD(&E_RABSetupResponse->protocolIEs, ie);
+
+    ie->id = S1AP_ProtocolIE_ID_id_E_RABFailedToSetupListBearerSURes;
+    ie->criticality = S1AP_Criticality_ignore;
+    ie->value.present = S1AP_E_RABSetupResponseIEs__value_PR_E_RABList;
+
+    E_RABList = &ie->value.choice.E_RABList;
+
+    item = CALLOC(1, sizeof(S1AP_E_RABItemIEs_t));
+    ASN_SEQUENCE_ADD(&E_RABList->list, item);
+
+    item->id = S1AP_ProtocolIE_ID_id_E_RABItem;
+    item->criticality = S1AP_Criticality_reject;
+    item->value.present = S1AP_E_RABItemIEs__value_PR_E_RABItem;
+
+    e_rab = &item->value.choice.E_RABItem;
+
+    e_rab->e_RAB_ID = bearer->ebi;
+    e_rab->cause.present = group;
+    e_rab->cause.choice.radioNetwork = cause;
 
     return ogs_s1ap_encode(&pdu);
 }
@@ -1144,7 +1229,7 @@ ogs_pkbuf_t *test_s1ap_build_e_rab_modification_indication(test_ue_t *test_ue)
             S1AP_E_RABToBeModifiedItemBearerModIndIEs_t *item = NULL;
             S1AP_E_RABToBeModifiedItemBearerModInd_t *e_rab = NULL;
 
-            ogs_gtp_f_teid_t f_teid;
+            ogs_gtp2_f_teid_t f_teid;
             ogs_ip_t ip;
             int len;
 
@@ -1160,11 +1245,11 @@ ogs_pkbuf_t *test_s1ap_build_e_rab_modification_indication(test_ue_t *test_ue)
 
             e_rab->e_RAB_ID = bearer->ebi;
 
-            rv = ogs_gtp_sockaddr_to_f_teid(
+            rv = ogs_gtp2_sockaddr_to_f_teid(
                     bearer->enb_s1u_addr, bearer->enb_s1u_addr6, &f_teid, &len);
             ogs_assert(rv == OGS_OK);
 
-            rv = ogs_gtp_f_teid_to_ip(&f_teid, &ip);
+            rv = ogs_gtp2_f_teid_to_ip(&f_teid, &ip);
             ogs_assert(rv == OGS_OK);
 
             rv = ogs_asn_ip_to_BIT_STRING(&ip, &e_rab->transportLayerAddress);
@@ -1272,7 +1357,7 @@ ogs_pkbuf_t *test_s1ap_build_path_switch_request(test_ue_t *test_ue)
             S1AP_E_RABToBeSwitchedDLItemIEs_t *item = NULL;
             S1AP_E_RABToBeSwitchedDLItem_t *e_rab = NULL;
 
-            ogs_gtp_f_teid_t f_teid;
+            ogs_gtp2_f_teid_t f_teid;
             ogs_ip_t ip;
             int len;
 
@@ -1287,11 +1372,11 @@ ogs_pkbuf_t *test_s1ap_build_path_switch_request(test_ue_t *test_ue)
 
             e_rab->e_RAB_ID = bearer->ebi;
 
-            rv = ogs_gtp_sockaddr_to_f_teid(
+            rv = ogs_gtp2_sockaddr_to_f_teid(
                     bearer->enb_s1u_addr, bearer->enb_s1u_addr6, &f_teid, &len);
             ogs_assert(rv == OGS_OK);
 
-            rv = ogs_gtp_f_teid_to_ip(&f_teid, &ip);
+            rv = ogs_gtp2_f_teid_to_ip(&f_teid, &ip);
             ogs_assert(rv == OGS_OK);
 
             rv = ogs_asn_ip_to_BIT_STRING(&ip, &e_rab->transportLayerAddress);
@@ -1550,7 +1635,7 @@ ogs_pkbuf_t *test_s1ap_build_handover_request_ack(test_ue_t *test_ue)
             S1AP_E_RABAdmittedItemIEs_t *item = NULL;
             S1AP_E_RABAdmittedItem_t *e_rab = NULL;
 
-            ogs_gtp_f_teid_t f_teid;
+            ogs_gtp2_f_teid_t f_teid;
             ogs_ip_t ip;
             int len;
 
@@ -1566,11 +1651,11 @@ ogs_pkbuf_t *test_s1ap_build_handover_request_ack(test_ue_t *test_ue)
 
             e_rab->e_RAB_ID = bearer->ebi;
 
-            rv = ogs_gtp_sockaddr_to_f_teid(
+            rv = ogs_gtp2_sockaddr_to_f_teid(
                     bearer->enb_s1u_addr, bearer->enb_s1u_addr6, &f_teid, &len);
             ogs_assert(rv == OGS_OK);
 
-            rv = ogs_gtp_f_teid_to_ip(&f_teid, &ip);
+            rv = ogs_gtp2_f_teid_to_ip(&f_teid, &ip);
             ogs_assert(rv == OGS_OK);
 
             rv = ogs_asn_ip_to_BIT_STRING(&ip, &e_rab->transportLayerAddress);

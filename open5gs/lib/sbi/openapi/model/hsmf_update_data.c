@@ -72,10 +72,9 @@ OpenAPI_hsmf_update_data_t *OpenAPI_hsmf_update_data_create(
     OpenAPI_guami_t *guami
 )
 {
-    OpenAPI_hsmf_update_data_t *hsmf_update_data_local_var = OpenAPI_malloc(sizeof(OpenAPI_hsmf_update_data_t));
-    if (!hsmf_update_data_local_var) {
-        return NULL;
-    }
+    OpenAPI_hsmf_update_data_t *hsmf_update_data_local_var = ogs_malloc(sizeof(OpenAPI_hsmf_update_data_t));
+    ogs_assert(hsmf_update_data_local_var);
+
     hsmf_update_data_local_var->request_indication = request_indication;
     hsmf_update_data_local_var->pei = pei;
     hsmf_update_data_local_var->vcn_tunnel_info = vcn_tunnel_info;
@@ -1002,6 +1001,12 @@ OpenAPI_hsmf_update_data_t *OpenAPI_hsmf_update_data_parseFromJSON(cJSON *hsmf_u
         }
         OpenAPI_qos_flow_item_t *qos_flows_rel_notify_listItem = OpenAPI_qos_flow_item_parseFromJSON(qos_flows_rel_notify_list_local_nonprimitive);
 
+        if (!qos_flows_rel_notify_listItem) {
+            ogs_error("No qos_flows_rel_notify_listItem");
+            OpenAPI_list_free(qos_flows_rel_notify_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(qos_flows_rel_notify_listList, qos_flows_rel_notify_listItem);
     }
     }
@@ -1025,6 +1030,12 @@ OpenAPI_hsmf_update_data_t *OpenAPI_hsmf_update_data_parseFromJSON(cJSON *hsmf_u
         }
         OpenAPI_qos_flow_notify_item_t *qos_flows_notify_listItem = OpenAPI_qos_flow_notify_item_parseFromJSON(qos_flows_notify_list_local_nonprimitive);
 
+        if (!qos_flows_notify_listItem) {
+            ogs_error("No qos_flows_notify_listItem");
+            OpenAPI_list_free(qos_flows_notify_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(qos_flows_notify_listList, qos_flows_notify_listItem);
     }
     }
@@ -1047,6 +1058,12 @@ OpenAPI_hsmf_update_data_t *OpenAPI_hsmf_update_data_parseFromJSON(cJSON *hsmf_u
             goto end;
         }
         OpenAPI_pdu_session_notify_item_t *notify_listItem = OpenAPI_pdu_session_notify_item_parseFromJSON(notify_list_local_nonprimitive);
+
+        if (!notify_listItem) {
+            ogs_error("No notify_listItem");
+            OpenAPI_list_free(notify_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(notify_listList, notify_listItem);
     }
@@ -1167,6 +1184,12 @@ OpenAPI_hsmf_update_data_t *OpenAPI_hsmf_update_data_parseFromJSON(cJSON *hsmf_u
         }
         OpenAPI_secondary_rat_usage_report_t *secondary_rat_usage_reportItem = OpenAPI_secondary_rat_usage_report_parseFromJSON(secondary_rat_usage_report_local_nonprimitive);
 
+        if (!secondary_rat_usage_reportItem) {
+            ogs_error("No secondary_rat_usage_reportItem");
+            OpenAPI_list_free(secondary_rat_usage_reportList);
+            goto end;
+        }
+
         OpenAPI_list_add(secondary_rat_usage_reportList, secondary_rat_usage_reportItem);
     }
     }
@@ -1189,6 +1212,12 @@ OpenAPI_hsmf_update_data_t *OpenAPI_hsmf_update_data_parseFromJSON(cJSON *hsmf_u
             goto end;
         }
         OpenAPI_secondary_rat_usage_info_t *secondary_rat_usage_infoItem = OpenAPI_secondary_rat_usage_info_parseFromJSON(secondary_rat_usage_info_local_nonprimitive);
+
+        if (!secondary_rat_usage_infoItem) {
+            ogs_error("No secondary_rat_usage_infoItem");
+            OpenAPI_list_free(secondary_rat_usage_infoList);
+            goto end;
+        }
 
         OpenAPI_list_add(secondary_rat_usage_infoList, secondary_rat_usage_infoItem);
     }
@@ -1261,6 +1290,12 @@ OpenAPI_hsmf_update_data_t *OpenAPI_hsmf_update_data_parseFromJSON(cJSON *hsmf_u
             goto end;
         }
         OpenAPI_psa_information_t *psa_infoItem = OpenAPI_psa_information_parseFromJSON(psa_info_local_nonprimitive);
+
+        if (!psa_infoItem) {
+            ogs_error("No psa_infoItem");
+            OpenAPI_list_free(psa_infoList);
+            goto end;
+        }
 
         OpenAPI_list_add(psa_infoList, psa_infoItem);
     }
@@ -1384,7 +1419,7 @@ OpenAPI_hsmf_update_data_t *OpenAPI_hsmf_update_data_parseFromJSON(cJSON *hsmf_u
         ogs_error("OpenAPI_hsmf_update_data_parseFromJSON() failed [dnai_list]");
         goto end;
     }
-    OpenAPI_list_add(dnai_listList , ogs_strdup_or_assert(dnai_list_local->valuestring));
+    OpenAPI_list_add(dnai_listList , ogs_strdup(dnai_list_local->valuestring));
     }
     }
 
@@ -1450,7 +1485,7 @@ OpenAPI_hsmf_update_data_t *OpenAPI_hsmf_update_data_parseFromJSON(cJSON *hsmf_u
 
     hsmf_update_data_local_var = OpenAPI_hsmf_update_data_create (
         request_indicationVariable,
-        pei ? ogs_strdup_or_assert(pei->valuestring) : NULL,
+        pei ? ogs_strdup(pei->valuestring) : NULL,
         vcn_tunnel_info ? vcn_tunnel_info_local_nonprim : NULL,
         icn_tunnel_info ? icn_tunnel_info_local_nonprim : NULL,
         additional_cn_tunnel_info ? additional_cn_tunnel_info_local_nonprim : NULL,
@@ -1459,7 +1494,7 @@ OpenAPI_hsmf_update_data_t *OpenAPI_hsmf_update_data_parseFromJSON(cJSON *hsmf_u
         additional_an_type ? additional_an_typeVariable : 0,
         rat_type ? rat_typeVariable : 0,
         ue_location ? ue_location_local_nonprim : NULL,
-        ue_time_zone ? ogs_strdup_or_assert(ue_time_zone->valuestring) : NULL,
+        ue_time_zone ? ogs_strdup(ue_time_zone->valuestring) : NULL,
         add_ue_location ? add_ue_location_local_nonprim : NULL,
         pause_charging ? true : false,
         pause_charging ? pause_charging->valueint : 0,
@@ -1497,22 +1532,22 @@ OpenAPI_hsmf_update_data_t *OpenAPI_hsmf_update_data_parseFromJSON(cJSON *hsmf_u
         n4_info_ext1 ? n4_info_ext1_local_nonprim : NULL,
         n4_info_ext2 ? n4_info_ext2_local_nonprim : NULL,
         presence_in_ladn ? presence_in_ladnVariable : 0,
-        vsmf_pdu_session_uri ? ogs_strdup_or_assert(vsmf_pdu_session_uri->valuestring) : NULL,
-        vsmf_id ? ogs_strdup_or_assert(vsmf_id->valuestring) : NULL,
-        v_smf_service_instance_id ? ogs_strdup_or_assert(v_smf_service_instance_id->valuestring) : NULL,
-        ismf_pdu_session_uri ? ogs_strdup_or_assert(ismf_pdu_session_uri->valuestring) : NULL,
-        ismf_id ? ogs_strdup_or_assert(ismf_id->valuestring) : NULL,
-        i_smf_service_instance_id ? ogs_strdup_or_assert(i_smf_service_instance_id->valuestring) : NULL,
+        vsmf_pdu_session_uri ? ogs_strdup(vsmf_pdu_session_uri->valuestring) : NULL,
+        vsmf_id ? ogs_strdup(vsmf_id->valuestring) : NULL,
+        v_smf_service_instance_id ? ogs_strdup(v_smf_service_instance_id->valuestring) : NULL,
+        ismf_pdu_session_uri ? ogs_strdup(ismf_pdu_session_uri->valuestring) : NULL,
+        ismf_id ? ogs_strdup(ismf_id->valuestring) : NULL,
+        i_smf_service_instance_id ? ogs_strdup(i_smf_service_instance_id->valuestring) : NULL,
         dl_serving_plmn_rate_ctl ? true : false,
         dl_serving_plmn_rate_ctl ? dl_serving_plmn_rate_ctl->valuedouble : 0,
         dnai_list ? dnai_listList : NULL,
-        supported_features ? ogs_strdup_or_assert(supported_features->valuestring) : NULL,
+        supported_features ? ogs_strdup(supported_features->valuestring) : NULL,
         roaming_charging_profile ? roaming_charging_profile_local_nonprim : NULL,
         mo_exp_data_counter ? mo_exp_data_counter_local_nonprim : NULL,
         vplmn_qos ? vplmn_qos_local_nonprim : NULL,
         security_result ? security_result_local_nonprim : NULL,
         up_security_info ? up_security_info_local_nonprim : NULL,
-        amf_nf_id ? ogs_strdup_or_assert(amf_nf_id->valuestring) : NULL,
+        amf_nf_id ? ogs_strdup(amf_nf_id->valuestring) : NULL,
         guami ? guami_local_nonprim : NULL
     );
 

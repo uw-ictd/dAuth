@@ -9,10 +9,9 @@ OpenAPI_wireline_service_area_restriction_t *OpenAPI_wireline_service_area_restr
     OpenAPI_list_t *areas
 )
 {
-    OpenAPI_wireline_service_area_restriction_t *wireline_service_area_restriction_local_var = OpenAPI_malloc(sizeof(OpenAPI_wireline_service_area_restriction_t));
-    if (!wireline_service_area_restriction_local_var) {
-        return NULL;
-    }
+    OpenAPI_wireline_service_area_restriction_t *wireline_service_area_restriction_local_var = ogs_malloc(sizeof(OpenAPI_wireline_service_area_restriction_t));
+    ogs_assert(wireline_service_area_restriction_local_var);
+
     wireline_service_area_restriction_local_var->restriction_type = restriction_type;
     wireline_service_area_restriction_local_var->areas = areas;
 
@@ -105,6 +104,12 @@ OpenAPI_wireline_service_area_restriction_t *OpenAPI_wireline_service_area_restr
             goto end;
         }
         OpenAPI_wireline_area_t *areasItem = OpenAPI_wireline_area_parseFromJSON(areas_local_nonprimitive);
+
+        if (!areasItem) {
+            ogs_error("No areasItem");
+            OpenAPI_list_free(areasList);
+            goto end;
+        }
 
         OpenAPI_list_add(areasList, areasItem);
     }

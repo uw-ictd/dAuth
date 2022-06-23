@@ -12,10 +12,9 @@ OpenAPI_partial_success_report_t *OpenAPI_partial_success_report_create(
     OpenAPI_list_t *policy_dec_failure_reports
 )
 {
-    OpenAPI_partial_success_report_t *partial_success_report_local_var = OpenAPI_malloc(sizeof(OpenAPI_partial_success_report_t));
-    if (!partial_success_report_local_var) {
-        return NULL;
-    }
+    OpenAPI_partial_success_report_t *partial_success_report_local_var = ogs_malloc(sizeof(OpenAPI_partial_success_report_t));
+    ogs_assert(partial_success_report_local_var);
+
     partial_success_report_local_var->failure_cause = failure_cause;
     partial_success_report_local_var->rule_reports = rule_reports;
     partial_success_report_local_var->sess_rule_reports = sess_rule_reports;
@@ -166,6 +165,12 @@ OpenAPI_partial_success_report_t *OpenAPI_partial_success_report_parseFromJSON(c
         }
         OpenAPI_rule_report_t *rule_reportsItem = OpenAPI_rule_report_parseFromJSON(rule_reports_local_nonprimitive);
 
+        if (!rule_reportsItem) {
+            ogs_error("No rule_reportsItem");
+            OpenAPI_list_free(rule_reportsList);
+            goto end;
+        }
+
         OpenAPI_list_add(rule_reportsList, rule_reportsItem);
     }
     }
@@ -188,6 +193,12 @@ OpenAPI_partial_success_report_t *OpenAPI_partial_success_report_parseFromJSON(c
             goto end;
         }
         OpenAPI_session_rule_report_t *sess_rule_reportsItem = OpenAPI_session_rule_report_parseFromJSON(sess_rule_reports_local_nonprimitive);
+
+        if (!sess_rule_reportsItem) {
+            ogs_error("No sess_rule_reportsItem");
+            OpenAPI_list_free(sess_rule_reportsList);
+            goto end;
+        }
 
         OpenAPI_list_add(sess_rule_reportsList, sess_rule_reportsItem);
     }

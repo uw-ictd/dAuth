@@ -15,10 +15,9 @@ OpenAPI_presence_info_t *OpenAPI_presence_info_create(
     OpenAPI_list_t *globale_nb_id_list
 )
 {
-    OpenAPI_presence_info_t *presence_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_presence_info_t));
-    if (!presence_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_presence_info_t *presence_info_local_var = ogs_malloc(sizeof(OpenAPI_presence_info_t));
+    ogs_assert(presence_info_local_var);
+
     presence_info_local_var->pra_id = pra_id;
     presence_info_local_var->additional_pra_id = additional_pra_id;
     presence_info_local_var->presence_state = presence_state;
@@ -248,6 +247,12 @@ OpenAPI_presence_info_t *OpenAPI_presence_info_parseFromJSON(cJSON *presence_inf
         }
         OpenAPI_tai_t *tracking_area_listItem = OpenAPI_tai_parseFromJSON(tracking_area_list_local_nonprimitive);
 
+        if (!tracking_area_listItem) {
+            ogs_error("No tracking_area_listItem");
+            OpenAPI_list_free(tracking_area_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(tracking_area_listList, tracking_area_listItem);
     }
     }
@@ -270,6 +275,12 @@ OpenAPI_presence_info_t *OpenAPI_presence_info_parseFromJSON(cJSON *presence_inf
             goto end;
         }
         OpenAPI_ecgi_t *ecgi_listItem = OpenAPI_ecgi_parseFromJSON(ecgi_list_local_nonprimitive);
+
+        if (!ecgi_listItem) {
+            ogs_error("No ecgi_listItem");
+            OpenAPI_list_free(ecgi_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(ecgi_listList, ecgi_listItem);
     }
@@ -294,6 +305,12 @@ OpenAPI_presence_info_t *OpenAPI_presence_info_parseFromJSON(cJSON *presence_inf
         }
         OpenAPI_ncgi_t *ncgi_listItem = OpenAPI_ncgi_parseFromJSON(ncgi_list_local_nonprimitive);
 
+        if (!ncgi_listItem) {
+            ogs_error("No ncgi_listItem");
+            OpenAPI_list_free(ncgi_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(ncgi_listList, ncgi_listItem);
     }
     }
@@ -316,6 +333,12 @@ OpenAPI_presence_info_t *OpenAPI_presence_info_parseFromJSON(cJSON *presence_inf
             goto end;
         }
         OpenAPI_global_ran_node_id_t *global_ran_node_id_listItem = OpenAPI_global_ran_node_id_parseFromJSON(global_ran_node_id_list_local_nonprimitive);
+
+        if (!global_ran_node_id_listItem) {
+            ogs_error("No global_ran_node_id_listItem");
+            OpenAPI_list_free(global_ran_node_id_listList);
+            goto end;
+        }
 
         OpenAPI_list_add(global_ran_node_id_listList, global_ran_node_id_listItem);
     }
@@ -340,13 +363,19 @@ OpenAPI_presence_info_t *OpenAPI_presence_info_parseFromJSON(cJSON *presence_inf
         }
         OpenAPI_global_ran_node_id_t *globale_nb_id_listItem = OpenAPI_global_ran_node_id_parseFromJSON(globale_nb_id_list_local_nonprimitive);
 
+        if (!globale_nb_id_listItem) {
+            ogs_error("No globale_nb_id_listItem");
+            OpenAPI_list_free(globale_nb_id_listList);
+            goto end;
+        }
+
         OpenAPI_list_add(globale_nb_id_listList, globale_nb_id_listItem);
     }
     }
 
     presence_info_local_var = OpenAPI_presence_info_create (
-        pra_id ? ogs_strdup_or_assert(pra_id->valuestring) : NULL,
-        additional_pra_id ? ogs_strdup_or_assert(additional_pra_id->valuestring) : NULL,
+        pra_id ? ogs_strdup(pra_id->valuestring) : NULL,
+        additional_pra_id ? ogs_strdup(additional_pra_id->valuestring) : NULL,
         presence_state ? presence_stateVariable : 0,
         tracking_area_list ? tracking_area_listList : NULL,
         ecgi_list ? ecgi_listList : NULL,

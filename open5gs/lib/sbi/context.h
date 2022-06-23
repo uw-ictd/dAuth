@@ -52,15 +52,6 @@ typedef struct ogs_sbi_context_s {
     const char          *content_encoding;
 } ogs_sbi_context_t;
 
-#define OGS_SETUP_SBI_NF_INSTANCE(__cTX, __pNF_INSTANCE) \
-    do { \
-        ogs_assert((__pNF_INSTANCE)); \
-        if ((__cTX) != __pNF_INSTANCE) \
-            __pNF_INSTANCE->reference_count++; \
-        (__cTX) = __pNF_INSTANCE; \
-        ogs_trace("nf_instance->reference_count = %d", \
-                __pNF_INSTANCE->reference_count); \
-    } while(0)
 typedef struct ogs_sbi_nf_instance_s {
     ogs_lnode_t     lnode;
 
@@ -86,7 +77,7 @@ typedef struct ogs_sbi_nf_instance_s {
     OpenAPI_nf_type_e nf_type;
     OpenAPI_nf_status_e nf_status;
 
-    char fqdn[OGS_MAX_FQDN_LEN];
+    char *fqdn;
 
 #define OGS_SBI_MAX_NUM_OF_IP_ADDRESS 8
     int num_of_ipv4;
@@ -173,7 +164,7 @@ typedef struct ogs_sbi_nf_service_s {
         char *expiry;
     } versions[OGS_SBI_MAX_NUM_OF_SERVICE_VERSION];
 
-    char fqdn[OGS_MAX_FQDN_LEN];
+    char *fqdn;
     int num_of_addr;
     struct {
         ogs_sockaddr_t *ipv4;
@@ -311,10 +302,7 @@ OpenAPI_uri_scheme_e ogs_sbi_default_uri_scheme(void);
                     OGS_SBI_NF_INSTANCE((__sBIObject), (__nFType))); \
         } \
         \
-        if (OGS_SBI_NF_INSTANCE( \
-                (__sBIObject), (__nFType)) != (__nFInstance)) { \
-            (__nFInstance)->reference_count++; \
-        } \
+        (__nFInstance)->reference_count++; \
         OGS_SBI_NF_INSTANCE((__sBIObject), (__nFType)) = (__nFInstance); \
         ogs_trace("nf_instance->reference_count = %d", \
                 (__nFInstance)->reference_count); \

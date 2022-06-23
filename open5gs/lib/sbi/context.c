@@ -98,7 +98,9 @@ static int ogs_sbi_context_prepare(void)
 {
     self.sbi_port = OGS_SBI_HTTP_PORT;
 
+#if ENABLE_ACCEPT_ENCODING
     self.content_encoding = "gzip";
+#endif
 
     return OGS_OK;
 }
@@ -156,6 +158,9 @@ int ogs_sbi_context_parse_config(const char *local, const char *remote)
                         const char *dev = NULL;
                         ogs_sockaddr_t *addr = NULL;
 
+                        ogs_sockopt_t option;
+                        bool is_option = false;
+
                         if (ogs_yaml_iter_type(&sbi_array) ==
                                 YAML_MAPPING_NODE) {
                             memcpy(&sbi_iter, &sbi_array,
@@ -182,7 +187,7 @@ int ogs_sbi_context_parse_config(const char *local, const char *remote)
                                     family != AF_INET && family != AF_INET6) {
                                     ogs_warn("Ignore family(%d) : "
                                         "AF_UNSPEC(%d), "
-                                        "AF_INET(%d), AF_INET6(%d) ", 
+                                        "AF_INET(%d), AF_INET6(%d) ",
                                         family, AF_UNSPEC, AF_INET, AF_INET6);
                                     family = AF_UNSPEC;
                                 }
@@ -203,7 +208,7 @@ int ogs_sbi_context_parse_config(const char *local, const char *remote)
                                     }
 
                                     ogs_assert(num < OGS_MAX_NUM_OF_HOSTNAME);
-                                    hostname[num++] = 
+                                    hostname[num++] =
                                         ogs_yaml_iter_value(&hostname_iter);
                                 } while (
                                     ogs_yaml_iter_type(&hostname_iter) ==
@@ -236,6 +241,11 @@ int ogs_sbi_context_parse_config(const char *local, const char *remote)
                                     port = atoi(v);
                             } else if (!strcmp(sbi_key, "dev")) {
                                 dev = ogs_yaml_iter_value(&sbi_iter);
+                            } else if (!strcmp(sbi_key, "option")) {
+                                rv = ogs_app_config_parse_sockopt(
+                                        &sbi_iter, &option);
+                                if (rv != OGS_OK) return rv;
+                                is_option = true;
                             } else if (!strcmp(sbi_key, "tls")) {
                                 ogs_yaml_iter_t tls_iter;
                                 ogs_yaml_iter_recurse(&sbi_iter, &tls_iter);
@@ -268,9 +278,11 @@ int ogs_sbi_context_parse_config(const char *local, const char *remote)
 
                         if (addr) {
                             if (ogs_app()->parameter.no_ipv4 == 0)
-                                ogs_socknode_add(&list, AF_INET, addr);
+                                ogs_socknode_add(
+                                    &list, AF_INET, addr, NULL);
                             if (ogs_app()->parameter.no_ipv6 == 0)
-                                ogs_socknode_add(&list6, AF_INET6, addr);
+                                ogs_socknode_add(
+                                    &list6, AF_INET6, addr, NULL);
                             ogs_freeaddrinfo(addr);
                         }
 
@@ -278,7 +290,7 @@ int ogs_sbi_context_parse_config(const char *local, const char *remote)
                             rv = ogs_socknode_probe(
                                 ogs_app()->parameter.no_ipv4 ? NULL : &list,
                                 ogs_app()->parameter.no_ipv6 ? NULL : &list6,
-                                dev, port);
+                                dev, port, NULL);
                             ogs_assert(rv == OGS_OK);
                         }
 
@@ -291,8 +303,8 @@ int ogs_sbi_context_parse_config(const char *local, const char *remote)
 
                         node = ogs_list_first(&list);
                         if (node) {
-                            ogs_sbi_server_t *server =
-                                ogs_sbi_server_add(node->addr);
+                            ogs_sbi_server_t *server = ogs_sbi_server_add(
+                                    node->addr, is_option ? &option : NULL);
                             ogs_assert(server);
 
                             if (addr && ogs_app()->parameter.no_ipv4 == 0)
@@ -304,8 +316,8 @@ int ogs_sbi_context_parse_config(const char *local, const char *remote)
                         }
                         node6 = ogs_list_first(&list6);
                         if (node6) {
-                            ogs_sbi_server_t *server =
-                                ogs_sbi_server_add(node6->addr);
+                            ogs_sbi_server_t *server = ogs_sbi_server_add(
+                                    node6->addr, is_option ? &option : NULL);
                             ogs_assert(server);
 
                             if (addr && ogs_app()->parameter.no_ipv6 == 0)
@@ -332,13 +344,13 @@ int ogs_sbi_context_parse_config(const char *local, const char *remote)
                         rv = ogs_socknode_probe(
                             ogs_app()->parameter.no_ipv4 ? NULL : &list,
                             ogs_app()->parameter.no_ipv6 ? NULL : &list6,
-                            NULL, self.sbi_port);
+                            NULL, self.sbi_port, NULL);
                         ogs_assert(rv == OGS_OK);
 
                         node = ogs_list_first(&list);
-                        if (node) ogs_sbi_server_add(node->addr);
+                        if (node) ogs_sbi_server_add(node->addr, NULL);
                         node6 = ogs_list_first(&list6);
-                        if (node6) ogs_sbi_server_add(node6->addr);
+                        if (node6) ogs_sbi_server_add(node6->addr, NULL);
 
                         ogs_socknode_remove_all(&list);
                         ogs_socknode_remove_all(&list6);
@@ -391,7 +403,7 @@ int ogs_sbi_context_parse_config(const char *local, const char *remote)
                                     family != AF_INET && family != AF_INET6) {
                                     ogs_warn("Ignore family(%d) : "
                                         "AF_UNSPEC(%d), "
-                                        "AF_INET(%d), AF_INET6(%d) ", 
+                                        "AF_INET(%d), AF_INET6(%d) ",
                                         family, AF_UNSPEC, AF_INET, AF_INET6);
                                     family = AF_UNSPEC;
                                 }
@@ -411,7 +423,7 @@ int ogs_sbi_context_parse_config(const char *local, const char *remote)
                                     }
 
                                     ogs_assert(num < OGS_MAX_NUM_OF_HOSTNAME);
-                                    hostname[num++] = 
+                                    hostname[num++] =
                                         ogs_yaml_iter_value(&hostname_iter);
                                 } while (
                                     ogs_yaml_iter_type(&hostname_iter) ==
@@ -462,7 +474,7 @@ int ogs_sbi_context_parse_config(const char *local, const char *remote)
                                 ogs_sbi_self()->nf_instance_id);
                         ogs_assert(nf_instance);
 
-                        OGS_SETUP_SBI_CLIENT(nf_instance, client);
+                        OGS_SBI_SETUP_CLIENT(nf_instance, client);
 
                         if (key) client->tls.key = key;
                         if (pem) client->tls.pem = pem;
@@ -541,6 +553,9 @@ void ogs_sbi_nf_instance_clear(ogs_sbi_nf_instance_t *nf_instance)
     int i;
 
     ogs_assert(nf_instance);
+
+    if (nf_instance->fqdn)
+        ogs_free(nf_instance->fqdn);
 
     for (i = 0; i < nf_instance->num_of_ipv4; i++) {
         if (nf_instance->ipv4[i])
@@ -670,7 +685,7 @@ void ogs_sbi_nf_service_add_version(ogs_sbi_nf_service_t *nf_service,
                 ogs_strdup(expiry);
             ogs_assert(
                 nf_service->versions[nf_service->num_of_version].expiry);
-                    
+
         }
         nf_service->num_of_version++;
     }
@@ -697,6 +712,9 @@ void ogs_sbi_nf_service_clear(ogs_sbi_nf_service_t *nf_service)
     ogs_assert(nf_service);
     nf_instance = nf_service->nf_instance;
     ogs_assert(nf_instance);
+
+    if (nf_service->fqdn)
+        ogs_free(nf_service->fqdn);
 
     for (i = 0; i < nf_service->num_of_version; i++) {
         if (nf_service->versions[i].in_uri)
@@ -897,8 +915,10 @@ void ogs_sbi_nf_instance_build_default(
         }
     }
 
-    if (hostname)
-        strcpy(nf_instance->fqdn, hostname);
+    if (hostname) {
+        nf_instance->fqdn = ogs_strdup(hostname);
+        ogs_assert(nf_instance->fqdn);
+    }
 
     nf_instance->time.heartbeat_interval =
             ogs_app()->time.nf_instance.heartbeat_interval;
@@ -927,7 +947,7 @@ ogs_sbi_nf_service_t *ogs_sbi_nf_service_build_default(
         (client->tls.key && client->tls.pem) ?
             OpenAPI_uri_scheme_https : OpenAPI_uri_scheme_http);
     ogs_assert(nf_service);
-    OGS_SETUP_SBI_CLIENT(nf_service, client);
+    OGS_SBI_SETUP_CLIENT(nf_service, client);
 
     hostname = NULL;
     ogs_list_for_each(&ogs_sbi_self()->server_list, server) {
@@ -970,8 +990,10 @@ ogs_sbi_nf_service_t *ogs_sbi_nf_service_build_default(
         }
     }
 
-    if (hostname)
-        strcpy(nf_service->fqdn, hostname);
+    if (hostname) {
+        nf_service->fqdn = ogs_strdup(hostname);
+        ogs_assert(nf_service->fqdn);
+    }
 
     return nf_service;
 }
@@ -1006,7 +1028,7 @@ static ogs_sbi_client_t *nf_instance_find_client(
     ogs_sbi_client_t *client = NULL;
     ogs_sockaddr_t *addr = NULL;
 
-    if (strlen(nf_instance->fqdn))
+    if (nf_instance->fqdn)
         client = find_client_by_fqdn(nf_instance->fqdn, 0);
 
     if (!client) {
@@ -1031,7 +1053,7 @@ static void nf_service_associate_client(ogs_sbi_nf_service_t *nf_service)
     ogs_sbi_client_t *client = NULL;
     ogs_sockaddr_t *addr = NULL;
 
-    if (strlen(nf_service->fqdn))
+    if (nf_service->fqdn)
         client = find_client_by_fqdn(nf_service->fqdn, 0);
 
     if (!client) {
@@ -1051,13 +1073,8 @@ static void nf_service_associate_client(ogs_sbi_nf_service_t *nf_service)
         }
     }
 
-    if (client) {
-        if (nf_service->client && nf_service->client != client) {
-            ogs_warn("NF EndPoint updated [%s]", nf_service->id);
-            ogs_sbi_client_remove(nf_service->client);
-        }
-        OGS_SETUP_SBI_CLIENT(nf_service, client);
-    }
+    if (client)
+        OGS_SBI_SETUP_CLIENT(nf_service, client);
 }
 
 static void nf_service_associate_client_all(ogs_sbi_nf_instance_t *nf_instance)
@@ -1109,12 +1126,7 @@ bool ogs_sbi_client_associate(ogs_sbi_nf_instance_t *nf_instance)
     client = nf_instance_find_client(nf_instance);
     if (!client) return false;
 
-    if (nf_instance->client && nf_instance->client != client) {
-        ogs_warn("NF EndPoint updated [%s]", nf_instance->id);
-        ogs_sbi_client_remove(nf_instance->client);
-    }
-
-    OGS_SETUP_SBI_CLIENT(nf_instance, client);
+    OGS_SBI_SETUP_CLIENT(nf_instance, client);
 
     nf_service_associate_client_all(nf_instance);
 

@@ -38,6 +38,7 @@ extern int __hss_log_domain;
 typedef struct _hss_context_t {
     const char          *diam_conf_path;/* HSS Diameter conf path */
     ogs_diam_config_t   *diam_config;   /* HSS Diameter config */
+    const char          *sms_over_ims;  /* SMS over IMS */
 
     ogs_thread_mutex_t  db_lock;
     ogs_thread_mutex_t  cx_lock;
@@ -61,6 +62,7 @@ int hss_context_parse_config(void);
 int hss_db_auth_info(char *imsi_bcd, ogs_dbi_auth_info_t *auth_info);
 int hss_db_update_sqn(char *imsi_bcd, uint8_t *rand, uint64_t sqn);
 int hss_db_increment_sqn(char *imsi_bcd);
+int hss_db_update_imeisv(char *imsi_bcd, char *imeisv);
 
 int hss_db_subscription_data(
     char *imsi_bcd, ogs_subscription_data_t *subscription_data);
@@ -70,16 +72,14 @@ int hss_db_msisdn_data(
 
 int hss_db_ims_data(char *imsi_bcd, ogs_ims_data_t *ims_data);
 
-void hss_s6a_set_visited_plmn_id(
-        char *imsi_bcd, ogs_plmn_id_t *visited_plmn_id);
-
 void hss_cx_associate_identity(char *user_name, char *public_identity);
 bool hss_cx_identity_is_associated(char *user_name, char *public_identity);
 
-void hss_cx_set_imsi_bcd(char *user_name, char *imsi_bcd);
+void hss_cx_set_imsi_bcd(char *user_name,
+        char *imsi_bcd, char *visited_network_identifier);
 
 char *hss_cx_get_imsi_bcd(char *public_identity);
-ogs_plmn_id_t *hss_cx_get_visited_plmn_id(char *public_identity);
+char *hss_cx_get_visited_network_identifier(char *public_identity);
 char *hss_cx_get_user_name(char *public_identity);
 
 char *hss_cx_get_server_name(char *public_identity);
@@ -87,7 +87,8 @@ void hss_cx_set_server_name(
         char *public_identity, char *server_name, bool overwrite);
 
 char *hss_cx_download_user_data(
-        char *user_name, ogs_plmn_id_t *plmn_id, ogs_ims_data_t *ims_data);
+        char *user_name, char *visited_network_identifier,
+        ogs_ims_data_t *ims_data);
 
 
 #ifdef __cplusplus

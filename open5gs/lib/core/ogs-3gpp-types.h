@@ -30,6 +30,7 @@ extern "C" {
 
 #define OGS_MAX_NUM_OF_SESS             4   /* Num of APN(Session) per UE */
 #define OGS_MAX_NUM_OF_BEARER           4   /* Num of Bearer per Session */
+#define OGS_BEARER_PER_UE               8   /* Num of Bearer per UE */
 #define OGS_MAX_NUM_OF_PACKET_BUFFER    64  /* Num of PacketBuffer per UE */
 
 /*
@@ -121,7 +122,7 @@ uint16_t ogs_plmn_id_mcc(ogs_plmn_id_t *plmn_id);
 uint16_t ogs_plmn_id_mnc(ogs_plmn_id_t *plmn_id);
 uint16_t ogs_plmn_id_mnc_len(ogs_plmn_id_t *plmn_id);
 
-void *ogs_plmn_id_build(ogs_plmn_id_t *plmn_id, 
+void *ogs_plmn_id_build(ogs_plmn_id_t *plmn_id,
         uint16_t mcc, uint16_t mnc, uint16_t mnc_len);
 
 char *ogs_serving_network_name_from_plmn_id(ogs_plmn_id_t *plmn_id);
@@ -238,7 +239,7 @@ ED3(uint8_t ipv4:1;,
 } ogs_ip_t;
 
 int ogs_ip_to_sockaddr(ogs_ip_t *ip, uint16_t port, ogs_sockaddr_t **list);
-void ogs_sockaddr_to_ip(
+int ogs_sockaddr_to_ip(
         ogs_sockaddr_t *addr, ogs_sockaddr_t *addr6, ogs_ip_t *ip);
 
 char *ogs_ipv4_to_string(uint32_t addr);
@@ -250,7 +251,34 @@ int ogs_ipv6prefix_from_string(
         uint8_t *addr6, uint8_t *prefixlen, char *string);
 
 /**************************************************
- * 8.14 PDN Address Allocation (PAA) */
+ * GTPv1-C: TS 29.060 7.7.27 End User Address (EUA) */
+#define OGS_PDP_EUA_ORG_ETSI 0
+#define OGS_PDP_EUA_ORG_IETF 1
+#define OGS_PDP_EUA_ETSI_PPP 1
+#define OGS_PDP_EUA_IETF_IPV4 0x21
+#define OGS_PDP_EUA_IETF_IPV6 0x57
+#define OGS_PDP_EUA_IETF_IPV4V6 0x8D
+typedef struct ogs_eua_s {
+ED2(uint8_t spare:4;,
+    uint8_t organization:4;)
+    uint8_t type;
+    union {
+        /* PDU_SESSION_TYPE_IPV4 */
+        uint32_t addr;
+
+        /* PDU_SESSION_TYPE_IPV6 */
+        uint8_t addr6[OGS_IPV6_LEN];
+
+        /* PDU_SESSION_TYPE_IPV4V6 */
+        struct {
+            uint32_t addr;
+            uint8_t addr6[OGS_IPV6_LEN];
+        } __attribute__ ((packed)) both;
+    };
+} __attribute__ ((packed)) ogs_eua_t;
+
+/**************************************************
+ * GTPv2-C: TS 29.274 8.14 PDN Address Allocation (PAA) */
 #define OGS_PAA_IPV4_LEN                                5
 #define OGS_PAA_IPV6_LEN                                18
 #define OGS_PAA_IPV4V6_LEN                              22
@@ -265,7 +293,7 @@ ED2(uint8_t spare:5;,
     uint8_t session_type:3;)
     union {
         /* PDU_SESSION_TYPE_IPV4 */
-        uint32_t addr;      
+        uint32_t addr;
 
         /* PDU_SESSION_TYPE_IPV6 */
         struct {
@@ -283,7 +311,7 @@ ED2(uint8_t spare:5;,
                 /* IPv6 Prefix and Interface Identifier */
                 uint8_t addr6[OGS_IPV6_LEN];
             };
-            uint32_t addr;      
+            uint32_t addr;
         } __attribute__ ((packed)) both;
     };
 } __attribute__ ((packed)) ogs_paa_t;
@@ -305,8 +333,8 @@ typedef struct ogs_qos_s {
 
     struct {
     /* Values 1 to 8 should only be assigned for services that are
-     * authorized to receive prioritized treatment within an operator domain. 
-     * Values 9 to 15 may be assigned to resources that are authorized 
+     * authorized to receive prioritized treatment within an operator domain.
+     * Values 9 to 15 may be assigned to resources that are authorized
      * by the home network and thus applicable when a UE is roaming. */
         uint8_t     priority_level;
 /*
@@ -370,7 +398,7 @@ typedef struct ogs_pcc_rule_s {
 
     int flow_status;
     uint32_t precedence;
-        
+
     ogs_qos_t  qos;
 } ogs_pcc_rule_t;
 
@@ -453,13 +481,14 @@ int ogs_fqdn_parse(char *dst, char *src, int len);
 
 /**************************************************
  * Protocol Configuration Options Structure
- * 8.13 Protocol Configuration Options (PCO) 
- * 10.5.6.3 Protocol configuration options in 3GPP TS 24.008 
+ * 8.13 Protocol Configuration Options (PCO)
+ * 10.5.6.3 Protocol configuration options in 3GPP TS 24.008
  * RFC 3232 [103]
  * RFC 1661 [102] */
 #define OGS_PCO_PPP_FOR_USE_WITH_IP_PDP_TYPE_OR_IP_PDN_TYPE 0
 
 #define OGS_PCO_ID_INTERNET_PROTOCOL_CONTROL_PROTOCOL           0x8021
+#define OGS_PCO_ID_PASSWORD_AUTHENTICATION_PROTOCOL             0xc023
 #define OGS_PCO_ID_CHALLENGE_HANDSHAKE_AUTHENTICATION_PROTOCOL  0xc223
 #define OGS_PCO_ID_P_CSCF_IPV6_ADDRESS_REQUEST                  0x0001
 #define OGS_PCO_ID_DNS_SERVER_IPV6_ADDRESS_REQUEST              0x0003
@@ -470,19 +499,40 @@ int ogs_fqdn_parse(char *dst, char *src, int len);
 #define OGS_PCO_ID_IPV4_LINK_MTU_REQUEST                        0x0010
 #define OGS_PCO_ID_MS_SUPPORT_LOCAL_ADDR_TFT_INDICATOR          0x0011
 #define OGS_PCO_ID_P_CSCF_RE_SELECTION_SUPPORT                  0x0012
+
+enum ogs_pco_ipcp_options {
+    OGS_IPCP_OPT_IPADDR = 3,
+    OGS_IPCP_OPT_PRIMARY_DNS = 129,
+    OGS_IPCP_OPT_SECONDARY_DNS = 131,
+};
+
 typedef struct ogs_pco_ipcp_options_s {
     uint8_t type;
     uint8_t len;
     uint32_t addr;
 } __attribute__ ((packed)) ogs_pco_ipcp_options_t;
 
-#define OGS_PCO_MAX_NUM_OF_IPCO_OPTIONS 4
+#define OGS_PCO_MAX_NUM_OF_IPCP_OPTIONS 4
 typedef struct ogs_pco_ipcp_s {
     uint8_t code;
     uint8_t identifier;
     uint16_t len;
-    ogs_pco_ipcp_options_t options[OGS_PCO_MAX_NUM_OF_IPCO_OPTIONS];
+    ogs_pco_ipcp_options_t options[OGS_PCO_MAX_NUM_OF_IPCP_OPTIONS];
 } __attribute__ ((packed)) ogs_pco_ipcp_t;
+
+typedef struct ogs_pco_pap_s {
+    uint8_t code;
+    uint8_t identifier;
+    uint16_t len;
+    uint8_t welcome_len;
+    char welcome[255];
+} __attribute__ ((packed)) ogs_pco_pap_t;
+
+typedef struct ogs_pco_chap_s {
+    uint8_t code;
+    uint8_t identifier;
+    uint16_t len;
+} __attribute__ ((packed)) ogs_pco_chap_t;
 
 typedef struct ogs_pco_id_s {
     uint16_t id;
@@ -555,7 +605,7 @@ int ogs_pco_build(unsigned char *data, int data_len, ogs_pco_t *pco);
 
 /* Flags(1) + TEID Range(1) + IPV4(4) + IPV6(16) + Source Interface(1) = 23 */
 #define OGS_MAX_USER_PLANE_IP_RESOURCE_INFO_LEN \
-    (23 + OGS_MAX_APN_LEN)
+    (23 + (OGS_MAX_APN_LEN+1))
 typedef struct ogs_user_plane_ip_resource_info_s {
     union {
         struct {
@@ -580,7 +630,7 @@ ED6(uint8_t     spare:1;,
     uint8_t     teid_range;
     uint32_t    addr;
     uint8_t     addr6[OGS_IPV6_LEN];
-    char        network_instance[OGS_MAX_APN_LEN];
+    char        network_instance[OGS_MAX_APN_LEN+1];
     uint8_t     source_interface;
 } __attribute__ ((packed)) ogs_user_plane_ip_resource_info_t;
 
@@ -652,6 +702,25 @@ void ogs_session_data_free(ogs_session_data_t *session_data);
 
 typedef struct ogs_media_sub_component_s {
     uint32_t            flow_number;
+/*
+ * TS29.214
+ * 5.3.12 Flow-Usage AVP
+ *   NO_INFORMATION(0)
+ *   RTCP(1)
+ *   AF_SIGNALLING(2)
+ *
+ * TS29.514
+ * 5.6.3.14 Enumeration: FlowUsage
+ *   NO_INFO : 1
+ *   RTCP : 2
+ *   AF_SIGNALLING : 3
+ *
+ * EPC and 5GC have different values for FlowUsage
+ * At this point, we will use the 5GC value.
+ */
+#define OGS_FLOW_USAGE_NO_INFO          1
+#define OGS_FLOW_USAGE_RTCP             2
+#define OGS_FLOW_USAGE_AF_SIGNALLING    3
     uint32_t            flow_usage;
     ogs_flow_t          flow[OGS_MAX_NUM_OF_FLOW_IN_MEDIA_SUB_COMPONENT];
     int                 num_of_flow;
@@ -689,6 +758,13 @@ typedef struct ogs_ims_data_s {
 } ogs_ims_data_t;
 
 void ogs_ims_data_free(ogs_ims_data_t *ims_data);
+
+int ogs_pcc_rule_num_of_flow_equal_to_media(
+        ogs_pcc_rule_t *pcc_rule, ogs_media_component_t *media_component);
+int ogs_pcc_rule_install_flow_from_media(
+        ogs_pcc_rule_t *pcc_rule, ogs_media_component_t *media_component);
+int ogs_pcc_rule_update_qos_from_media(
+        ogs_pcc_rule_t *pcc_rule, ogs_media_component_t *media_component);
 
 #ifdef __cplusplus
 }

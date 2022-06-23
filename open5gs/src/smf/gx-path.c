@@ -20,11 +20,13 @@
 #include "fd-path.h"
 
 static struct session_handler *smf_gx_reg = NULL;
-static struct disp_hdl *hdl_gx_fb = NULL; 
-static struct disp_hdl *hdl_gx_rar = NULL; 
+static struct disp_hdl *hdl_gx_fb = NULL;
+static struct disp_hdl *hdl_gx_rar = NULL;
 
 struct sess_state {
     os0_t       gx_sid;             /* Gx Session-Id */
+
+    os0_t       peer_host;          /* Peer Host */
 
 #define MAX_CC_REQUEST_NUMBER 32
     smf_sess_t *sess;
@@ -50,6 +52,7 @@ static __inline__ struct sess_state *new_state(os0_t sid)
     ogs_thread_mutex_lock(&sess_state_mutex);
     ogs_pool_alloc(&sess_state_pool, &new);
     ogs_expect_or_return_val(new, NULL);
+    memset(new, 0, sizeof(*new));
     ogs_thread_mutex_unlock(&sess_state_mutex);
 
     new->gx_sid = (os0_t)ogs_strdup((char *)sid);
@@ -62,6 +65,9 @@ static void state_cleanup(struct sess_state *sess_data, os0_t sid, void *opaque)
 {
     if (sess_data->gx_sid)
         ogs_free(sess_data->gx_sid);
+
+    if (sess_data->peer_host)
+        ogs_free(sess_data->peer_host);
 
     ogs_thread_mutex_lock(&sess_state_mutex);
     ogs_pool_free(&sess_state_pool, sess_data);
@@ -77,17 +83,17 @@ void smf_gx_send_ccr(smf_sess_t *sess, ogs_gtp_xact_t *xact,
     struct msg *req = NULL;
     struct avp *avp;
     struct avp *avpch1, *avpch2;
+    struct avp_hdr *ahdr;
     union avp_value val;
     struct sess_state *sess_data = NULL, *svg;
     struct session *session = NULL;
     int new;
-    ogs_paa_t paa; /* For changing Framed-IPv6-Prefix Length to 128 */
+    ogs_paa_t paa; /* For changing Framed-IPv6-Prefix Length to 64 */
     char buf[OGS_PLMNIDSTRLEN];
     struct sockaddr_in sin;
     struct sockaddr_in6 sin6;
-    uint32_t charing_id;
+    uint32_t charging_id;
 
-    ogs_assert(xact);
     ogs_assert(sess);
 
     ogs_assert(sess->ipv4 || sess->ipv6);
@@ -99,6 +105,12 @@ void smf_gx_send_ccr(smf_sess_t *sess, ogs_gtp_xact_t *xact,
     /* Create the request */
     ret = fd_msg_new(ogs_diam_gx_cmd_ccr, MSGFL_ALLOC_ETEID, &req);
     ogs_assert(ret == 0);
+    {
+        struct msg_hdr *h;
+        ret = fd_msg_hdr(req, &h);
+        ogs_assert(ret == 0);
+        h->msg_appl = OGS_DIAM_GX_APPLICATION_ID;
+    }
 
     /* Find Diameter Gx Session */
     if (sess->gx_sid) {
@@ -118,7 +130,7 @@ void smf_gx_send_ccr(smf_sess_t *sess, ogs_gtp_xact_t *xact,
     } else {
         /* Create a new session */
         #define OGS_DIAM_GX_APP_SID_OPT  "app_gx"
-        ret = fd_msg_new_session(req, (os0_t)OGS_DIAM_GX_APP_SID_OPT, 
+        ret = fd_msg_new_session(req, (os0_t)OGS_DIAM_GX_APP_SID_OPT,
                 CONSTSTRLEN(OGS_DIAM_GX_APP_SID_OPT));
         ogs_assert(ret == 0);
         ret = fd_msg_sess_get(fd_g_config->cnf_dict, req, &session, NULL);
@@ -146,7 +158,7 @@ void smf_gx_send_ccr(smf_sess_t *sess, ogs_gtp_xact_t *xact,
     } else
         ogs_debug("    Retrieve session: [%s]", sess_data->gx_sid);
 
-    /* 
+    /*
      * 8.2.  CC-Request-Number AVP
      *
      *  The CC-Request-Number AVP (AVP Code 415) is of type Unsigned32 and
@@ -167,7 +179,7 @@ void smf_gx_send_ccr(smf_sess_t *sess, ogs_gtp_xact_t *xact,
     else
         sess_data->cc_request_number++;
 
-    ogs_debug("    CC Request Type[%d] Number[%d]", 
+    ogs_debug("    CC Request Type[%d] Number[%d]",
         sess_data->cc_request_type, sess_data->cc_request_number);
     ogs_assert(sess_data->cc_request_number <= MAX_CC_REQUEST_NUMBER);
 
@@ -178,7 +190,7 @@ void smf_gx_send_ccr(smf_sess_t *sess, ogs_gtp_xact_t *xact,
     /* Set Origin-Host & Origin-Realm */
     ret = fd_msg_add_origin(req, 0);
     ogs_assert(ret == 0);
-    
+
     /* Set the Destination-Realm AVP */
     ret = fd_msg_avp_new(ogs_diam_destination_realm, 0, &avp);
     ogs_assert(ret == 0);
@@ -214,6 +226,18 @@ void smf_gx_send_ccr(smf_sess_t *sess, ogs_gtp_xact_t *xact,
     ogs_assert(ret == 0);
     ret = fd_msg_avp_add(req, MSG_BRW_LAST_CHILD, avp);
     ogs_assert(ret == 0);
+
+    /* Set the Destination-Host AVP */
+    if (sess_data->peer_host) {
+        ret = fd_msg_avp_new(ogs_diam_destination_host, 0, &avp);
+        ogs_assert(ret == 0);
+        val.os.data = sess_data->peer_host;
+        val.os.len  = strlen((char *)sess_data->peer_host);
+        ret = fd_msg_avp_setvalue(avp, &val);
+        ogs_assert(ret == 0);
+        ret = fd_msg_avp_add(req, MSG_BRW_LAST_CHILD, avp);
+        ogs_assert(ret == 0);
+    }
 
     /* Set Subscription-Id */
     ret = fd_msg_avp_new(ogs_diam_subscription_id, 0, &avp);
@@ -296,11 +320,36 @@ void smf_gx_send_ccr(smf_sess_t *sess, ogs_gtp_xact_t *xact,
         if (sess->ipv6) {
             ret = fd_msg_avp_new(ogs_diam_gx_framed_ipv6_prefix, 0, &avp);
             ogs_assert(ret == 0);
-            memcpy(&paa, &sess->session.paa, OGS_PAA_IPV6_LEN);
-#define FRAMED_IPV6_PREFIX_LENGTH 128  /* from spec document */
-            paa.len = FRAMED_IPV6_PREFIX_LENGTH; 
+            /* As per 3GPP TS 23.401 version 15.12.0, section 5.3.1.2.2
+             * The PDN GW allocates a globally unique /64
+             * IPv6 prefix via Router Advertisement to a given UE.
+             *
+             * After the UE has received the Router Advertisement message, it
+             * constructs a full IPv6 address via IPv6 Stateless Address
+             * autoconfiguration in accordance with RFC 4862 using the interface
+             * identifier assigned by PDN GW.
+             *
+             * For stateless address autoconfiguration however, the UE can
+             * choose any interface identifier to generate IPv6 addresses, other
+             * than link-local, without involving the network.
+             *
+             * And, from section 5.3.1.1, Both EPS network elements and UE shall
+             * support the following mechanisms:
+             *
+             * /64 IPv6 prefix allocation via IPv6 Stateless Address
+             * autoconfiguration according to RFC 4862 [18], if IPv6 is
+             * supported.
+             */
+            memset(&paa, 0 , sizeof(paa));
+            memcpy(&paa.addr6, &sess->ipv6->addr,
+                    OGS_IPV6_DEFAULT_PREFIX_LEN >> 3);
+#define FRAMED_IPV6_PREFIX_LENGTH 64  /* from spec document */
+            paa.len = FRAMED_IPV6_PREFIX_LENGTH;
             val.os.data = (uint8_t*)&paa;
-            val.os.len = OGS_PAA_IPV6_LEN;
+            /* Reserved (1 byte) + Prefix length (1 byte) +
+             * IPv6 Prefix (8 bytes)
+             */
+            val.os.len = (OGS_IPV6_DEFAULT_PREFIX_LEN >> 3) + 2;
             ret = fd_msg_avp_setvalue(avp, &val);
             ogs_assert(ret == 0);
             ret = fd_msg_avp_add(req, MSG_BRW_LAST_CHILD, avp);
@@ -312,10 +361,14 @@ void smf_gx_send_ccr(smf_sess_t *sess, ogs_gtp_xact_t *xact,
         ogs_assert(ret == 0);
 
         switch (sess->gtp_rat_type) {
-        case OGS_GTP_RAT_TYPE_EUTRAN:
+        case OGS_GTP2_RAT_TYPE_UTRAN:
+        case OGS_GTP2_RAT_TYPE_GERAN:
+        case OGS_GTP2_RAT_TYPE_HSPA_EVOLUTION:
+        case OGS_GTP2_RAT_TYPE_EUTRAN:
             val.i32 = OGS_DIAM_GX_IP_CAN_TYPE_3GPP_EPS;
             break;
-        case OGS_GTP_RAT_TYPE_WLAN:
+        case OGS_GTP2_RAT_TYPE_WLAN:
+        case OGS_GTP2_RAT_TYPE_VIRTUAL:
             val.i32 = OGS_DIAM_GX_IP_CAN_TYPE_NON_3GPP_EPS;
             break;
         default:
@@ -333,10 +386,19 @@ void smf_gx_send_ccr(smf_sess_t *sess, ogs_gtp_xact_t *xact,
         ogs_assert(ret == 0);
 
         switch (sess->gtp_rat_type) {
-        case OGS_GTP_RAT_TYPE_EUTRAN:
+        case OGS_GTP2_RAT_TYPE_UTRAN:
+            val.i32 = OGS_DIAM_RAT_TYPE_UTRAN;
+            break;
+        case OGS_GTP2_RAT_TYPE_GERAN:
+            val.i32 = OGS_DIAM_RAT_TYPE_GERAN;
+            break;
+        case OGS_GTP2_RAT_TYPE_HSPA_EVOLUTION:
+            val.i32 = OGS_DIAM_RAT_TYPE_HSPA_EVOLUTION;
+            break;
+        case OGS_GTP2_RAT_TYPE_EUTRAN:
             val.i32 = OGS_DIAM_RAT_TYPE_EUTRAN;
             break;
-        case OGS_GTP_RAT_TYPE_WLAN:
+        case OGS_GTP2_RAT_TYPE_WLAN:
             val.i32 = OGS_DIAM_RAT_TYPE_WLAN;
             break;
         default:
@@ -364,7 +426,7 @@ void smf_gx_send_ccr(smf_sess_t *sess, ogs_gtp_xact_t *xact,
                 ret = fd_msg_avp_add (avp, MSG_BRW_LAST_CHILD, avpch1);
                 ogs_assert(ret == 0);
             }
-            
+
             if (sess->session.ambr.downlink) {
                 ret = fd_msg_avp_new(
                         ogs_diam_gx_apn_aggregate_max_bitrate_dl, 0, &avpch1);
@@ -426,43 +488,8 @@ void smf_gx_send_ccr(smf_sess_t *sess, ogs_gtp_xact_t *xact,
         ret = fd_msg_avp_add(req, MSG_BRW_LAST_CHILD, avp);
         ogs_assert(ret == 0);
 
-        /* Set 3GPP-User-Location-Info */
-        if (sess->gtp.user_location_information.presence) {
-            ogs_gtp_uli_t uli;
-            int16_t uli_len;
-
-            uint8_t uli_buf[OGS_GTP_MAX_ULI_LEN];
-
-            uli_len = ogs_gtp_parse_uli(
-                    &uli, &sess->gtp.user_location_information);
-            ogs_assert(sess->gtp.user_location_information.len == uli_len);
-
-            ogs_assert(sess->gtp.user_location_information.data);
-            ogs_assert(sess->gtp.user_location_information.len);
-            memcpy(&uli_buf, sess->gtp.user_location_information.data,
-                    sess->gtp.user_location_information.len);
-
-            /* Update Gx ULI Type */
-            if (uli.flags.tai && uli.flags.e_cgi)
-                uli_buf[0] =
-                    OGS_DIAM_GX_3GPP_USER_LOCATION_INFO_TYPE_TAI_AND_ECGI;
-            else if (uli.flags.tai)
-                uli_buf[0] = OGS_DIAM_GX_3GPP_USER_LOCATION_INFO_TYPE_TAI;
-            else if (uli.flags.e_cgi)
-                uli_buf[0] = OGS_DIAM_GX_3GPP_USER_LOCATION_INFO_TYPE_ECGI;
-
-            if (uli_buf[0]) {
-                ret = fd_msg_avp_new(
-                        ogs_diam_gx_3gpp_user_location_info, 0, &avp);
-                ogs_assert(ret == 0);
-                val.os.data = (uint8_t *)&uli_buf;
-                val.os.len = sess->gtp.user_location_information.len;
-                ret = fd_msg_avp_setvalue(avp, &val);
-                ogs_assert(ret == 0);
-                ret = fd_msg_avp_add(req, MSG_BRW_LAST_CHILD, avp);
-                ogs_assert(ret == 0);
-            }
-        }
+        /* 3GPP-User-Location-Info, 3GPP TS 29.061 16.4.7.2 22 */
+        smf_fd_msg_avp_add_3gpp_uli(sess, avpch1);
 
         /* Set 3GPP-MS-Timezone */
         if (sess->gtp.ue_timezone.presence &&
@@ -576,9 +603,9 @@ void smf_gx_send_ccr(smf_sess_t *sess, ogs_gtp_xact_t *xact,
                 ogs_diam_gx_access_network_charging_identifier_value, 0,
                 &avpch1);
         ogs_assert(ret == 0);
-        charing_id = htobe32(sess->charging.id);
-        val.os.data = (uint8_t *)&charing_id;
-        val.os.len = sizeof(charing_id);
+        charging_id = htobe32(sess->charging.id);
+        val.os.data = (uint8_t *)&charging_id;
+        val.os.len = sizeof(charging_id);
         ret = fd_msg_avp_setvalue (avpch1, &val);
         ogs_assert(ret == 0);
         ret = fd_msg_avp_add (avp, MSG_BRW_LAST_CHILD, avpch1);
@@ -587,26 +614,48 @@ void smf_gx_send_ccr(smf_sess_t *sess, ogs_gtp_xact_t *xact,
         ret = fd_msg_avp_add(req, MSG_BRW_LAST_CHILD, avp);
         ogs_assert(ret == 0);
 
-        ret = fd_msg_avp_new(ogs_diam_gx_an_trusted, 0, &avp);
-        ogs_assert(ret == 0);
-        val.u32 = OGS_DIAM_GX_AN_UNTRUSTED;
-        ret = fd_msg_avp_setvalue (avp, &val);
-        ogs_assert(ret == 0);
-        ret = fd_msg_avp_add(req, MSG_BRW_LAST_CHILD, avp);
-        ogs_assert(ret == 0);
+        /*
+         * TS 29.274 version 16.11.0, Table 7.2.1-1,
+         * GTPv2 RAT Type: The ePDG may use the access technology type of the
+         * untrusted non-3GPP access network if it is able to acquire
+         * it; otherwise it shall indicate Virtual as the RAT Type.
+         * The TWAN shall set the RAT Type value to "WLAN" on the
+         * S2a interface.
+         */
+        if (sess->gtp_rat_type == OGS_GTP2_RAT_TYPE_WLAN ||
+            sess->gtp_rat_type == OGS_GTP2_RAT_TYPE_VIRTUAL) {
+            ret = fd_msg_avp_new(ogs_diam_gx_an_trusted, 0, &avp);
+            ogs_assert(ret == 0);
+            /*
+             * TS 29.212 version 16.4.0, Table 5.4.0.1,
+             * AN-Trusted: This AVP shall have the 'M' bit cleared.
+             */
+            ret = fd_msg_avp_hdr(avp, &ahdr);
+            ogs_assert(ret == 0);
+            ahdr->avp_flags = ahdr->avp_flags & AVP_FLAG_VENDOR;
+
+            /*
+             * Currently, only Untrusted non-3GPP access via ePDG is supported.
+             */
+            val.u32 = OGS_DIAM_GX_AN_UNTRUSTED;
+            ret = fd_msg_avp_setvalue (avp, &val);
+            ogs_assert(ret == 0);
+            ret = fd_msg_avp_add(req, MSG_BRW_LAST_CHILD, avp);
+            ogs_assert(ret == 0);
+        }
     }
-    
+
     ret = clock_gettime(CLOCK_REALTIME, &sess_data->ts);
-    
-    /* Keep a pointer to the session data for debug purpose, 
+
+    /* Keep a pointer to the session data for debug purpose,
      * in real life we would not need it */
     svg = sess_data;
-    
+
     /* Store this value in the session */
     ret = fd_sess_state_store(smf_gx_reg, session, &sess_data);
     ogs_assert(ret == 0);
     ogs_assert(sess_data == NULL);
-    
+
     /* Send the request */
     ret = fd_msg_send(&req, smf_gx_cca_cb, svg);
     ogs_assert(ret == 0);
@@ -630,18 +679,20 @@ static void smf_gx_cca_cb(void *data, struct msg **msg)
     unsigned long dur;
     int error = 0;
     int new;
-
+    struct msg *req = NULL;
     smf_event_t *e = NULL;
     ogs_gtp_xact_t *xact = NULL;
     smf_sess_t *sess = NULL;
-    ogs_pkbuf_t *gxbuf = NULL;
     ogs_diam_gx_message_t *gx_message = NULL;
-    uint16_t gxbuf_len = 0;
     uint32_t cc_request_number = 0;
 
     ogs_debug("[Credit-Control-Answer]");
-    
+
     ret = clock_gettime(CLOCK_REALTIME, &ts);
+    ogs_assert(ret == 0);
+
+    /* Get originating request of received message, if any */
+    ret = fd_msg_answ_getq(*msg, &req);
     ogs_assert(ret == 0);
 
     /* Search the session, retrieve its data */
@@ -650,7 +701,7 @@ static void smf_gx_cca_cb(void *data, struct msg **msg)
     ogs_assert(new == 0);
 
     ogs_debug("    Search the session");
-    
+
     ret = fd_sess_state_retrieve(smf_gx_reg, session, &sess_data);
     ogs_assert(ret == 0);
     ogs_assert(sess_data);
@@ -661,34 +712,33 @@ static void smf_gx_cca_cb(void *data, struct msg **msg)
     /* Value of CC-Request-Number */
     ret = fd_msg_search_avp(*msg, ogs_diam_gx_cc_request_number, &avp);
     ogs_assert(ret == 0);
-    if (avp) {
-        ret = fd_msg_avp_hdr(avp, &hdr);
+    if (!avp && req) {
+        /* Attempt searching for CC-Request-* in original request. Error
+         * messages (like DIAMETER_UNABLE_TO_DELIVER) crafted internally may not
+         * have them. */
+        ret = fd_msg_search_avp(req, ogs_diam_gx_cc_request_number, &avp);
         ogs_assert(ret == 0);
-        cc_request_number = hdr->avp_value->i32;
-    } else {
+    }
+    if (!avp) {
         ogs_error("no_CC-Request-Number");
         ogs_assert_if_reached();
     }
+    ret = fd_msg_avp_hdr(avp, &hdr);
+    ogs_assert(ret == 0);
+    cc_request_number = hdr->avp_value->i32;
 
     ogs_debug("    CC-Request-Number[%d]", cc_request_number);
 
     xact = sess_data->xact[cc_request_number];
-    ogs_assert(xact);
     sess = sess_data->sess;
     ogs_assert(sess);
 
-    gxbuf_len = sizeof(ogs_diam_gx_message_t);
-    ogs_assert(gxbuf_len < 8192);
-    gxbuf = ogs_pkbuf_alloc(NULL, gxbuf_len);
-    ogs_assert(gxbuf);
-    ogs_pkbuf_put(gxbuf, gxbuf_len);
-    gx_message = (ogs_diam_gx_message_t *)gxbuf->data;
+    gx_message = ogs_calloc(1, sizeof(ogs_diam_gx_message_t));
     ogs_assert(gx_message);
 
     /* Set Credit Control Command */
-    memset(gx_message, 0, gxbuf_len);
     gx_message->cmd_code = OGS_DIAM_GX_CMD_CODE_CREDIT_CONTROL;
-    
+
     /* Value of Result Code */
     ret = fd_msg_search_avp(*msg, ogs_diam_result_code, &avp);
     ogs_assert(ret == 0);
@@ -748,14 +798,20 @@ static void smf_gx_cca_cb(void *data, struct msg **msg)
     /* Value of CC-Request-Type */
     ret = fd_msg_search_avp(*msg, ogs_diam_gx_cc_request_type, &avp);
     ogs_assert(ret == 0);
-    if (avp) {
-        ret = fd_msg_avp_hdr(avp, &hdr);
+    if (!avp && req) {
+        /* Attempt searching for CC-Request-* in original request. Error
+         * messages (like DIAMETER_UNABLE_TO_DELIVER) crafted internally may not
+         * have them. */
+        ret = fd_msg_search_avp(req, ogs_diam_gx_cc_request_type, &avp);
         ogs_assert(ret == 0);
-        gx_message->cc_request_type = hdr->avp_value->i32;
-    } else {
-        ogs_error("no_CC-Request-Type");
+    }
+    if (!avp) {
+        ogs_error("no_CC-Request-Number");
         error++;
     }
+    ret = fd_msg_avp_hdr(avp, &hdr);
+    ogs_assert(ret == 0);
+    gx_message->cc_request_type = hdr->avp_value->i32;
 
     if (gx_message->result_code != ER_DIAMETER_SUCCESS) {
         ogs_warn("ERROR DIAMETER Result Code(%d)", gx_message->result_code);
@@ -864,6 +920,12 @@ static void smf_gx_cca_cb(void *data, struct msg **msg)
         switch (hdr->avp_code) {
         case AC_SESSION_ID:
         case AC_ORIGIN_HOST:
+            if (sess_data->peer_host)
+                ogs_free(sess_data->peer_host);
+            sess_data->peer_host =
+                (os0_t)ogs_strdup((char *)hdr->avp_value->os.data);
+            ogs_assert(sess_data->peer_host);
+            break;
         case AC_ORIGIN_REALM:
         case AC_DESTINATION_REALM:
         case AC_RESULT_CODE:
@@ -939,29 +1001,29 @@ out:
         ogs_assert(e);
 
         e->sess = sess;
-        e->pkbuf = gxbuf;
+        e->gx_message = gx_message;
         e->gtp_xact = xact;
         rv = ogs_queue_push(ogs_app()->queue, e);
         if (rv != OGS_OK) {
             ogs_warn("ogs_queue_push() failed:%d", (int)rv);
             ogs_session_data_free(&gx_message->session_data);
-            ogs_pkbuf_free(e->pkbuf);
+            ogs_free(gx_message);
             smf_event_free(e);
         } else {
             ogs_pollset_notify(ogs_app()->pollset);
         }
     } else {
         ogs_session_data_free(&gx_message->session_data);
-        ogs_pkbuf_free(gxbuf);
+        ogs_free(gx_message);
     }
 
     /* Free the message */
     ogs_assert(pthread_mutex_lock(&ogs_diam_logger_self()->stats_lock) == 0);
-    dur = ((ts.tv_sec - sess_data->ts.tv_sec) * 1000000) + 
+    dur = ((ts.tv_sec - sess_data->ts.tv_sec) * 1000000) +
         ((ts.tv_nsec - sess_data->ts.tv_nsec) / 1000);
     if (ogs_diam_logger_self()->stats.nb_recv) {
         /* Ponderate in the avg */
-        ogs_diam_logger_self()->stats.avg = (ogs_diam_logger_self()->stats.avg * 
+        ogs_diam_logger_self()->stats.avg = (ogs_diam_logger_self()->stats.avg *
             ogs_diam_logger_self()->stats.nb_recv + dur) /
             (ogs_diam_logger_self()->stats.nb_recv + 1);
         /* Min, max */
@@ -976,22 +1038,22 @@ out:
     }
     if (error)
         ogs_diam_logger_self()->stats.nb_errs++;
-    else 
+    else
         ogs_diam_logger_self()->stats.nb_recv++;
 
     ogs_assert(pthread_mutex_unlock(&ogs_diam_logger_self()->stats_lock) == 0);
-    
+
     /* Display how long it took */
     if (ts.tv_nsec > sess_data->ts.tv_nsec)
-        ogs_trace("in %d.%06ld sec", 
+        ogs_trace("in %d.%06ld sec",
                 (int)(ts.tv_sec - sess_data->ts.tv_sec),
                 (long)(ts.tv_nsec - sess_data->ts.tv_nsec) / 1000);
     else
-        ogs_trace("in %d.%06ld sec", 
+        ogs_trace("in %d.%06ld sec",
                 (int)(ts.tv_sec + 1 - sess_data->ts.tv_sec),
                 (long)(1000000000 + ts.tv_nsec - sess_data->ts.tv_nsec) / 1000);
 
-    ogs_debug("    CC-Request-Type[%d] Number[%d] in Session Data", 
+    ogs_debug("    CC-Request-Type[%d] Number[%d] in Session Data",
         sess_data->cc_request_type, sess_data->cc_request_number);
     ogs_debug("    Current CC-Request-Number[%d]", cc_request_number);
     if (sess_data->cc_request_type ==
@@ -1009,20 +1071,20 @@ out:
     ret = fd_msg_free(*msg);
     ogs_assert(ret == 0);
     *msg = NULL;
-    
+
     return;
 }
 
-static int smf_gx_fb_cb(struct msg **msg, struct avp *avp, 
+static int smf_gx_fb_cb(struct msg **msg, struct avp *avp,
         struct session *sess, void *opaque, enum disp_action *act)
 {
 	/* This CB should never be called */
 	ogs_warn("Unexpected message received!");
-	
+
 	return ENOTSUP;
 }
 
-static int smf_gx_rar_cb( struct msg **msg, struct avp *avp, 
+static int smf_gx_rar_cb( struct msg **msg, struct avp *avp,
         struct session *session, void *opaque, enum disp_action *act)
 {
     int rv;
@@ -1035,28 +1097,20 @@ static int smf_gx_rar_cb( struct msg **msg, struct avp *avp,
     struct sess_state *sess_data = NULL;
 
     smf_event_t *e = NULL;
-    uint16_t gxbuf_len = 0;
-    ogs_pkbuf_t *gxbuf = NULL;
     smf_sess_t *sess = NULL;
     ogs_diam_gx_message_t *gx_message = NULL;
 
     uint32_t result_code = OGS_DIAM_UNKNOWN_SESSION_ID;
     int error = 0;
-	
+
     ogs_assert(msg);
 
     ogs_debug("Re-Auth-Request");
 
-    gxbuf_len = sizeof(ogs_diam_gx_message_t);
-    ogs_assert(gxbuf_len < 8192);
-    gxbuf = ogs_pkbuf_alloc(NULL, gxbuf_len);
-    ogs_assert(gxbuf);
-    ogs_pkbuf_put(gxbuf, gxbuf_len);
-    gx_message = (ogs_diam_gx_message_t *)gxbuf->data;
+    gx_message = ogs_calloc(1, sizeof(ogs_diam_gx_message_t));
     ogs_assert(gx_message);
 
     /* Set Credit Control Command */
-    memset(gx_message, 0, gxbuf_len);
     gx_message->cmd_code = OGS_DIAM_GX_CMD_RE_AUTH;
 
 	/* Create answer header */
@@ -1191,12 +1245,12 @@ static int smf_gx_rar_cb( struct msg **msg, struct avp *avp,
     ogs_assert(e);
 
     e->sess = sess;
-    e->pkbuf = gxbuf;
+    e->gx_message = gx_message;
     rv = ogs_queue_push(ogs_app()->queue, e);
     if (rv != OGS_OK) {
         ogs_warn("ogs_queue_push() failed:%d", (int)rv);
         ogs_session_data_free(&gx_message->session_data);
-        ogs_pkbuf_free(e->pkbuf);
+        ogs_free(gx_message);
         smf_event_free(e);
     } else {
         ogs_pollset_notify(ogs_app()->pollset);
@@ -1251,7 +1305,7 @@ out:
     ogs_assert(ret == 0);
 
     ogs_session_data_free(&gx_message->session_data);
-    ogs_pkbuf_free(gxbuf);
+    ogs_free(gx_message);
 
     return 0;
 }

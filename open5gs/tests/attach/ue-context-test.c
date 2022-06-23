@@ -64,7 +64,7 @@ static void test1_func(abts_case *tc, void *data)
     test_ue->k_string = "465b5ce8b199b49faa5f0a2ee238a6bc";
     test_ue->opc_string = "e8ed289deba952e4283b54e88e6183ca";
 
-    sess = test_sess_add_by_apn(test_ue, "internet", OGS_GTP_RAT_TYPE_EUTRAN);
+    sess = test_sess_add_by_apn(test_ue, "internet", OGS_GTP2_RAT_TYPE_EUTRAN);
     ogs_assert(sess);
 
     /* eNB connects to MME */
@@ -98,7 +98,7 @@ static void test1_func(abts_case *tc, void *data)
     sess->pdn_connectivity_param.pco = 1;
     sess->pdn_connectivity_param.request_type =
         OGS_NAS_EPS_REQUEST_TYPE_INITIAL;
-    esmbuf = testesm_build_pdn_connectivity_request(sess);
+    esmbuf = testesm_build_pdn_connectivity_request(sess, false);
     ABTS_PTR_NOTNULL(tc, esmbuf);
 
     memset(&test_ue->attach_request_param,
@@ -108,7 +108,7 @@ static void test1_func(abts_case *tc, void *data)
     test_ue->attach_request_param.tmsi_status = 1;
     test_ue->attach_request_param.mobile_station_classmark_2 = 1;
     test_ue->attach_request_param.ue_usage_setting = 1;
-    emmbuf = testemm_build_attach_request(test_ue, esmbuf);
+    emmbuf = testemm_build_attach_request(test_ue, esmbuf, false, false);
     ABTS_PTR_NOTNULL(tc, emmbuf);
 
     memset(&test_ue->initial_ue_param, 0, sizeof(test_ue->initial_ue_param));
@@ -232,7 +232,7 @@ static void test2_func(abts_case *tc, void *data)
     test_ue->k_string = "465b5ce8b199b49faa5f0a2ee238a6bc";
     test_ue->opc_string = "e8ed289deba952e4283b54e88e6183ca";
 
-    sess = test_sess_add_by_apn(test_ue, "internet", OGS_GTP_RAT_TYPE_EUTRAN);
+    sess = test_sess_add_by_apn(test_ue, "internet", OGS_GTP2_RAT_TYPE_EUTRAN);
     ogs_assert(sess);
 
     /* eNB connects to MME */
@@ -267,16 +267,15 @@ static void test2_func(abts_case *tc, void *data)
     sess->pdn_connectivity_param.pco = 1;
     sess->pdn_connectivity_param.request_type =
         OGS_NAS_EPS_REQUEST_TYPE_INITIAL;
-    esmbuf = testesm_build_pdn_connectivity_request(sess);
+    esmbuf = testesm_build_pdn_connectivity_request(sess, false);
     ABTS_PTR_NOTNULL(tc, esmbuf);
 
     memset(&test_ue->attach_request_param,
             0, sizeof(test_ue->attach_request_param));
-    test_ue->attach_request_param.integrity_protected = 1;
     test_ue->attach_request_param.guti = 1;
     test_ue->attach_request_param.last_visited_registered_tai = 1;
     test_ue->attach_request_param.old_guti_type = 1;
-    emmbuf = testemm_build_attach_request(test_ue, esmbuf);
+    emmbuf = testemm_build_attach_request(test_ue, esmbuf, true, false);
     ABTS_PTR_NOTNULL(tc, emmbuf);
 
     memset(&test_ue->initial_ue_param, 0, sizeof(test_ue->initial_ue_param));
@@ -351,14 +350,14 @@ static void test2_func(abts_case *tc, void *data)
     sess->pdn_connectivity_param.pco = 1;
     sess->pdn_connectivity_param.request_type =
         OGS_NAS_EPS_REQUEST_TYPE_INITIAL;
-    esmbuf = testesm_build_pdn_connectivity_request(sess);
+    esmbuf = testesm_build_pdn_connectivity_request(sess, false);
     ABTS_PTR_NOTNULL(tc, esmbuf);
 
     memset(&test_ue->attach_request_param,
             0, sizeof(test_ue->attach_request_param));
     test_ue->attach_request_param.last_visited_registered_tai = 1;
     test_ue->attach_request_param.old_guti_type = 1;
-    emmbuf = testemm_build_attach_request(test_ue, esmbuf);
+    emmbuf = testemm_build_attach_request(test_ue, esmbuf, false, false);
     ABTS_PTR_NOTNULL(tc, emmbuf);
 
     memset(&test_ue->initial_ue_param, 0, sizeof(test_ue->initial_ue_param));
@@ -518,7 +517,7 @@ static void test3_func(abts_case *tc, void *data)
     test_ue->k_string = "465b5ce8b199b49faa5f0a2ee238a6bc";
     test_ue->opc_string = "e8ed289deba952e4283b54e88e6183ca";
 
-    sess = test_sess_add_by_apn(test_ue, "internet", OGS_GTP_RAT_TYPE_EUTRAN);
+    sess = test_sess_add_by_apn(test_ue, "internet", OGS_GTP2_RAT_TYPE_EUTRAN);
     ogs_assert(sess);
 
     /* eNB connects to MME */
@@ -553,16 +552,15 @@ static void test3_func(abts_case *tc, void *data)
     sess->pdn_connectivity_param.pco = 1;
     sess->pdn_connectivity_param.request_type =
         OGS_NAS_EPS_REQUEST_TYPE_INITIAL;
-    esmbuf = testesm_build_pdn_connectivity_request(sess);
+    esmbuf = testesm_build_pdn_connectivity_request(sess, false);
     ABTS_PTR_NOTNULL(tc, esmbuf);
 
     memset(&test_ue->attach_request_param,
             0, sizeof(test_ue->attach_request_param));
-    test_ue->attach_request_param.integrity_protected = 1;
     test_ue->attach_request_param.guti = 1;
     test_ue->attach_request_param.last_visited_registered_tai = 1;
     test_ue->attach_request_param.old_guti_type = 1;
-    emmbuf = testemm_build_attach_request(test_ue, esmbuf);
+    emmbuf = testemm_build_attach_request(test_ue, esmbuf, true, false);
     ABTS_PTR_NOTNULL(tc, emmbuf);
 
     memset(&test_ue->initial_ue_param, 0, sizeof(test_ue->initial_ue_param));
@@ -637,14 +635,14 @@ static void test3_func(abts_case *tc, void *data)
     sess->pdn_connectivity_param.pco = 1;
     sess->pdn_connectivity_param.request_type =
         OGS_NAS_EPS_REQUEST_TYPE_INITIAL;
-    esmbuf = testesm_build_pdn_connectivity_request(sess);
+    esmbuf = testesm_build_pdn_connectivity_request(sess, false);
     ABTS_PTR_NOTNULL(tc, esmbuf);
 
     memset(&test_ue->attach_request_param,
             0, sizeof(test_ue->attach_request_param));
     test_ue->attach_request_param.last_visited_registered_tai = 1;
     test_ue->attach_request_param.old_guti_type = 1;
-    emmbuf = testemm_build_attach_request(test_ue, esmbuf);
+    emmbuf = testemm_build_attach_request(test_ue, esmbuf, false, false);
     ABTS_PTR_NOTNULL(tc, emmbuf);
 
     memset(&test_ue->initial_ue_param, 0, sizeof(test_ue->initial_ue_param));

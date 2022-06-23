@@ -11,10 +11,9 @@ OpenAPI_scp_domain_info_t *OpenAPI_scp_domain_info_create(
     OpenAPI_list_t* scp_ports
 )
 {
-    OpenAPI_scp_domain_info_t *scp_domain_info_local_var = OpenAPI_malloc(sizeof(OpenAPI_scp_domain_info_t));
-    if (!scp_domain_info_local_var) {
-        return NULL;
-    }
+    OpenAPI_scp_domain_info_t *scp_domain_info_local_var = ogs_malloc(sizeof(OpenAPI_scp_domain_info_t));
+    ogs_assert(scp_domain_info_local_var);
+
     scp_domain_info_local_var->scp_fqdn = scp_fqdn;
     scp_domain_info_local_var->scp_ip_end_points = scp_ip_end_points;
     scp_domain_info_local_var->scp_prefix = scp_prefix;
@@ -37,6 +36,7 @@ void OpenAPI_scp_domain_info_free(OpenAPI_scp_domain_info_t *scp_domain_info)
     ogs_free(scp_domain_info->scp_prefix);
     OpenAPI_list_for_each(scp_domain_info->scp_ports, node) {
         OpenAPI_map_t *localKeyValue = (OpenAPI_map_t*)node->data;
+        ogs_free(localKeyValue->key);
         ogs_free(localKeyValue->value);
         ogs_free(localKeyValue);
     }
@@ -138,6 +138,12 @@ OpenAPI_scp_domain_info_t *OpenAPI_scp_domain_info_parseFromJSON(cJSON *scp_doma
         }
         OpenAPI_ip_end_point_t *scp_ip_end_pointsItem = OpenAPI_ip_end_point_parseFromJSON(scp_ip_end_points_local_nonprimitive);
 
+        if (!scp_ip_end_pointsItem) {
+            ogs_error("No scp_ip_end_pointsItem");
+            OpenAPI_list_free(scp_ip_end_pointsList);
+            goto end;
+        }
+
         OpenAPI_list_add(scp_ip_end_pointsList, scp_ip_end_pointsItem);
     }
     }
@@ -169,9 +175,9 @@ OpenAPI_scp_domain_info_t *OpenAPI_scp_domain_info_parseFromJSON(cJSON *scp_doma
     }
 
     scp_domain_info_local_var = OpenAPI_scp_domain_info_create (
-        scp_fqdn ? ogs_strdup_or_assert(scp_fqdn->valuestring) : NULL,
+        scp_fqdn ? ogs_strdup(scp_fqdn->valuestring) : NULL,
         scp_ip_end_points ? scp_ip_end_pointsList : NULL,
-        scp_prefix ? ogs_strdup_or_assert(scp_prefix->valuestring) : NULL,
+        scp_prefix ? ogs_strdup(scp_prefix->valuestring) : NULL,
         scp_ports ? scp_portsList : NULL
     );
 

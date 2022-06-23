@@ -11,10 +11,9 @@ OpenAPI_vn_group_data_t *OpenAPI_vn_group_data_create(
     OpenAPI_list_t *app_descriptors
 )
 {
-    OpenAPI_vn_group_data_t *vn_group_data_local_var = OpenAPI_malloc(sizeof(OpenAPI_vn_group_data_t));
-    if (!vn_group_data_local_var) {
-        return NULL;
-    }
+    OpenAPI_vn_group_data_t *vn_group_data_local_var = ogs_malloc(sizeof(OpenAPI_vn_group_data_t));
+    ogs_assert(vn_group_data_local_var);
+
     vn_group_data_local_var->pdu_session_types = pdu_session_types;
     vn_group_data_local_var->dnn = dnn;
     vn_group_data_local_var->single_nssai = single_nssai;
@@ -151,13 +150,19 @@ OpenAPI_vn_group_data_t *OpenAPI_vn_group_data_parseFromJSON(cJSON *vn_group_dat
         }
         OpenAPI_app_descriptor_t *app_descriptorsItem = OpenAPI_app_descriptor_parseFromJSON(app_descriptors_local_nonprimitive);
 
+        if (!app_descriptorsItem) {
+            ogs_error("No app_descriptorsItem");
+            OpenAPI_list_free(app_descriptorsList);
+            goto end;
+        }
+
         OpenAPI_list_add(app_descriptorsList, app_descriptorsItem);
     }
     }
 
     vn_group_data_local_var = OpenAPI_vn_group_data_create (
         pdu_session_types ? pdu_session_types_local_nonprim : NULL,
-        dnn ? ogs_strdup_or_assert(dnn->valuestring) : NULL,
+        dnn ? ogs_strdup(dnn->valuestring) : NULL,
         single_nssai ? single_nssai_local_nonprim : NULL,
         app_descriptors ? app_descriptorsList : NULL
     );

@@ -12,10 +12,9 @@ OpenAPI_nssai_1_t *OpenAPI_nssai_1_create(
     OpenAPI_list_t* additional_snssai_data
 )
 {
-    OpenAPI_nssai_1_t *nssai_1_local_var = OpenAPI_malloc(sizeof(OpenAPI_nssai_1_t));
-    if (!nssai_1_local_var) {
-        return NULL;
-    }
+    OpenAPI_nssai_1_t *nssai_1_local_var = ogs_malloc(sizeof(OpenAPI_nssai_1_t));
+    ogs_assert(nssai_1_local_var);
+
     nssai_1_local_var->supported_features = supported_features;
     nssai_1_local_var->default_single_nssais = default_single_nssais;
     nssai_1_local_var->single_nssais = single_nssais;
@@ -43,6 +42,7 @@ void OpenAPI_nssai_1_free(OpenAPI_nssai_1_t *nssai_1)
     ogs_free(nssai_1->provisioning_time);
     OpenAPI_list_for_each(nssai_1->additional_snssai_data, node) {
         OpenAPI_map_t *localKeyValue = (OpenAPI_map_t*)node->data;
+        ogs_free(localKeyValue->key);
         OpenAPI_additional_snssai_data_free(localKeyValue->value);
         ogs_free(localKeyValue);
     }
@@ -123,7 +123,9 @@ cJSON *OpenAPI_nssai_1_convertToJSON(OpenAPI_nssai_1_t *nssai_1)
     if (nssai_1->additional_snssai_data) {
         OpenAPI_list_for_each(nssai_1->additional_snssai_data, additional_snssai_data_node) {
             OpenAPI_map_t *localKeyValue = (OpenAPI_map_t*)additional_snssai_data_node->data;
-        cJSON *itemLocal = OpenAPI_additional_snssai_data_convertToJSON(localKeyValue->value);
+        cJSON *itemLocal = localKeyValue->value ?
+            OpenAPI_additional_snssai_data_convertToJSON(localKeyValue->value) :
+            cJSON_CreateNull();
         if (itemLocal == NULL) {
             ogs_error("OpenAPI_nssai_1_convertToJSON() failed [additional_snssai_data]");
             goto end;
@@ -171,6 +173,12 @@ OpenAPI_nssai_1_t *OpenAPI_nssai_1_parseFromJSON(cJSON *nssai_1JSON)
         }
         OpenAPI_snssai_t *default_single_nssaisItem = OpenAPI_snssai_parseFromJSON(default_single_nssais_local_nonprimitive);
 
+        if (!default_single_nssaisItem) {
+            ogs_error("No default_single_nssaisItem");
+            OpenAPI_list_free(default_single_nssaisList);
+            goto end;
+        }
+
         OpenAPI_list_add(default_single_nssaisList, default_single_nssaisItem);
     }
 
@@ -192,6 +200,12 @@ OpenAPI_nssai_1_t *OpenAPI_nssai_1_parseFromJSON(cJSON *nssai_1JSON)
             goto end;
         }
         OpenAPI_snssai_t *single_nssaisItem = OpenAPI_snssai_parseFromJSON(single_nssais_local_nonprimitive);
+
+        if (!single_nssaisItem) {
+            ogs_error("No single_nssaisItem");
+            OpenAPI_list_free(single_nssaisList);
+            goto end;
+        }
 
         OpenAPI_list_add(single_nssaisList, single_nssaisItem);
     }
@@ -219,21 +233,24 @@ OpenAPI_nssai_1_t *OpenAPI_nssai_1_parseFromJSON(cJSON *nssai_1JSON)
     OpenAPI_map_t *localMapKeyPair = NULL;
     cJSON_ArrayForEach(additional_snssai_data_local_map, additional_snssai_data) {
         cJSON *localMapObject = additional_snssai_data_local_map;
-        if (!cJSON_IsObject(additional_snssai_data_local_map)) {
+        if (cJSON_IsObject(additional_snssai_data_local_map)) {
+            localMapKeyPair = OpenAPI_map_create(
+                ogs_strdup(localMapObject->string), OpenAPI_additional_snssai_data_parseFromJSON(localMapObject));
+        } else if (cJSON_IsNull(additional_snssai_data_local_map)) {
+            localMapKeyPair = OpenAPI_map_create(ogs_strdup(localMapObject->string), NULL);
+        } else {
             ogs_error("OpenAPI_nssai_1_parseFromJSON() failed [additional_snssai_data]");
             goto end;
         }
-        localMapKeyPair = OpenAPI_map_create(
-            localMapObject->string, OpenAPI_additional_snssai_data_parseFromJSON(localMapObject));
         OpenAPI_list_add(additional_snssai_dataList , localMapKeyPair);
     }
     }
 
     nssai_1_local_var = OpenAPI_nssai_1_create (
-        supported_features ? ogs_strdup_or_assert(supported_features->valuestring) : NULL,
+        supported_features ? ogs_strdup(supported_features->valuestring) : NULL,
         default_single_nssaisList,
         single_nssais ? single_nssaisList : NULL,
-        provisioning_time ? ogs_strdup_or_assert(provisioning_time->valuestring) : NULL,
+        provisioning_time ? ogs_strdup(provisioning_time->valuestring) : NULL,
         additional_snssai_data ? additional_snssai_dataList : NULL
     );
 
