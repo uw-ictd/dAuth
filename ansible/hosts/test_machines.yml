@@ -1,0 +1,30 @@
+all:
+  vars:
+    ansible_user: "ictd"
+  children:
+    scn_nodes:
+      hosts:
+        scn-skyway-library.tail:
+        scn-occ.tail:
+    cloud_nodes:
+      hosts:
+        dauth-azure-1.tail:
+        dauth-aws-1.tail:
+        dauth-digital-ocean-1.tail:
+        dauth-gcp-1.tail:
+      vars:
+        primary_login_user: "ictd"
+    uw_nodes:
+      hosts:
+        prothean.tail:
+        cobble.tail:
+        prothean.tail:
+        dauth-hestia.tail:
+        uwbts2.tail:
+        uwbts3.tail:
+      vars:
+        primary_login_user: "ictd"
+    safe_nodes:
+      children:
+        uw_nodes:
+        cloud_nodes:
