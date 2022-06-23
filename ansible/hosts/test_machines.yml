@@ -1,6 +1,7 @@
 all:
   vars:
     ansible_user: "ictd"
+    test_net_index: "1"
   children:
     scn_nodes:
       hosts:
