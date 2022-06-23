@@ -1,6 +1,7 @@
 import argparse
 import io
 import subprocess
+import os
 from typing import List
 from multiprocessing.pool import ThreadPool
 
@@ -73,18 +74,27 @@ def reset_service(dauth_services: List[DauthServiceConnection]) -> None:
     stop_service(dauth_services)
     remove_state(dauth_services)
     start_service(dauth_services)
+    
+def ping(dauth_services: List[DauthServiceConnection]) -> None:
+    """
+    Pings the machine to check for connection.
+    """
+    for dauth_service in dauth_services:
+        print(dauth_service.hostname + 
+              ":", "Ping (should say hello) -",
+              dauth_service.run_command("echo hello"))
 
 def main():
     parser = argparse.ArgumentParser(
         description='Run commands remotely on a dauth service VM'
     )
     
-    # must specify the vagrant dir
+    # Specifiy vagrant dir if you 
     parser.add_argument(
         "-d",
         "--vagrant-dir",
-        required=True,
-        help="Vagrantfile directory",
+        required=False,
+        help="Vagrantfile directory, specify if connection is to a vagrant VM",
     )
     
     # Specify one or more networks
@@ -132,6 +142,11 @@ def main():
         action="store_true",
         help="Resets the dauth service state completely",
     )
+    group.add_argument(
+        "--ping",
+        action="store_true",
+        help="Pings the service to test connection",
+    )
 
     args = parser.parse_args()
     
@@ -139,26 +154,36 @@ def main():
     # initial ssh connections take a while
     print("Building connections...")
     
-    vagrant_config = SSHConfig()
-    vagrant_config.parse(
-        io.StringIO(subprocess.check_output(
-            ["vagrant", "ssh-config"], 
-            cwd=args.vagrant_dir).decode()
-        )
-    )
-        
     dauth_services = []
-    
-    for host_name in args.host_names:
-        ssh_info = vagrant_config.lookup(host_name)
 
-        dauth_services.append(DauthServiceConnection(
-            ssh_info["hostname"],
-            host_name,
-            ssh_info["user"],
-            int(ssh_info["port"]),
-            ssh_info["identityfile"][0]
-        ))
+    if args.vagrant_dir:
+        vagrant_config = SSHConfig()
+        vagrant_config.parse(
+            io.StringIO(subprocess.check_output(
+                ["vagrant", "ssh-config"], 
+                cwd=args.vagrant_dir).decode()
+            )
+        )
+        
+        for host_name in args.host_names:
+            ssh_info = vagrant_config.lookup(host_name)
+
+            dauth_services.append(DauthServiceConnection(
+                ssh_info["hostname"],
+                host_name,
+                ssh_info["user"],
+                int(ssh_info["port"]),
+                ssh_info["identityfile"][0]
+            ))
+    else:
+        for host_name in args.host_names:
+            dauth_services.append(DauthServiceConnection(
+                host_name,
+                host_name,
+                "ictd",
+                22,
+                os.path.expanduser("~/.ssh/id_rsa")
+            ))
         
         
     print("Running commands...")
@@ -176,6 +201,8 @@ def main():
         remove_state(dauth_services)
     elif args.reset_service:
         reset_service(dauth_services)
+    elif args.ping:
+        ping(dauth_services)
     else:
         print("No action specified")
 
