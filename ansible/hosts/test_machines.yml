@@ -22,8 +22,8 @@ all:
       ansible_host: "100.78.102.100"
       colte_ip: "100.78.102.100"
     uwbts2.tail:
-      ansible_host: "100.93.77.93"
-      colte_ip: "100.93.77.93"
+      ansible_host: "100.127.153.71"
+      colte_ip: "100.127.153.71"
     uwbts3.tail:
       ansible_host: "100.69.151.75"
       colte_ip: "100.69.151.75"
@@ -31,8 +31,11 @@ all:
       ansible_host: "100.87.240.90"
       colte_ip: "100.87.240.90"
     cobble.tail:
-      ansible_host: "100.65.38.48"
-      colte_ip: "100.65.38.48"
+      ansible_host: "100.76.33.70"
+      colte_ip: "100.76.33.70"
+    boron.tail:
+      ansible_host: "100.108.62.90"
+      colte_ip: "100.108.62.90"
   vars:
     ansible_user: "ictd"
     test_net_index: "1"
@@ -53,13 +56,14 @@ all:
       hosts:
         dauth-hestia.tail:
         uwbts3.tail:
+        cobble.tail:
+        uwbts2.tail:
+        boron.tail:
       vars:
         primary_login_user: "ictd"
     uw_debian_nodes:
       hosts:
         prothean.tail:
-        cobble.tail:
-        uwbts2.tail:
       vars:
         primary_login_user: "ictd"
     safe_nodes:
