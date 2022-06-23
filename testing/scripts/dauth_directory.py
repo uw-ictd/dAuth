@@ -2,6 +2,7 @@ import argparse
 import io
 from multiprocessing.pool import ThreadPool
 import subprocess
+import os
 
 from connections.directory_connection import DauthDirectoryConnection
 from paramiko import SSHConfig
@@ -49,6 +50,14 @@ def reset_service(dauth_directory: DauthDirectoryConnection) -> None:
     stop_service(dauth_directory)
     remove_state(dauth_directory)
     start_service(dauth_directory)
+    
+def ping(dauth_directory: DauthDirectoryConnection) -> None:
+    """
+    Pings the machine to check for connection.
+    """
+    print(dauth_directory.hostname + 
+            ":", "Ping (should say hello) -",
+            dauth_directory.run_command("echo hello"))
     
 def main():
     parser = argparse.ArgumentParser(
@@ -103,27 +112,41 @@ def main():
         action="store_true",
         help="Resets the dauth service directory state completely",
     )
+    group.add_argument(
+        "--ping",
+        action="store_true",
+        help="Pings the service to test connection",
+    )
 
     args = parser.parse_args()
     
     print("Building connection...")
-    vagrant_config = SSHConfig()
-    vagrant_config.parse(
-        io.StringIO(subprocess.check_output(
-            ["vagrant", "ssh-config"], 
-            cwd=args.vagrant_dir).decode()
+    if args.vagrant_dir:
+        vagrant_config = SSHConfig()
+        vagrant_config.parse(
+            io.StringIO(subprocess.check_output(
+                ["vagrant", "ssh-config"], 
+                cwd=args.vagrant_dir).decode()
+            )
         )
-    )
         
-    ssh_info = vagrant_config.lookup(args.host_name)
+        ssh_info = vagrant_config.lookup(args.host_name)
 
-    directory_service = DauthDirectoryConnection(
-        ssh_info["hostname"],
-        args.host_name,
-        ssh_info["user"],
-        int(ssh_info["port"]),
-        ssh_info["identityfile"][0]
-    )
+        directory_service = DauthDirectoryConnection(
+            ssh_info["hostname"],
+            args.host_name,
+            ssh_info["user"],
+            int(ssh_info["port"]),
+            ssh_info["identityfile"][0]
+        )
+    else:
+        directory_service = DauthDirectoryConnection(
+            args.host_name,
+            args.host_name,
+            "ictd",
+            22,
+            os.path.expanduser("~/.ssh/id_rsa")
+        )
     
     print("Running command...")
     print(directory_service.hostname + ":")
@@ -139,6 +162,8 @@ def main():
         remove_state(directory_service)
     elif args.reset_service:
         reset_service(directory_service)
+    elif args.ping:
+        ping(directory_service)
     else:
         print("No action specified")
 
