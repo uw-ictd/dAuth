@@ -3,21 +3,21 @@ import os
 from logger import TestingLogger
 
 from perf.config import ServiceConfig
+from perf.exception import PerfException
 from perf.setups.common import NetworkSetup
 from perf.state import NetworkState
-from perf.exception import PerfException
 
 
-class LocalAuthSetup(NetworkSetup):
+class BackupAuthSetup(NetworkSetup):
     def __init__(self, state: NetworkState) -> None:
         super().__init__(state)
-        self.gnb_index = 0
+        self.gnb_index = 1
     
     def _configure(self, num_users: int):
-        TestingLogger.logger.info("Configuring for {} UE(s) in local auth".format(num_users))
-        
-        if len(self.state.services) < 1:
-            raise PerfException("At least 1 service needed for local auth")
+        TestingLogger.logger.info("Configuring for {} UE(s) in backup auth".format(num_users))
+    
+        if len(self.state.services) < 3:
+            raise PerfException("At least 3 services needed for backup auth")
     
         # Configure all state to defaults
         for service in self.state.services[1:]:
@@ -34,7 +34,17 @@ class LocalAuthSetup(NetworkSetup):
         service_config.set_id(main_service.id)
 
         sqn_slice_max = {0: 32}
-        backup_network_ids = dict()
+        backup_network_ids = {}
+        
+        index = 1
+        for service in self.state.services[2:]:
+            if index > 31:
+                break
+
+            sqn_slice_max[index] = 32 + index
+            backup_network_ids[service.id] = index
+            
+        TestingLogger.logger.info("Setting {} network(s) as backups".format(len(backup_network_ids)))
 
         if num_users < 1:
             raise PerfException("Number of users is less than 1")
@@ -46,4 +56,6 @@ class LocalAuthSetup(NetworkSetup):
                 service_config.add_user(imsi, sqn_slice_max, backup_network_ids)
         
         main_service.change_config(service_config)
-
+        
+    def _after_settle(self):
+        self.state.services[0].stop_service()

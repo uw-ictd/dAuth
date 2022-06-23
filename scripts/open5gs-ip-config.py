@@ -52,7 +52,7 @@ def main():
   args = parser.parse_args()
 
   if args.bind_ip is not None:
-      ip: str = args.parse_ip
+      ip: str = args.bind_ip
   else:
     print("No IP provided via command line, reading from config")
     host_config = read_host_config()

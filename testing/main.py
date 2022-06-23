@@ -1,5 +1,5 @@
-from vms.open5gs_vm import Open5gsVM
-from vms.ueransim_vm import UeransimVM
+from connections.open5gs_connection import Open5gsConnection
+from connections.ueransim_connection import UeransimConnection
 
 
 def dev_main():

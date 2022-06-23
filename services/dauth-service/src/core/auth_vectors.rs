@@ -27,23 +27,27 @@ pub async fn find_vector(
 ) -> Result<AuthVectorRes, DauthError> {
     tracing::info!("Attempting to find a vector: {}-{}", user_id, network_id);
 
-    if let Ok(vector) = generate_local_vector(
+    let res = generate_local_vector(
         context.clone(),
         user_id,
         core::users::get_seqnum_slice(context.clone(), user_id, network_id).await?,
     )
-    .await
-    {
+    .await;
+
+    if let Ok(vector) = res {
         Ok(vector)
     } else {
+        tracing::info!("Failed to generate vector locally: {:?}", res);
+    
         let (home_network_id, backup_network_ids) =
             clients::directory::lookup_user(context.clone(), user_id).await?;
 
         let (home_address, _) =
             clients::directory::lookup_network(context.clone(), &home_network_id).await?;
-        if let Ok(vector) =
-            clients::home_network::get_auth_vector(context.clone(), user_id, &home_address).await
-        {
+
+        let res = clients::home_network::get_auth_vector(context.clone(), user_id, &home_address).await;
+
+        if let Ok(vector) = res {
             context.backup_context.auth_states.lock().await.insert(
                 user_id.to_string(),
                 AuthState {
@@ -53,16 +57,20 @@ pub async fn find_vector(
             );
             Ok(vector)
         } else {
+            tracing::info!("Failed to get vector from home network: {:?}", res);
+
             for backup_network_id in backup_network_ids {
                 let (backup_address, _) =
                     clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
-                if let Ok(vector) = clients::backup_network::get_auth_vector(
+
+                let res = clients::backup_network::get_auth_vector(
                     context.clone(),
                     user_id,
                     &backup_address,
                 )
-                .await
-                {
+                .await;
+
+                if let Ok(vector) = res {
                     context.backup_context.auth_states.lock().await.insert(
                         user_id.to_string(),
                         AuthState {
@@ -71,6 +79,8 @@ pub async fn find_vector(
                         },
                     );
                     return Ok(vector);
+                } else {
+                    tracing::info!("Failed to get vector from backup network ({}): {:?}", backup_network_id, res);
                 }
             }
             tracing::warn!("No auth vector found");

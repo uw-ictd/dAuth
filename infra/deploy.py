@@ -215,9 +215,17 @@ def deploy_ueransim(ueransim_binary_directory, host):
     for component in components:
         binary_path = Path(ueransim_binary_directory, component).absolute()
         log.info("Deploying binary: %s to host %s", binary_path, host)
-        connection.run("mkdir -p /home/vagrant/ueransim/")
-        connection.put(binary_path, remote="/home/vagrant/ueransim/", preserve_mode=False)
-        connection.run(f"chmod a+x /home/vagrant/ueransim/{component}")
+        
+        if '@' in host:
+            name, ip = host.split("@", 2)
+            connection.run(f"mkdir -p /home/{name}/ueransim/")
+            connection.put(binary_path, remote=f"/home/{name}/ueransim/", preserve_mode=False)
+            connection.run(f"chmod a+x /home/{name}/ueransim/{component}")
+        else:
+            connection.run("mkdir -p /home/vagrant/ueransim/")
+            connection.put(binary_path, remote="/home/vagrant/ueransim/", preserve_mode=False)
+            connection.run(f"chmod a+x /home/vagrant/ueransim/{component}")
+            
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="deploy dauth in a test environment")
@@ -378,7 +386,13 @@ if __name__ == "__main__":
             log.error("Specified deploy but no deploy destinations provided")
         for host in args.dest_host:
             deploy_open5gs_5gc_packages(Path("../open5gs-debs"), host)
-            Connection(host).sudo("/home/vagrant/scripts/open5gs-ip-config.py")
+            
+            if '@' in host:
+                name, ip = host.split("@", 2)
+                Connection(host).sudo(f"/home/{name}/scripts/open5gs-ip-config.py parse_ip={ip}")
+            else:
+                Connection(host).sudo("/home/vagrant/scripts/open5gs-ip-config.py")
+                
 
     if args.build_ueransim:
         log.info("Deploying ueransim")

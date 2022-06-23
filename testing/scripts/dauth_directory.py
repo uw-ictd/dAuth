@@ -1,15 +1,19 @@
 import argparse
+import io
 from multiprocessing.pool import ThreadPool
+import subprocess
+import os
 
-from vms.dauth_directory_vm import DauthDirectoryVM
+from connections.directory_connection import DauthDirectoryConnection
+from paramiko import SSHConfig
 
-def print_logs(dauth_directory: DauthDirectoryVM) -> None:
+def print_logs(dauth_directory: DauthDirectoryConnection) -> None:
     """
     Prints dauth service logs from the host.
     """
     print(dauth_directory.print_logs())
 
-def stream_logs(dauth_directory: DauthDirectoryVM) -> None:
+def stream_logs(dauth_directory: DauthDirectoryConnection) -> None:
     """
     Streams dauth service logs as they are created from the host.
     """
@@ -20,25 +24,25 @@ def stream_logs(dauth_directory: DauthDirectoryVM) -> None:
         print()
         pass
 
-def start_service(dauth_directory: DauthDirectoryVM) -> None:
+def start_service(dauth_directory: DauthDirectoryConnection) -> None:
     """
     Starts the dauth service if it is not started already.
     """
     print(dauth_directory.start_service())
 
-def stop_service(dauth_directory: DauthDirectoryVM) -> None:
+def stop_service(dauth_directory: DauthDirectoryConnection) -> None:
     """
     Stops the dauth service if it is not stopped already.
     """
     print(dauth_directory.stop_service())
     
-def remove_state(dauth_directory: DauthDirectoryVM) -> None:
+def remove_state(dauth_directory: DauthDirectoryConnection) -> None:
     """
     Removes all local state, including db and keys.
     """
     print(dauth_directory.remove_db())
 
-def reset_service(dauth_directory: DauthDirectoryVM) -> None:
+def reset_service(dauth_directory: DauthDirectoryConnection) -> None:
     """
     Resets all of the state of the dauth directory.
     Stops the service, removes state, and starts the service again.
@@ -47,17 +51,24 @@ def reset_service(dauth_directory: DauthDirectoryVM) -> None:
     remove_state(dauth_directory)
     start_service(dauth_directory)
     
+def ping(dauth_directory: DauthDirectoryConnection) -> None:
+    """
+    Pings the machine to check for connection.
+    """
+    print(dauth_directory.hostname + 
+            ":", "Ping (should say hello) -",
+            dauth_directory.run_command("echo hello"))
+    
 def main():
     parser = argparse.ArgumentParser(
         description='Run commands remotely on a dauth service VM'
     )
     
-    # must specify the vagrant dir
     parser.add_argument(
         "-d",
         "--vagrant-dir",
-        required=True,
-        help="Vagrantfile directory",
+        required=False,
+        help="Vagrantfile directory, specify if connection is to a vagrant VM",
     )
     
     # Specify host name
@@ -100,14 +111,44 @@ def main():
         action="store_true",
         help="Resets the dauth service directory state completely",
     )
+    group.add_argument(
+        "--ping",
+        action="store_true",
+        help="Pings the service to test connection",
+    )
 
     args = parser.parse_args()
     
     print("Building connection...")
-    directory_service = DauthDirectoryVM(args.vagrant_dir, args.host_name)
+    if args.vagrant_dir:
+        vagrant_config = SSHConfig()
+        vagrant_config.parse(
+            io.StringIO(subprocess.check_output(
+                ["vagrant", "ssh-config"], 
+                cwd=args.vagrant_dir).decode()
+            )
+        )
+        
+        ssh_info = vagrant_config.lookup(args.host_name)
+
+        directory_service = DauthDirectoryConnection(
+            ssh_info["hostname"],
+            args.host_name,
+            ssh_info["user"],
+            int(ssh_info["port"]),
+            ssh_info["identityfile"][0]
+        )
+    else:
+        directory_service = DauthDirectoryConnection(
+            args.host_name,
+            args.host_name,
+            "ictd",
+            22,
+            os.path.expanduser("~/.ssh/id_rsa")
+        )
     
     print("Running command...")
-    print(directory_service.host_name + ":")
+    print(directory_service.hostname + ":")
     if args.print_logs:
         print_logs(directory_service)
     elif args.stream_logs:
@@ -120,6 +161,8 @@ def main():
         remove_state(directory_service)
     elif args.reset_service:
         reset_service(directory_service)
+    elif args.ping:
+        ping(directory_service)
     else:
         print("No action specified")
 

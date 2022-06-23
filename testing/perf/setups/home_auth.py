@@ -3,21 +3,21 @@ import os
 from logger import TestingLogger
 
 from perf.config import ServiceConfig
+from perf.exception import PerfException
 from perf.setups.common import NetworkSetup
 from perf.state import NetworkState
-from perf.exception import PerfException
 
 
-class LocalAuthSetup(NetworkSetup):
+class HomeAuthSetup(NetworkSetup):
     def __init__(self, state: NetworkState) -> None:
         super().__init__(state)
-        self.gnb_index = 0
+        self.gnb_index = 1
     
     def _configure(self, num_users: int):
-        TestingLogger.logger.info("Configuring for {} UE(s) in local auth".format(num_users))
-        
-        if len(self.state.services) < 1:
-            raise PerfException("At least 1 service needed for local auth")
+        TestingLogger.logger.info("Configuring for {} UE(s) in home auth".format(num_users))
+    
+        if len(self.state.services) < 2:
+            raise PerfException("At least 2 services needed for home auth")
     
         # Configure all state to defaults
         for service in self.state.services[1:]:
@@ -37,9 +37,9 @@ class LocalAuthSetup(NetworkSetup):
         backup_network_ids = dict()
 
         if num_users < 1:
-            raise PerfException("Number of users is less than 1")
+            raise Exception("Number of users is less than 1")
         elif num_users > 9999999999:  # can represent 901700000000001-901709999999999
-            raise PerfException("Too many users to represent")
+            raise Exception("Too many users to represent")
         else:
             for i in range(num_users):
                 imsi = "imsi-90170{}".format(str(i+1).zfill(10))

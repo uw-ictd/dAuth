@@ -3,16 +3,16 @@ from typing import IO, Union
 from paramiko.channel import ChannelFile
 from tests.config import ServiceConfig
 
-from vms.vm import VM
+from connections.connection import Connection
 
 
-class DauthServiceVM(VM):
+class DauthServiceConnection(Connection):
     """
-    Represents a dAuth service VM.
+    Represents a dAuth service connection.
     """
 
-    def __init__(self, vagrant_dir: str, host_name: str) -> None:
-        super().__init__(vagrant_dir, host_name)
+    def __init__(self, hostname: str, id: str, username: str, port: int, keyfile: str) -> None:
+        super().__init__(hostname, id, username, port, keyfile)
 
         self.db_script_path = "~/scripts/open5gs-dbctl"
         self.service_name = "dauth.service"
@@ -20,6 +20,8 @@ class DauthServiceVM(VM):
         self.keys_location = "/var/lib/dauth/dauth_service/dauth.sqlite3"
         self.config_location = "/etc/dauth/dauth.yaml"
         self.tmp_config_location = "/tmp/dauth.yaml"
+        
+        self.service_ip: str = None
         
     def upload_config(self, file: IO[bytes]):
         """
@@ -95,3 +97,22 @@ class DauthServiceVM(VM):
         command = " ".join(["sudo", "journalctl", "--no-pager", "-n", "100", "-u", self.service_name])
         
         return self.run_command(command)[0]
+    
+    def get_amf_ip(self) -> str:
+        """
+        Returns the amf ip.
+        """
+
+        if self.service_ip:
+            return self.service_ip
+        else:
+            return self.hostname
+        
+    def get_host_addr(self) -> str:
+        """
+        Returns the address dauth hosts on
+        """
+        if self.service_ip:
+            return self.service_ip + ":50051"
+        else:
+            return self.hostname + ":50051"

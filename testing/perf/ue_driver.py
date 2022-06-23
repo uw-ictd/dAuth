@@ -7,6 +7,7 @@ import subprocess
 import threading
 import time
 import argparse
+import os
 
 from enum import IntEnum
 
@@ -22,16 +23,16 @@ class UERANSIM_MESSAGE_KIND(IntEnum):
     COMMAND = 4
 
 class UeransimUe(object):
-    def __init__(self, name):
+    def __init__(self, name: str, config: str):
         # Start the actual UE process
         # ToDo Make sure the imsi and keys make sense when generating many ues
         self.process_handle = subprocess.Popen(
-            ["/home/vagrant/ueransim/nr-ue",
-             "-c", "/home/vagrant/configs/ueransim/ue.yaml",
+            ["/home/vagrant/ueransim/build/nr-ue",
+             "-c", config, 
              "--no-routing-config",
              "-i", name],
             stderr=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
+            # stdout=subprocess.DEVNULL,
             #stdout=None,
             )
         # For now register a kill at exit for each process, I'm not sure if this breaks garbage collection though...
@@ -44,7 +45,7 @@ class UeransimUe(object):
         # Setup the control socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(("127.0.0.1", 0))
-        self.sock.settimeout(25.0)
+        self.sock.settimeout(5.0)
         log.info(f"Communicating with {name} at port {self.ue_process_control_port} from {self.sock.getsockname()}")
 
         # Communication metadata
@@ -110,10 +111,10 @@ def run_test_loop(ue: UeransimUe, interval: float, iterations: int):
     for i in range(iterations):
         print(ue.send_command("deregister sync-disable-5g"), flush=True)
         # Sleeps here seem to help with open5gs stability : (
-        time.sleep(max(1, interval/2))
+        time.sleep(max(0.5, interval/2))
         print(ue.send_command("reconnect {}".format(i)), flush=True)
         # Sleep for interval time, or at least long enough for stability
-        time.sleep(max(1, interval/2))
+        time.sleep(max(0.5, interval/2))
 
 
 def main() -> None:
@@ -145,6 +146,14 @@ def main() -> None:
         help="Number of times to reconnect",
     )
     
+    parser.add_argument(
+        "-c",
+        "--config-dir",
+        required=True,
+        type=str,
+        help="Directory with the UE configs",
+    )
+    
     args = parser.parse_args()
     
     num_ues = args.num_ues
@@ -153,10 +162,19 @@ def main() -> None:
     # Use this to space out the UE starts across half an interval
     spawn_delay = interval / (num_ues * 2)
     
+    ue_configs = []
+    for filename in os.listdir(args.config_dir):
+        if filename.startswith("ue"):
+            ue_configs.append(os.path.join(args.config_dir, filename))
+            
+    if not ue_configs:
+        raise Exception("No ue configs!")
+    
     ues = []
     for i in range(num_ues):
+        config = ue_configs[i % len(ue_configs)]
         imsi = "imsi-90170{}".format(str(i+1).zfill(10))
-        ues.append(UeransimUe(imsi))
+        ues.append(UeransimUe(imsi, config))
         time.sleep(spawn_delay)
     
     threads = []
