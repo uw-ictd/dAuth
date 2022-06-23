@@ -223,7 +223,7 @@ def deploy_ueransim(ueransim_binary_directory, host):
             connection.run(f"chmod a+x /home/{name}/ueransim/{component}")
         else:
             connection.run("mkdir -p /home/vagrant/ueransim/")
-            connection.put(binary_path, remote="/vagrant/ictd/ueransim/", preserve_mode=False)
+            connection.put(binary_path, remote="/home/vagrant/ueransim/", preserve_mode=False)
             connection.run(f"chmod a+x /home/vagrant/ueransim/{component}")
             
 
