@@ -1,0 +1,8 @@
+all:
+  hosts:
+    dauth-hestia.tail:
+      colte_ip: "100.78.102.100"
+  vars:
+    primary_login_user: "ictd"
+    ansible_user: "ictd"
+    test_net_index: "1"

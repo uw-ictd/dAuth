@@ -10,7 +10,7 @@
 
 - name: Add key to vm
   ansible.posix.authorized_key:
-    user: "vagrant"
+    user: "{{ primary_login_user }}"
     state: "present"
     key: "{{ lookup('file', '{{playbook_dir}}/../infra/keys/dev_id_ed25519_dauth.pub') }}"
 

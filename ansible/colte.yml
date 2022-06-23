@@ -1,7 +1,7 @@
 ---
 
 - name: Set up a local isolated vm for colte development
-  hosts: ['colte1', 'colte2', "colte3", "colte4"]
+  hosts: all
   vars:
     ansible_python_interpreter: /usr/bin/python3
   become: yes
@@ -29,16 +29,16 @@
           - mongodb
         state: present
 
-    - name: Copy network config
-      copy:
-        src: "../configs/network/colte-static-route.yaml"
-        dest: "/etc/netplan/60-static-routes.yaml"
-        remote_src: no
+    # - name: Copy network config
+    #   copy:
+    #     src: "../configs/network/colte-static-route.yaml"
+    #     dest: "/etc/netplan/60-static-routes.yaml"
+    #     remote_src: no
 
     - name: Copy scripts
       copy:
         src: "../scripts/"
-        dest: "/home/vagrant/scripts"
+        dest: "/home/{{ primary_login_user }}/scripts"
         remote_src: no
         mode: u=rwx,g=rwx,o=rwx
 
@@ -47,7 +47,7 @@
       become: yes
 
     - name: Configure forwarding and rounting (script)
-      command: /home/vagrant/scripts/configure-fwd
+      command: /home/{{ primary_login_user }}/scripts/configure-fwd
       become: yes
 
     - name: Create dauth config directory if it doesn't already exist
@@ -61,7 +61,7 @@
         dest: "/etc/dauth/host-config.yaml"
 
     # - name: Configure open5gs ips
-    #   command: /home/vagrant/scripts/open5gs-ip-config.py {{ colte_ip }}
+    #   command: /home/{{ primary_login_user }}/scripts/open5gs-ip-config.py {{ colte_ip }}
     #   become: yes
 
     - name: "Copy in config file"
