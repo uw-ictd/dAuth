@@ -64,12 +64,11 @@ def main():
         description='Run commands remotely on a dauth service VM'
     )
     
-    # must specify the vagrant dir
     parser.add_argument(
         "-d",
         "--vagrant-dir",
-        required=True,
-        help="Vagrantfile directory",
+        required=False,
+        help="Vagrantfile directory, specify if connection is to a vagrant VM",
     )
     
     # Specify host name

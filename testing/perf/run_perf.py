@@ -15,7 +15,6 @@ import yaml
 
 
 def main():
-    TestingLogger.logger.setLevel(logging.INFO)
 
     parser = argparse.ArgumentParser(
         description='Run the specified perf tests'
@@ -77,6 +76,12 @@ def main():
         help="Number of times to reconnect",
     )
     
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Change logging level to debug",
+    )
+    
     # select one of the following setups
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
@@ -96,6 +101,11 @@ def main():
     )
 
     args = parser.parse_args()
+    
+    if (args.debug):
+        TestingLogger.logger.setLevel(logging.DEBUG)
+    else:
+        TestingLogger.logger.setLevel(logging.INFO)
     
     TestingLogger.logger.info("Building state and connecting...")
     config = NetworkStateConfig(args.config_dir, args.ue_driver)
@@ -154,7 +164,7 @@ def handle_connection(connection_info: dict, vagrant_config: SSHConfig) -> Conne
         return ConnectionConfig(
             connection_info["hostname"],
             connection_info["id"],
-            "root",  # TODO: look into this,
+            "ictd",  # TODO: look into this,
             22,
             os.path.expanduser("~/.ssh/id_rsa"),
         )

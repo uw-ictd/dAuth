@@ -27,7 +27,7 @@ class UeransimUe(object):
         # Start the actual UE process
         # ToDo Make sure the imsi and keys make sense when generating many ues
         self.process_handle = subprocess.Popen(
-            [os.path.expanduser("~/ueransim/build/nr-ue"), 
+            ["/home/vagrant/ueransim/build/nr-ue",
              "-c", config, 
              "--no-routing-config",
              "-i", name],
