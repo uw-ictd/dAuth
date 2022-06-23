@@ -1,4 +1,38 @@
 all:
+  hosts:
+    scn-skyway-library.tail:
+      ansible_host: "100.65.38.48"
+      colte_ip: "100.65.38.48"
+    scn-occ.tail:
+      ansible_host: "100.92.22.56"
+      colte_ip: "100.92.22.56"
+    dauth-azure-1.tail:
+      ansible_host: "100.67.118.83"
+      colte_ip: "100.67.118.83"
+    dauth-aws-1.tail:
+      ansible_host: "100.79.143.58"
+      colte_ip: "100.79.143.58"
+    dauth-digital-ocean-1.tail:
+      ansible_host: "100.123.120.112"
+      colte_ip: "100.123.120.112"
+    dauth-gcp-1.tail:
+      ansible_host: "100.124.222.94"
+      colte_ip: "100.124.222.94"
+    dauth-hestia.tail:
+      ansible_host: "100.78.102.100"
+      colte_ip: "100.78.102.100"
+    uwbts2.tail:
+      ansible_host: "100.93.77.93"
+      colte_ip: "100.93.77.93"
+    uwbts3.tail:
+      ansible_host: "100.69.151.75"
+      colte_ip: "100.69.151.75"
+    prothean.tail:
+      ansible_host: "100.87.240.90"
+      colte_ip: "100.87.240.90"
+    cobble.tail:
+      ansible_host: "100.65.38.48"
+      colte_ip: "100.65.38.48"
   vars:
     ansible_user: "ictd"
     test_net_index: "1"
