@@ -45,7 +45,7 @@ do
         -i 2000 \
         -t 10 \
         -k "$THRESHOLD" \
-        --home-auth \
+        --backup-auth \
         --debug \
         >> ./testing/perf/dauth_testing/metric_set_2/results/"$NAME".out
     done
