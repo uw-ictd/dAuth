@@ -1,0 +1,16 @@
+# Test setup for local auth only
+
+directory:
+  hostname: "100.124.222.94"
+  id: "GCP-directory"
+  is_vagrant: false
+
+ueransim:
+  hostname: "100.124.222.94"
+  id: "GCP-ueransim"
+  is_vagrant: false
+
+services:
+  - hostname: "100.124.222.94"
+    id: "GCP-home"
+    is_vagrant: false

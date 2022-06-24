@@ -1,0 +1,16 @@
+# Test setup for local auth only
+
+directory:
+  hostname: "100.127.153.71"
+  id: "uwbts2-directory"
+  is_vagrant: false
+
+ueransim:
+  hostname: "100.127.153.71"
+  id: "uwbts2-ueransim"
+  is_vagrant: false
+
+services:
+  - hostname: "100.127.153.71"
+    id: "uwbts2-home"
+    is_vagrant: false

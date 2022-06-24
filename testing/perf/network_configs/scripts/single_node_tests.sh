@@ -1,0 +1,10 @@
+python3 ./testing/perf/run_perf.py -p ./testing/perf/network_configs/single_node/AWS.yaml           -c ./testing/configs -u ./testing/perf/ue_driver.py -n 1 -i 2000 -t 3 --local-auth
+python3 ./testing/perf/run_perf.py -p ./testing/perf/network_configs/single_node/Azure.yaml         -c ./testing/configs -u ./testing/perf/ue_driver.py -n 1 -i 2000 -t 3 --local-auth
+python3 ./testing/perf/run_perf.py -p ./testing/perf/network_configs/single_node/Boron.yaml         -c ./testing/configs -u ./testing/perf/ue_driver.py -n 1 -i 2000 -t 3 --local-auth
+python3 ./testing/perf/run_perf.py -p ./testing/perf/network_configs/single_node/Cobble.yaml        -c ./testing/configs -u ./testing/perf/ue_driver.py -n 1 -i 2000 -t 3 --local-auth
+python3 ./testing/perf/run_perf.py -p ./testing/perf/network_configs/single_node/Digital_Ocean.yaml -c ./testing/configs -u ./testing/perf/ue_driver.py -n 1 -i 2000 -t 3 --local-auth
+python3 ./testing/perf/run_perf.py -p ./testing/perf/network_configs/single_node/GCP.yaml           -c ./testing/configs -u ./testing/perf/ue_driver.py -n 1 -i 2000 -t 3 --local-auth
+python3 ./testing/perf/run_perf.py -p ./testing/perf/network_configs/single_node/Hestia.yaml        -c ./testing/configs -u ./testing/perf/ue_driver.py -n 1 -i 2000 -t 3 --local-auth
+python3 ./testing/perf/run_perf.py -p ./testing/perf/network_configs/single_node/Prothean.yaml      -c ./testing/configs -u ./testing/perf/ue_driver.py -n 1 -i 2000 -t 3 --local-auth
+python3 ./testing/perf/run_perf.py -p ./testing/perf/network_configs/single_node/uwbts2.yaml        -c ./testing/configs -u ./testing/perf/ue_driver.py -n 1 -i 2000 -t 3 --local-auth
+python3 ./testing/perf/run_perf.py -p ./testing/perf/network_configs/single_node/uwbts3.yaml        -c ./testing/configs -u ./testing/perf/ue_driver.py -n 1 -i 2000 -t 3 --local-auth

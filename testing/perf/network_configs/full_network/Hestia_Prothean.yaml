@@ -34,7 +34,7 @@ services:
   - hostname: "100.124.222.94"
     id: "GCP-backup"
     is_vagrant: false
-  - hostname: "100.93.77.93"
+  - hostname: "100.127.153.71"
     id: "uwbts2-backup"
     is_vagrant: false
   - hostname: "100.69.151.75"

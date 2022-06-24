@@ -1,0 +1,16 @@
+# Test setup for local auth only
+
+directory:
+  hostname: "100.79.143.58"
+  id: "AWS-directory"
+  is_vagrant: false
+
+ueransim:
+  hostname: "100.79.143.58"
+  id: "AWS-ueransim"
+  is_vagrant: false
+
+services:
+  - hostname: "100.79.143.58"
+    id: "AWS-home"
+    is_vagrant: false

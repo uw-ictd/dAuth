@@ -1,0 +1,16 @@
+# Test setup for local auth only
+
+directory:
+  hostname: "100.67.118.83"
+  id: "Azure-directory"
+  is_vagrant: false
+
+ueransim:
+  hostname: "100.67.118.83"
+  id: "Azure-ueransim"
+  is_vagrant: false
+
+services:
+  - hostname: "100.67.118.83"
+    id: "Azure-home"
+    is_vagrant: false
