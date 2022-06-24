@@ -24,6 +24,7 @@ class NetworkSetup:
         self._temp_dir = "/tmp/ueransim-perf-configs"
         
         self.gnb_index = 0
+        self.key_threshold = None
 
     def setup_name(self) -> str:
         pass

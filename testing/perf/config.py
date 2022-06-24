@@ -55,7 +55,12 @@ class ServiceConfig(Config):
         """
         self.config["id"] = id
         
-    
+    def set_threshold(self, threshold: int) -> None:
+        """
+        Sets the id.
+        """
+        self.config["backup_key_threshold"] = threshold
+
 
 class UEConfig(Config):
     """

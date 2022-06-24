@@ -35,6 +35,10 @@ class BackupAuthSetup(NetworkSetup):
             service_config.set_directory_addr(self.state.directory.get_directory_addr())
             service_config.set_host_addr(service.get_host_addr())
             service_config.set_id(service.id)
+            
+            if self.key_threshold:
+                service_config.set_threshold(self.key_threshold)
+            
             service.change_config(service_config)
 
         main_service = self.state.services[0]
@@ -42,6 +46,8 @@ class BackupAuthSetup(NetworkSetup):
         service_config.set_directory_addr(self.state.directory.get_directory_addr())
         service_config.set_host_addr(main_service.get_host_addr())
         service_config.set_id(main_service.id)
+        if self.key_threshold:
+            service_config.set_threshold(self.key_threshold)
 
         sqn_slice_max = {0: 32}
         backup_network_ids = {}

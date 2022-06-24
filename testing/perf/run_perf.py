@@ -77,6 +77,14 @@ def main():
     )
     
     parser.add_argument(
+        "-k",
+        "--key-threshold",
+        required=False,
+        type=int,
+        help="Set key threshold for backup auth",
+    )
+    
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Change logging level to debug",
@@ -122,6 +130,9 @@ def main():
         setup = BackupAuthSetup(state)
     else:
         raise Exception("No setup specified")
+    
+    if args.key_threshold:
+        setup.key_threshold = args.key_threshold
     
     setup.run_perf(args.num_ues, args.interval, args.iterations)
 
