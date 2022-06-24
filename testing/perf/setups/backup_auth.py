@@ -15,7 +15,7 @@ class BackupAuthSetup(NetworkSetup):
 
     def setup_name(self) -> str:
         backups = [s.id for s in self.state.services[2:]]
-        return "home_auth:<H,S,B>({},{},{})".format(
+        return "backup_auth:<H,S,B>({},{},{})".format(
             self.state.services[0].id,
             self.state.services[1].id,
             backups)

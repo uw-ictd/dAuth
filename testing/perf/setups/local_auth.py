@@ -14,7 +14,7 @@ class LocalAuthSetup(NetworkSetup):
         self.gnb_index = 0
 
     def setup_name(self) -> str:
-        return "home_auth:<H>({})".format(
+        return "local_auth:<H>({})".format(
             self.state.services[0].id)
     
     def get_dauth_stats(self) -> str:
