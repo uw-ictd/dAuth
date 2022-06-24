@@ -80,13 +80,13 @@ class GNBConfig(Config):
     Represents a config for a UERANSIM GNB.
     """
     
-    def set_ip(self, ip: str) -> None:
+    def set_ip(self, ip: str, host_addr: str) -> None:
         """
         Sets the ip to host on.
         """
         self.config["linkIp"] = ip
-        self.config["ngapIp"] = ip
-        self.config["gtpIp"] = ip
+        self.config["ngapIp"] = host_addr
+        self.config["gtpIp"] = host_addr    
         
     def set_nci(self, nci: int) -> None:
         """

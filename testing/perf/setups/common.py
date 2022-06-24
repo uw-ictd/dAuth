@@ -40,7 +40,7 @@ class NetworkSetup:
         """
         pass
     
-    def _build_configs(self, num_ues: int, amf_addr: str) -> List[str]:
+    def _build_configs(self, num_ues: int, host_addr: str, amf_addr: str) -> List[str]:
         """
         Generates all gNB and UE configs at the UERANSIM temp config location.
         """
@@ -67,7 +67,7 @@ class NetworkSetup:
             ip = "127.0.0.{}".format(200 + i)
             
             if i < 56:
-                gnb_config.set_ip(ip)
+                gnb_config.set_ip(ip, host_addr)
                 gnb_config.set_nci(i+1)
                 gnb_config.set_amf_addr(amf_addr)
             else:
@@ -149,7 +149,7 @@ class NetworkSetup:
             self._after_settle()
             
             TestingLogger.logger.info("Building configs")
-            gnb_paths = self._build_configs(num_ues, self.state.services[self.gnb_index].get_amf_ip())
+            gnb_paths = self._build_configs(num_ues, self.state.ueransim.hostname, self.state.services[self.gnb_index].get_amf_ip())
             
             # start recording time
             start = time.time()

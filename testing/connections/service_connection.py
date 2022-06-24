@@ -107,7 +107,7 @@ class DauthServiceConnection(Connection):
         if self.service_ip:
             return self.service_ip
         else:
-            return "127.0.0.5"
+            return self.hostname
         
     def get_host_addr(self) -> str:
         """
