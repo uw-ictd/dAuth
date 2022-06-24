@@ -25,17 +25,29 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
                 polling_times.push(metric.total_poll_duration);
             }
 
-            let idle_times_string = format!("{}: {:?}", "idle times", idle_times);
-            let polling_times_string = format!("{}: {:?}", "polling times", polling_times);
+            let mut it_strings: Vec<String> = Vec::new();
+
+            for time in idle_times.iter() {
+                it_strings.push(format!("{:?}", time))
+            }
+                
+            let mut pt_strings: Vec<String>  = Vec::new();
+
+            for time in polling_times.iter() {
+                pt_strings.push(format!("{:?}", time))
+            }
+
+            let idle_times_string = format!("\"{}\": {:?}", "idle times", it_strings);
+            let polling_times_string = format!("\"{}\": {:?}", "polling times", pt_strings);
             let (idle_len, polling_len) = (idle_times.len() as u32, polling_times.len() as u32);
             let (idle_avg, polling_avg) = (
                 idle_times.into_iter().sum::<Duration>() / idle_len,
                 polling_times.into_iter().sum::<Duration>() / polling_len,
             );
 
-            metric_results.push(format!("{}: {:?}", "total average", idle_avg + polling_avg));
-            metric_results.push(format!("{}: {:?}", "idle average", idle_avg));
-            metric_results.push(format!("{}: {:?}", "polling average", polling_avg));
+            metric_results.push(format!("\"{}\": \"{:?}\"", "total average", idle_avg + polling_avg));
+            metric_results.push(format!("\"{}\": \"{:?}\"", "idle average", idle_avg));
+            metric_results.push(format!("\"{}\": \"{:?}\"", "polling average", polling_avg));
             metric_results.push(idle_times_string);
             metric_results.push(polling_times_string);
 
