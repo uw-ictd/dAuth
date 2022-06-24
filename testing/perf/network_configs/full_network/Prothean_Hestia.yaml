@@ -28,9 +28,9 @@ services:
   - hostname: "100.67.118.83"
     id: "Azure-backup"
     is_vagrant: false
-  # - hostname: "100.108.62.90"
-  #   id: "Boron-backup"
-  #   is_vagrant: false
+  - hostname: "100.108.62.90"
+    id: "Boron-backup"
+    is_vagrant: false
   - hostname: "100.76.33.70"
     id: "Cobble-backup"
     is_vagrant: false
