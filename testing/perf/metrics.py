@@ -13,6 +13,8 @@ class PerfMetrics:
         self._results: Dict[str, Dict[str, List[int]]] = dict()
         self._tags: Dict[str, List[int]] = dict()
         self.test_name = test_name
+        self.test_time = 0.0
+        self.total_auths = 0
         
     def get_names(self) -> Set[str]:
         """
@@ -81,6 +83,8 @@ class PerfMetrics:
                 "averages": self.get_average(name),
             }
         res["total_averages"] = self.get_total_average()
+        res["test_duration"] = self.test_time
+        res["total_auths"] = self.total_auths
         
         return json.dumps(res)
     

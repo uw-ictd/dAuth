@@ -126,9 +126,13 @@ class DauthServiceConnection(Connection):
         
         for line in stout:
             if "Metrics for local_authentication::confirm_auth: " in line:
-                res["confirm_auth"] = line.split("Metrics for local_authentication::confirm_auth: ")[1].strip().replace("\"", "")
+                data = line.split("Metrics for local_authentication::confirm_auth: ")[1].strip()
+                data = data.replace("{\"", "{").replace("\"}", "}").replace("\\\"", '"')
+                res["confirm_auth"] = json.loads(data)
             elif "Metrics for local_authentication::get_auth_vector: " in line:
-                res["get_auth_vector"] = line.split("Metrics for local_authentication::get_auth_vector: ")[1].strip().replace("\"", "")
+                data = line.split("Metrics for local_authentication::get_auth_vector: ")[1].strip()
+                data = data.replace("{\"", "{").replace("\"}", "}").replace("\\\"", '"')
+                res["get_auth_vector"] = json.loads(data)
             elif "Logs begin at" in line:
                 pass
             else:

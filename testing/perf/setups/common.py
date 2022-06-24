@@ -1,3 +1,4 @@
+import time
 from typing import List, Union
 from paramiko.channel import ChannelFile, ChannelStderrFile
 from time import sleep
@@ -150,10 +151,15 @@ class NetworkSetup:
             TestingLogger.logger.info("Building configs")
             gnb_paths = self._build_configs(num_ues, self.state.services[self.gnb_index].get_amf_ip())
             
-            # tart gnb and ues
+            # start recording time
+            start = time.time()
+            
+            # start gnb and ues
             TestingLogger.logger.info("Starting gNB and UEs")
             self._start_gnbs(gnb_paths)
             output, err = self._start_ues(num_ues, interval, iterations)
+            
+            TestingLogger.logger.info("Start delta: {}".format(time.time() - start))
             
             TestingLogger.logger.info("Processing output (varies by iterations*interval)")
             metrics = PerfMetrics(self.setup_name() + ":<n,i,t>({},{},{})".format(num_ues, interval, iterations))
@@ -166,6 +172,10 @@ class NetworkSetup:
                     if "[error]" in line:
                         TestingLogger.logger.error("UERANSIM error detected: {}".format(line.rstrip()))
                 
+            # output closed, test over
+            metrics.test_time = time.time() - start
+            metrics.total_auths = iterations*num_ues
+                
             for line in err:
                 TestingLogger.logger.debug("Stderr: " + line.rstrip())
                 
@@ -176,7 +186,9 @@ class NetworkSetup:
                 TestingLogger.logger.info("   values  : " + str(metrics.get_results(name)))
                 TestingLogger.logger.info("   averages: " + str(metrics.get_average(name)))
             TestingLogger.logger.info("  All")
-            TestingLogger.logger.info("   averages: " + str(metrics.get_total_average()))
+            TestingLogger.logger.info("   averages   : " + str(metrics.get_total_average()))
+            TestingLogger.logger.info("   total auths: " + str(metrics.total_auths))
+            TestingLogger.logger.info("   test time  : " + str(metrics.test_time))
             
             TestingLogger.logger.info("Waiting for metrics")
             sleep(5)
