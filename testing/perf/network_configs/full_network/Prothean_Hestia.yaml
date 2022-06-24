@@ -29,10 +29,10 @@ services:
     id: "Azure-backup"
     is_vagrant: false
   - hostname: "100.108.62.90"
-    id: "Boron-home"
+    id: "Boron-backup"
     is_vagrant: false
   - hostname: "100.76.33.70"
-    id: "Cobble-home"
+    id: "Cobble-backup"
     is_vagrant: false
   - hostname: "100.123.120.112"
     id: "Digital_Ocean-backup"

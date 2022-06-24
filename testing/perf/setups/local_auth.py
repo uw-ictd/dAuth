@@ -12,6 +12,13 @@ class LocalAuthSetup(NetworkSetup):
     def __init__(self, state: NetworkState) -> None:
         super().__init__(state)
         self.gnb_index = 0
+
+    def setup_name(self) -> str:
+        return "home_auth:<H>({})".format(
+            self.state.services[0].id)
+    
+    def get_dauth_stats(self) -> str:
+        return self.state.services[0].get_metrics()
     
     def _configure(self, num_users: int):
         TestingLogger.logger.info("Configuring for {} UE(s) in local auth".format(num_users))

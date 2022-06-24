@@ -1,3 +1,4 @@
+import json
 from typing import IO, Union
 
 from paramiko.channel import ChannelFile
@@ -116,3 +117,26 @@ class DauthServiceConnection(Connection):
             return self.service_ip + ":50051"
         else:
             return self.hostname + ":50051"
+        
+    def get_metrics(self) -> str:
+        command = " ".join(["sudo", "journalctl", "--no-pager", "-n", "2", "-u", self.service_name])
+        stout = self.run_input_command(command)[1]
+        
+        res = dict()
+        
+        for line in stout:
+            if "Metrics for local_authentication::confirm_auth: " in line:
+                res["confirm_auth"] = line.split("Metrics for local_authentication::confirm_auth: ")[1].strip().replace("\"", "")
+            elif "Metrics for local_authentication::get_auth_vector: " in line:
+                res["get_auth_vector"] = line.split("Metrics for local_authentication::get_auth_vector: ")[1].strip().replace("\"", "")
+            elif "Logs begin at" in line:
+                pass
+            else:
+                raise Exception("Bad metrics! {}".format(line))
+        
+        if "confirm_auth" not in res or "get_auth_vector" not in res:
+            raise Exception("Failed to get all metrics! {}".format(res))
+
+        return json.dumps(res)
+                
+                

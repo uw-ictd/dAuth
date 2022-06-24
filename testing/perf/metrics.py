@@ -9,9 +9,10 @@ class PerfMetrics:
     Maintains the set of performance metrics for a given perf test.
     """
     
-    def __init__(self) -> None:
+    def __init__(self, test_name: str) -> None:
         self._results: Dict[str, Dict[str, List[int]]] = dict()
         self._tags: Dict[str, List[int]] = dict()
+        self.test_name = test_name
         
     def get_names(self) -> Set[str]:
         """
@@ -66,6 +67,22 @@ class PerfMetrics:
             averages[res_type] = mean(res_list)
         
         return averages
+    
+    def get_results_json(self) -> str:
+        """
+        Gets all results outputed in a single json string.
+        """
+        res = dict()
+        res["test_name"] = self.test_name
+        for name in self.get_names():
+            res[name] = {
+                "cmd_tags": self.get_command_tags(name),
+                "results": self.get_results(name),
+                "averages": self.get_average(name),
+            }
+        res["total_averages"] = self.get_total_average()
+        
+        return json.dumps(res)
     
     def add_result_from_json(self, json_string: str) -> None:
         """

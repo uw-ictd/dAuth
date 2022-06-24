@@ -23,6 +23,9 @@ class NetworkSetup:
         self._temp_dir = "/tmp/ueransim-perf-configs"
         
         self.gnb_index = 0
+
+    def setup_name(self) -> str:
+        pass
         
     def _configure(self, num_users: int) -> None:
         """
@@ -115,6 +118,8 @@ class NetworkSetup:
         res = self.state.ueransim.run_input_command(command)
         return res[1], res[2]
 
+    def get_dauth_stats(self) -> str:
+        pass
 
     def run_perf(self, num_ues: int, interval: int, iterations: int):
         """
@@ -151,7 +156,7 @@ class NetworkSetup:
             output, err = self._start_ues(num_ues, interval, iterations)
             
             TestingLogger.logger.info("Processing output (varies by iterations*interval)")
-            metrics = PerfMetrics()
+            metrics = PerfMetrics(self.setup_name() + ":<n,i,t>({},{},{})".format(num_ues, interval, iterations))
             for line in output:
                 try:
                     metrics.add_result_from_json(line)
@@ -164,14 +169,20 @@ class NetworkSetup:
             for line in err:
                 TestingLogger.logger.debug("Stderr: " + line.rstrip())
                 
-            print("Results:")
+            TestingLogger.logger.info("Results:")
             for name in metrics.get_names():
-                print(" ", name)
-                print("   cmd tags:", metrics.get_command_tags(name))
-                print("   values  :", metrics.get_results(name))
-                print("   averages:", metrics.get_average(name))
-            print(" ", "All")
-            print("   averages:", metrics.get_total_average())
+                TestingLogger.logger.info("  " + name)
+                TestingLogger.logger.info("   cmd tags: " + str(metrics.get_command_tags(name)))
+                TestingLogger.logger.info("   values  : " + str(metrics.get_results(name)))
+                TestingLogger.logger.info("   averages: " + str(metrics.get_average(name)))
+            TestingLogger.logger.info("  All")
+            TestingLogger.logger.info("   averages: " + str(metrics.get_total_average()))
+            
+            TestingLogger.logger.info("Waiting for metrics")
+            sleep(5)
+            
+            print(metrics.get_results_json())
+            print(self.get_dauth_stats())
 
         except PerfException as e:
             TestingLogger.logger.error("Failed to run: {}".format(e))
