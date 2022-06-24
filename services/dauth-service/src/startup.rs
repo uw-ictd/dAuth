@@ -55,7 +55,7 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             interval: Duration::from_secs_f64(config.task_interval),
             is_registered: tokio::sync::Mutex::new(false),
             replace_key_share_delay: Duration::from_secs_f64(10.0),
-            metrics_report_interval: Duration::from_secs_f64(10.0),
+            metrics_report_interval: Duration::from_secs_f64(2.0),
             metrics_last_report: tokio::sync::Mutex::new(Instant::now()),
         },
         metrics_context: MetricsContext {
