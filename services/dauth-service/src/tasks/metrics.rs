@@ -30,8 +30,8 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
             for time in idle_times.iter() {
                 it_strings.push(format!("{:?}", time))
             }
-                
-            let mut pt_strings: Vec<String>  = Vec::new();
+
+            let mut pt_strings: Vec<String> = Vec::new();
 
             for time in polling_times.iter() {
                 pt_strings.push(format!("{:?}", time))
@@ -45,7 +45,11 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
                 polling_times.into_iter().sum::<Duration>() / polling_len,
             );
 
-            metric_results.push(format!("\"{}\": \"{:?}\"", "total average", idle_avg + polling_avg));
+            metric_results.push(format!(
+                "\"{}\": \"{:?}\"",
+                "total average",
+                idle_avg + polling_avg
+            ));
             metric_results.push(format!("\"{}\": \"{:?}\"", "idle average", idle_avg));
             metric_results.push(format!("\"{}\": \"{:?}\"", "polling average", polling_avg));
             metric_results.push(idle_times_string);

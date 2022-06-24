@@ -108,7 +108,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
                     &vector.kseaf,
                     backup_network_ids.len() as u8,
                     std::cmp::min(
-                        keys::TEMPORARY_CONSTANT_THRESHOLD,
+                        context.backup_context.backup_key_threshold,
                         backup_network_ids.len() as u8,
                     ),
                     &mut rng,

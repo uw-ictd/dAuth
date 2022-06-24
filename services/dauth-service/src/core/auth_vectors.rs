@@ -38,14 +38,15 @@ pub async fn find_vector(
         Ok(vector)
     } else {
         tracing::info!("Failed to generate vector locally: {:?}", res);
-    
+
         let (home_network_id, backup_network_ids) =
             clients::directory::lookup_user(context.clone(), user_id).await?;
 
         let (home_address, _) =
             clients::directory::lookup_network(context.clone(), &home_network_id).await?;
 
-        let res = clients::home_network::get_auth_vector(context.clone(), user_id, &home_address).await;
+        let res =
+            clients::home_network::get_auth_vector(context.clone(), user_id, &home_address).await;
 
         if let Ok(vector) = res {
             context.backup_context.auth_states.lock().await.insert(
@@ -80,7 +81,11 @@ pub async fn find_vector(
                     );
                     return Ok(vector);
                 } else {
-                    tracing::info!("Failed to get vector from backup network ({}): {:?}", backup_network_id, res);
+                    tracing::info!(
+                        "Failed to get vector from backup network ({}): {:?}",
+                        backup_network_id,
+                        res
+                    );
                 }
             }
             tracing::warn!("No auth vector found");
@@ -288,7 +293,7 @@ pub async fn backup_auth_vector_used(
         &auth_vector_data.kseaf,
         backup_networks.len() as u8,
         std::cmp::min(
-            keys::TEMPORARY_CONSTANT_THRESHOLD,
+            context.backup_context.backup_key_threshold,
             backup_networks.len() as u8,
         ),
         &mut rand_0_8::thread_rng(),

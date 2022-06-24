@@ -16,6 +16,7 @@ use crate::data::{
         BackupContext, DauthContext, LocalContext, MetricsContext, RpcContext, TasksContext,
     },
     error::DauthError,
+    keys,
     opt::DauthOpt,
 };
 use crate::database;
@@ -35,6 +36,10 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             max_backup_vectors: config.max_backup_vectors,
         },
         backup_context: BackupContext {
+            backup_key_threshold: config
+                .backup_key_threshold
+                .unwrap_or(keys::TEMPORARY_CONSTANT_THRESHOLD as i64)
+                as u8,
             auth_states: tokio::sync::Mutex::new(HashMap::new()),
             directory_network_cache: tokio::sync::Mutex::new(HashMap::new()),
             directory_user_cache: tokio::sync::Mutex::new(HashMap::new()),

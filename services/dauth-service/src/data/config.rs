@@ -24,6 +24,7 @@ pub struct DauthConfig {
     pub task_interval: f64,
     pub local_auth_addr: Option<String>,
     pub max_recorded_metrics: Option<i64>,
+    pub backup_key_threshold: Option<i64>,
 }
 
 /// For ease of inputting content in the yaml file

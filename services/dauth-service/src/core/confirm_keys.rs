@@ -64,7 +64,7 @@ pub async fn confirm_authentication(
                 let mut request_set = tokio::task::JoinSet::new();
 
                 let share_threshold: u8 = std::cmp::min(
-                    keys::TEMPORARY_CONSTANT_THRESHOLD,
+                    context.backup_context.backup_key_threshold,
                     backup_network_ids.len() as u8,
                 );
 
