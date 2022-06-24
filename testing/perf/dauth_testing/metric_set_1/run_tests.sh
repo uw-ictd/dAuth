@@ -1,8 +1,8 @@
 mkdir ./testing/perf/dauth_testing/metric_set_1/configs/ 2>/dev/null
 mkdir ./testing/perf/dauth_testing/metric_set_1/results/ 2>/dev/null
 
-rm ./testing/perf/dauth_testing/metric_set_1/configs/*
-rm ./testing/perf/dauth_testing/metric_set_1/results/*
+rm ./testing/perf/dauth_testing/metric_set_1/configs/* 2>/dev/null
+rm ./testing/perf/dauth_testing/metric_set_1/results/* 2>/dev/null
 
 python3 ./testing/perf/dauth_testing/metric_set_1/build_configs.py \
         ./testing/perf/dauth_testing/base/ \

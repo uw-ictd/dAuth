@@ -15,10 +15,11 @@ class BackupAuthSetup(NetworkSetup):
 
     def setup_name(self) -> str:
         backups = [s.id for s in self.state.services[2:]]
-        return "backup_auth:<H,S,B>({},{},{})".format(
+        return "backup_auth:<H,S,B,T>({},{},{})".format(
             self.state.services[0].id,
             self.state.services[1].id,
-            backups)
+            backups,
+            self.key_threshold or 3)
 
     def get_dauth_stats(self) -> str:
         return self.state.services[1].get_metrics()
