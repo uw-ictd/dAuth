@@ -5,7 +5,7 @@ description = "Analysis scripts for the dauth project"
 authors = ["Matt Johnson <matt9j@cs.washington.edu>"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = ">=3.8, <=3.11"
 pandas = "^1.4.3"
 altair = "^4.2.0"
 altair-saver = "^0.5.0"
