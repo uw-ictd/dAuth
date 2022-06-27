@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "dauth-analysis"
+version = "0.1.0"
+description = "Analysis scripts for the dauth project"
+authors = ["Matt Johnson <matt9j@cs.washington.edu>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pandas = "^1.4.3"
+altair = "^4.2.0"
+altair-saver = "^0.5.0"
+
+[tool.poetry.dev-dependencies]
+rope = "^1.2.0"
+pylint = "^2.14.3"
+black = "^22.3.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

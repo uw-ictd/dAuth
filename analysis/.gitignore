@@ -1,0 +1,4 @@
+# Ignore the larger data and scratchpad directories, which will be backed and
+# distributed separately.
+data/
+scratch/
