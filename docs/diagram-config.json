@@ -1,6 +1,14 @@
 {
   "theme": "neutral",
   "themeVariables": {
-    "fontFamily": "Arial"
+    "fontFamily": "cantarell"
+  },
+  "sequence": {
+    "actorFontFamily": "cantarell",
+    "noteFontFamily": "cantarell",
+    "messageFontFamily": "cantarell"
+  },
+  "journey": {
+    "taskFontFamily": "cantarell"
   }
 }

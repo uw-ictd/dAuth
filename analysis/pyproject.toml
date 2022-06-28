@@ -10,6 +10,8 @@ pandas = "^1.4.3"
 altair = "^4.2.0"
 altair-saver = "^0.5.0"
 pyarrow = "^8.0.0"
+# Pin a specific selenium version until vega-lite is updated
+selenium = "~4.2.0"
 
 [tool.poetry.dev-dependencies]
 rope = "^1.2.0"

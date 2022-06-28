@@ -21,7 +21,7 @@ do
       -u ./testing/perf/ue_driver.py \
       -n "$NUM_UES" \
       -i 2000 \
-      -t 10 \
+      -t 15 \
       --home-auth \
       --debug \
       >> ./testing/perf/dauth_testing/metric_set_1/results/"$NAME".out
