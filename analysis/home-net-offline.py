@@ -19,6 +19,7 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
 backup_metadata_extraction_regex = re.compile(r"^backup_auth:<H,S,B,T>\(([A-Z,a-z,\-]+),([A-Z,a-z,\-]+),(\[.+\])\):<n,i,t>\(([0-9]+),([0-9]+),([0-9]+)\)$")
+filename_metadata_extraction_regex = re.compile(r"^([0-9]+)-nbu[0-9]+-rs[0-9]+.out$")
 user_sim_number = re.compile(r"^90170([0-9]+)$")
 
 def normalize_json_to_dataframe(result_directory_path: Path):
@@ -32,6 +33,7 @@ def normalize_json_to_dataframe(result_directory_path: Path):
     backup_network_inclusion_frequencies = defaultdict(lambda: 0)
     drop_counters_per_num_ues = defaultdict(lambda: 0)
     for filename in result_filenames:
+        scenario = extract_metadata_from_filename(filename.name)
         with open(filename) as f:
             lines = []
             for line in f:
@@ -53,6 +55,7 @@ def normalize_json_to_dataframe(result_directory_path: Path):
 
                 test_parameters["total_test_duration_s"] = float(parsed_json["test_duration"])
                 test_parameters["total_test_auth_count"] = int(parsed_json["total_auths"])
+                test_parameters["scenario"] = scenario
 
                 name_appearance_count[parsed_json["test_name"]] += 1
 
@@ -139,6 +142,10 @@ def extract_metadata_from_test_name(name_string: str) -> dict[str, str]:
 
     return res
 
+def extract_metadata_from_filename(name_string: str):
+    match = filename_metadata_extraction_regex.fullmatch(name_string)
+    return match.groups()[0]
+
 def extract_ue_number_from_imsi(imsi: str) -> int:
     match = user_sim_number.match(imsi)
     if match is None or len(match.groups()) != 1:
@@ -189,7 +196,7 @@ def make_latency_cdf_small_multiple(number_ues, df: pd.DataFrame, chart_output_p
     print(aggregate_frame)
 
     # Find the PDF first
-    stats_frame = aggregate_frame.groupby([value_column]).count()[["user_id"]].rename(columns = {"user_id": "sample_count"})
+    stats_frame = aggregate_frame.groupby([value_column, "scenario"]).count()[["user_id"]].rename(columns = {"user_id": "sample_count"})
     stats_frame["pdf"] = stats_frame["sample_count"] / sum(stats_frame["sample_count"])
     stats_frame["cdf"] = stats_frame["pdf"].cumsum()
     print(stats_frame)
@@ -204,6 +211,10 @@ def make_latency_cdf_small_multiple(number_ues, df: pd.DataFrame, chart_output_p
                 title="CDF of Samples",
                 scale=alt.Scale(type="linear", domain=[0.0, 1.0])
                 ),
+        color=alt.Color(
+            "scenario:N",
+            scale=alt.Scale(scheme="tableau10"),
+        )
     ).properties(
         width=500,
         height=200,
