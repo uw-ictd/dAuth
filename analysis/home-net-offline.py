@@ -108,6 +108,9 @@ def normalize_json_to_dataframe(result_directory_path: Path):
 
     df = pd.DataFrame(data=datapoints)
     df["auths_per_second"] = df["total_test_auth_count"] / df["total_test_duration_s"]
+    df["auth_ms"] = df["auth_ns"] / float(10**6)
+    df["registration_ms"] = df["registration_ns"] / float(10**6)
+    df["session_ms"] = df["session_ns"] / float(10**6)
 
     return df
 
@@ -175,6 +178,40 @@ def make_plot(df: pd.DataFrame, chart_output_path: Path):
         scale_factor=2,
     )
 
+def make_latency_cdf_small_multiple(number_ues, df: pd.DataFrame, chart_output_path: Path):
+    # Filter to a particular load level and threshold:
+    load_level = number_ues * 10
+    aggregate_frame = df.loc[(df["total_test_auth_count"] == load_level) & (df["threshold"] == 4)]
+
+    # Compute a cdf over observed latencies
+    value_column = "registration_ms"
+
+    print(aggregate_frame)
+
+    # Find the PDF first
+    stats_frame = aggregate_frame.groupby([value_column]).count()[["user_id"]].rename(columns = {"user_id": "sample_count"})
+    stats_frame["pdf"] = stats_frame["sample_count"] / sum(stats_frame["sample_count"])
+    stats_frame["cdf"] = stats_frame["pdf"].cumsum()
+    print(stats_frame)
+
+    stats_frame = stats_frame.reset_index()
+    alt.Chart(stats_frame).mark_line(interpolate="step-after", clip=True).encode(
+        x=alt.X('registration_ms:Q',
+                scale=alt.Scale(type="linear", domain=[0, 1000]),
+                title="Time to Complete Registration (ms)"
+                ),
+        y=alt.Y('cdf',
+                title="CDF of Samples",
+                scale=alt.Scale(type="linear", domain=[0.0, 1.0])
+                ),
+    ).properties(
+        width=500,
+        height=200,
+    ).save(chart_output_path/f"backup_latency_vs_cloud_cdf_{number_ues}_ues.png", scale_factor=2.0)
+
+def make_all_latency_cdfs(df: pd.DataFrame, chart_output_path: Path):
+    for num_ues in [1, 5, 10, 20, 50]:
+        make_latency_cdf_small_multiple(num_ues, df, chart_output_path)
 
 if __name__ == "__main__":
     intermediate_path = Path("scratch")
@@ -187,3 +224,4 @@ if __name__ == "__main__":
     df = pd.read_parquet(intermediate_path/"backup_network_via_dauth.parquet")
     print(df.head())
     make_plot(df, charts_path)
+    make_all_latency_cdfs(df, charts_path)
