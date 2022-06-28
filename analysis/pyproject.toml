@@ -9,6 +9,7 @@ python = ">=3.8, <=3.11"
 pandas = "^1.4.3"
 altair = "^4.2.0"
 altair-saver = "^0.5.0"
+pyarrow = "^8.0.0"
 
 [tool.poetry.dev-dependencies]
 rope = "^1.2.0"
