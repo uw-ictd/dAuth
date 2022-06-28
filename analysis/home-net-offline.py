@@ -185,24 +185,31 @@ def make_plot(df: pd.DataFrame, chart_output_path: Path):
         scale_factor=2,
     )
 
+def generate_cdf_series(df, filter_column, filter_value, value_column):
+    stats_frame = df
+    stats_frame = stats_frame.loc[stats_frame[filter_column] == filter_value]
+    stats_frame = stats_frame.groupby([value_column]).count()[["user_id"]].rename(columns = {"user_id": "sample_count"})
+    stats_frame["pdf"] = stats_frame["sample_count"] / sum(stats_frame["sample_count"])
+    stats_frame["cdf"] = stats_frame["pdf"].cumsum()
+    stats_frame[filter_column] = filter_value
+    stats_frame = stats_frame.reset_index()
+    return stats_frame
+
 def make_latency_cdf_small_multiple(number_ues, df: pd.DataFrame, chart_output_path: Path):
     # Filter to a particular load level and threshold:
     load_level = number_ues * 10
-    aggregate_frame = df.loc[(df["total_test_auth_count"] == load_level) & (df["threshold"] == 4)]
+    df = df.loc[(df["total_test_auth_count"] == load_level) & (df["threshold"] == 4)]
 
-    # Compute a cdf over observed latencies
-    value_column = "registration_ms"
+    # Compute a cdf over observed latencies separately for each scenario
+    plot_frame = None
+    for scenario in df["scenario"].unique():
+        if plot_frame is None:
+            plot_frame = generate_cdf_series(df, "scenario", scenario, "registration_ms")
+        else:
+            plot_frame = pd.concat([plot_frame, generate_cdf_series(df, "scenario", scenario, "registration_ms")], ignore_index=True)
 
-    print(aggregate_frame)
-
-    # Find the PDF first
-    stats_frame = aggregate_frame.groupby([value_column, "scenario"]).count()[["user_id"]].rename(columns = {"user_id": "sample_count"})
-    stats_frame["pdf"] = stats_frame["sample_count"] / sum(stats_frame["sample_count"])
-    stats_frame["cdf"] = stats_frame["pdf"].cumsum()
-    print(stats_frame)
-
-    stats_frame = stats_frame.reset_index()
-    alt.Chart(stats_frame).mark_line(interpolate="step-after", clip=True).encode(
+    plot_frame = plot_frame.reset_index()
+    alt.Chart(plot_frame).mark_line(interpolate="step-after", clip=True).encode(
         x=alt.X('registration_ms:Q',
                 scale=alt.Scale(type="linear", domain=[0, 1000]),
                 title="Time to Complete Registration (ms)"
