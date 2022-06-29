@@ -7,6 +7,8 @@ import re
 import altair as alt
 import pandas as pd
 
+import constants
+
 # Module specific format options
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_colwidth', None)
@@ -16,7 +18,7 @@ pd.set_option('display.max_rows', 40)
 logging.basicConfig()
 
 log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
 
 home_metadata_extraction_regex = re.compile(r"^home_auth:<H,S>\((.+),(.+)\):<n,i,t>\(([0-9]+),([0-9]+),([0-9]+)\)$")
 backup_metadata_extraction_regex = re.compile(r"^backup_auth:<H,S,B,T>\(([A-Z,a-z,\-]+),([A-Z,a-z,\-]+),(\[.+\])\):<n,i,t>\(([0-9]+),([0-9]+),([0-9]+)\)$")
@@ -45,7 +47,7 @@ def normalize_json_to_dataframe(result_directory_path: Path):
                     test_parameters = extract_metadata_from_test_name(parsed_json["test_name"])
                     test_parameters["total_test_duration_s"] = float(parsed_json["test_duration"])
                     test_parameters["total_test_auth_count"] = int(parsed_json["total_auths"])
-                    test_parameters["scenario"]= scenario
+                    test_parameters["scenario"]= constants.label_from_scenario(scenario)
                     print(test_parameters)
 
                     # Attempt to parse timing data from each provided UE.
@@ -67,7 +69,6 @@ def normalize_json_to_dataframe(result_directory_path: Path):
                             datapoint = datapoint | test_parameters
                             datapoints.append(datapoint)
 
-                    print(datapoints[0])
                 else:
                     # The line is a tokio timing line
                     log.debug("Not using tokio timing for now")
@@ -126,43 +127,25 @@ def normalize_cloud_json_to_dataframe(result_directory_path: Path):
             for i, line in enumerate(lines):
                 parsed_json = json.loads(line)
 
-                if i%2 == 0:
-                    # The line is a high-level result line
-                    test_parameters = extract_metadata_from_cloud_test_name(parsed_json["test_name"])
-                    test_parameters["total_test_duration_s"] = float(parsed_json["test_duration"])
-                    test_parameters["total_test_auth_count"] = int(parsed_json["total_auths"])
-                    test_parameters["scenario"]= scenario
-                    print(test_parameters)
+                # The line is a high-level result line
+                test_parameters = extract_metadata_from_cloud_test_name(parsed_json["test_name"])
+                test_parameters["total_test_duration_s"] = float(parsed_json["test_duration"])
+                test_parameters["total_test_auth_count"] = int(parsed_json["total_auths"])
+                test_parameters["scenario"]= constants.label_from_scenario(scenario)
 
-                    # Attempt to parse timing data from each provided UE.
-                    for key in parsed_json.keys():
-                        try:
-                            user_number = extract_ue_number_from_imsi(key)
-                        except ValueError:
-                            # Continue looking at other keys if this key is not a valid imsi
-                            continue
-
-                        ue_results = parsed_json[key]["results"]
-                        for iteration in zip(ue_results["nanoseconds_since_auth"], ue_results["nanoseconds_since_registration"], ue_results["nanoseconds_to_establish_session"]):
-                            datapoint = {
-                                "user_id": user_number,
-                                "auth_ns": iteration[0],
-                                "registration_ns": iteration[1],
-                                "session_ns": iteration[2],
-                                }
-                            datapoint = datapoint | test_parameters
-                            datapoints.append(datapoint)
-
-                    print(datapoints[0])
-                else:
-                    # The line is a tokio timing line
-                    log.debug("Not using tokio timing for now")
+                for i, iteration in enumerate(zip(parsed_json["nanoseconds_since_auth"], parsed_json["nanoseconds_since_registration"])):
+                    datapoint = {
+                        "user_id": i,
+                        "auth_ns": iteration[0],
+                        "registration_ns": iteration[1],
+                        }
+                    datapoint = datapoint | test_parameters
+                    datapoints.append(datapoint)
 
     df = pd.DataFrame(data=datapoints)
     df["auths_per_second"] = df["total_test_auth_count"] / df["total_test_duration_s"]
     df["auth_ms"] = df["auth_ns"] / float(10**6)
     df["registration_ms"] = df["registration_ns"] / float(10**6)
-    df["session_ms"] = df["session_ns"] / float(10**6)
 
     return df
 
@@ -173,7 +156,8 @@ def extract_metadata_from_cloud_test_name(name_string: str) -> dict[str, str]:
 
     result_groups = matches.groups()
     res = {
-        "home_network": result_groups[0]
+        "home_network": result_groups[0],
+        "ue_count": int(result_groups[1]),
     }
     log.debug("Parsed test metadata: %s", res)
 
@@ -194,8 +178,6 @@ def make_latency_cdf_small_multiple(number_ues, df: pd.DataFrame, cloud_df: pd.D
     # Filter to a particular load level and threshold:
     load_level = number_ues * 15
     df = df.loc[(df["total_test_auth_count"] == load_level) & (df["home_network"] == "AWS-service")]
-    print(df)
-
 
     # Compute a cdf over observed latencies separately for each scenario
     plot_frame = None
@@ -211,7 +193,7 @@ def make_latency_cdf_small_multiple(number_ues, df: pd.DataFrame, cloud_df: pd.D
     final_aggregated_frame = plot_frame
 
     # Generate the same CDFs from the plain open5gs dataset
-    df = cloud_df.loc[cloud_df["total_test_auth_count"] == int(load_level)]
+    df = cloud_df.loc[cloud_df["ue_count"] == int(number_ues*10)]
 
     plot_frame = None
     for scenario in df["scenario"].unique():
@@ -232,7 +214,7 @@ def make_latency_cdf_small_multiple(number_ues, df: pd.DataFrame, cloud_df: pd.D
     final_aggregated_frame = final_aggregated_frame.sort_values(by="scenario", kind="stable")
     final_aggregated_frame = final_aggregated_frame.sort_values(by="system", kind="stable")
     # final_aggregated_frame = final_aggregated_frame.loc[final_aggregated_frame["system"] == "open5gs"]
-    alt.Chart(final_aggregated_frame).mark_line(interpolate="step-after", clip=True, opacity=0.5).encode(
+    alt.Chart(final_aggregated_frame).mark_line(interpolate="step-after", clip=True, opacity=1.0).encode(
         x=alt.X('registration_ms:Q',
                 scale=alt.Scale(type="linear", domain=[0, 1000]),
                 title="Time to Complete Registration (ms)"
@@ -244,9 +226,23 @@ def make_latency_cdf_small_multiple(number_ues, df: pd.DataFrame, cloud_df: pd.D
         color=alt.Color(
             "scenario:N",
             scale=alt.Scale(scheme="tableau10"),
+            legend=alt.Legend(
+                orient="bottom-right",
+                fillColor="white",
+                labelLimit=500,
+                padding=5,
+                strokeColor="black",
+            ),
         ),
-        shape=alt.Shape(
-            "system:N"
+        strokeDash=alt.StrokeDash(
+            "system:N",
+            legend=alt.Legend(
+                orient="top-right",
+                fillColor="white",
+                labelLimit=500,
+                padding=5,
+                strokeColor="black",
+            ),
         ),
         detail="system:N"
     ).properties(
@@ -265,5 +261,4 @@ if __name__ == "__main__":
     df = normalize_json_to_dataframe(Path("data/ueransim/dauth/metric_set_1"))
 
     cloud_data = normalize_cloud_json_to_dataframe(Path("data/ueransim/open5gs-edge-core"))
-    print(cloud_data.head())
     make_all_latency_cdfs(df, cloud_data, charts_path)

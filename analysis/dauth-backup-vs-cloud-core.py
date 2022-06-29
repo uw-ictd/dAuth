@@ -275,9 +275,23 @@ def make_latency_cdf_small_multiple(number_ues, df: pd.DataFrame, cloud_df: pd.D
         color=alt.Color(
             "scenario:N",
             scale=alt.Scale(scheme="tableau10"),
+            legend=alt.Legend(
+                orient="bottom-right",
+                fillColor="white",
+                labelLimit=500,
+                padding=5,
+                strokeColor="black",
+            ),
         ),
         strokeDash=alt.StrokeDash(
-            "system:N"
+            "system:N",
+            legend=alt.Legend(
+                orient="top-right",
+                fillColor="white",
+                labelLimit=500,
+                padding=5,
+                strokeColor="black",
+            ),
         ),
         detail="system:N"
     ).properties(
