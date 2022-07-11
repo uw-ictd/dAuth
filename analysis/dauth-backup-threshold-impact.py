@@ -7,6 +7,8 @@ import re
 import altair as alt
 import pandas as pd
 
+import constants
+
 # Module specific format options
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_colwidth', None)
@@ -18,7 +20,7 @@ logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
-backup_metadata_extraction_regex = re.compile(r"^backup_auth:<H,S,B,T>\(([A-Z,a-z,\-]+),([A-Z,a-z,\-]+),(\[.+\])\):<n,i,t>\(([0-9]+),([0-9]+),([0-9]+)\)$")
+backup_metadata_extraction_regex = re.compile(r"^backup_auth:<H,S,B,T>\(([A-Z,a-z,\-]+),([A-Z,a-z,\-]+),(\[.+\]),([0-9]+)\):<n,i,t>\(([0-9]+),([0-9]+),([0-9]+)\)$")
 filename_metadata_extraction_regex = re.compile(r"^([0-9]+)-nbu[0-9]+-rs[0-9]+.out$")
 user_sim_number = re.compile(r"^90170([0-9]+)$")
 
@@ -64,40 +66,31 @@ def normalize_json_to_dataframe(result_directory_path: Path):
 
                 test_parameters["total_test_duration_s"] = float(parsed_json["test_duration"])
                 test_parameters["total_test_auth_count"] = int(parsed_json["total_auths"])
-                test_parameters["scenario"] = scenario
-                test_parameters["backup_count"] = len(test_parameters["backup_networks"])
+                test_parameters["scenario"] = constants.label_from_scenario(scenario)
 
-                name_appearance_count[parsed_json["test_name"]] += 1
+                # name_appearance_count[parsed_json["test_name"]] += 1
 
-                if name_appearance_count[parsed_json["test_name"]] == 1:
-                    test_parameters["threshold"] = 2
-                elif name_appearance_count[parsed_json["test_name"]] == 2:
-                    test_parameters["threshold"] = 4
-                elif name_appearance_count[parsed_json["test_name"]] == 3:
-                    test_parameters["threshold"] = 8
-                else:
-                    raise ValueError("Unknown threshold encountered, results possibly corrupt")
+                # if name_appearance_count[parsed_json["test_name"]] == 1:
+                #     test_parameters["threshold"] = 2
+                # elif name_appearance_count[parsed_json["test_name"]] == 2:
+                #     test_parameters["threshold"] = 4
+                # elif name_appearance_count[parsed_json["test_name"]] == 3:
+                #     test_parameters["threshold"] = 8
+                # else:
+                #     raise ValueError("Unknown threshold encountered, results possibly corrupt")
 
                 # Attempt to parse timing data from each provided UE.
                 found_ues = 0
-                for key in parsed_json.keys():
-                    try:
-                        user_number = extract_ue_number_from_imsi(key)
-                        found_ues += 1
-                    except ValueError:
-                        # Continue looking at other keys if this key is not a valid imsi
-                        continue
 
-                    ue_results = parsed_json[key]["results"]
-                    for iteration in zip(ue_results["nanoseconds_since_auth"], ue_results["nanoseconds_since_registration"], ue_results["nanoseconds_to_establish_session"]):
-                        datapoint = {
-                            "user_id": user_number,
-                            "auth_ns": iteration[0],
-                            "registration_ns": iteration[1],
-                            "session_ns": iteration[2],
-                            }
-                        datapoint = datapoint | test_parameters
-                        datapoints.append(datapoint)
+                for i, iteration in enumerate(zip(parsed_json["nanoseconds_since_auth"], parsed_json["nanoseconds_since_registration"])):
+                    datapoint = {
+                        "user_id": i,
+                        "auth_ns": iteration[0],
+                        "registration_ns": iteration[1],
+                        }
+                    datapoint = datapoint | test_parameters
+                    datapoints.append(datapoint)
+                    found_ues += 1
 
                 if found_ues == 0:
                     log.warning("Test failed to execute and has no returned results, dropping from analysis: %s", parsed_json["test_name"])
@@ -123,15 +116,13 @@ def normalize_json_to_dataframe(result_directory_path: Path):
     df["auths_per_second"] = df["total_test_auth_count"] / df["total_test_duration_s"]
     df["auth_ms"] = df["auth_ns"] / float(10**6)
     df["registration_ms"] = df["registration_ns"] / float(10**6)
-    df["session_ms"] = df["session_ns"] / float(10**6)
-    df["ue_count"] = df["total_test_auth_count"] / 10
-    df["ue_count"] = pd.to_numeric(df["ue_count"], downcast="integer")
 
     return df
 
 def extract_metadata_from_test_name(name_string: str) -> dict[str, str]:
+    print(name_string)
     matches = backup_metadata_extraction_regex.fullmatch(name_string)
-    if len(matches.groups()) != 6:
+    if len(matches.groups()) != 7:
         log.error("Could not parse: %s", name_string)
         raise ValueError("Invalid test name parsed")
 
@@ -149,6 +140,9 @@ def extract_metadata_from_test_name(name_string: str) -> dict[str, str]:
         "home_network": result_groups[0],
         "serving_network": result_groups[1],
         "backup_networks": trimmed_network_list,
+        "threshold": int(result_groups[3]),
+        "ue_count": int(result_groups[4]),
+        "backup_count": len(trimmed_network_list),
     }
     log.debug("Parsed test metadata: %s", res)
 
@@ -168,7 +162,7 @@ def extract_ue_number_from_imsi(imsi: str) -> int:
 
 def make_scenario_plot(df: pd.DataFrame, chart_output_path: Path, scenario:str):
     chart_output_path.mkdir(parents=True, exist_ok=True)
-    df = df.loc[(df["scenario"] == scenario) & (df["ue_count"] < 30) & (df["backup_count"] == 8)]
+    df = df.loc[(df["scenario"] == scenario) & (df["ue_count"] < 100) & (df["backup_count"] == 8)]
     #df = df.loc[(df["ue_count"] < 30) & (df["backup_count"] == 8)]
 
     print(df)
@@ -221,7 +215,10 @@ def make_scenario_plot(df: pd.DataFrame, chart_output_path: Path, scenario:str):
     )
 
 def make_all_scenario_plots(df, chart_output_path):
-    for scenario in ["1", "2", "3", "4"]:
+    scenarios = []
+    for string in ["1", "2", "3", "4"]:
+        scenarios.append(constants.label_from_scenario(string))
+    for scenario in scenarios:
         make_scenario_plot(df, chart_output_path, scenario)
 
 if __name__ == "__main__":
