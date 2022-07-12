@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use auth_vector::{self, data::AuthVectorData};
 use sqlx::{Sqlite, Transaction};
@@ -26,7 +27,7 @@ pub async fn find_vector(
     network_id: &str,
 ) -> Result<AuthVectorRes, DauthError> {
     tracing::info!("Attempting to find a vector: {}-{}", user_id, network_id);
-
+    // First see if this node has key material to generate the vector itself.
     let res = generate_local_vector(
         context.clone(),
         user_id,
@@ -35,65 +36,68 @@ pub async fn find_vector(
     .await;
 
     if let Ok(vector) = res {
-        Ok(vector)
-    } else {
-        tracing::info!("Failed to generate vector locally: {:?}", res);
+        return Ok(vector);
+    }
 
-        let (home_network_id, backup_network_ids) =
-            clients::directory::lookup_user(context.clone(), user_id).await?;
+    tracing::info!("Failed to generate vector locally: {:?}", res);
+    // Attempt to lookup the vector from the home network directly.
+    let (home_network_id, backup_network_ids) =
+        clients::directory::lookup_user(context.clone(), user_id).await?;
 
-        let (home_address, _) =
-            clients::directory::lookup_network(context.clone(), &home_network_id).await?;
+    let (home_address, _) =
+        clients::directory::lookup_network(context.clone(), &home_network_id).await?;
+
+    let res = clients::home_network::get_auth_vector(
+        context.clone(),
+        user_id,
+        &home_address,
+        Duration::from_millis(100),
+    )
+    .await;
+
+    if let Ok(vector) = res {
+        context.backup_context.auth_states.lock().await.insert(
+            user_id.to_string(),
+            AuthState {
+                rand: vector.rand.clone(),
+                source: AuthSource::HomeNetwork,
+            },
+        );
+        return Ok(vector);
+    }
+
+    tracing::info!("Failed to get vector from home network: {:?}", res);
+    // Attempt to lookup from the backup networks.
+    for backup_network_id in backup_network_ids {
+        let (backup_address, _) =
+            clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
 
         let res =
-            clients::home_network::get_auth_vector(context.clone(), user_id, &home_address).await;
+            clients::backup_network::get_auth_vector(context.clone(), user_id, &backup_address)
+                .await;
 
         if let Ok(vector) = res {
             context.backup_context.auth_states.lock().await.insert(
                 user_id.to_string(),
                 AuthState {
                     rand: vector.rand.clone(),
-                    source: AuthSource::HomeNetwork,
+                    source: AuthSource::BackupNetwork,
                 },
             );
-            Ok(vector)
+            return Ok(vector);
         } else {
-            tracing::info!("Failed to get vector from home network: {:?}", res);
-
-            for backup_network_id in backup_network_ids {
-                let (backup_address, _) =
-                    clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
-
-                let res = clients::backup_network::get_auth_vector(
-                    context.clone(),
-                    user_id,
-                    &backup_address,
-                )
-                .await;
-
-                if let Ok(vector) = res {
-                    context.backup_context.auth_states.lock().await.insert(
-                        user_id.to_string(),
-                        AuthState {
-                            rand: vector.rand.clone(),
-                            source: AuthSource::BackupNetwork,
-                        },
-                    );
-                    return Ok(vector);
-                } else {
-                    tracing::info!(
-                        "Failed to get vector from backup network ({}): {:?}",
-                        backup_network_id,
-                        res
-                    );
-                }
-            }
-            tracing::warn!("No auth vector found");
-            Err(DauthError::NotFoundError(
-                "No auth vector found".to_string(),
-            ))
+            tracing::info!(
+                "Failed to get vector from backup network ({}): {:?}",
+                backup_network_id,
+                res
+            );
         }
     }
+
+    tracing::warn!("No auth vector found");
+    Err(DauthError::NotFoundError(
+        "No auth vector found".to_string(),
+    ))
 }
 
 /// Generates an auth vector that will be verified locally.
