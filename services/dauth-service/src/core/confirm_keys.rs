@@ -204,6 +204,10 @@ pub async fn get_key_share(
 
     let user_id = database::key_shares::get_user_id(&mut transaction, xres_star_hash).await?;
 
+    // Remove the auth vectors at the point we have confirmed they were used.
+    database::flood_vectors::remove(&mut transaction, &user_id, xres_star_hash).await?;
+    database::auth_vectors::remove(&mut transaction, &user_id, xres_star_hash).await?;
+
     database::tasks::report_key_shares::add(
         &mut transaction,
         xres_star_hash,
