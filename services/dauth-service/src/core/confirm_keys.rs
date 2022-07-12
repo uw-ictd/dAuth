@@ -69,15 +69,11 @@ pub async fn confirm_authentication(
                 );
 
                 for backup_network_id in backup_network_ids {
-                    let (backup_address, _) =
-                        clients::directory::lookup_network(context.clone(), &backup_network_id)
-                            .await?;
-
-                    request_set.spawn(clients::backup_network::get_key_share(
+                    request_set.spawn(key_share_from_network_id(
                         context.clone(),
                         xres_star_hash.clone(),
                         res_star.clone(),
-                        backup_address.to_string(),
+                        backup_network_id.to_string(),
                     ));
                 }
 
@@ -113,6 +109,24 @@ pub async fn confirm_authentication(
             }
         }
     }
+}
+
+async fn key_share_from_network_id(
+    context: Arc<DauthContext>,
+    xres_star_hash: HresStar,
+    res_star: ResStar,
+    backup_network_id: String,
+) -> Result<keys::KseafShare, DauthError> {
+    let (backup_address, _) =
+        clients::directory::lookup_network(context.clone(), &backup_network_id)
+            .await?;
+
+    clients::backup_network::get_key_share(
+        context.clone(),
+        xres_star_hash.clone(),
+        res_star.clone(),
+        backup_address.to_string(),
+    ).await
 }
 
 /// Gets the Kseaf value for the auth vector from this network.
