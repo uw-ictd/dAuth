@@ -67,30 +67,33 @@ pub async fn find_vector(
     }
 
     tracing::info!("Failed to get vector from home network: {:?}", res);
-    // Attempt to lookup from the backup networks.
+    // Attempt to lookup an auth vector from the backup networks in parallel.
+    let mut request_set = tokio::task::JoinSet::new();
+
     for backup_network_id in backup_network_ids {
-        let (backup_address, _) =
-            clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
+        request_set.spawn(get_auth_vector_from_network_id(
+            context.clone(),
+            user_id.to_string(),
+            backup_network_id.to_string(),
+        ));
+    }
 
-        let res =
-            clients::backup_network::get_auth_vector(context.clone(), user_id, &backup_address)
-                .await;
-
-        if let Ok(vector) = res {
-            context.backup_context.auth_states.lock().await.insert(
-                user_id.to_string(),
-                AuthState {
-                    rand: vector.rand.clone(),
-                    source: AuthSource::BackupNetwork,
+    while let Some(response_result) = request_set.join_one().await {
+        match response_result {
+            Ok(response) => match response {
+                Ok(vector) => {
+                    context.backup_context.auth_states.lock().await.insert(
+                        user_id.to_string(),
+                        AuthState {
+                            rand: vector.rand.clone(),
+                            source: AuthSource::BackupNetwork,
+                        },
+                    );
+                    return Ok(vector);
                 },
-            );
-            return Ok(vector);
-        } else {
-            tracing::info!(
-                "Failed to get vector from backup network ({}): {:?}",
-                backup_network_id,
-                res
-            );
+                Err(e) => tracing::debug!("Failed to get auth from single backup: {}", e)
+            },
+            Err(e) => tracing::debug!("Failed to get auth from single backup: {}", e)
         }
     }
 
@@ -98,6 +101,17 @@ pub async fn find_vector(
     Err(DauthError::NotFoundError(
         "No auth vector found".to_string(),
     ))
+}
+
+async fn get_auth_vector_from_network_id(
+    context: Arc<DauthContext>,
+    user_id: String,
+    backup_network_id: String,
+) -> Result<AuthVectorRes, DauthError> {
+    let (backup_address, _) =
+            clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
+
+    clients::backup_network::get_auth_vector(context.clone(), &user_id, &backup_address).await
 }
 
 /// Generates an auth vector that will be verified locally.
