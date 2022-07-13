@@ -1,6 +1,6 @@
 use sqlx::sqlite::{SqlitePool, SqliteRow};
 use sqlx::Error as SqlxError;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Row, Sqlite, Transaction};
 
 use crate::data::error::DauthError;
 
@@ -15,11 +15,20 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
             xres_star_hash BLOB NOT NULL,
             autn BLOB NOT NULL,
             rand BLOB NOT NULL,
+            sent INTEGER NOT NULL,
             UNIQUE(user_id, seqnum)
         );",
     )
     .execute(pool)
     .await?;
+
+    sqlx::query(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_flood_vector_id_xres_star_hash
+        ON flood_vector_table (user_id, xres_star_hash);",
+    )
+    .execute(pool)
+    .await?;
+
     Ok(())
 }
 
@@ -35,8 +44,8 @@ pub async fn add(
 ) -> Result<(), DauthError> {
     sqlx::query(
         "INSERT INTO flood_vector_table
-        (user_id,seqnum,xres_star_hash,autn,rand)
-        VALUES ($1,$2,$3,$4,$5)",
+        (user_id,seqnum,xres_star_hash,autn,rand, sent)
+        VALUES ($1,$2,$3,$4,$5, FALSE)",
     )
     .bind(id)
     .bind(seqnum)
@@ -86,21 +95,52 @@ pub async fn get_by_hash(
     .await?)
 }
 
-/// Removes the vector with the (id, seqnum) pair.
-pub async fn remove(
+/// Marks the vector with the (user_id, seqnum) pair as having been previously
+/// sent.
+pub async fn mark_sent(
     transaction: &mut Transaction<'_, Sqlite>,
-    id: &str,
+    user_id: &str,
     seqnum: i64,
 ) -> Result<(), DauthError> {
     sqlx::query(
-        "DELETE FROM flood_vector_table
+        "UPDATE flood_vector_table
+        SET sent=TRUE
         WHERE (user_id,seqnum)=($1,$2)",
     )
-    .bind(id)
+    .bind(user_id)
     .bind(seqnum)
     .execute(transaction)
     .await?;
     Ok(())
+}
+
+/// Removes the vector with the (id, seqnum) pair.
+pub async fn remove(
+    transaction: &mut Transaction<'_, Sqlite>,
+    id: &str,
+    xres_star_hash: &[u8],
+) -> Result<i32, DauthError> {
+    let presence_count: i32 = sqlx::query(
+        "SELECT count(*) as count FROM flood_vector_table
+        WHERE (user_id,xres_star_hash)=($1,$2);",
+    )
+    .bind(id)
+    .bind(xres_star_hash)
+    .fetch_one::<&mut Transaction<'_, Sqlite>>(transaction)
+    .await?
+    .try_get::<i32, &str>("count")?
+    .try_into()
+    .unwrap();
+
+    sqlx::query(
+        "DELETE FROM flood_vector_table
+        WHERE (user_id,xres_star_hash)=($1,$2)",
+    )
+    .bind(id)
+    .bind(xres_star_hash)
+    .execute(transaction)
+    .await?;
+    Ok(presence_count)
 }
 
 /// Removes all vectors belonging to an id.
@@ -185,7 +225,7 @@ mod tests {
                     &mut transaction,
                     &format!("test_id_{}", section),
                     row,
-                    &[0_u8; RES_STAR_HASH_LENGTH],
+                    &[row as u8; RES_STAR_HASH_LENGTH],
                     &[0_u8; AUTN_LENGTH],
                     &[0_u8; RAND_LENGTH],
                 )
@@ -240,7 +280,7 @@ mod tests {
             &mut transaction,
             "test_id_1",
             1,
-            &[0_u8; RES_STAR_HASH_LENGTH],
+            &[1_u8; RES_STAR_HASH_LENGTH],
             &[0_u8; AUTN_LENGTH],
             &[0_u8; RAND_LENGTH],
         )
@@ -262,7 +302,7 @@ mod tests {
             &mut transaction,
             "test_id_1",
             2,
-            &[0_u8; RES_STAR_HASH_LENGTH],
+            &[2_u8; RES_STAR_HASH_LENGTH],
             &[0_u8; AUTN_LENGTH],
             &[0_u8; RAND_LENGTH],
         )
@@ -339,7 +379,7 @@ mod tests {
                     &mut transaction,
                     &format!("test_id_{}", section),
                     row,
-                    &[0_u8; RES_STAR_HASH_LENGTH],
+                    &[row as u8; RES_STAR_HASH_LENGTH],
                     &[0_u8; AUTN_LENGTH],
                     &[0_u8; RAND_LENGTH],
                 )
@@ -357,9 +397,14 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                flood_vectors::remove(&mut transaction, &format!("test_id_{}", section), row)
-                    .await
-                    .unwrap();
+                let count = flood_vectors::remove(
+                    &mut transaction,
+                    &format!("test_id_{}", section),
+                    &[row as u8; RES_STAR_HASH_LENGTH],
+                )
+                .await
+                .unwrap();
+                assert_eq!(count, 1);
             }
         }
 
@@ -382,7 +427,7 @@ mod tests {
                     &mut transaction,
                     &format!("test_id_{}", section),
                     row,
-                    &[0_u8; RES_STAR_HASH_LENGTH],
+                    &[row as u8; RES_STAR_HASH_LENGTH],
                     &[0_u8; AUTN_LENGTH],
                     &[0_u8; RAND_LENGTH],
                 )
@@ -437,7 +482,7 @@ mod tests {
                     &mut transaction,
                     &format!("test_id_{}", section),
                     row,
-                    &[0_u8; RES_STAR_HASH_LENGTH],
+                    &[row as u8; RES_STAR_HASH_LENGTH],
                     &[0_u8; AUTN_LENGTH],
                     &[0_u8; RAND_LENGTH],
                 )
@@ -461,9 +506,13 @@ mod tests {
                         .unwrap()
                         .unwrap();
 
-                flood_vectors::remove(&mut transaction, &format!("test_id_{}", section), row)
-                    .await
-                    .unwrap();
+                flood_vectors::remove(
+                    &mut transaction,
+                    &format!("test_id_{}", section),
+                    &[row as u8; RES_STAR_HASH_LENGTH],
+                )
+                .await
+                .unwrap();
 
                 assert_eq!(
                     &format!("test_id_{}", section),

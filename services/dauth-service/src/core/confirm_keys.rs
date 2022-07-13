@@ -69,15 +69,11 @@ pub async fn confirm_authentication(
                 );
 
                 for backup_network_id in backup_network_ids {
-                    let (backup_address, _) =
-                        clients::directory::lookup_network(context.clone(), &backup_network_id)
-                            .await?;
-
-                    request_set.spawn(clients::backup_network::get_key_share(
+                    request_set.spawn(key_share_from_network_id(
                         context.clone(),
                         xres_star_hash.clone(),
                         res_star.clone(),
-                        backup_address.to_string(),
+                        backup_network_id.to_string(),
                     ));
                 }
 
@@ -113,6 +109,24 @@ pub async fn confirm_authentication(
             }
         }
     }
+}
+
+async fn key_share_from_network_id(
+    context: Arc<DauthContext>,
+    xres_star_hash: HresStar,
+    res_star: ResStar,
+    backup_network_id: String,
+) -> Result<keys::KseafShare, DauthError> {
+    let (backup_address, _) =
+        clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
+
+    clients::backup_network::get_key_share(
+        context.clone(),
+        xres_star_hash.clone(),
+        res_star.clone(),
+        backup_address.to_string(),
+    )
+    .await
 }
 
 /// Gets the Kseaf value for the auth vector from this network.
@@ -204,6 +218,10 @@ pub async fn get_key_share(
 
     let user_id = database::key_shares::get_user_id(&mut transaction, xres_star_hash).await?;
 
+    // Remove the auth vectors at the point we have confirmed they were used.
+    database::flood_vectors::remove(&mut transaction, &user_id, xres_star_hash).await?;
+    database::auth_vectors::remove(&mut transaction, &user_id, xres_star_hash).await?;
+
     database::tasks::report_key_shares::add(
         &mut transaction,
         xres_star_hash,
@@ -241,18 +259,26 @@ pub async fn key_share_used(
     xres_star_hash: &HresStar,
     backup_network_id: &str,
 ) -> Result<(), DauthError> {
+    tracing::info!("Key share reported used by {}", backup_network_id);
+
     let mut transaction = context.local_context.database_pool.begin().await?;
 
-    let (user_id, rand) =
+    let state =
         database::key_share_state::get(&mut transaction, xres_star_hash, backup_network_id).await?;
 
+    if state.is_none() {
+        tracing::warn!("Key share use reported with no corresponding share state");
+        return Ok(());
+    }
+
+    let state = state.unwrap();
     tracing::info!(
-        "Key share reported used by {} for {}",
+        "Key share reported used by {} mapped to user {}",
         backup_network_id,
-        user_id
+        state.user_id
     );
 
-    validate_xres_star_hash(xres_star_hash, res_star, &rand)?;
+    validate_xres_star_hash(xres_star_hash, res_star, &state.rand)?;
 
     database::key_share_state::remove(&mut transaction, xres_star_hash, backup_network_id).await?;
 

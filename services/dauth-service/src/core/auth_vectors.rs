@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use auth_vector::{self, data::AuthVectorData};
 use sqlx::{Sqlite, Transaction};
@@ -26,7 +27,7 @@ pub async fn find_vector(
     network_id: &str,
 ) -> Result<AuthVectorRes, DauthError> {
     tracing::info!("Attempting to find a vector: {}-{}", user_id, network_id);
-
+    // First see if this node has key material to generate the vector itself.
     let res = generate_local_vector(
         context.clone(),
         user_id,
@@ -35,43 +36,52 @@ pub async fn find_vector(
     .await;
 
     if let Ok(vector) = res {
-        Ok(vector)
-    } else {
-        tracing::info!("Failed to generate vector locally: {:?}", res);
+        return Ok(vector);
+    }
 
-        let (home_network_id, backup_network_ids) =
-            clients::directory::lookup_user(context.clone(), user_id).await?;
+    tracing::info!("Failed to generate vector locally: {:?}", res);
+    // Attempt to lookup the vector from the home network directly.
+    let (home_network_id, backup_network_ids) =
+        clients::directory::lookup_user(context.clone(), user_id).await?;
 
-        let (home_address, _) =
-            clients::directory::lookup_network(context.clone(), &home_network_id).await?;
+    let (home_address, _) =
+        clients::directory::lookup_network(context.clone(), &home_network_id).await?;
 
-        let res =
-            clients::home_network::get_auth_vector(context.clone(), user_id, &home_address).await;
+    let res = clients::home_network::get_auth_vector(
+        context.clone(),
+        user_id,
+        &home_address,
+        Duration::from_millis(100),
+    )
+    .await;
 
-        if let Ok(vector) = res {
-            context.backup_context.auth_states.lock().await.insert(
-                user_id.to_string(),
-                AuthState {
-                    rand: vector.rand.clone(),
-                    source: AuthSource::HomeNetwork,
-                },
-            );
-            Ok(vector)
-        } else {
-            tracing::info!("Failed to get vector from home network: {:?}", res);
+    if let Ok(vector) = res {
+        context.backup_context.auth_states.lock().await.insert(
+            user_id.to_string(),
+            AuthState {
+                rand: vector.rand.clone(),
+                source: AuthSource::HomeNetwork,
+            },
+        );
+        return Ok(vector);
+    }
 
-            for backup_network_id in backup_network_ids {
-                let (backup_address, _) =
-                    clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
+    tracing::info!("Failed to get vector from home network: {:?}", res);
+    // Attempt to lookup an auth vector from the backup networks in parallel.
+    let mut request_set = tokio::task::JoinSet::new();
 
-                let res = clients::backup_network::get_auth_vector(
-                    context.clone(),
-                    user_id,
-                    &backup_address,
-                )
-                .await;
+    for backup_network_id in backup_network_ids {
+        request_set.spawn(get_auth_vector_from_network_id(
+            context.clone(),
+            user_id.to_string(),
+            backup_network_id.to_string(),
+        ));
+    }
 
-                if let Ok(vector) = res {
+    while let Some(response_result) = request_set.join_one().await {
+        match response_result {
+            Ok(response) => match response {
+                Ok(vector) => {
                     context.backup_context.auth_states.lock().await.insert(
                         user_id.to_string(),
                         AuthState {
@@ -80,20 +90,28 @@ pub async fn find_vector(
                         },
                     );
                     return Ok(vector);
-                } else {
-                    tracing::info!(
-                        "Failed to get vector from backup network ({}): {:?}",
-                        backup_network_id,
-                        res
-                    );
                 }
-            }
-            tracing::warn!("No auth vector found");
-            Err(DauthError::NotFoundError(
-                "No auth vector found".to_string(),
-            ))
+                Err(e) => tracing::debug!("Failed to get auth from single backup: {}", e),
+            },
+            Err(e) => tracing::debug!("Failed to get auth from single backup: {}", e),
         }
     }
+
+    tracing::warn!("No auth vector found");
+    Err(DauthError::NotFoundError(
+        "No auth vector found".to_string(),
+    ))
+}
+
+async fn get_auth_vector_from_network_id(
+    context: Arc<DauthContext>,
+    user_id: String,
+    backup_network_id: String,
+) -> Result<AuthVectorRes, DauthError> {
+    let (backup_address, _) =
+        clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
+
+    clients::backup_network::get_auth_vector(context.clone(), &user_id, &backup_address).await
 }
 
 /// Generates an auth vector that will be verified locally.
@@ -146,7 +164,7 @@ pub async fn store_backup_auth_vector(
         av_result.seqnum,
         &av_result.xres_star_hash,
         &av_result.autn,
-        &av_result.rand,
+        &av_result.rand.as_array(),
     )
     .await?;
 
@@ -171,7 +189,7 @@ pub async fn store_backup_auth_vectors(
             av_result.seqnum,
             &av_result.xres_star_hash,
             &av_result.autn,
-            &av_result.rand,
+            &av_result.rand.as_array(),
         )
         .await?;
     }
@@ -196,7 +214,7 @@ pub async fn store_backup_flood_vector(
         av_result.seqnum,
         &av_result.xres_star_hash,
         &av_result.autn,
-        &av_result.rand,
+        &av_result.rand.as_array(),
     )
     .await?;
 
@@ -223,7 +241,9 @@ pub async fn next_backup_auth_vector(
     {
         vector = flood_row.to_auth_vector()?;
 
-        database::flood_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
+        database::flood_vectors::mark_sent(&mut transaction, &vector.user_id, vector.seqnum)
+            .await?;
+        // database::flood_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
 
         tracing::info!("Flood vector found: {:?}", vector);
     } else {
@@ -231,7 +251,8 @@ pub async fn next_backup_auth_vector(
             .await?
             .to_auth_vector()?;
 
-        database::auth_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
+        database::auth_vectors::mark_sent(&mut transaction, &vector.user_id, vector.seqnum).await?;
+        // database::auth_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
 
         tracing::info!("Backup vector found: {:?}", vector);
     };
@@ -256,16 +277,22 @@ pub async fn backup_auth_vector_used(
     context: Arc<DauthContext>,
     backup_network_id: &str,
     xres_star_hash: &auth_vector::types::HresStar,
-) -> Result<AuthVectorRes, DauthError> {
+) -> Result<Option<AuthVectorRes>, DauthError> {
     tracing::info!(
-        "Auth vector used on {:?}: {:?}",
+        "Auth vector reported used on {:?}: {:?}",
         backup_network_id,
         xres_star_hash
     );
 
     let mut transaction = context.local_context.database_pool.begin().await?;
-    let (owning_network_id, user_id) =
-        database::vector_state::get(&mut transaction, xres_star_hash).await?;
+
+    let held_state = database::vector_state::get(&mut transaction, xres_star_hash).await?;
+    if held_state.is_none() {
+        tracing::info!("No local state for vector, likely was already reported and replaced");
+        return Ok(None);
+    }
+
+    let (owning_network_id, user_id) = held_state.unwrap();
 
     if owning_network_id != backup_network_id {
         return Err(DauthError::DataError("Not the owning network".to_string()));
@@ -315,13 +342,13 @@ pub async fn backup_auth_vector_used(
 
     transaction.commit().await?;
 
-    Ok(AuthVectorRes {
+    Ok(Some(AuthVectorRes {
         user_id: user_id.to_string(),
         seqnum,
         rand: auth_vector_data.rand,
         autn: auth_vector_data.autn,
         xres_star_hash: auth_vector_data.xres_star_hash,
-    })
+    }))
 }
 
 /// Builds an auth vector and updates the user state.

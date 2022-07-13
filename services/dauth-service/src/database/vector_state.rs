@@ -44,19 +44,24 @@ pub async fn add(
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
-) -> Result<(String, String), DauthError> {
-    let row = sqlx::query(
+) -> Result<Option<(String, String)>, DauthError> {
+    let possible_row = sqlx::query(
         "SELECT * FROM vector_state_table
         WHERE xres_star_hash=$1;",
     )
     .bind(xres_star_hash)
-    .fetch_one(transaction)
+    .fetch_optional(transaction)
     .await?;
 
-    Ok((
-        row.try_get::<String, &str>("backup_network_id")?,
-        row.try_get::<String, &str>("user_id")?,
-    ))
+    match possible_row {
+        Some(row) => {
+            Ok(Some((
+                row.try_get::<String, &str>("backup_network_id")?,
+                row.try_get::<String, &str>("user_id")?,
+            )))
+        }
+        None => Ok(None)
+    }
 }
 
 /// Returns the set of xres* hashes owned by the network for a given user.
@@ -173,6 +178,7 @@ mod tests {
                 vector_state::get(&mut transaction, &[row as u8; 1],)
                     .await
                     .unwrap()
+                    .unwrap()
                     .0,
                 format!("test_backup_network_{}", row)
             );
@@ -238,6 +244,7 @@ mod tests {
                 vector_state::get(&mut transaction, &[row as u8; 1],)
                     .await
                     .unwrap()
+                    .unwrap()
                     .0,
                 format!("test_backup_network_{}", row)
             );
@@ -256,7 +263,8 @@ mod tests {
         for row in 0..num_rows {
             assert!(vector_state::get(&mut transaction, &[row as u8; 1],)
                 .await
-                .is_err());
+                .unwrap()
+                .is_none());
         }
         transaction.commit().await.unwrap();
     }

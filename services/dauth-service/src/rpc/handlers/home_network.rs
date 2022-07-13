@@ -284,18 +284,30 @@ impl HomeNetworkHandler {
     ) -> Result<tonic::Response<ReportHomeAuthConsumedResp>, DauthError> {
         // TODO: Check the payload further
         if let SignPayloadType::GetBackupAuthVectorReq(_payload) = verify_result {
-            Ok(tonic::Response::new(ReportHomeAuthConsumedResp {
-                vector: Some(utilities::build_delegated_vector(
-                    context.clone(),
-                    &core::auth_vectors::backup_auth_vector_used(
-                        context,
-                        &content.backup_network_id,
-                        content.hash_xres_star[..].try_into()?,
-                    )
-                    .await?,
-                    &content.backup_network_id,
-                )),
-            }))
+            let core_response = core::auth_vectors::backup_auth_vector_used(
+                context.clone(),
+                &content.backup_network_id,
+                content.hash_xres_star[..].try_into()?,
+            ).await?;
+
+            match core_response {
+                Some(response) => {
+                    Ok(tonic::Response::new(ReportHomeAuthConsumedResp {
+                        vector: Some(utilities::build_delegated_vector(
+                            context,
+                            &response,
+                            &content.backup_network_id,
+                        )),
+                    }))
+                },
+                None => {
+                    Ok(tonic::Response::new(ReportHomeAuthConsumedResp {
+                        vector: None,
+                    }))
+                }
+            }
+
+
         } else {
             Err(DauthError::InvalidMessageError(format!(
                 "Incorrect message type: {:?}",

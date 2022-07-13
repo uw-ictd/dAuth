@@ -1,8 +1,32 @@
 use auth_vector::types::Rand;
 use sqlx::sqlite::SqlitePool;
-use sqlx::{Row, Sqlite, Transaction};
+use sqlx::{FromRow, Row, Sqlite, Transaction};
 
 use crate::data::error::DauthError;
+
+#[derive(Debug,FromRow,Clone)]
+struct ShareStateRow {
+    user_id: String,
+    backup_network_id: String,
+    rand: Vec<u8>,
+    xres_star_hash: Vec<u8>,
+}
+
+#[derive(Debug,Clone,PartialEq,Eq)]
+pub struct ShareState {
+    pub user_id: String,
+    pub rand: Rand,
+}
+
+impl TryFrom<ShareStateRow> for ShareState {
+    type Error = DauthError;
+    fn try_from(value: ShareStateRow) -> Result<Self, Self::Error> {
+        Ok(ShareState {
+            user_id: value.user_id,
+            rand: value.rand.try_into()?,
+        })
+    }
+}
 
 /// Creates the key share state table if it does not exist already.
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
@@ -50,20 +74,47 @@ pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
     backup_network_id: &str,
-) -> Result<(String, Rand), DauthError> {
-    let row = sqlx::query(
+) -> Result<Option<ShareState>, DauthError> {
+    let possible_row: Option<ShareStateRow> = sqlx::query_as(
         "SELECT * FROM key_share_state_table
         WHERE (xres_star_hash,backup_network_id)=($1,$2)",
     )
     .bind(xres_star_hash)
     .bind(backup_network_id)
-    .fetch_one(transaction)
+    .fetch_optional(transaction)
     .await?;
 
-    Ok((
-        row.try_get::<String, &str>("user_id")?,
-        row.try_get::<Vec<u8>, &str>("rand")?[..].try_into()?,
-    ))
+    match possible_row {
+        Some(row) => {
+            Ok(Some(row.try_into()?))
+        },
+        None => Ok(None),
+    }
+}
+
+pub async fn get_all(
+    transaction: &mut Transaction<'_, Sqlite>,
+    xres_star_hash: &[u8],
+    backup_network_id: &str,
+) -> Result<(), DauthError> {
+    let rows = sqlx::query(
+        "SELECT * FROM key_share_state_table"
+    )
+    .bind(xres_star_hash)
+    .bind(backup_network_id)
+    .fetch_all(transaction)
+    .await?;
+
+    tracing::info!("dumping key share state");
+
+    for row in rows {
+        tracing::info!("{}",row.try_get::<String, &str>("user_id")?);
+        tracing::info!("{:?}", row.try_get::<Vec<u8>, &str>("xres_star_hash")?);
+        tracing::info!("{:?}", row.try_get::<String, &str>("backup_network_id")?);
+        // tracing::info!("{}", row.try_get::<Vec<u8>, &str>("rand")?[..].try_into()?);
+    }
+
+    Ok(( ))
 }
 
 /// Deletes a key share reference if found.
@@ -166,8 +217,9 @@ mod tests {
                     &format!("test_backup_network_{}", row),
                 )
                 .await
+                .unwrap()
                 .unwrap(),
-                ("test_user_id".to_string(), [0u8; RAND_LENGTH]),
+                key_share_state::ShareState{user_id:"test_user_id".to_string(), rand: vec![0u8; RAND_LENGTH].try_into().unwrap()},
             );
         }
         transaction.commit().await.unwrap();
@@ -201,8 +253,9 @@ mod tests {
                     &format!("test_backup_network_{}", row),
                 )
                 .await
+                .unwrap()
                 .unwrap(),
-                ("test_user_id".to_string(), [0u8; RAND_LENGTH]),
+                key_share_state::ShareState{user_id:"test_user_id".to_string(), rand: vec![0u8; RAND_LENGTH].try_into().unwrap()}
             );
         }
         transaction.commit().await.unwrap();

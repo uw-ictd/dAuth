@@ -1,8 +1,10 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use auth_vector::types::{HresStar, Kseaf, ResStar};
 use prost::Message;
 use tonic::transport::Channel;
+use tonic::transport::Endpoint;
 
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
@@ -22,22 +24,24 @@ pub async fn get_auth_vector(
     context: Arc<DauthContext>,
     user_id: &str,
     address: &str,
+    timeout: Duration,
 ) -> Result<AuthVectorRes, DauthError> {
     let mut client = get_client(context.clone(), address).await?;
 
-    let response = client
-        .get_auth_vector(GetHomeAuthVectorReq {
-            message: Some(signing::sign_message(
-                context.clone(),
-                SignPayloadType::GetHomeAuthVectorReq(get_home_auth_vector_req::Payload {
-                    serving_network_id: context.local_context.id.clone(),
-                    user_id_type: UserIdKind::Supi as i32,
-                    user_id: user_id.as_bytes().to_vec(),
-                }),
-            )),
-        })
-        .await?
-        .into_inner();
+    let mut request = tonic::Request::new(GetHomeAuthVectorReq {
+        message: Some(signing::sign_message(
+            context.clone(),
+            SignPayloadType::GetHomeAuthVectorReq(get_home_auth_vector_req::Payload {
+                serving_network_id: context.local_context.id.clone(),
+                user_id_type: UserIdKind::Supi as i32,
+                user_id: user_id.as_bytes().to_vec(),
+            }),
+        )),
+    });
+
+    request.set_timeout(timeout);
+
+    let response = client.get_auth_vector(request).await?.into_inner();
 
     let message = response
         .vector
@@ -101,7 +105,7 @@ pub async fn report_auth_consumed(
     user_id: &str,
     original_request: &Vec<u8>,
     address: &str,
-) -> Result<AuthVectorRes, DauthError> {
+) -> Result<Option<AuthVectorRes>, DauthError> {
     let mut client = get_client(context.clone(), address).await?;
 
     let signed_message = SignedMessage::decode(&original_request[..])?;
@@ -114,12 +118,14 @@ pub async fn report_auth_consumed(
         })
         .await?
         .into_inner()
-        .vector
-        .ok_or(DauthError::ClientError(
-            "Missing vector in response".to_string(),
-        ))?;
+        .vector;
 
-    Ok(utilities::handle_delegated_vector(context, dvector, user_id).await?)
+    match dvector {
+        None => Ok(None),
+        Some(dvector) => {
+            Ok(Some(utilities::handle_delegated_vector(context, dvector, user_id).await?))
+        }
+    }
 }
 
 /// Reports a key share as used to the home network.
@@ -152,17 +158,39 @@ async fn get_client(
     context: Arc<DauthContext>,
     address: &str,
 ) -> Result<HomeNetworkClient<Channel>, DauthError> {
-    let mut clients = context.rpc_context.home_clients.lock().await;
-
-    if !clients.contains_key(address) {
-        clients.insert(
-            address.to_string(),
-            HomeNetworkClient::connect(format!("http://{}", address)).await?,
-        );
+    // Acquire the lock and attempt to look up the client connection.
+    {
+        let clients = context.rpc_context.home_clients.lock().await;
+        match clients.get(address) {
+            Some(cached_client) => {
+                return Ok(cached_client.clone());
+            }
+            None => {
+                // Fall through to create a client handling
+            }
+        }
     }
 
-    Ok(clients
-        .get(address)
-        .ok_or(DauthError::ClientError("Client not found".to_string()))?
-        .clone())
+    // No cached client was found, so attempt to open a connection
+
+    // TODO(matt9j) Keep track of if we've attempted and failed to open a
+    // connection before and don't retry for every request.
+    let endpoint = Endpoint::from_shared(format!("http://{}", address))
+        .unwrap()
+        .concurrency_limit(256)
+        .timeout(Duration::from_millis(100))
+        .connect_timeout(Duration::from_millis(50));
+    let client = HomeNetworkClient::connect(endpoint).await?;
+
+    // Store a clone in the cache for future connections
+
+    // By not holding the lock it is possible that another context has already
+    // added a client, but it's okay to overwrite it and drop it in this case.
+    let cache_client = client.clone();
+    {
+        let mut clients = context.rpc_context.home_clients.lock().await;
+        clients.insert(address.to_string(), cache_client);
+    }
+
+    Ok(client)
 }
