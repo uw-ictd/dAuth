@@ -8,13 +8,15 @@ pub struct ReportAuthVectorTask {
     pub xres_star_hash: Vec<u8>,
     pub user_id: String,
     pub signed_request_bytes: Vec<u8>,
+    pub task_id: i64,
 }
 
 /// Creates the backup networks table if it does not exist already.
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS report_auth_vectors_task_table (
-            xres_star_hash BLOB PRIMARY KEY,
+            task_id INTEGER PRIMARY KEY,
+            xres_star_hash BLOB,
             user_id TEXT NOT NULL,
             signed_request_bytes BLOB NOT NULL
         );",
@@ -34,7 +36,7 @@ pub async fn add(
     signed_request_bytes: &Vec<u8>,
 ) -> Result<(), DauthError> {
     sqlx::query(
-        "INSERT INTO report_auth_vectors_task_table
+        "INSERT INTO report_auth_vectors_task_table (xres_star_hash, user_id, signed_request_bytes)
         VALUES ($1,$2,$3)",
     )
     .bind(xres_star_hash)
@@ -50,27 +52,24 @@ pub async fn add(
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
 ) -> Result<Vec<ReportAuthVectorTask>, DauthError> {
-    let rows = sqlx::query("SELECT * FROM report_auth_vectors_task_table")
-        .fetch_all(transaction)
-        .await?;
+    let rows: Vec<ReportAuthVectorTask> =
+        sqlx::query_as("SELECT * FROM report_auth_vectors_task_table")
+            .fetch_all(transaction)
+            .await?;
 
-    let mut res = Vec::with_capacity(rows.len());
-    for row in rows {
-        res.push(ReportAuthVectorTask::from_row(&row)?)
-    }
-    Ok(res)
+    Ok(rows)
 }
 
-/// Removes a specific auth vector replace.
+/// Removes a specific auth vector used report.
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
-    xres_star_hash: &[u8],
+    row_id: i64,
 ) -> Result<(), DauthError> {
     sqlx::query(
         "DELETE FROM report_auth_vectors_task_table
-        WHERE xres_star_hash=$1",
+        WHERE task_id=$1",
     )
-    .bind(xres_star_hash)
+    .bind(row_id)
     .execute(transaction)
     .await?;
 
@@ -182,17 +181,15 @@ mod tests {
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        for res in tasks::report_auth_vectors::get(&mut transaction)
-            .await
-            .unwrap()
-        {
+        let reports = tasks::report_auth_vectors::get(&mut transaction).await.unwrap();
+        for res in reports.iter() {
             assert!(names.contains(&res.user_id));
         }
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        for row in 0..num_rows {
-            tasks::report_auth_vectors::remove(&mut transaction, &vec![row as u8])
+        for row in reports.iter() {
+            tasks::report_auth_vectors::remove(&mut transaction, row.task_id)
                 .await
                 .unwrap();
         }

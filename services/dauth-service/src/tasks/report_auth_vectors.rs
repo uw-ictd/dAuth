@@ -31,7 +31,7 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
                         let mut transaction = context.local_context.database_pool.begin().await?;
                         database::tasks::report_auth_vectors::remove(
                             &mut transaction,
-                            &report.xres_star_hash,
+                            report.task_id,
                         )
                         .await?;
                         transaction.commit().await?;
@@ -57,12 +57,15 @@ async fn report_auth_vector(
     let (home_network_id, _) =
         clients::directory::lookup_user(context.clone(), &report.user_id).await?;
 
-    tracing::debug!("Looking up address for home network id {}", &home_network_id);
+    tracing::debug!(
+        "Looking up address for home network id {}",
+        &home_network_id
+    );
     let (address, _) =
         clients::directory::lookup_network(context.clone(), &home_network_id).await?;
 
     tracing::debug!("Reporting auth consumed to home network");
-    let av_result = clients::home_network::report_auth_consumed(
+    let possible_av_result = clients::home_network::report_auth_consumed(
         context.clone(),
         &report.xres_star_hash[..].try_into()?,
         &report.user_id,
@@ -71,7 +74,9 @@ async fn report_auth_vector(
     )
     .await?;
 
-    core::auth_vectors::store_backup_auth_vector(context.clone(), &av_result).await?;
+    if let Some(av_result) = possible_av_result {
+        core::auth_vectors::store_backup_auth_vector(context.clone(), &av_result).await?;
+    }
 
     Ok(report)
 }

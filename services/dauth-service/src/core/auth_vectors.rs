@@ -277,16 +277,22 @@ pub async fn backup_auth_vector_used(
     context: Arc<DauthContext>,
     backup_network_id: &str,
     xres_star_hash: &auth_vector::types::HresStar,
-) -> Result<AuthVectorRes, DauthError> {
+) -> Result<Option<AuthVectorRes>, DauthError> {
     tracing::info!(
-        "Auth vector used on {:?}: {:?}",
+        "Auth vector reported used on {:?}: {:?}",
         backup_network_id,
         xres_star_hash
     );
 
     let mut transaction = context.local_context.database_pool.begin().await?;
-    let (owning_network_id, user_id) =
-        database::vector_state::get(&mut transaction, xres_star_hash).await?;
+
+    let held_state = database::vector_state::get(&mut transaction, xres_star_hash).await?;
+    if held_state.is_none() {
+        tracing::info!("No local state for vector, likely was already reported and replaced");
+        return Ok(None);
+    }
+
+    let (owning_network_id, user_id) = held_state.unwrap();
 
     if owning_network_id != backup_network_id {
         return Err(DauthError::DataError("Not the owning network".to_string()));
@@ -336,13 +342,13 @@ pub async fn backup_auth_vector_used(
 
     transaction.commit().await?;
 
-    Ok(AuthVectorRes {
+    Ok(Some(AuthVectorRes {
         user_id: user_id.to_string(),
         seqnum,
         rand: auth_vector_data.rand,
         autn: auth_vector_data.autn,
         xres_star_hash: auth_vector_data.xres_star_hash,
-    })
+    }))
 }
 
 /// Builds an auth vector and updates the user state.

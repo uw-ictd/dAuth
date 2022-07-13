@@ -105,7 +105,7 @@ pub async fn report_auth_consumed(
     user_id: &str,
     original_request: &Vec<u8>,
     address: &str,
-) -> Result<AuthVectorRes, DauthError> {
+) -> Result<Option<AuthVectorRes>, DauthError> {
     let mut client = get_client(context.clone(), address).await?;
 
     let signed_message = SignedMessage::decode(&original_request[..])?;
@@ -118,12 +118,14 @@ pub async fn report_auth_consumed(
         })
         .await?
         .into_inner()
-        .vector
-        .ok_or(DauthError::ClientError(
-            "Missing vector in response".to_string(),
-        ))?;
+        .vector;
 
-    Ok(utilities::handle_delegated_vector(context, dvector, user_id).await?)
+    match dvector {
+        None => Ok(None),
+        Some(dvector) => {
+            Ok(Some(utilities::handle_delegated_vector(context, dvector, user_id).await?))
+        }
+    }
 }
 
 /// Reports a key share as used to the home network.
