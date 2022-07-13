@@ -13,7 +13,7 @@ use crate::data::AuthVectorData;
 /// Uses provided k, opc, and rand with milenage.
 /// Returns tuple of auth vector data (xres, rand, sqn_xor_ak, mac_a)
 pub fn generate_vector(k: &types::K, opc: &types::Opc, sqn: &types::Sqn) -> AuthVectorData {
-    let rand: types::Rand = r::random();
+    let rand= types::Rand::new(&mut r::thread_rng());
 
     generate_vector_with_rand(k, opc, &rand, sqn)
 }
@@ -27,10 +27,10 @@ fn generate_vector_with_rand(
 ) -> AuthVectorData {
     let mut m = Milenage::new_with_opc(k.clone(), opc.clone());
 
-    let (xres, ck, ik, ak) = m.f2345(&rand);
+    let (xres, ck, ik, ak) = m.f2345(&rand.as_array());
 
     let xres_star = m
-        .compute_res_star(constants::MCC, constants::MNC, &rand, &xres)
+        .compute_res_star(constants::MCC, constants::MNC, &rand.as_array(), &xres)
         .unwrap();
 
     let xres_star_hash = gen_xres_star_hash(rand, &xres_star);
@@ -44,7 +44,7 @@ fn generate_vector_with_rand(
         .try_into()
         .expect("All data should have correct size");
 
-    let mac: types::Mac = m.f1(&rand, &sqn.as_bytes(), &constants::AMF);
+    let mac: types::Mac = m.f1(&rand.as_array(), &sqn.as_bytes(), &constants::AMF);
 
     let autn = build_autn(&sqn_xor_ak, &mac);
 
@@ -54,7 +54,7 @@ fn generate_vector_with_rand(
         xres_star_hash,
         xres_star,
         autn,
-        rand: rand.clone(),
+        rand: rand.to_owned(),
         kseaf,
     }
 }
@@ -115,7 +115,7 @@ fn gen_kseaf(kausf: &types::Kausf) -> types::Kseaf {
 
 pub fn gen_xres_star_hash(rand: &types::Rand, xres_star: &types::ResStar) -> types::HresStar {
     let mut data = Vec::new();
-    data.extend(rand);
+    data.extend(rand.as_array());
     data.extend(xres_star);
 
     let mut hasher = Sha256::new();
@@ -171,7 +171,7 @@ mod tests {
 
         let result = generate_vector_with_rand(&k, &opc, &rand, &sqn);
 
-        assert_eq!("562d716dbd058b475cfecdbb48ed038f", hex::encode(result.rand));
+        assert_eq!("562d716dbd058b475cfecdbb48ed038f", hex::encode(result.rand.as_array()));
         assert_eq!("67c325a93c6880006ed9f592d86b709c", hex::encode(result.autn));
         assert_eq!(
             "4cc63b268aa5ff97516cc3ee0c5fad53",

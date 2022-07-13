@@ -23,7 +23,6 @@ pub type Kausf = [u8; constants::KAUSF_LENGTH];
 pub type Kseaf = [u8; constants::KSEAF_LENGTH];
 
 pub type HresStar = [u8; constants::RES_STAR_HASH_LENGTH];
-pub type Rand = [u8; constants::RAND_LENGTH];
 pub type Autn = [u8; constants::AUTN_LENGTH];
 
 #[derive(Debug, Clone, Copy)]
@@ -89,6 +88,53 @@ impl TryFrom<Vec<u8>> for Sqn {
     type Error = AuthVectorConversionError;
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         value.as_slice().try_into()
+    }
+}
+
+#[derive(Debug,Copy,Clone,PartialEq,Eq)]
+pub struct Rand {
+    data: [u8; constants::RAND_LENGTH],
+}
+
+impl TryFrom<&[u8]> for Rand {
+    type Error = AuthVectorConversionError;
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        if value.len() != constants::RAND_LENGTH {
+            return Err(AuthVectorConversionError::BoundsError());
+        }
+
+        Ok(Rand {
+            data: value.try_into()?,
+        })
+    }
+}
+
+impl TryFrom<&Vec<u8>> for Rand {
+    type Error = AuthVectorConversionError;
+    fn try_from(value: &Vec<u8>) -> Result<Self, Self::Error> {
+        value.as_slice().try_into()
+    }
+}
+
+impl TryFrom<Vec<u8>> for Rand {
+    type Error = AuthVectorConversionError;
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        value.as_slice().try_into()
+    }
+}
+
+impl Rand {
+    pub fn new<T: rand::Rng>(r: &mut T) -> Self {
+        let data_array: [u8; constants::RAND_LENGTH] = r.gen();
+        Rand { data: data_array }
+    }
+
+    pub fn as_array(self) -> [u8; constants::RAND_LENGTH] {
+        self.data.clone()
+    }
+
+    pub fn to_vec(self) -> Vec<u8> {
+        self.data.to_vec()
     }
 }
 

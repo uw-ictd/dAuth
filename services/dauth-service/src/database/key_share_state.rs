@@ -167,7 +167,7 @@ mod tests {
                 )
                 .await
                 .unwrap(),
-                ("test_user_id".to_string(), [0u8; RAND_LENGTH]),
+                key_share_state::ShareState{user_id:"test_user_id".to_string(), rand: vec![0u8; RAND_LENGTH].try_into().unwrap()},
             );
         }
         transaction.commit().await.unwrap();
@@ -202,7 +202,7 @@ mod tests {
                 )
                 .await
                 .unwrap(),
-                ("test_user_id".to_string(), [0u8; RAND_LENGTH]),
+                key_share_state::ShareState{user_id:"test_user_id".to_string(), rand: vec![0u8; RAND_LENGTH].try_into().unwrap()}
             );
         }
         transaction.commit().await.unwrap();

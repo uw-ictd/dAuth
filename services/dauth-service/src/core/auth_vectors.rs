@@ -164,7 +164,7 @@ pub async fn store_backup_auth_vector(
         av_result.seqnum,
         &av_result.xres_star_hash,
         &av_result.autn,
-        &av_result.rand,
+        &av_result.rand.as_array(),
     )
     .await?;
 
@@ -189,7 +189,7 @@ pub async fn store_backup_auth_vectors(
             av_result.seqnum,
             &av_result.xres_star_hash,
             &av_result.autn,
-            &av_result.rand,
+            &av_result.rand.as_array(),
         )
         .await?;
     }
@@ -214,7 +214,7 @@ pub async fn store_backup_flood_vector(
         av_result.seqnum,
         &av_result.xres_star_hash,
         &av_result.autn,
-        &av_result.rand,
+        &av_result.rand.as_array(),
     )
     .await?;
 

@@ -184,7 +184,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
                 xres_star_hash,
                 backup_network_id,
                 user_id,
-                rand,
+                &rand.as_array(),
             )
             .await?;
         }
