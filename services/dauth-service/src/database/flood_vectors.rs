@@ -1,6 +1,6 @@
 use sqlx::sqlite::{SqlitePool, SqliteRow};
 use sqlx::Error as SqlxError;
-use sqlx::{Sqlite, Transaction, Row};
+use sqlx::{Row, Sqlite, Transaction};
 
 use crate::data::error::DauthError;
 
@@ -120,14 +120,17 @@ pub async fn remove(
     id: &str,
     xres_star_hash: &[u8],
 ) -> Result<i32, DauthError> {
-    let presence_count:i32 = sqlx::query(
+    let presence_count: i32 = sqlx::query(
         "SELECT count(*) as count FROM flood_vector_table
         WHERE (user_id,xres_star_hash)=($1,$2);",
     )
     .bind(id)
     .bind(xres_star_hash)
     .fetch_one::<&mut Transaction<'_, Sqlite>>(transaction)
-    .await?.try_get::<i32, &str>("count")?.try_into().unwrap();
+    .await?
+    .try_get::<i32, &str>("count")?
+    .try_into()
+    .unwrap();
 
     sqlx::query(
         "DELETE FROM flood_vector_table
@@ -394,9 +397,13 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                let count = flood_vectors::remove(&mut transaction, &format!("test_id_{}", section), &[row as u8; RES_STAR_HASH_LENGTH])
-                    .await
-                    .unwrap();
+                let count = flood_vectors::remove(
+                    &mut transaction,
+                    &format!("test_id_{}", section),
+                    &[row as u8; RES_STAR_HASH_LENGTH],
+                )
+                .await
+                .unwrap();
                 assert_eq!(count, 1);
             }
         }
@@ -499,9 +506,13 @@ mod tests {
                         .unwrap()
                         .unwrap();
 
-                flood_vectors::remove(&mut transaction, &format!("test_id_{}", section), &[row as u8; RES_STAR_HASH_LENGTH])
-                    .await
-                    .unwrap();
+                flood_vectors::remove(
+                    &mut transaction,
+                    &format!("test_id_{}", section),
+                    &[row as u8; RES_STAR_HASH_LENGTH],
+                )
+                .await
+                .unwrap();
 
                 assert_eq!(
                     &format!("test_id_{}", section),

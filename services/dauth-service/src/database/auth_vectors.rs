@@ -1,5 +1,5 @@
 use sqlx::sqlite::{SqlitePool, SqliteRow};
-use sqlx::{Sqlite, Transaction, Row};
+use sqlx::{Row, Sqlite, Transaction};
 
 use crate::data::error::DauthError;
 
@@ -111,14 +111,17 @@ pub async fn remove(
     user_id: &str,
     xres_star_hash: &[u8],
 ) -> Result<i32, DauthError> {
-    let presence_count:i32 = sqlx::query(
+    let presence_count: i32 = sqlx::query(
         "SELECT count(*) as count FROM auth_vector_table
         WHERE (user_id,xres_star_hash)=($1,$2);",
     )
     .bind(user_id)
     .bind(xres_star_hash)
     .fetch_one::<&mut Transaction<'_, Sqlite>>(transaction)
-    .await?.try_get::<i32, &str>("count")?.try_into().unwrap();
+    .await?
+    .try_get::<i32, &str>("count")?
+    .try_into()
+    .unwrap();
 
     sqlx::query(
         "DELETE FROM auth_vector_table
@@ -384,9 +387,13 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                let count = auth_vectors::remove(&mut transaction, &format!("test_id_{}", section), &[row as u8; RES_STAR_HASH_LENGTH])
-                    .await
-                    .unwrap();
+                let count = auth_vectors::remove(
+                    &mut transaction,
+                    &format!("test_id_{}", section),
+                    &[row as u8; RES_STAR_HASH_LENGTH],
+                )
+                .await
+                .unwrap();
                 assert_eq!(count, 1);
             }
         }
@@ -487,9 +494,13 @@ mod tests {
                         .await
                         .unwrap();
 
-                auth_vectors::remove(&mut transaction, &format!("test_id_{}", section), &[row as u8; RES_STAR_HASH_LENGTH])
-                    .await
-                    .unwrap();
+                auth_vectors::remove(
+                    &mut transaction,
+                    &format!("test_id_{}", section),
+                    &[row as u8; RES_STAR_HASH_LENGTH],
+                )
+                .await
+                .unwrap();
 
                 assert_eq!(
                     &format!("test_id_{}", section),

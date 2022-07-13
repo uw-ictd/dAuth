@@ -90,10 +90,10 @@ pub async fn find_vector(
                         },
                     );
                     return Ok(vector);
-                },
-                Err(e) => tracing::debug!("Failed to get auth from single backup: {}", e)
+                }
+                Err(e) => tracing::debug!("Failed to get auth from single backup: {}", e),
             },
-            Err(e) => tracing::debug!("Failed to get auth from single backup: {}", e)
+            Err(e) => tracing::debug!("Failed to get auth from single backup: {}", e),
         }
     }
 
@@ -109,7 +109,7 @@ async fn get_auth_vector_from_network_id(
     backup_network_id: String,
 ) -> Result<AuthVectorRes, DauthError> {
     let (backup_address, _) =
-            clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
+        clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
 
     clients::backup_network::get_auth_vector(context.clone(), &user_id, &backup_address).await
 }
@@ -241,7 +241,8 @@ pub async fn next_backup_auth_vector(
     {
         vector = flood_row.to_auth_vector()?;
 
-        database::flood_vectors::mark_sent(&mut transaction, &vector.user_id, vector.seqnum).await?;
+        database::flood_vectors::mark_sent(&mut transaction, &vector.user_id, vector.seqnum)
+            .await?;
         // database::flood_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
 
         tracing::info!("Flood vector found: {:?}", vector);

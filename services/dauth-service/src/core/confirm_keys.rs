@@ -118,15 +118,15 @@ async fn key_share_from_network_id(
     backup_network_id: String,
 ) -> Result<keys::KseafShare, DauthError> {
     let (backup_address, _) =
-        clients::directory::lookup_network(context.clone(), &backup_network_id)
-            .await?;
+        clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
 
     clients::backup_network::get_key_share(
         context.clone(),
         xres_star_hash.clone(),
         res_star.clone(),
         backup_address.to_string(),
-    ).await
+    )
+    .await
 }
 
 /// Gets the Kseaf value for the auth vector from this network.
