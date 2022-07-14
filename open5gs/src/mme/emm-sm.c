@@ -17,6 +17,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "dauth-mme-c-binding.h"
 #include "mme-event.h"
 #include "mme-timer.h"
 #include "s1ap-handler.h"
@@ -239,7 +240,9 @@ static void common_register_state(ogs_fsm_t *s, mme_event_t *e)
                     mme_gtp_send_delete_all_sessions(mme_ue,
                         OGS_GTP_DELETE_SEND_AUTHENTICATION_REQUEST);
                 } else {
-                    mme_s6a_send_air(mme_ue, NULL);
+                    //TODO(matt9j) This is where the request out to the MME goes... can hook here for dauth.
+                    ogs_assert(mme_dauth_shim_request_auth_vector(mme_ue));
+                    // mme_s6a_send_air(mme_ue, NULL);
                 }
                 OGS_FSM_TRAN(s, &emm_state_authentication);
             }
@@ -675,8 +678,9 @@ void emm_state_authentication(ogs_fsm_t *s, mme_event_t *e)
             ogs_debug("    IMSI[%s]", mme_ue->imsi_bcd);
 
             CLEAR_MME_UE_TIMER(mme_ue->t3460);
-
+            // TODO(matt9j) Received the Auth response here, need to get the key before transitioning to security mode state!
             if (authentication_response_parameter->length == 0 ||
+                // TODO(matt9j) Validate these values are correct!
                 memcmp(authentication_response_parameter->res,
                 mme_ue->xres,
                 authentication_response_parameter->length) != 0) {
@@ -689,7 +693,8 @@ void emm_state_authentication(ogs_fsm_t *s, mme_event_t *e)
                     nas_eps_send_authentication_reject(mme_ue));
                 OGS_FSM_TRAN(&mme_ue->sm, &emm_state_exception);
             } else {
-                OGS_FSM_TRAN(&mme_ue->sm, &emm_state_security_mode);
+                mme_dauth_shim_request_confirm_auth(mme_ue, authentication_response_parameter->res);
+                // OGS_FSM_TRAN(&mme_ue->sm, &emm_state_security_mode);
             }
 
             break;

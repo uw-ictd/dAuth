@@ -113,7 +113,7 @@ mme_dauth_shim_request_auth_vector(
 }
 
 bool
-ausf_dauth_shim_request_confirm_auth(
+mme_dauth_shim_request_confirm_auth(
     mme_ue_t * const mme_ue,
     const uint8_t * const res
 ) {

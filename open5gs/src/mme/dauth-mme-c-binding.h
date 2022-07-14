@@ -60,8 +60,8 @@ mme_dauth_shim_request_auth_vector(
 
 bool
 mme_dauth_shim_request_confirm_auth(
-    mme_ue_t * const mme_ue
-    //const uint8_t * const res_star,
+    mme_ue_t * const mme_ue,
+    const uint8_t * const res_star
     );
 
 #ifdef __cplusplus

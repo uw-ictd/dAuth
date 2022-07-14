@@ -117,6 +117,8 @@ void mme_context_init()
 
     ogs_list_init(&self.mme_ue_list);
 
+    ogs_assert(dauth_context_init(&self.dauth_context));
+
     context_initialized = 1;
 }
 
@@ -131,6 +133,8 @@ void mme_context_final()
     mme_pgw_remove_all();
     mme_csmap_remove_all();
     mme_vlr_remove_all();
+
+    ogs_assert(dauth_context_final(&self.dauth_context));
 
     ogs_assert(self.enb_addr_hash);
     ogs_hash_destroy(self.enb_addr_hash);
