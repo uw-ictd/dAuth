@@ -15,16 +15,20 @@ message AuthVector5G {
     // The random seed defined for this vector
     bytes rand = 1;
 
-    // The sha256 hashed expected response from the UE
+    // The sha256 hashed expected response from the UE in 5G-AKA
     //
     // TS33.501 Annex A.5
     bytes xres_star_hash = 2;
+    // The sha256 hashed expected response from the UE in EPS-AKA
+    bytes xres_hash =5;
 
     // The autn value to pass to the UE, containing the network AUTH and SQN
+    // The autn is the same in EPS-AKA and 5G-AKA
     bytes autn = 3;
 
     // The integer vaule of the sequence number
     int64 seqnum = 4;
+
 }
 
 // The type of id provided.
