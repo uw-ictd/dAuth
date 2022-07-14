@@ -347,10 +347,6 @@ dauth_local_auth_client::handle_request_confirm_auth_res(
     ConfirmationDataResponse.auth_result = ausf_ue->auth_result;
     ConfirmationDataResponse.supi = ausf_ue->supi;
 
-    // TODO(matt9j) Double check kseaf derivation on the rust side of the world.
-
-    // ogs_kdf_kseaf(ausf_ue->serving_network_name,
-    //         ausf_ue->kausf, ausf_ue->kseaf);
     ogs_hex_to_ascii(ausf_ue->kseaf, sizeof(ausf_ue->kseaf),
             kseaf_string, sizeof(kseaf_string));
     ConfirmationDataResponse.kseaf = kseaf_string;
