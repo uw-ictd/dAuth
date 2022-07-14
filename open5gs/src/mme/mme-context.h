@@ -17,8 +17,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MME_CONTEXT_H
-#define MME_CONTEXT_H
+#ifndef __MME_MME_CONTEXT_H__
+#define __MME_MME_CONTEXT_H__
 
 #include "ogs-crypt.h"
 
@@ -28,6 +28,8 @@
 #include "ogs-nas-eps.h"
 #include "ogs-app.h"
 #include "ogs-sctp.h"
+
+#include "dauth-mme-c-binding.h"
 
 /* S1AP */
 #include "S1AP_Cause.h"
@@ -144,6 +146,8 @@ typedef struct mme_context_s {
     ogs_hash_t      *enb_id_hash;           /* hash table for ENB-ID */
     ogs_hash_t      *imsi_ue_hash;          /* hash table (IMSI : MME_UE) */
     ogs_hash_t      *guti_ue_hash;          /* hash table (GUTI : MME_UE) */
+
+    dauth_mme_context_t dauth_context;
 
 } mme_context_t;
 
@@ -319,6 +323,9 @@ struct mme_ue_s {
             uint8_t data;
         };
     } nas_eps;
+
+    /* dauth context */
+    dauth_mme_ue_context_t dauth_context;
 
     /* UE identity */
 #define MME_UE_HAVE_IMSI(__mME) \
@@ -875,4 +882,4 @@ uint8_t mme_selected_enc_algorithm(mme_ue_t *mme_ue);
 }
 #endif
 
-#endif /* MME_CONTEXT_H */
+#endif /* __MME_MME_CONTEXT_H__ */
