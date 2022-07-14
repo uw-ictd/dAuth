@@ -124,13 +124,11 @@ dauth_mme::local_auth_client::handle_request_auth_vector_res(
     ogs_assert(auth_vector_resp_.auth_vector().xres_star_hash().length() == OGS_MAX_RES_LEN);
     ogs_assert(auth_vector_resp_.auth_vector().autn().length() == OGS_AUTN_LEN);
 
-    ogs_diam_e_utran_vector_t *e_utran_vector = NULL;
-
     ogs_assert(mme_ue);
 
     // TODO(matt9j) Need to fill with actual valid LTE values.
-    mme_ue->xres_len = e_utran_vector->xres_len;
-    memcpy(mme_ue->xres, auth_vector_resp_.auth_vector().xres_star_hash().c_str(), sizeof(mme_ue->xres));
+    mme_ue->xres_len = auth_vector_resp_.auth_vector().xres_star_hash().length();
+    memcpy(mme_ue->xres, auth_vector_resp_.auth_vector().xres_star_hash().c_str(), mme_ue->xres_len);
     // memcpy(mme_ue->kasme, e_utran_vector->kasme, OGS_SHA256_DIGEST_SIZE);
     memcpy(mme_ue->rand, auth_vector_resp_.auth_vector().rand().c_str(), sizeof(mme_ue->rand));
     memcpy(mme_ue->autn, auth_vector_resp_.auth_vector().autn().c_str(), auth_vector_resp_.auth_vector().autn().length());
@@ -139,6 +137,8 @@ dauth_mme::local_auth_client::handle_request_auth_vector_res(
 
     if (mme_ue->nas_eps.ksi == OGS_NAS_KSI_NO_KEY_IS_AVAILABLE)
         mme_ue->nas_eps.ksi = 0;
+
+    ogs_info("[%s] Unpacked RPC response and about to send UE auth request", mme_ue->imsi_bcd);
 
     ogs_assert(OGS_OK ==
         nas_eps_send_authentication_request(mme_ue));
