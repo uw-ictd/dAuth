@@ -276,7 +276,7 @@ pub async fn next_backup_auth_vector(
 pub async fn backup_auth_vector_used(
     context: Arc<DauthContext>,
     backup_network_id: &str,
-    xres_star_hash: &auth_vector::types::HresStar,
+    xres_star_hash: &auth_vector::types::ResStarHash,
 ) -> Result<Option<AuthVectorRes>, DauthError> {
     tracing::info!(
         "Auth vector reported used on {:?}: {:?}",

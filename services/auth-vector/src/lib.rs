@@ -118,7 +118,7 @@ fn gen_kseaf(kausf: &types::Kausf) -> types::Kseaf {
         .expect("All data should have correct size")
 }
 
-pub fn gen_xres_star_hash(rand: &types::Rand, xres_star: &types::ResStar) -> types::HresStar {
+pub fn gen_xres_star_hash(rand: &types::Rand, xres_star: &types::ResStar) -> types::ResStarHash {
     let mut data = Vec::new();
     data.extend(rand.as_array());
     data.extend(xres_star);

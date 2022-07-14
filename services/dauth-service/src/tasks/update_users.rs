@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use auth_vector::types::{HresStar, Rand};
+use auth_vector::types::{ResStarHash, Rand};
 
 use crate::core;
 use crate::data::context::DauthContext;
@@ -103,7 +103,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
 
             let (xres_star_hash, rand) = (vector.xres_star_hash.clone(), vector.rand.clone());
             let mut rng = rand_0_8::thread_rng();
-            let mut shares: Vec<(HresStar, keys::KseafShare, Rand)> =
+            let mut shares: Vec<(ResStarHash, keys::KseafShare, Rand)> =
                 keys::create_shares_from_kseaf(
                     &vector.kseaf,
                     backup_network_ids.len() as u8,

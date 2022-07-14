@@ -27,7 +27,7 @@ pub type Kseaf = [u8; constants::KSEAF_LENGTH];
 pub type Xres = [u8; constants::XRES_LENGTH];
 pub type XresHash = [u8; constants::XRES_HASH_LENGTH];
 
-pub type HresStar = [u8; constants::RES_STAR_HASH_LENGTH];
+pub type ResStarHash = [u8; constants::RES_STAR_HASH_LENGTH];
 pub type Autn = [u8; constants::AUTN_LENGTH];
 
 #[derive(Debug, Clone, Copy)]

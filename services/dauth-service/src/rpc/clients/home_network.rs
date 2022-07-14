@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use auth_vector::types::{HresStar, Kseaf, ResStar};
+use auth_vector::types::{ResStarHash, Kseaf, ResStar};
 use prost::Message;
 use tonic::transport::Channel;
 use tonic::transport::Endpoint;
@@ -74,7 +74,7 @@ pub async fn get_auth_vector(
 pub async fn get_confirm_key(
     context: Arc<DauthContext>,
     res_star: &ResStar,
-    xres_star_hash: &HresStar,
+    xres_star_hash: &ResStarHash,
     address: &str,
 ) -> Result<Kseaf, DauthError> {
     let mut client = get_client(context.clone(), address).await?;
@@ -101,7 +101,7 @@ pub async fn get_confirm_key(
 /// proof of the auth vector request.
 pub async fn report_auth_consumed(
     context: Arc<DauthContext>,
-    xres_star_hash: &HresStar,
+    xres_star_hash: &ResStarHash,
     user_id: &str,
     original_request: &Vec<u8>,
     address: &str,

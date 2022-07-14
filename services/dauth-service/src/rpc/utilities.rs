@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use auth_vector::types::HresStar;
+use auth_vector::types::ResStarHash;
 
 use crate::data::{
     context::DauthContext, error::DauthError, keys, signing, signing::SignPayloadType,
@@ -37,7 +37,7 @@ pub fn build_delegated_vector(
 
 pub fn build_delegated_share(
     context: Arc<DauthContext>,
-    xres_star_hash: &HresStar,
+    xres_star_hash: &ResStarHash,
     confirmation_share: &keys::KseafShare,
 ) -> DelegatedConfirmationShare {
     let payload = delegated_confirmation_share::Payload {
@@ -84,7 +84,7 @@ pub async fn handle_delegated_vector(
 pub async fn handle_key_share(
     context: Arc<DauthContext>,
     dshare: DelegatedConfirmationShare,
-) -> Result<(auth_vector::types::HresStar, keys::KseafShare), DauthError> {
+) -> Result<(auth_vector::types::ResStarHash, keys::KseafShare), DauthError> {
     let verify_result = signing::verify_message(
         context,
         &dshare.message.ok_or(DauthError::InvalidMessageError(

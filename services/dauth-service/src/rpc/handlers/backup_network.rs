@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use prost::Message;
 
-use auth_vector::types::HresStar;
+use auth_vector::types::ResStarHash;
 
 use crate::core;
 use crate::data::context::DauthContext;
@@ -574,7 +574,7 @@ impl BackupNetworkHandler {
             .new_share
             .ok_or(DauthError::DataError("No new share received".to_string()))?;
 
-        let old_xres_star_hash: HresStar = request.replaced_share_xres_star_hash[..].try_into()?;
+        let old_xres_star_hash: ResStarHash = request.replaced_share_xres_star_hash[..].try_into()?;
 
         let (new_xres_star_hash, new_key_share) =
             utilities::handle_key_share(context.clone(), dshare).await?;

@@ -1,4 +1,4 @@
-use auth_vector::types::{Autn, HresStar, Id, Rand};
+use auth_vector::types::{Autn, ResStarHash, Id, Rand};
 
 use crate::data::error::DauthError;
 use crate::rpc::dauth::common::AuthVector5G;
@@ -13,7 +13,7 @@ pub struct AuthVectorReq {
 pub struct AuthVectorRes {
     pub user_id: Id,
     pub seqnum: i64,
-    pub xres_star_hash: HresStar,
+    pub xres_star_hash: ResStarHash,
     pub autn: Autn,
     pub rand: Rand,
 }

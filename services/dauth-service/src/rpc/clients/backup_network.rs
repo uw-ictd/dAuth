@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use auth_vector::types::{HresStar, ResStar};
+use auth_vector::types::{ResStarHash, ResStar};
 use tonic::transport::Channel;
 
 use crate::data::context::DauthContext;
@@ -78,7 +78,7 @@ pub async fn enroll_backup_commit(
     backup_network_id: &str,
     user_id: &str,
     vectors: &Vec<AuthVectorRes>,
-    key_shares: &Vec<(HresStar, keys::KseafShare)>,
+    key_shares: &Vec<(ResStarHash, keys::KseafShare)>,
     address: &str,
 ) -> Result<(), DauthError> {
     let mut client = get_client(context.clone(), address).await?;
@@ -169,7 +169,7 @@ pub async fn get_auth_vector(
 /// Get a key share from one of a user's backup networks.
 pub async fn get_key_share(
     context: Arc<DauthContext>,
-    xres_star_hash: HresStar,
+    xres_star_hash: ResStarHash,
     res_star: ResStar,
     address: String,
 ) -> Result<keys::KseafShare, DauthError> {
@@ -259,7 +259,7 @@ pub async fn withdraw_backup(
 /// Withdraws all matching shares from a backup network.
 pub async fn withdraw_shares(
     context: Arc<DauthContext>,
-    xres_star_hashs: Vec<HresStar>,
+    xres_star_hashs: Vec<ResStarHash>,
     address: &str,
 ) -> Result<(), DauthError> {
     let mut client = get_client(context.clone(), address).await?;

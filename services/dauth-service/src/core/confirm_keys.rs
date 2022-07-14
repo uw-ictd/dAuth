@@ -3,7 +3,7 @@ use tracing::*;
 
 use auth_vector::{
     self,
-    types::{HresStar, ResStar},
+    types::{ResStarHash, ResStar},
 };
 
 use crate::data::{context::DauthContext, error::DauthError, keys, state::AuthSource};
@@ -113,7 +113,7 @@ pub async fn confirm_authentication(
 
 async fn key_share_from_network_id(
     context: Arc<DauthContext>,
-    xres_star_hash: HresStar,
+    xres_star_hash: ResStarHash,
     res_star: ResStar,
     backup_network_id: String,
 ) -> Result<keys::KseafShare, DauthError> {
@@ -152,7 +152,7 @@ pub async fn get_confirm_key(
 pub async fn store_key_shares(
     context: Arc<DauthContext>,
     user_id: &str,
-    key_shares: Vec<(auth_vector::types::HresStar, keys::KseafShare)>,
+    key_shares: Vec<(auth_vector::types::ResStarHash, keys::KseafShare)>,
 ) -> Result<(), DauthError> {
     tracing::info!("Handling multiple key store: {:?}", key_shares);
 
@@ -175,8 +175,8 @@ pub async fn store_key_shares(
 /// Adds the new key share.
 pub async fn replace_key_share(
     context: Arc<DauthContext>,
-    old_xres_star_hash: &auth_vector::types::HresStar,
-    new_xres_star_hash: &auth_vector::types::HresStar,
+    old_xres_star_hash: &auth_vector::types::ResStarHash,
+    new_xres_star_hash: &auth_vector::types::ResStarHash,
     new_key_share: &keys::KseafShare,
 ) -> Result<(), DauthError> {
     tracing::info!(
@@ -205,7 +205,7 @@ pub async fn replace_key_share(
 /// Returns a key share value corresponding to the xres* hash.
 pub async fn get_key_share(
     context: Arc<DauthContext>,
-    xres_star_hash: &auth_vector::types::HresStar,
+    xres_star_hash: &auth_vector::types::ResStarHash,
     signed_request_bytes: &Vec<u8>,
 ) -> Result<keys::KseafShare, DauthError> {
     tracing::info!("Handling key share get: {:?}", xres_star_hash,);
@@ -239,7 +239,7 @@ pub async fn get_key_share(
 /// On failure, removes none.
 pub async fn remove_key_shares(
     context: Arc<DauthContext>,
-    xres_star_hashs: Vec<&auth_vector::types::HresStar>,
+    xres_star_hashs: Vec<&auth_vector::types::ResStarHash>,
 ) -> Result<(), DauthError> {
     tracing::info!("Handling key shares remove: {:?}", xres_star_hashs,);
 
@@ -256,7 +256,7 @@ pub async fn remove_key_shares(
 pub async fn key_share_used(
     context: Arc<DauthContext>,
     res_star: &ResStar,
-    xres_star_hash: &HresStar,
+    xres_star_hash: &ResStarHash,
     backup_network_id: &str,
 ) -> Result<(), DauthError> {
     tracing::info!("Key share reported used by {}", backup_network_id);
@@ -289,7 +289,7 @@ pub async fn key_share_used(
 
 /// Confirms res* is a valid preimage of xres* hash.
 fn validate_xres_star_hash(
-    xres_star_hash: &auth_vector::types::HresStar,
+    xres_star_hash: &auth_vector::types::ResStarHash,
     res_star: &auth_vector::types::ResStar,
     rand: &auth_vector::types::Rand,
 ) -> Result<(), DauthError> {
