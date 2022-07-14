@@ -7,4 +7,7 @@ pub struct AuthVectorData {
     pub autn: types::Autn,
     pub rand: types::Rand,
     pub kseaf: types::Kseaf,
+    pub kasme: types::Kasme,
+    pub xres_hash: types::XresHash,
+    pub xres: types::Xres,
 }

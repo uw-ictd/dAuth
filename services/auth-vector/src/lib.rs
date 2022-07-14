@@ -34,6 +34,7 @@ fn generate_vector_with_rand(
         .unwrap();
 
     let xres_star_hash = gen_xres_star_hash(rand, &xres_star);
+    let xres_hash = gen_xres_hash(rand, &xres);
 
     let sqn_xor_ak: types::Sqn = sqn
         .as_bytes()
@@ -49,6 +50,7 @@ fn generate_vector_with_rand(
     let autn = build_autn(&sqn_xor_ak, &mac);
 
     let kseaf = gen_kseaf(&gen_kausf(&ck, &ik, &autn));
+    let kasme = types::Kasme::derive(&ck, &ik, &autn);
 
     AuthVectorData {
         xres_star_hash,
@@ -56,6 +58,9 @@ fn generate_vector_with_rand(
         autn,
         rand: rand.to_owned(),
         kseaf,
+        kasme,
+        xres_hash,
+        xres,
     }
 }
 
@@ -114,6 +119,19 @@ fn gen_kseaf(kausf: &types::Kausf) -> types::Kseaf {
 }
 
 pub fn gen_xres_star_hash(rand: &types::Rand, xres_star: &types::ResStar) -> types::HresStar {
+    let mut data = Vec::new();
+    data.extend(rand.as_array());
+    data.extend(xres_star);
+
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+
+    hasher.finalize()[16..32]
+        .try_into()
+        .expect("All data should have correct size")
+}
+
+pub fn gen_xres_hash(rand: &types::Rand, xres_star: &types::Xres) -> types::XresHash {
     let mut data = Vec::new();
     data.extend(rand.as_array());
     data.extend(xres_star);
