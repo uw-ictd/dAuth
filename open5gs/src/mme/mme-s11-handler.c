@@ -1065,7 +1065,7 @@ void mme_s11_handle_delete_bearer_request(
      * OLD bearer->xact memory will be automatically removed.
      */
     bearer->current.xact = xact;
-    bearer->delete.xact = xact;
+    bearer->delete_xact.xact = xact;
 
     if (ECM_IDLE(mme_ue)) {
         ogs_assert(OGS_OK == s1ap_send_paging(mme_ue, S1AP_CNDomain_ps));
