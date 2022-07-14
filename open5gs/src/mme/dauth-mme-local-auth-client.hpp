@@ -24,6 +24,7 @@
 #include "grpcpp/impl/codegen/completion_queue.h"
 #include "ogs-app.h"
 #include "ogs-crypt.h"
+#include "ogs-nas-eps.h"
 
 #include "mme-event.h"
 
@@ -83,9 +84,8 @@ public:
 
     bool
     request_auth_vector(
-        mme_ue_t * const mme_ue
-        // const OpenAPI_authentication_info_t * const authentication_info,
-        // ogs_sbi_stream_t *stream
+        mme_ue_t * const mme_ue,
+        const ogs_nas_authentication_failure_parameter_t * const resync_info
     );
 
     bool

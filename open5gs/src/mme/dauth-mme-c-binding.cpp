@@ -83,6 +83,14 @@ bool
 mme_dauth_shim_request_auth_vector(
     mme_ue_t * const mme_ue
 ) {
+    return mme_dauth_shim_request_auth_vector_resync(mme_ue, NULL);
+}
+
+bool
+mme_dauth_shim_request_auth_vector_resync(
+    mme_ue_t * const mme_ue,
+    const ogs_nas_authentication_failure_parameter_t * const resync_info
+) {
     ogs_error("Received dauth client request auth vector when currently unimplemented");
 
     // Allocate a new client for this UE if one does not exist already.
@@ -109,7 +117,7 @@ mme_dauth_shim_request_auth_vector(
 
     dauth_mme::local_auth_client& client = access_dauth_local_auth_client_context(mme_ue->dauth_context);
 
-    return client.request_auth_vector(mme_ue);
+    return client.request_auth_vector(mme_ue, resync_info);
 }
 
 bool

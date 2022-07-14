@@ -22,6 +22,7 @@
 
 #include "ogs-app.h"
 #include "ogs-crypt.h"
+#include "ogs-nas-eps.h"
 
 #include "mme-event.h"
 
@@ -55,7 +56,12 @@ grpc_client_shutdown(void);
 bool
 mme_dauth_shim_request_auth_vector(
     mme_ue_t * const mme_ue
-    //const OpenAPI_authentication_info_t * const authentication_info,
+    );
+
+bool
+mme_dauth_shim_request_auth_vector_resync(
+    mme_ue_t * const mme_ue,
+    const ogs_nas_authentication_failure_parameter_t * const resync_info
     );
 
 bool

@@ -726,8 +726,7 @@ void emm_state_authentication(ogs_fsm_t *s, mme_event_t *e)
                 break;
             case EMM_CAUSE_SYNCH_FAILURE:
                 ogs_info("Authentication failure(Synch failure)");
-                ogs_assert(mme_dauth_shim_request_auth_vector(mme_ue));
-                //TODO(matt9j) Handle resynch parameter
+                ogs_assert(mme_dauth_shim_request_auth_vector_resync(mme_ue, authentication_failure_parameter));
                 // mme_s6a_send_air(mme_ue,
                 //         authentication_failure_parameter);
                 return;

@@ -81,7 +81,7 @@ dauth_local_auth_client::request_auth_vector(
     if(authentication_info->resynchronization_info) {
         ogs_debug("[%s] Filling d_auth::AKAResyncInfo request", supi);
         resync_info_.set_auts(authentication_info->resynchronization_info->auts);
-        resync_info_.set_auts(authentication_info->resynchronization_info->rand);
+        resync_info_.set_rand(authentication_info->resynchronization_info->rand);
         auth_vector_req_.set_allocated_resync_info(&resync_info_);
     }
 

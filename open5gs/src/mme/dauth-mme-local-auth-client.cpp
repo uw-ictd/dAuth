@@ -51,13 +51,15 @@ bounded_strlen(const char * const str, size_t max_length) {
 
 bool
 dauth_mme::local_auth_client::request_auth_vector(
-    mme_ue_t * const mme_ue
+    mme_ue_t * const mme_ue,
+    const ogs_nas_authentication_failure_parameter_t * const resync_info
 ) {
     if (state_ != client_state::INIT) {
         ogs_error("Bad local client state [%d]", state_);
     }
     ogs_assert(state_ == client_state::INIT);
 
+    // Construct an imsi-type SUPI from the UE's information.
     ogs_assert(mme_ue->imsi_bcd);
     std::string supi = "imsi-";
     supi.append(mme_ue->imsi_bcd);
@@ -67,13 +69,11 @@ dauth_mme::local_auth_client::request_auth_vector(
     auth_vector_req_.set_user_id(supi);
     auth_vector_req_.set_user_id_type(::d_auth::UserIdKind::SUPI);
 
-    // TODO(matt9j) Add a resync hook
-    // if(authentication_info->resynchronization_info) {
-    //     ogs_debug("[%s] Filling d_auth::AKAResyncInfo request", supi);
-    //     resync_info_.set_auts(authentication_info->resynchronization_info->auts);
-    //     resync_info_.set_auts(authentication_info->resynchronization_info->rand);
-    //     auth_vector_req_.set_allocated_resync_info(&resync_info_);
-    // }
+    if(resync_info) {
+        ogs_debug("[%s] Filling d_auth::AKAResyncInfo request", supi.c_str());
+        resync_info_.set_auts(resync_info->auts, resync_info->length);
+        auth_vector_req_.set_allocated_resync_info(&resync_info_);
+    }
 
     ogs_debug("[%s] Sending LocalAuthentication.GetAuthVector request", supi.c_str());
     grpc_context_ = std::make_unique<grpc::ClientContext>();
