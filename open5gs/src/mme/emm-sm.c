@@ -195,7 +195,8 @@ static void common_register_state(ogs_fsm_t *s, mme_event_t *e)
                 mme_gtp_send_delete_all_sessions(mme_ue,
                         OGS_GTP_DELETE_SEND_AUTHENTICATION_REQUEST);
             } else {
-                mme_s6a_send_air(mme_ue, NULL);
+                ogs_assert(mme_dauth_shim_request_auth_vector(mme_ue));
+                // mme_s6a_send_air(mme_ue, NULL);
             }
             OGS_FSM_TRAN(s, &emm_state_authentication);
             break;
@@ -286,7 +287,8 @@ static void common_register_state(ogs_fsm_t *s, mme_event_t *e)
             }
 
             if (!h.integrity_protected || !SECURITY_CONTEXT_IS_VALID(mme_ue)) {
-                mme_s6a_send_air(mme_ue, NULL);
+                ogs_assert(mme_dauth_shim_request_auth_vector(mme_ue));
+                // mme_s6a_send_air(mme_ue, NULL);
                 OGS_FSM_TRAN(&mme_ue->sm, &emm_state_authentication);
                 break;
             }
@@ -724,8 +726,10 @@ void emm_state_authentication(ogs_fsm_t *s, mme_event_t *e)
                 break;
             case EMM_CAUSE_SYNCH_FAILURE:
                 ogs_info("Authentication failure(Synch failure)");
-                mme_s6a_send_air(mme_ue,
-                        authentication_failure_parameter);
+                ogs_assert(mme_dauth_shim_request_auth_vector(mme_ue));
+                //TODO(matt9j) Handle resynch parameter
+                // mme_s6a_send_air(mme_ue,
+                //         authentication_failure_parameter);
                 return;
             default:
                 ogs_error("Unknown EMM_CAUSE{%d] in Authentication"
@@ -749,8 +753,8 @@ void emm_state_authentication(ogs_fsm_t *s, mme_event_t *e)
                 OGS_FSM_TRAN(s, emm_state_exception);
                 break;
             }
-
-            mme_s6a_send_air(mme_ue, NULL);
+            ogs_assert(mme_dauth_shim_request_auth_vector(mme_ue));
+            // mme_s6a_send_air(mme_ue, NULL);
             OGS_FSM_TRAN(s, &emm_state_authentication);
             break;
         case OGS_NAS_EPS_EMM_STATUS:
@@ -914,8 +918,8 @@ void emm_state_security_mode(ogs_fsm_t *s, mme_event_t *e)
                 OGS_FSM_TRAN(s, emm_state_exception);
                 break;
             }
-
-            mme_s6a_send_air(mme_ue, NULL);
+            ogs_assert(mme_dauth_shim_request_auth_vector(mme_ue));
+            // mme_s6a_send_air(mme_ue, NULL);
             OGS_FSM_TRAN(s, &emm_state_authentication);
             break;
         case OGS_NAS_EPS_TRACKING_AREA_UPDATE_REQUEST:
@@ -1259,7 +1263,8 @@ void emm_state_exception(ogs_fsm_t *s, mme_event_t *e)
                     mme_gtp_send_delete_all_sessions(mme_ue,
                         OGS_GTP_DELETE_SEND_AUTHENTICATION_REQUEST);
                 } else {
-                    mme_s6a_send_air(mme_ue, NULL);
+                    ogs_assert(mme_dauth_shim_request_auth_vector(mme_ue));
+                    // mme_s6a_send_air(mme_ue, NULL);
                 }
                 OGS_FSM_TRAN(s, &emm_state_authentication);
             }
