@@ -70,6 +70,8 @@ mme_dauth_shim_request_confirm_auth(
     const uint8_t * const res_star
     );
 
+void mme_dauth_shim_compute_res_hash(uint8_t *rand, uint8_t *res, uint8_t res_len, uint8_t *res_hash);
+
 #ifdef __cplusplus
 }
 #endif

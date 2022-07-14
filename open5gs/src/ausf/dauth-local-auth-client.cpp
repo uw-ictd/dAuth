@@ -328,6 +328,7 @@ dauth_local_auth_client::handle_request_confirm_auth_res(
     //     ausf_ue->auth_result = OpenAPI_auth_result_AUTHENTICATION_FAILURE;
 
     // Store the supplied kseaf in the local ue context
+    ogs_assert(confirm_auth_resp_.has_kseaf());
     ogs_assert(confirm_auth_resp_.kseaf().length() == 32);
     memcpy(ausf_ue->kseaf, confirm_auth_resp_.kseaf().c_str(), confirm_auth_resp_.kseaf().length());
     ausf_ue->auth_result = OpenAPI_auth_result_AUTHENTICATION_SUCCESS;

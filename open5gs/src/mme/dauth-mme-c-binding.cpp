@@ -29,6 +29,7 @@
 #include "dauth-mme-c-binding.h"
 #include "dauth-mme-context-util.hpp"
 #include "dauth-mme-local-auth-client.hpp"
+#include "ogs-crypt.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -133,6 +134,30 @@ mme_dauth_shim_request_confirm_auth(
     dauth_mme::local_auth_client& client = access_dauth_local_auth_client_context(mme_ue->dauth_context);
 
     return client.request_confirm_auth(mme_ue, res);
+}
+
+// Compute res_hash from res
+void mme_dauth_shim_compute_res_hash(uint8_t *rand, uint8_t *res, uint8_t res_len, uint8_t *res_hash)
+{
+    ogs_assert(rand);
+    ogs_assert(res);
+    ogs_assert(res_hash);
+    ogs_assert(res_len <= OGS_MAX_RES_LEN);
+    ogs_assert(OGS_SHA256_DIGEST_SIZE >= DAUTH_XRES_HASH_SIZE);
+
+    uint8_t message[OGS_RAND_LEN + OGS_MAX_RES_LEN];
+    uint8_t output[OGS_SHA256_DIGEST_SIZE];
+
+    // Since res is variable length, be sure to consistently init the entire
+    // message buffer.
+    memset(message, 0, OGS_RAND_LEN + OGS_MAX_RES_LEN);
+    memcpy(message, rand, OGS_RAND_LEN);
+    memcpy(message+OGS_RAND_LEN, res, res_len);
+
+    ogs_sha256(message, OGS_RAND_LEN+OGS_MAX_RES_LEN, output);
+
+    // Use the least significant bits of the result.
+    memcpy(res_hash, output+(OGS_SHA256_DIGEST_SIZE - DAUTH_XRES_HASH_SIZE), OGS_SHA256_DIGEST_SIZE);
 }
 
 #ifdef __cplusplus

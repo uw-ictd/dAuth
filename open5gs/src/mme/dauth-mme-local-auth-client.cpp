@@ -34,6 +34,7 @@
 #include "mme-context.h"
 #include "dauth-mme-context-util.hpp"
 #include "dauth-mme-c-binding.h"
+#include "ogs-crypt.h"
 
 
 using namespace dauth_local;
@@ -121,15 +122,13 @@ dauth_mme::local_auth_client::handle_request_auth_vector_res(
 
     // Debug sanity checks on size.
     ogs_assert(auth_vector_resp_.auth_vector().rand().length() == OGS_RAND_LEN);
-    ogs_assert(auth_vector_resp_.auth_vector().xres_star_hash().length() == OGS_MAX_RES_LEN);
+    ogs_assert(auth_vector_resp_.auth_vector().xres_hash().length() == DAUTH_XRES_HASH_SIZE);
     ogs_assert(auth_vector_resp_.auth_vector().autn().length() == OGS_AUTN_LEN);
 
     ogs_assert(mme_ue);
 
-    // TODO(matt9j) Need to fill with actual valid LTE values.
-    mme_ue->xres_len = auth_vector_resp_.auth_vector().xres_star_hash().length();
-    memcpy(mme_ue->xres, auth_vector_resp_.auth_vector().xres_star_hash().c_str(), mme_ue->xres_len);
-    // memcpy(mme_ue->kasme, e_utran_vector->kasme, OGS_SHA256_DIGEST_SIZE);
+    // Fill local UE state with data received from dauth daemon
+    memcpy(mme_ue->xres_hash, auth_vector_resp_.auth_vector().xres_hash().c_str(), DAUTH_XRES_HASH_SIZE);
     memcpy(mme_ue->rand, auth_vector_resp_.auth_vector().rand().c_str(), sizeof(mme_ue->rand));
     memcpy(mme_ue->autn, auth_vector_resp_.auth_vector().autn().c_str(), auth_vector_resp_.auth_vector().autn().length());
 
@@ -165,11 +164,8 @@ dauth_mme::local_auth_client::request_confirm_auth(
     std::string supi = "imsi-";
     supi.append(mme_ue->imsi_bcd);
 
-    //TODO(matt9j) Need actual values.
-    const uint8_t * const res_star = res;
-
-    if(!res_star) {
-        ogs_error("[%s] No res_star in confirm auth request", supi.c_str());
+    if(!res) {
+        ogs_error("[%s] No res in confirm auth request", supi.c_str());
         return false;
     }
 
@@ -177,7 +173,7 @@ dauth_mme::local_auth_client::request_confirm_auth(
     ogs_debug("[%s] Filling d_auth::AKAConfirmReq request", supi.c_str());
     confirm_auth_req_.set_user_id(supi);
     confirm_auth_req_.set_user_id_type(::d_auth::UserIdKind::SUPI);
-    confirm_auth_req_.set_res_star(res_star, OGS_MAX_RES_LEN);
+    confirm_auth_req_.set_res(res, OGS_MAX_RES_LEN);
 
     ogs_debug("[%s] Sending LocalAuthentication.ConfirmAuth request", supi.c_str());
     grpc_context_ = std::make_unique<grpc::ClientContext>();
@@ -214,63 +210,14 @@ dauth_mme::local_auth_client::handle_request_confirm_auth_res(
     }
     ogs_info("[%s] LocalAuthentication.ConfirmAuth RPC Success", mme_ue->imsi_bcd);
 
-    // TODO(matt9j) Update all stored ue key parameters... then...
+    ogs_assert(confirm_auth_resp_.has_kasme());
+    ogs_assert(confirm_auth_resp_.kasme().length() == OGS_SHA256_DIGEST_SIZE);
+    memcpy(mme_ue->kasme, confirm_auth_resp_.kasme().c_str(), confirm_auth_resp_.kasme().length());
+
+    // Update state before sending externally visible response.
+    state_ = client_state::DONE;
     OGS_FSM_TRAN(&mme_ue->sm, &emm_state_security_mode);
-
-    // TODO(matt9j) or if things fail...
-    // ogs_assert(OGS_OK ==
-    //             nas_eps_send_authentication_reject(mme_ue));
-    // OGS_FSM_TRAN(&mme_ue->sm, &emm_state_exception);
-
-
-    // TODO(matt9j) check if the res actually matches the hashed xres, and set
-    // the auth result accordingly.
-    // if (AuthEvent->success == true)
-    //     ausf_ue->auth_result = OpenAPI_auth_result_AUTHENTICATION_SUCCESS;
-    // else
-    //     ausf_ue->auth_result = OpenAPI_auth_result_AUTHENTICATION_FAILURE;
-
-    // Store the supplied kseaf in the local ue context
-
-    // ogs_assert(confirm_auth_resp_.kseaf().length() == 32);
-    // memcpy(mme_ue->kseaf, confirm_auth_resp_.kseaf().c_str(), confirm_auth_resp_.kseaf().length());
-    // mme_ue->auth_result = OpenAPI_auth_result_AUTHENTICATION_SUCCESS;
-
-    // ogs_sbi_message_t sendmsg;
-    // ogs_sbi_response_t *response = NULL;
-
-    // char kseaf_string[OGS_KEYSTRLEN(OGS_SHA256_DIGEST_SIZE)];
-
-    // OpenAPI_confirmation_data_response_t ConfirmationDataResponse;
-
-    // ogs_assert(mme_ue);
-    // ogs_assert(pending_stream_);
-
-    // memset(&ConfirmationDataResponse, 0, sizeof(ConfirmationDataResponse));
-
-    // ConfirmationDataResponse.auth_result = ausf_ue->auth_result;
-    // ConfirmationDataResponse.supi = ausf_ue->supi;
-
-    // // TODO(matt9j) Double check kseaf derivation on the rust side of the world.
-
-    // // ogs_kdf_kseaf(ausf_ue->serving_network_name,
-    // //         ausf_ue->kausf, ausf_ue->kseaf);
-    // ogs_hex_to_ascii(mme_ue->kseaf, sizeof(mme_ue->kseaf),
-    //         kseaf_string, sizeof(kseaf_string));
-    // ConfirmationDataResponse.kseaf = kseaf_string;
-
-    // memset(&sendmsg, 0, sizeof(sendmsg));
-
-    // sendmsg.ConfirmationDataResponse = &ConfirmationDataResponse;
-
-    // response = ogs_sbi_build_response(&sendmsg, OGS_SBI_HTTP_STATUS_OK);
-    // ogs_assert(response);
-
-    // // Update state before sending externally visible response.
-    // state_ = client_state::DONE;
-    // ogs_assert(true == ogs_sbi_server_send_response(pending_stream_, response));
-    // pending_stream_ = nullptr;
-    // state_ = client_state::INIT;
+    state_ = client_state::INIT;
 
     return true;
 }

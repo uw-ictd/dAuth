@@ -20,6 +20,7 @@
 #include "dauth-mme-c-binding.h"
 #include "mme-event.h"
 #include "mme-timer.h"
+#include "ogs-crypt.h"
 #include "s1ap-handler.h"
 #include "mme-fd-path.h"
 #include "emm-handler.h"
@@ -680,23 +681,46 @@ void emm_state_authentication(ogs_fsm_t *s, mme_event_t *e)
             ogs_debug("    IMSI[%s]", mme_ue->imsi_bcd);
 
             CLEAR_MME_UE_TIMER(mme_ue->t3460);
-            // TODO(matt9j) Received the Auth response here, need to get the key before transitioning to security mode state!
-            if (authentication_response_parameter->length == 0 ||
-                // TODO(matt9j) Validate these values are correct!
-                memcmp(authentication_response_parameter->res,
-                mme_ue->xres,
-                authentication_response_parameter->length) != 0) {
+
+            if (authentication_response_parameter->length == 0){
+                ogs_info("IMSI[%s] Received invalid auth response with no response parameter", mme_ue->imsi_bcd);
+
                 ogs_log_hexdump(OGS_LOG_WARN,
                         authentication_response_parameter->res,
                         authentication_response_parameter->length);
-                ogs_log_hexdump(OGS_LOG_WARN,
-                        mme_ue->xres, OGS_MAX_RES_LEN);
                 ogs_assert(OGS_OK ==
                     nas_eps_send_authentication_reject(mme_ue));
                 OGS_FSM_TRAN(&mme_ue->sm, &emm_state_exception);
             } else {
-                mme_dauth_shim_request_confirm_auth(mme_ue, authentication_response_parameter->res);
-                // OGS_FSM_TRAN(&mme_ue->sm, &emm_state_security_mode);
+                uint8_t res_hash[DAUTH_XRES_HASH_SIZE];
+                mme_dauth_shim_compute_res_hash(
+                    mme_ue->rand,
+                    authentication_response_parameter->res,
+                    authentication_response_parameter->length,
+                    res_hash);
+                if (memcmp(authentication_response_parameter->res,
+                        mme_ue->xres,
+                        authentication_response_parameter->length) != 0) {
+                    ogs_info("IMSI[%s] Received invalid auth response", mme_ue->imsi_bcd);
+
+                    ogs_log_hexdump(OGS_LOG_WARN,
+                            authentication_response_parameter->res,
+                            authentication_response_parameter->length);
+
+                    ogs_info("IMSI[%s] Received auth response hash is:", mme_ue->imsi_bcd);
+                    ogs_log_hexdump(OGS_LOG_WARN, res_hash, DAUTH_XRES_HASH_SIZE);
+                    ogs_info("IMSI[%s] Expected auth response hash is:", mme_ue->imsi_bcd);
+                    ogs_log_hexdump(OGS_LOG_WARN, mme_ue->xres_hash, DAUTH_XRES_HASH_SIZE);
+
+                    ogs_assert(OGS_OK ==
+                        nas_eps_send_authentication_reject(mme_ue));
+                    OGS_FSM_TRAN(&mme_ue->sm, &emm_state_exception);
+
+                } else {
+                    // Received a valid Auth response here, need to get the key before transitioning to security mode state!
+                    mme_dauth_shim_request_confirm_auth(mme_ue, authentication_response_parameter->res);
+                    // OGS_FSM_TRAN(&mme_ue->sm, &emm_state_security_mode);
+                }
             }
 
             break;

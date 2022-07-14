@@ -389,6 +389,7 @@ struct mme_ue_s {
         ue_additional_security_capability;
     uint8_t         xres[OGS_MAX_RES_LEN];
     uint8_t         xres_len;
+    uint8_t         xres_hash[DAUTH_XRES_HASH_SIZE];
     uint8_t         kasme[OGS_SHA256_DIGEST_SIZE];
     uint8_t         rand[OGS_RAND_LEN];
     uint8_t         autn[OGS_AUTN_LEN];
