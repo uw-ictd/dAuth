@@ -71,7 +71,6 @@ pub fn create_shares_from_kasme<T: rand_0_8::RngCore + std::fmt::Debug>(
     threshold_share_count: u8,
     rng: &mut T,
 ) -> Result<Vec<KasmeShare>, DauthError> {
-    tracing::info!("Thingin the do");
     if threshold_share_count > share_count {
         tracing::error!(
             share_count,
@@ -159,7 +158,6 @@ pub fn create_shares_from_kseaf<T: rand_0_8::RngCore + std::fmt::Debug>(
     threshold_share_count: u8,
     rng: &mut T,
 ) -> Result<Vec<KseafShare>, DauthError> {
-    tracing::info!("Thingin the do");
     if threshold_share_count > share_count {
         tracing::error!(
             share_count,
