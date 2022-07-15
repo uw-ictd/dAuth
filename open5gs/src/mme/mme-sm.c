@@ -17,7 +17,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "dauth-mme-c-binding.h"
 #include "mme-context.h"
+#include "mme-event.h"
 #include "mme-sm.h"
 #include "mme-timer.h"
 
@@ -740,6 +742,11 @@ void mme_state_operational(ogs_fsm_t *s, mme_event_t *e)
         ogs_assert(OGS_FSM_STATE(&vlr->sm));
 
         ogs_fsm_dispatch(&vlr->sm, e);
+        break;
+
+    case MME_EVT_RPC_COMPLETION:
+        ogs_assert(e->rpc_tag);
+        ogs_assert(handle_rpc_completion(e->rpc_tag));
         break;
 
     default:

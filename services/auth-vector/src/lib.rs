@@ -2,9 +2,6 @@ pub mod constants;
 pub mod data;
 pub mod types;
 
-use hmac::{Hmac, Mac};
-use sha2::{Digest, Sha256};
-
 use milenage::Milenage;
 use rand as r;
 
@@ -33,22 +30,15 @@ fn generate_vector_with_rand(
         .compute_res_star(constants::MCC, constants::MNC, &rand.as_array(), &xres)
         .unwrap();
 
-    let xres_star_hash = gen_xres_star_hash(rand, &xres_star);
+    let xres_star_hash = types::gen_xres_star_hash(rand, &xres_star);
+    let xres_hash = types::gen_xres_hash(rand, &xres);
 
-    let sqn_xor_ak: types::Sqn = sqn
-        .as_bytes()
-        .iter()
-        .zip(ak.iter())
-        .map(|(a, b)| a ^ b)
-        .collect::<Vec<u8>>()[..]
-        .try_into()
-        .expect("All data should have correct size");
 
-    let mac: types::Mac = m.f1(&rand.as_array(), &sqn.as_bytes(), &constants::AMF);
 
-    let autn = build_autn(&sqn_xor_ak, &mac);
+    let autn = types::build_autn(sqn, &ak, rand, &mut m);
 
-    let kseaf = gen_kseaf(&gen_kausf(&ck, &ik, &autn));
+    let kseaf = types::gen_kseaf(&types::gen_kausf(&ck, &ik, &autn));
+    let kasme = types::Kasme::derive(&ck, &ik, &autn);
 
     AuthVectorData {
         xres_star_hash,
@@ -56,75 +46,12 @@ fn generate_vector_with_rand(
         autn,
         rand: rand.to_owned(),
         kseaf,
+        kasme,
+        xres_hash,
+        xres,
     }
 }
 
-fn build_autn(sqn_xor_ak: &types::Sqn, mac: &types::Mac) -> types::Autn {
-    let mut autn: types::Autn = [0; constants::AUTN_LENGTH];
-
-    autn[..constants::SQN_LENGTH].copy_from_slice(sqn_xor_ak.as_bytes());
-    autn[constants::SQN_LENGTH..(constants::SQN_LENGTH + constants::AMF_LENGTH)]
-        .copy_from_slice(&constants::AMF[..]);
-    autn[(constants::SQN_LENGTH + constants::AMF_LENGTH)..].copy_from_slice(mac);
-
-    autn
-}
-
-fn gen_kausf(ck: &types::Ck, ik: &types::Ik, autn: &types::Autn) -> types::Kausf {
-    let mut key = Vec::new();
-    key.extend(ck);
-    key.extend(ik);
-
-    let mut data = vec![constants::FC_KAUSF];
-
-    data.extend(get_snn().as_bytes());
-    let snn_len = get_snn().as_bytes().len() as u16;
-    let snn_len = snn_len.to_be_bytes();
-    data.extend(snn_len);
-
-    let sqn_xor_ak = &autn[..6];
-    data.extend(sqn_xor_ak);
-    let autn_len = sqn_xor_ak.len() as u16;
-    let autn_len = autn_len.to_be_bytes();
-    data.extend(autn_len);
-
-    type HmacSha256 = Hmac<Sha256>;
-    let mut mac = HmacSha256::new_from_slice(&key).expect("HMAC can take key of any size");
-    mac.update(&data);
-
-    mac.finalize().into_bytes()[..constants::KAUSF_LENGTH]
-        .try_into()
-        .expect("All data should have correct size")
-}
-
-fn gen_kseaf(kausf: &types::Kausf) -> types::Kseaf {
-    let mut data = vec![constants::FC_KSEAF];
-    data.extend(get_snn().as_bytes());
-    let snn_len = get_snn().as_bytes().len() as u16;
-    let snn_len = snn_len.to_be_bytes();
-    data.extend(snn_len);
-
-    type HmacSha256 = Hmac<Sha256>;
-    let mut mac = HmacSha256::new_from_slice(kausf).expect("HMAC can take key of any size");
-    mac.update(&data);
-
-    mac.finalize().into_bytes()[..32]
-        .try_into()
-        .expect("All data should have correct size")
-}
-
-pub fn gen_xres_star_hash(rand: &types::Rand, xres_star: &types::ResStar) -> types::HresStar {
-    let mut data = Vec::new();
-    data.extend(rand.as_array());
-    data.extend(xres_star);
-
-    let mut hasher = Sha256::new();
-    hasher.update(data);
-
-    hasher.finalize()[16..32]
-        .try_into()
-        .expect("All data should have correct size")
-}
 
 fn get_snn() -> String {
     if constants::MNC.len() == 2 {

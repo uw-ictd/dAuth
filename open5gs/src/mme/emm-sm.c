@@ -17,8 +17,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "dauth-mme-c-binding.h"
 #include "mme-event.h"
 #include "mme-timer.h"
+#include "ogs-crypt.h"
 #include "s1ap-handler.h"
 #include "mme-fd-path.h"
 #include "emm-handler.h"
@@ -194,7 +196,8 @@ static void common_register_state(ogs_fsm_t *s, mme_event_t *e)
                 mme_gtp_send_delete_all_sessions(mme_ue,
                         OGS_GTP_DELETE_SEND_AUTHENTICATION_REQUEST);
             } else {
-                mme_s6a_send_air(mme_ue, NULL);
+                ogs_assert(mme_dauth_shim_request_auth_vector(mme_ue));
+                // mme_s6a_send_air(mme_ue, NULL);
             }
             OGS_FSM_TRAN(s, &emm_state_authentication);
             break;
@@ -239,7 +242,9 @@ static void common_register_state(ogs_fsm_t *s, mme_event_t *e)
                     mme_gtp_send_delete_all_sessions(mme_ue,
                         OGS_GTP_DELETE_SEND_AUTHENTICATION_REQUEST);
                 } else {
-                    mme_s6a_send_air(mme_ue, NULL);
+                    //TODO(matt9j) This is where the request out to the MME goes... can hook here for dauth.
+                    ogs_assert(mme_dauth_shim_request_auth_vector(mme_ue));
+                    // mme_s6a_send_air(mme_ue, NULL);
                 }
                 OGS_FSM_TRAN(s, &emm_state_authentication);
             }
@@ -283,7 +288,8 @@ static void common_register_state(ogs_fsm_t *s, mme_event_t *e)
             }
 
             if (!h.integrity_protected || !SECURITY_CONTEXT_IS_VALID(mme_ue)) {
-                mme_s6a_send_air(mme_ue, NULL);
+                ogs_assert(mme_dauth_shim_request_auth_vector(mme_ue));
+                // mme_s6a_send_air(mme_ue, NULL);
                 OGS_FSM_TRAN(&mme_ue->sm, &emm_state_authentication);
                 break;
             }
@@ -676,20 +682,45 @@ void emm_state_authentication(ogs_fsm_t *s, mme_event_t *e)
 
             CLEAR_MME_UE_TIMER(mme_ue->t3460);
 
-            if (authentication_response_parameter->length == 0 ||
-                memcmp(authentication_response_parameter->res,
-                mme_ue->xres,
-                authentication_response_parameter->length) != 0) {
+            if (authentication_response_parameter->length == 0){
+                ogs_info("IMSI[%s] Received invalid auth response with no response parameter", mme_ue->imsi_bcd);
+
                 ogs_log_hexdump(OGS_LOG_WARN,
                         authentication_response_parameter->res,
                         authentication_response_parameter->length);
-                ogs_log_hexdump(OGS_LOG_WARN,
-                        mme_ue->xres, OGS_MAX_RES_LEN);
                 ogs_assert(OGS_OK ==
                     nas_eps_send_authentication_reject(mme_ue));
                 OGS_FSM_TRAN(&mme_ue->sm, &emm_state_exception);
             } else {
-                OGS_FSM_TRAN(&mme_ue->sm, &emm_state_security_mode);
+                uint8_t res_hash[DAUTH_XRES_HASH_SIZE];
+                mme_dauth_shim_compute_res_hash(
+                    mme_ue->rand,
+                    authentication_response_parameter->res,
+                    authentication_response_parameter->length,
+                    res_hash);
+                if (memcmp(authentication_response_parameter->res,
+                        mme_ue->xres,
+                        authentication_response_parameter->length) != 0) {
+                    ogs_info("IMSI[%s] Received invalid auth response", mme_ue->imsi_bcd);
+
+                    ogs_log_hexdump(OGS_LOG_WARN,
+                            authentication_response_parameter->res,
+                            authentication_response_parameter->length);
+
+                    ogs_info("IMSI[%s] Received auth response hash is:", mme_ue->imsi_bcd);
+                    ogs_log_hexdump(OGS_LOG_WARN, res_hash, DAUTH_XRES_HASH_SIZE);
+                    ogs_info("IMSI[%s] Expected auth response hash is:", mme_ue->imsi_bcd);
+                    ogs_log_hexdump(OGS_LOG_WARN, mme_ue->xres_hash, DAUTH_XRES_HASH_SIZE);
+
+                    ogs_assert(OGS_OK ==
+                        nas_eps_send_authentication_reject(mme_ue));
+                    OGS_FSM_TRAN(&mme_ue->sm, &emm_state_exception);
+
+                } else {
+                    // Received a valid Auth response here, need to get the key before transitioning to security mode state!
+                    mme_dauth_shim_request_confirm_auth(mme_ue, authentication_response_parameter->res);
+                    // OGS_FSM_TRAN(&mme_ue->sm, &emm_state_security_mode);
+                }
             }
 
             break;
@@ -719,8 +750,9 @@ void emm_state_authentication(ogs_fsm_t *s, mme_event_t *e)
                 break;
             case EMM_CAUSE_SYNCH_FAILURE:
                 ogs_info("Authentication failure(Synch failure)");
-                mme_s6a_send_air(mme_ue,
-                        authentication_failure_parameter);
+                ogs_assert(mme_dauth_shim_request_auth_vector_resync(mme_ue, authentication_failure_parameter));
+                // mme_s6a_send_air(mme_ue,
+                //         authentication_failure_parameter);
                 return;
             default:
                 ogs_error("Unknown EMM_CAUSE{%d] in Authentication"
@@ -744,8 +776,8 @@ void emm_state_authentication(ogs_fsm_t *s, mme_event_t *e)
                 OGS_FSM_TRAN(s, emm_state_exception);
                 break;
             }
-
-            mme_s6a_send_air(mme_ue, NULL);
+            ogs_assert(mme_dauth_shim_request_auth_vector(mme_ue));
+            // mme_s6a_send_air(mme_ue, NULL);
             OGS_FSM_TRAN(s, &emm_state_authentication);
             break;
         case OGS_NAS_EPS_EMM_STATUS:
@@ -909,8 +941,8 @@ void emm_state_security_mode(ogs_fsm_t *s, mme_event_t *e)
                 OGS_FSM_TRAN(s, emm_state_exception);
                 break;
             }
-
-            mme_s6a_send_air(mme_ue, NULL);
+            ogs_assert(mme_dauth_shim_request_auth_vector(mme_ue));
+            // mme_s6a_send_air(mme_ue, NULL);
             OGS_FSM_TRAN(s, &emm_state_authentication);
             break;
         case OGS_NAS_EPS_TRACKING_AREA_UPDATE_REQUEST:
@@ -1254,7 +1286,8 @@ void emm_state_exception(ogs_fsm_t *s, mme_event_t *e)
                     mme_gtp_send_delete_all_sessions(mme_ue,
                         OGS_GTP_DELETE_SEND_AUTHENTICATION_REQUEST);
                 } else {
-                    mme_s6a_send_air(mme_ue, NULL);
+                    ogs_assert(mme_dauth_shim_request_auth_vector(mme_ue));
+                    // mme_s6a_send_air(mme_ue, NULL);
                 }
                 OGS_FSM_TRAN(s, &emm_state_authentication);
             }

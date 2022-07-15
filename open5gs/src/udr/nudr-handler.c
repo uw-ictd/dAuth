@@ -357,7 +357,8 @@ bool udr_nudr_dr_handle_subscription_provisioned(
         goto cleanup;
     }
 
-    rv = ogs_dbi_subscription_data(supi, &subscription_data);
+    rv = ogs_dbi_default_subscription_data(supi, &subscription_data);
+    // rv = ogs_dbi_subscription_data(supi, &subscription_data);
     if (rv != OGS_OK) {
         rv = ogs_dbi_default_subscription_data(supi, &subscription_data);
         if (rv != OGS_OK) {

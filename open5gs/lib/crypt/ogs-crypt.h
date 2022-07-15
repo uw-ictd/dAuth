@@ -52,6 +52,7 @@ extern "C" {
 #define OGS_AUTS_LEN                    14
 #define OGS_MAX_RES_LEN                 16
 #define OGS_MAC_S_LEN                   8
+#define DAUTH_XRES_HASH_SIZE                  16
 
 #define OGS_SQN_XOR_AK_LEN              6
 #define OGS_AK_LEN                      6

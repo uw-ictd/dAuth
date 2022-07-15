@@ -73,26 +73,33 @@ libmme_sources = files('''
     mme-sm.c
     mme-path.c 
     sbc-handler.c 
+
+    dauth-mme-c-binding.cpp
+    dauth-mme-server-context.cpp
+    dauth-mme-local-auth-client.cpp
 '''.split())
+
+libmme_sources += grpc_sources
+
+libmme_deps = [
+    libapp_dep,
+    libsctp_dep,
+    libs1ap_dep,
+    libnas_eps_dep,
+    libdiameter_s6a_dep,
+    libgtp_dep
+    ]
+
+libmme_deps += grpc_deps
 
 libmme = static_library('mme',
     sources : libmme_sources,
-    dependencies : [libapp_dep,
-                    libsctp_dep,
-                    libs1ap_dep,
-                    libnas_eps_dep,
-                    libdiameter_s6a_dep,
-                    libgtp_dep],
+    dependencies : libmme_deps,
     install : false)
 
 libmme_dep = declare_dependency(
     link_with : libmme,
-    dependencies : [libapp_dep,
-                    libsctp_dep,
-                    libs1ap_dep,
-                    libnas_eps_dep,
-                    libdiameter_s6a_dep,
-                    libgtp_dep])
+    dependencies : libmme_deps)
 
 mme_sources = files('''
     app-init.c

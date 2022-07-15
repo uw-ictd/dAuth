@@ -1,4 +1,4 @@
-use auth_vector::types::Kseaf;
+use auth_vector::types::{Kseaf,Kasme};
 use sqlx::sqlite::SqliteRow;
 use sqlx::Row;
 
@@ -10,6 +10,7 @@ use crate::data::vector::AuthVectorRes;
 pub trait DauthDataUtilities {
     fn to_auth_vector(&self) -> Result<AuthVectorRes, DauthError>;
     fn to_kseaf(&self) -> Result<Kseaf, DauthError>;
+    fn to_kasme(&self) -> Result<Kasme, DauthError>;
     fn to_key_share(&self) -> Result<keys::KseafShare, DauthError>;
     fn to_user_info(&self) -> Result<UserInfo, DauthError>;
     fn to_backup_user_home_network_id(&self) -> Result<String, DauthError>;
@@ -24,11 +25,16 @@ impl DauthDataUtilities for SqliteRow {
             xres_star_hash: self.try_get::<&[u8], &str>("xres_star_hash")?.try_into()?,
             autn: self.try_get::<&[u8], &str>("autn")?.try_into()?,
             rand: self.try_get::<&[u8], &str>("rand")?.try_into()?,
+            xres_hash: self.try_get::<&[u8], &str>("xres_hash")?.try_into()?,
         })
     }
 
     fn to_kseaf(&self) -> Result<Kseaf, DauthError> {
         Ok(self.try_get::<&[u8], &str>("kseaf_data")?.try_into()?)
+    }
+
+    fn to_kasme(&self) -> Result<Kasme, DauthError> {
+        Ok(self.try_get::<&[u8], &str>("kasme_data")?.try_into()?)
     }
 
     fn to_key_share(&self) -> Result<keys::KseafShare, DauthError> {

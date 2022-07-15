@@ -50,4 +50,7 @@ pub enum DauthError {
 
     #[error("Tonic status -- {0}")]
     StatusError(#[from] tonic::Status),
+
+    #[error("Received incorrect key type for 4G/5G context -- {0}")]
+    KeyTypeError(String),
 }

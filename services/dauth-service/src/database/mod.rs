@@ -5,6 +5,7 @@ pub mod flood_vectors;
 pub mod general;
 pub mod key_share_state;
 pub mod key_shares;
+pub mod kasmes;
 pub mod kseafs;
 pub mod tasks;
 pub mod user_infos;

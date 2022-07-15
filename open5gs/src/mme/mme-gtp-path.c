@@ -428,7 +428,7 @@ int mme_gtp_send_delete_bearer_response(
     ogs_assert(mme_ue);
     sgw_ue = mme_ue->sgw_ue;
     ogs_assert(sgw_ue);
-    xact = ogs_gtp_xact_cycle(bearer->delete.xact);
+    xact = ogs_gtp_xact_cycle(bearer->delete_xact.xact);
     ogs_assert(xact);
 
     memset(&h, 0, sizeof(ogs_gtp2_header_t));

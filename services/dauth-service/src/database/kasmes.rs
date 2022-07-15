@@ -3,12 +3,12 @@ use sqlx::{Sqlite, Transaction};
 
 use crate::data::error::DauthError;
 
-/// Creates the kseaf table if it does not exist already.
+/// Creates the kasme table if it does not exist already.
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
-        "CREATE TABLE IF NOT EXISTS kseaf_table (
-            kseaf_uuid BLOB PRIMARY KEY,
-            kseaf_data BLOB NOT NULL
+        "CREATE TABLE IF NOT EXISTS kasme_table (
+            kasme_uuid BLOB PRIMARY KEY,
+            kasme_data BLOB NOT NULL
         );",
     )
     .execute(pool)
@@ -18,14 +18,14 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 
 /* Queries */
 
-/// Inserts a kseaf with a given uuid and value.
+/// Inserts a kasme with a given uuid and value.
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     uuid: &[u8],
     value: &[u8],
 ) -> Result<(), DauthError> {
     sqlx::query(
-        "INSERT INTO kseaf_table
+        "INSERT INTO kasme_table
         VALUES ($1,$2)",
     )
     .bind(uuid)
@@ -36,28 +36,28 @@ pub async fn add(
     Ok(())
 }
 
-/// Returns a kseaf value if found.
+/// Returns a kasme value if found.
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     uuid: &[u8],
 ) -> Result<SqliteRow, DauthError> {
     Ok(sqlx::query(
-        "SELECT * FROM kseaf_table
-        WHERE kseaf_uuid=$1;",
+        "SELECT * FROM kasme_table
+        WHERE kasme_uuid=$1;",
     )
     .bind(uuid)
     .fetch_one(transaction)
     .await?)
 }
 
-/// Deletes a kseaf vaule if found.
+/// Deletes a kasme vaule if found.
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     uuid: &[u8],
 ) -> Result<(), DauthError> {
     sqlx::query(
-        "DELETE FROM kseaf_table
-        WHERE kseaf_uuid=$1",
+        "DELETE FROM kasme_table
+        WHERE kasme_uuid=$1",
     )
     .bind(uuid)
     .execute(transaction)
@@ -75,9 +75,9 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::{tempdir, TempDir};
 
-    use auth_vector::types::{KSEAF_LENGTH, XRES_STAR_LENGTH};
+    use auth_vector::types::{KASME_LENGTH, XRES_STAR_LENGTH};
 
-    use crate::database::{general, kseafs};
+    use crate::database::{general, kasmes};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -91,7 +91,7 @@ mod tests {
         println!("Building temporary db: {}", path);
 
         let pool = general::build_pool(&path).await.unwrap();
-        kseafs::init_table(&pool).await.unwrap();
+        kasmes::init_table(&pool).await.unwrap();
 
         (pool, dir)
     }
@@ -114,10 +114,10 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                kseafs::add(
+                kasmes::add(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
-                    &[section * num_rows + row; KSEAF_LENGTH],
+                    &[section * num_rows + row; KASME_LENGTH],
                 )
                 .await
                 .unwrap();
@@ -138,10 +138,10 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                kseafs::add(
+                kasmes::add(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
-                    &[section * num_rows + row; KSEAF_LENGTH],
+                    &[section * num_rows + row; KASME_LENGTH],
                 )
                 .await
                 .unwrap();
@@ -153,7 +153,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                let res = kseafs::get(
+                let res = kasmes::get(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
                 )
@@ -161,8 +161,8 @@ mod tests {
                 .unwrap();
 
                 assert_eq!(
-                    &[section * num_rows + row; KSEAF_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("kseaf_data")
+                    &[section * num_rows + row; KASME_LENGTH],
+                    res.get_unchecked::<&[u8], &str>("kasme_data")
                 );
             }
         }
@@ -181,10 +181,10 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                kseafs::add(
+                kasmes::add(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
-                    &[section * num_rows + row; KSEAF_LENGTH],
+                    &[section * num_rows + row; KASME_LENGTH],
                 )
                 .await
                 .unwrap();
@@ -196,7 +196,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                kseafs::remove(
+                kasmes::remove(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
                 )
@@ -211,7 +211,7 @@ mod tests {
         for section in 0..num_sections {
             for row in 0..num_rows {
                 // should have been deleted
-                assert!(kseafs::get(
+                assert!(kasmes::get(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
                 )
@@ -234,10 +234,10 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                kseafs::add(
+                kasmes::add(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
-                    &[section * num_rows + row; KSEAF_LENGTH],
+                    &[section * num_rows + row; KASME_LENGTH],
                 )
                 .await
                 .unwrap();
@@ -249,7 +249,7 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                let res = kseafs::get(
+                let res = kasmes::get(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
                 )
@@ -257,13 +257,13 @@ mod tests {
                 .unwrap();
 
                 assert_eq!(
-                    &[section * num_rows + row; KSEAF_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("kseaf_data")
+                    &[section * num_rows + row; KASME_LENGTH],
+                    res.get_unchecked::<&[u8], &str>("kasme_data")
                 );
 
-                kseafs::remove(
+                kasmes::remove(
                     &mut transaction,
-                    res.get_unchecked::<&[u8], &str>("kseaf_uuid"),
+                    res.get_unchecked::<&[u8], &str>("kasme_uuid"),
                 )
                 .await
                 .unwrap();
@@ -276,7 +276,7 @@ mod tests {
         for section in 0..num_sections {
             for row in 0..num_rows {
                 // should have been deleted
-                assert!(kseafs::get(
+                assert!(kasmes::get(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
                 )
@@ -294,18 +294,18 @@ mod tests {
         let (pool, _dir) = init().await;
         let mut transaction = pool.begin().await.unwrap();
 
-        kseafs::add(
+        kasmes::add(
             &mut transaction,
             &[0_u8; XRES_STAR_LENGTH],
-            &[1_u8; KSEAF_LENGTH],
+            &[1_u8; KASME_LENGTH],
         )
         .await
         .unwrap();
 
-        kseafs::add(
+        kasmes::add(
             &mut transaction,
             &[0_u8; XRES_STAR_LENGTH],
-            &[1_u8; KSEAF_LENGTH],
+            &[1_u8; KASME_LENGTH],
         )
         .await
         .unwrap();

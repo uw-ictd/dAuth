@@ -81,7 +81,7 @@ dauth_local_auth_client::request_auth_vector(
     if(authentication_info->resynchronization_info) {
         ogs_debug("[%s] Filling d_auth::AKAResyncInfo request", supi);
         resync_info_.set_auts(authentication_info->resynchronization_info->auts);
-        resync_info_.set_auts(authentication_info->resynchronization_info->rand);
+        resync_info_.set_rand(authentication_info->resynchronization_info->rand);
         auth_vector_req_.set_allocated_resync_info(&resync_info_);
     }
 
@@ -328,6 +328,7 @@ dauth_local_auth_client::handle_request_confirm_auth_res(
     //     ausf_ue->auth_result = OpenAPI_auth_result_AUTHENTICATION_FAILURE;
 
     // Store the supplied kseaf in the local ue context
+    ogs_assert(confirm_auth_resp_.has_kseaf());
     ogs_assert(confirm_auth_resp_.kseaf().length() == 32);
     memcpy(ausf_ue->kseaf, confirm_auth_resp_.kseaf().c_str(), confirm_auth_resp_.kseaf().length());
     ausf_ue->auth_result = OpenAPI_auth_result_AUTHENTICATION_SUCCESS;
@@ -347,10 +348,6 @@ dauth_local_auth_client::handle_request_confirm_auth_res(
     ConfirmationDataResponse.auth_result = ausf_ue->auth_result;
     ConfirmationDataResponse.supi = ausf_ue->supi;
 
-    // TODO(matt9j) Double check kseaf derivation on the rust side of the world.
-
-    // ogs_kdf_kseaf(ausf_ue->serving_network_name,
-    //         ausf_ue->kausf, ausf_ue->kseaf);
     ogs_hex_to_ascii(ausf_ue->kseaf, sizeof(ausf_ue->kseaf),
             kseaf_string, sizeof(kseaf_string));
     ConfirmationDataResponse.kseaf = kseaf_string;

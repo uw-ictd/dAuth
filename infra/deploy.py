@@ -144,8 +144,13 @@ def deploy_open5gs_5gc_packages(open5gs_package_directory, host):
         "udm",
         "udr",
         "upf",
+        "sgwc",
+        "sgwu",
+        "hss",
+        "mme",
+        "pcrf",
     ]
-    version = "2.3.6"
+    version = "2.4.7"
     architecture = "amd64"
 
     # Explicitly include the common package, although it is not a core network component.

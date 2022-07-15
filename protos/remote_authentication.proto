@@ -47,9 +47,13 @@ message DelegatedConfirmationShare {
         // statistical index for selecting the correct confirmation share.
         // Collisions are possible but unlikely.
         bytes xres_star_hash = 1;
+        bytes xres_hash = 4;
 
         // A threshold share of the k_seaf needed to communicate with the UE.
-        bytes confirmation_share = 2;
+        bytes kseaf_confirmation_share = 2;
+
+        // A threshold share of the k_asme needed to communicate with the UE.
+        bytes kasme_confirmation_share = 3;
     }
     SignedMessage message = 1; // Signed by home network, not backup network
 }
@@ -117,11 +121,17 @@ message GetHomeConfirmKeyReq {
         string serving_network_id = 1;
 
         // The received res_star that is a valid preimage of hash_xres_star.
-        bytes res_star = 2;
+        oneof preimage {
+            bytes res_star = 2;
+            bytes res =4;
+        }
 
-        // The hash_xres_star corresponding to the key share this network is
-        // claiming.
-        bytes hash_xres_star = 3;
+        oneof hash {
+            // The hash_xres_star corresponding to the key share this network is
+            // claiming.
+            bytes xres_star_hash = 3;
+            bytes xres_hash = 5;
+        }
     }
 
     SignedMessage message = 1;
@@ -129,15 +139,19 @@ message GetHomeConfirmKeyReq {
 
 message GetHomeConfirmKeyResp {
     // The authentication key for the user's connection.
-    bytes kseaf = 1;
+    oneof key {
+        bytes kseaf = 1;
+        bytes kasme = 2;
+    }
 }
 
 message ReportHomeAuthConsumedReq {
     // The backup network that owned the auth vector.
     string backup_network_id = 1;
 
-    // The xres* hash that identifies the auth vector used.
-    bytes hash_xres_star = 2;
+    // The hash of xres_star corresponding to the key share this network is
+    // claiming.
+    bytes xres_star_hash = 2;
 
     // The signed auth request from the serving network that was given an auth
     // tuple.
@@ -293,11 +307,17 @@ message GetKeyShareReq {
         string serving_network_id = 1;
 
         // The received res_star that is a valid preimage of hash_xres_star.
-        bytes res_star = 2;
+        oneof preimage {
+            bytes res_star = 2;
+            bytes res =4;
+        }
 
-        // The hash_xres_star corresponding to the key share this network is
-        // claiming.
-        bytes hash_xres_star = 3;
+        oneof hash {
+            // The hash or xres or xres_star corresponding to the key share this
+            // network is claiming.
+            bytes xres_star_hash = 3;
+            bytes xres_hash = 5;
+        }
     }
 
     SignedMessage message = 1;

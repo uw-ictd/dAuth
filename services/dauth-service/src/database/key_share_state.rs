@@ -3,6 +3,7 @@ use sqlx::sqlite::SqlitePool;
 use sqlx::{FromRow, Row, Sqlite, Transaction};
 
 use crate::data::error::DauthError;
+use auth_vector::types::{XResHash, XResStarHash};
 
 #[derive(Debug,FromRow,Clone)]
 struct ShareStateRow {
@@ -33,6 +34,7 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS key_share_state_table (
             xres_star_hash BLOB NOT NULL,
+            xres_hash BLOB NOT NULL,
             backup_network_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
             rand BLOB NOT NULL,
@@ -41,6 +43,14 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     )
     .execute(pool)
     .await?;
+
+    sqlx::query(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_key_share_state_xres_hash
+        ON key_share_state_table (xres_hash, backup_network_id);",
+    )
+    .execute(pool)
+    .await?;
+
     Ok(())
 }
 
@@ -50,16 +60,18 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 /// Use xres* hash and the backup network id as the reference.
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
-    xres_star_hash: &[u8],
+    xres_star_hash: &XResStarHash,
+    xres_hash: &XResHash,
     backup_network_id: &str,
     user_id: &str,
     rand: &[u8],
 ) -> Result<(), DauthError> {
     sqlx::query(
         "INSERT INTO key_share_state_table
-        VALUES ($1,$2,$3,$4)",
+        VALUES ($1,$2,$3,$4,$5)",
     )
-    .bind(xres_star_hash)
+    .bind(xres_star_hash.as_slice())
+    .bind(xres_hash.as_slice())
     .bind(backup_network_id)
     .bind(user_id)
     .bind(rand)
@@ -70,16 +82,39 @@ pub async fn add(
 }
 
 /// Returns the user_id and rand for the key share.
-pub async fn get(
+pub async fn get_by_xres_star_hash(
     transaction: &mut Transaction<'_, Sqlite>,
-    xres_star_hash: &[u8],
+    xres_star_hash: &XResStarHash,
     backup_network_id: &str,
 ) -> Result<Option<ShareState>, DauthError> {
     let possible_row: Option<ShareStateRow> = sqlx::query_as(
         "SELECT * FROM key_share_state_table
         WHERE (xres_star_hash,backup_network_id)=($1,$2)",
     )
-    .bind(xres_star_hash)
+    .bind(xres_star_hash.as_slice())
+    .bind(backup_network_id)
+    .fetch_optional(transaction)
+    .await?;
+
+    match possible_row {
+        Some(row) => {
+            Ok(Some(row.try_into()?))
+        },
+        None => Ok(None),
+    }
+}
+
+/// Returns the user_id and rand for the key share.
+pub async fn get_by_xres_hash(
+    transaction: &mut Transaction<'_, Sqlite>,
+    xres_hash: &XResHash,
+    backup_network_id: &str,
+) -> Result<Option<ShareState>, DauthError> {
+    let possible_row: Option<ShareStateRow> = sqlx::query_as(
+        "SELECT * FROM key_share_state_table
+        WHERE (xres_hash,backup_network_id)=($1,$2)",
+    )
+    .bind(xres_hash.as_slice())
     .bind(backup_network_id)
     .fetch_optional(transaction)
     .await?;
@@ -118,7 +153,7 @@ pub async fn get_all(
 }
 
 /// Deletes a key share reference if found.
-pub async fn remove(
+pub async fn remove_by_xres_star_hash(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
     backup_network_id: &str,
@@ -135,11 +170,29 @@ pub async fn remove(
     Ok(())
 }
 
+pub async fn remove_by_xres_hash(
+    transaction: &mut Transaction<'_, Sqlite>,
+    xres_hash: &XResHash,
+    backup_network_id: &str,
+) -> Result<(), DauthError> {
+    sqlx::query(
+        "DELETE FROM key_share_state_table
+        WHERE (xres_hash,backup_network_id)=($1,$2)",
+    )
+    .bind(xres_hash.as_slice())
+    .bind(backup_network_id)
+    .execute(transaction)
+    .await?;
+
+    Ok(())
+}
+
+
 /* Testing */
 
 #[cfg(test)]
 mod tests {
-    use auth_vector::constants::RAND_LENGTH;
+    use auth_vector::types::RAND_LENGTH;
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
     use sqlx::SqlitePool;
@@ -178,7 +231,8 @@ mod tests {
         for row in 0..num_rows {
             key_share_state::add(
                 &mut transaction,
-                &[row as u8; 1],
+                &[row as u8; 16],
+                &[row as u8; 16],
                 &format!("test_backup_network_{}", row),
                 "test_user_id",
                 &[0u8; RAND_LENGTH],
@@ -198,7 +252,8 @@ mod tests {
         for row in 0..num_rows {
             key_share_state::add(
                 &mut transaction,
-                &[row as u8; 1],
+                &[row as u8; 16],
+                &[row as u8; 16],
                 &format!("test_backup_network_{}", row),
                 "test_user_id",
                 &[0u8; RAND_LENGTH],
@@ -211,9 +266,9 @@ mod tests {
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
             assert_eq!(
-                key_share_state::get(
+                key_share_state::get_by_xres_star_hash(
                     &mut transaction,
-                    &[row as u8; 1],
+                    &[row as u8; 16],
                     &format!("test_backup_network_{}", row),
                 )
                 .await
@@ -234,7 +289,8 @@ mod tests {
         for row in 0..num_rows {
             key_share_state::add(
                 &mut transaction,
-                &[row as u8; 1],
+                &[row as u8; 16],
+                &[row as u8; 16],
                 &format!("test_backup_network_{}", row),
                 "test_user_id",
                 &[0u8; RAND_LENGTH],
@@ -247,9 +303,9 @@ mod tests {
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
             assert_eq!(
-                key_share_state::get(
+                key_share_state::get_by_xres_star_hash(
                     &mut transaction,
-                    &[row as u8; 1],
+                    &[row as u8; 16],
                     &format!("test_backup_network_{}", row),
                 )
                 .await
@@ -262,9 +318,9 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            key_share_state::remove(
+            key_share_state::remove_by_xres_star_hash(
                 &mut transaction,
-                &[row as u8; 1],
+                &[row as u8; 16],
                 &format!("test_backup_network_{}", row),
             )
             .await
@@ -274,13 +330,13 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            assert!(key_share_state::get(
+            assert!(key_share_state::get_by_xres_star_hash(
                 &mut transaction,
-                &[row as u8; 1],
+                &[row as u8; 16],
                 &format!("test_backup_network_{}", row),
             )
-            .await
-            .is_err());
+            .await.unwrap().is_none()
+            );
         }
         transaction.commit().await.unwrap();
     }

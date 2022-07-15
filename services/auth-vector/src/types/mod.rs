@@ -1,6 +1,22 @@
-use crate::constants;
+mod res;
+mod autn;
+mod keys_5g;
+mod keys_eps;
+
+pub use res::*;
+pub use autn::*;
+pub use keys_5g::*;
+pub use keys_eps::*;
 
 use thiserror::Error;
+
+pub const ID_LENGTH: usize = 7;
+pub const K_LENGTH: usize = 16;
+pub const OPC_LENGTH: usize = 16;
+pub const RAND_LENGTH: usize = 16;
+pub const CK_LENGTH: usize = 16;
+pub const IK_LENGTH: usize = 16;
+pub const SQN_LENGTH: usize = 6;
 
 /// General error type for dAuth service failures
 #[derive(Error, Debug)]
@@ -13,25 +29,19 @@ pub enum AuthVectorConversionError {
 }
 
 pub type Id = String;
-pub type K = [u8; constants::K_LENGTH];
-pub type Opc = [u8; constants::OPC_LENGTH];
-pub type Mac = [u8; constants::MAC_LENGTH];
-pub type ResStar = [u8; constants::RES_STAR_LENGTH];
-pub type Ck = [u8; constants::CK_LENGTH];
-pub type Ik = [u8; constants::IK_LENGTH];
-pub type Kausf = [u8; constants::KAUSF_LENGTH];
-pub type Kseaf = [u8; constants::KSEAF_LENGTH];
-
-pub type HresStar = [u8; constants::RES_STAR_HASH_LENGTH];
-pub type Autn = [u8; constants::AUTN_LENGTH];
+pub type K = [u8; K_LENGTH];
+pub type Opc = [u8; OPC_LENGTH];
+pub type Ck = [u8; CK_LENGTH];
+pub type Ik = [u8; IK_LENGTH];
+pub type Ak = [u8; 6];
 
 #[derive(Debug, Clone, Copy)]
 pub struct Sqn {
-    data: [u8; constants::SQN_LENGTH],
+    data: [u8; SQN_LENGTH],
 }
 
 impl Sqn {
-    pub fn as_bytes(&self) -> &[u8; constants::SQN_LENGTH] {
+    pub fn as_bytes(&self) -> &[u8; SQN_LENGTH] {
         &self.data
     }
 }
@@ -67,7 +77,7 @@ impl TryFrom<i64> for Sqn {
 impl TryFrom<&[u8]> for Sqn {
     type Error = AuthVectorConversionError;
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        if value.len() != constants::SQN_LENGTH {
+        if value.len() != SQN_LENGTH {
             return Err(AuthVectorConversionError::BoundsError());
         }
 
@@ -93,13 +103,13 @@ impl TryFrom<Vec<u8>> for Sqn {
 
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
 pub struct Rand {
-    data: [u8; constants::RAND_LENGTH],
+    data: [u8; RAND_LENGTH],
 }
 
 impl TryFrom<&[u8]> for Rand {
     type Error = AuthVectorConversionError;
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        if value.len() != constants::RAND_LENGTH {
+        if value.len() != RAND_LENGTH {
             return Err(AuthVectorConversionError::BoundsError());
         }
 
@@ -125,11 +135,11 @@ impl TryFrom<Vec<u8>> for Rand {
 
 impl Rand {
     pub fn new<T: rand::Rng>(r: &mut T) -> Self {
-        let data_array: [u8; constants::RAND_LENGTH] = r.gen();
+        let data_array: [u8; RAND_LENGTH] = r.gen();
         Rand { data: data_array }
     }
 
-    pub fn as_array(self) -> [u8; constants::RAND_LENGTH] {
+    pub fn as_array(self) -> [u8; RAND_LENGTH] {
         self.data.clone()
     }
 

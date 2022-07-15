@@ -17,6 +17,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <stdint.h>
+#include <sys/eventfd.h>
+#include <unistd.h>
+
+#include "dauth-mme-c-binding.h"
 #include "ogs-sctp.h"
 #include "ogs-gtp.h"
 
@@ -30,14 +35,34 @@
 #include "sgsap-path.h"
 #include "mme-gtp-path.h"
 
-static ogs_thread_t *thread;
+static int grpc_notify_fd;
+static ogs_thread_t *grpc_thread;
+static ogs_thread_t *event_thread;
 static void mme_main(void *data);
+static void mme_grpc_main(void *data);
 
 static int initialized = 0;
+
+/*
+Callback triggered when the grpc_notify_fd is triggered. Must occur before
+events are consumed from the queue to catch all signals from the grpc callback
+queue thread.
+*/
+static void notify_cb (short when, ogs_socket_t fd, void *data) {
+    int64_t grpc_event_counter;
+    ogs_debug("GRPC notify callback");
+    /* Reset the grpc event signal if needed. Do not check how many bytes
+    read, since the value does not actually matter */
+    ogs_assert(grpc_notify_fd);
+    read(grpc_notify_fd, &grpc_event_counter, sizeof(grpc_event_counter));
+}
 
 int mme_initialize()
 {
     int rv;
+
+    grpc_notify_fd = eventfd(0, EFD_NONBLOCK);
+    ogs_assert(grpc_notify_fd);
 
     ogs_gtp_context_init(OGS_MAX_NUM_OF_GTPU_RESOURCE);
     mme_context_init();
@@ -70,8 +95,13 @@ int mme_initialize()
     rv = s1ap_open();
     if (rv != OGS_OK) return OGS_ERROR;
 
-    thread = ogs_thread_create(mme_main, NULL);
-    if (!thread) return OGS_ERROR;
+    /* Ignoring return since the eventfd poll will never be cancelled or checked. */
+    ogs_pollset_add(ogs_app()->pollset, OGS_POLLIN, grpc_notify_fd, notify_cb, NULL);
+
+    event_thread = ogs_thread_create(mme_main, NULL);
+    if (!event_thread) return OGS_ERROR;
+    grpc_thread = ogs_thread_create(mme_grpc_main, NULL);
+    if (!grpc_thread) return OGS_ERROR;
 
     initialized = 1;
 
@@ -83,8 +113,10 @@ void mme_terminate(void)
     if (!initialized) return;
 
     mme_event_term();
+    grpc_client_shutdown();
 
-    ogs_thread_destroy(thread);
+    ogs_thread_destroy(grpc_thread);
+    ogs_thread_destroy(event_thread);
 
     mme_gtp_close();
     sgsap_close();
@@ -97,6 +129,11 @@ void mme_terminate(void)
     ogs_gtp_context_final();
 
     ogs_gtp_xact_final();
+
+    if (grpc_notify_fd) {
+        close(grpc_notify_fd);
+        grpc_notify_fd = 0;
+    }
 }
 
 static void mme_main(void *data)
@@ -145,4 +182,38 @@ done:
 
     ogs_fsm_fini(&mme_sm, 0);
     ogs_fsm_delete(&mme_sm);
+}
+
+static void mme_grpc_main(void *data)
+{
+    uint64_t event_ctr=1;
+
+    for ( ;; ) {
+        void* rpc_tag = NULL;
+        bool ok = wait_for_next_rpc_event(&rpc_tag);
+        if (!ok) {
+            ogs_error("wait_for_next_rpc_event not ok, shutting down");
+            break;
+        }
+        ogs_assert(rpc_tag);
+
+        mme_event_t *e = NULL;
+        int rv;
+
+        e = mme_event_new(MME_EVT_RPC_COMPLETION);
+        ogs_assert(e);
+
+        e->rpc_tag = rpc_tag;
+        rv = ogs_queue_push(ogs_app()->queue, e);
+
+        /* Write to the eventfd only after the event has been successfully
+        pushed to the queue to wake the consumer thread if necessary. */
+        ogs_assert(grpc_notify_fd);
+        ogs_assert(write(grpc_notify_fd, &event_ctr, sizeof(event_ctr)) == 8);
+
+        if (rv != OGS_OK) {
+            ogs_warn("ogs_queue_push() failed:%d", (int)rv);
+            mme_event_free(e);
+        }
+    }
 }

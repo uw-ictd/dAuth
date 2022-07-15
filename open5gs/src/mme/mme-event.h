@@ -52,6 +52,8 @@ typedef enum {
 
     MME_EVT_TOP,
 
+    MME_EVT_RPC_COMPLETION,
+
 } mme_event_e;
 
 typedef long S1AP_ProcedureCode_t;
@@ -98,6 +100,8 @@ typedef struct mme_event_s {
     mme_bearer_t *bearer;
 
     ogs_timer_t *timer;
+
+    void* rpc_tag;
 } mme_event_t;
 
 void mme_event_term(void);
