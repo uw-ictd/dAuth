@@ -1,0 +1,14 @@
+directory:
+  hostname: "100.69.151.75"
+  id: "uwbts3-directory"
+  is_vagrant: false
+
+ueransim:
+  hostname: "100.108.62.90"
+  id: "Boron-ueransim"
+  is_vagrant: false
+
+services:
+  - hostname: "100.69.151.75"
+    id: "uwbts3-service"
+    is_vagrant: false

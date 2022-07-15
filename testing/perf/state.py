@@ -99,11 +99,13 @@ class NetworkState:
         
         for service in self.services:
             service.stop_service()
+            service.run_command(" ".join(["sudo", "systemctl", "restart", "'open5gs-*'"]))
 
         self.directory.stop_service()
         self.directory.remove_db()
         self.directory.start_service()
         
+        # REMOVE FOR BASELINE
         for service in self.services:
             service.remove_db()
             service.remove_keys()
@@ -112,4 +114,4 @@ class NetworkState:
         # Not ideal, but UERANSIM seems to need this delay to work correctly.
         # Without it, immediately adding gNBs and UEs causes the first 
         # connection request to fail.
-        sleep(2)
+        # sleep(2)
