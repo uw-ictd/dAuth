@@ -281,7 +281,8 @@ int pcrf_db_qos_data(
     ogs_assert(supi);
 
     /* For EPC, we'll use [S_NSSAI = NULL] */
-    rv = ogs_dbi_session_data(supi, NULL, apn, session_data);
+    rv = ogs_dbi_session_default_data(supi, NULL, apn, session_data);
+    // rv = ogs_dbi_session_data(supi, NULL, apn, session_data);
 
     /* For EPC, we need to inialize Flow-Status in Pcc-Rule */
     for (i = 0; i < session_data->num_of_pcc_rule; i++) {
