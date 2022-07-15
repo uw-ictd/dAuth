@@ -88,7 +88,7 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::{tempdir, TempDir};
 
-    use auth_vector::constants::{K_LENGTH, OPC_LENGTH};
+    use auth_vector::types::{K_LENGTH, OPC_LENGTH};
 
     use crate::database::{general, user_infos};
 

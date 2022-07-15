@@ -3,6 +3,7 @@ use std::sync::Arc;
 use auth_vector::types::ResStar;
 
 use crate::core;
+use crate::data::combined_res::{ResKind, XResHashKind};
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
 use crate::data::signing::{self, SignPayloadType};
@@ -12,7 +13,8 @@ use crate::rpc::dauth::remote::home_network_server::HomeNetwork;
 use crate::rpc::dauth::remote::{
     DelegatedAuthVector5G, GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq,
     GetHomeConfirmKeyResp, ReportHomeAuthConsumedReq, ReportHomeAuthConsumedResp,
-    ReportHomeKeyShareConsumedReq, ReportHomeKeyShareConsumedResp,
+    ReportHomeKeyShareConsumedReq, ReportHomeKeyShareConsumedResp, get_home_confirm_key_req, get_home_confirm_key_resp,
+    get_key_share_req
 };
 use crate::rpc::utilities;
 
@@ -238,6 +240,7 @@ impl HomeNetworkHandler {
                     xres_star_hash: av_result.xres_star_hash.to_vec(),
                     autn: av_result.autn.to_vec(),
                     seqnum: av_result.seqnum,
+                    xres_hash: av_result.xres_hash.to_vec(),
                 }),
             };
 
@@ -262,12 +265,19 @@ impl HomeNetworkHandler {
         verify_result: SignPayloadType,
     ) -> Result<tonic::Response<GetHomeConfirmKeyResp>, DauthError> {
         if let SignPayloadType::GetHomeConfirmKeyReq(payload) = verify_result {
-            let res_star: ResStar = payload.res_star.as_slice().try_into()?;
-
-            let kseaf = core::confirm_keys::get_confirm_key(context, res_star).await?;
+            use get_home_confirm_key_req::payload::Preimage;
+            let key = match payload.preimage.ok_or(DauthError::InvalidMessageError("missing preimage".to_string()))? {
+                Preimage::ResStar(res_star) => {
+                    let kseaf = core::confirm_keys::get_confirm_key_res_star(context, res_star.as_slice().try_into()?).await?;
+                    get_home_confirm_key_resp::Key::Kseaf(kseaf.to_vec())
+                },
+                Preimage::Res(res) => {
+                    unimplemented!()
+                }
+            };
 
             Ok(tonic::Response::new(GetHomeConfirmKeyResp {
-                kseaf: kseaf.to_vec(),
+                key: Some(key),
             }))
         } else {
             Err(DauthError::InvalidMessageError(format!(
@@ -287,7 +297,7 @@ impl HomeNetworkHandler {
             let core_response = core::auth_vectors::backup_auth_vector_used(
                 context.clone(),
                 &content.backup_network_id,
-                content.hash_xres_star[..].try_into()?,
+                content.xres_star_hash[..].try_into()?,
             ).await?;
 
             match core_response {
@@ -323,10 +333,20 @@ impl HomeNetworkHandler {
     ) -> Result<tonic::Response<ReportHomeKeyShareConsumedResp>, DauthError> {
         // TODO: Check the payload further
         if let SignPayloadType::GetKeyShareReq(payload) = verify_result {
+            let hash = match payload.hash.ok_or(DauthError::InvalidMessageError("Missing hash".to_string()))? {
+                get_key_share_req::payload::Hash::XresHash(h) => XResHashKind::XResHash(h.as_slice().try_into()?),
+                get_key_share_req::payload::Hash::XresStarHash(h) => XResHashKind::XResStarHash(h.as_slice().try_into()?),
+            };
+
+            let preimage = match payload.preimage.ok_or(DauthError::InvalidMessageError("Missing preimage".to_string()))? {
+                get_key_share_req::payload::Preimage::Res(r) => ResKind::Res(r.as_slice().try_into()?),
+                get_key_share_req::payload::Preimage::ResStar(r) => ResKind::ResStar(r.as_slice().try_into()?),
+            };
+
             core::confirm_keys::key_share_used(
                 context,
-                &payload.res_star[..].try_into()?,
-                &payload.hash_xres_star[..].try_into()?,
+                &preimage,
+                &hash,
                 backup_network_id,
             )
             .await?;

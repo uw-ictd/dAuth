@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use auth_vector::types::{ResStarHash, Rand};
+use auth_vector::types::{XResStarHash, Rand};
 
 use crate::core;
 use crate::data::context::DauthContext;
@@ -101,21 +101,35 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             )
             .await?;
 
-            let (xres_star_hash, rand) = (vector.xres_star_hash.clone(), vector.rand.clone());
+            let (xres_star_hash, xres_hash, rand) = (vector.xres_star_hash.clone(), vector.xres_hash.clone(), vector.rand.clone());
             let mut rng = rand_0_8::thread_rng();
-            let mut shares: Vec<(ResStarHash, keys::KseafShare, Rand)> =
-                keys::create_shares_from_kseaf(
-                    &vector.kseaf,
+
+            let kseaf_shares = keys::create_shares_from_kseaf(
+                &vector.kseaf,
+                backup_network_ids.len() as u8,
+                std::cmp::min(
+                    context.backup_context.backup_key_threshold,
                     backup_network_ids.len() as u8,
-                    std::cmp::min(
-                        context.backup_context.backup_key_threshold,
-                        backup_network_ids.len() as u8,
-                    ),
-                    &mut rng,
-                )?
-                .into_iter()
-                .map(|key_share| (xres_star_hash, key_share, rand))
-                .collect();
+                ),
+                &mut rng,
+            )?;
+
+            let kasme_shares = keys::create_shares_from_kasme(
+                &vector.kasme, backup_network_ids.len() as u8, std::cmp::min(
+                    context.backup_context.backup_key_threshold,
+                    backup_network_ids.len() as u8,
+                ), &mut rng)?;
+
+            let mut shares: Vec<(keys::CombinedKeyShare, Rand)> = Vec::new();
+
+            for (kseaf_share, kasme_share) in std::iter::zip(kseaf_shares, kasme_shares) {
+                shares.push((keys::CombinedKeyShare {
+                    xres_star_hash: xres_star_hash,
+                    xres_hash: xres_hash,
+                    kasme_share: kasme_share,
+                    kseaf_share: kseaf_share,
+                }.to_owned(), rand));
+            }
 
             vectors_map
                 .get_mut(backup_network_id)
@@ -126,6 +140,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
                     rand: vector.rand,
                     autn: vector.autn,
                     xres_star_hash: vector.xres_star_hash,
+                    xres_hash: vector.xres_hash,
                 });
 
             for other_id in &backup_network_ids {
@@ -178,10 +193,11 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             )
             .await?;
         }
-        for (xres_star_hash, _, rand) in shares {
+        for (combined_share, rand) in shares {
             database::key_share_state::add(
                 &mut transaction,
-                xres_star_hash,
+                &combined_share.xres_star_hash,
+                &combined_share.xres_hash,
                 backup_network_id,
                 user_id,
                 &rand.as_array(),
@@ -191,9 +207,9 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
 
         // drop rand before sending
         // TODO: allow backups to have rand? Would allow them to check res
-        let key_shares = shares
+        let key_shares: Vec<keys::CombinedKeyShare> = shares
             .into_iter()
-            .map(|(xres_star_hash, kseaf, _rand)| (xres_star_hash.clone(), kseaf.to_owned()))
+            .map(|(combined_share, _rand)| (combined_share.to_owned()))
             .collect();
 
         backup_network::enroll_backup_commit(

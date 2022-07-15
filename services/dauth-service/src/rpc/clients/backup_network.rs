@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use auth_vector::types::{ResStarHash, ResStar};
+use auth_vector::types::{XResStarHash, ResStar,Res,XResHash};
 use tonic::transport::Channel;
 
 use crate::data::context::DauthContext;
@@ -78,7 +78,7 @@ pub async fn enroll_backup_commit(
     backup_network_id: &str,
     user_id: &str,
     vectors: &Vec<AuthVectorRes>,
-    key_shares: &Vec<(ResStarHash, keys::KseafShare)>,
+    key_shares: &Vec<keys::CombinedKeyShare>,
     address: &str,
 ) -> Result<(), DauthError> {
     let mut client = get_client(context.clone(), address).await?;
@@ -93,11 +93,10 @@ pub async fn enroll_backup_commit(
             backup_network_id,
         ))
     }
-    for (xres_star_hash, confirmation_share) in key_shares {
+    for share in key_shares {
         dshares.push(utilities::build_delegated_share(
             context.clone(),
-            xres_star_hash,
-            confirmation_share,
+            &share,
         ))
     }
 
@@ -157,6 +156,7 @@ pub async fn get_auth_vector(
             xres_star_hash: vector.xres_star_hash[..].try_into()?,
             autn: vector.autn[..].try_into()?,
             rand: vector.rand[..].try_into()?,
+            xres_hash: vector.xres_hash[..].try_into()?,
         })
     } else {
         Err(DauthError::ClientError(format!(
@@ -167,9 +167,9 @@ pub async fn get_auth_vector(
 }
 
 /// Get a key share from one of a user's backup networks.
-pub async fn get_key_share(
+pub async fn get_kseaf_key_share(
     context: Arc<DauthContext>,
-    xres_star_hash: ResStarHash,
+    xres_star_hash: XResStarHash,
     res_star: ResStar,
     address: String,
 ) -> Result<keys::KseafShare, DauthError> {
@@ -181,8 +181,8 @@ pub async fn get_key_share(
                 context.clone(),
                 SignPayloadType::GetKeyShareReq(get_key_share_req::Payload {
                     serving_network_id: context.local_context.id.clone(),
-                    res_star: res_star.to_vec(),
-                    hash_xres_star: xres_star_hash.to_vec(),
+                    preimage: Some(get_key_share_req::payload::Preimage::ResStar(res_star.to_vec())),
+                    hash: Some(get_key_share_req::payload::Hash::XresStarHash(xres_star_hash.to_vec())),
                 }),
             )),
         })
@@ -198,7 +198,48 @@ pub async fn get_key_share(
     if let SignPayloadType::DelegatedConfirmationShare(payload) =
         signing::verify_message(context.clone(), &message).await?
     {
-        Ok(payload.confirmation_share[..].try_into()?)
+        Ok(payload.kseaf_confirmation_share[..].try_into()?)
+    } else {
+        Err(DauthError::ClientError(format!(
+            "Incorrect message type received: {:?}",
+            message
+        )))
+    }
+}
+
+/// Get a kasme key share from one of a user's backup networks.
+pub async fn get_kasme_key_share(
+    context: Arc<DauthContext>,
+    xres_hash: XResHash,
+    res: Res,
+    address: String,
+) -> Result<keys::KasmeShare, DauthError> {
+    let mut client = get_client(context.clone(), &address).await?;
+
+    let response = client
+        .get_key_share(GetKeyShareReq {
+            message: Some(signing::sign_message(
+                context.clone(),
+                SignPayloadType::GetKeyShareReq(get_key_share_req::Payload {
+                    serving_network_id: context.local_context.id.clone(),
+                    preimage: Some(get_key_share_req::payload::Preimage::Res(res.to_vec())),
+                    hash: Some(get_key_share_req::payload::Hash::XresHash(xres_hash.to_vec())),
+                }),
+            )),
+        })
+        .await?
+        .into_inner();
+
+    let message = response
+        .share
+        .ok_or_else(|| DauthError::ClientError("Missing delegated key share".to_string()))?
+        .message
+        .ok_or_else(|| DauthError::ClientError("Missing delegated key share".to_string()))?;
+
+    if let SignPayloadType::DelegatedConfirmationShare(payload) =
+        signing::verify_message(context.clone(), &message).await?
+    {
+        Ok(payload.kasme_confirmation_share[..].try_into()?)
     } else {
         Err(DauthError::ClientError(format!(
             "Incorrect message type received: {:?}",
@@ -220,7 +261,6 @@ pub async fn replace_key_share(
         .replace_key_share(ReplaceShareReq {
             new_share: Some(utilities::build_delegated_share(
                 context,
-                &replace.xres_star_hash[..].try_into()?,
                 &replace.key_share,
             )),
             replaced_share_xres_star_hash: replace.old_xres_star_hash.clone(),
@@ -259,7 +299,7 @@ pub async fn withdraw_backup(
 /// Withdraws all matching shares from a backup network.
 pub async fn withdraw_shares(
     context: Arc<DauthContext>,
-    xres_star_hashs: Vec<ResStarHash>,
+    xres_star_hashs: Vec<XResStarHash>,
     address: &str,
 ) -> Result<(), DauthError> {
     let mut client = get_client(context.clone(), address).await?;

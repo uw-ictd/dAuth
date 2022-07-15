@@ -3,9 +3,11 @@ use std::sync::Arc;
 use auth_vector::types::Kseaf;
 
 use crate::core;
+use crate::data::combined_res::ResKind;
+use crate::data::keys::KeyKind;
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
-use crate::rpc::dauth::local::aka_confirm_resp;
+use crate::rpc::dauth::local::{aka_confirm_resp, aka_confirm_req};
 use crate::rpc::dauth::local::local_authentication_server::LocalAuthentication;
 use crate::rpc::dauth::local::{AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp};
 
@@ -76,10 +78,10 @@ impl LocalAuthentication for LocalAuthenticationHandler {
         let res = monitor
             .instrument(async move {
                 match self.confirm_auth_hlp(request.into_inner()).await {
-                    Ok(kseaf) => {
+                    Ok(key) => {
                         let response_payload = AkaConfirmResp {
                             error: aka_confirm_resp::ErrorKind::NoError as i32,
-                            kseaf: kseaf.to_vec(),
+                            key: Some(key),
                         };
 
                         tracing::info!("Returning result: {:?}", response_payload);
@@ -102,14 +104,18 @@ impl LocalAuthentication for LocalAuthenticationHandler {
 }
 
 impl LocalAuthenticationHandler {
-    async fn confirm_auth_hlp(&self, payload: AkaConfirmReq) -> Result<Kseaf, DauthError> {
+    async fn confirm_auth_hlp(&self, payload: AkaConfirmReq) -> Result<aka_confirm_resp::Key, DauthError> {
         let user_id = std::str::from_utf8(payload.user_id.as_slice())?.to_string();
 
-        let res_star: auth_vector::types::ResStar = payload.res_star[..].try_into()?;
+        let res = match payload.response.ok_or(DauthError::InvalidMessageError("Missing required UE response".to_string()))? {
+            aka_confirm_req::Response::Res(r) => ResKind::Res(r.try_into().or(Err(DauthError::DataError("brokenRes".to_string())))?),
+            aka_confirm_req::Response::ResStar(r) => ResKind::ResStar(r.try_into().or(Err(DauthError::DataError("brokenResStar".to_string())))?),
+        };
 
-        Ok(
-            core::confirm_keys::confirm_authentication(self.context.clone(), &user_id, res_star)
-                .await?,
-        )
+        let key = match core::confirm_keys::confirm_authentication(self.context.clone(), &user_id, res).await? {
+            KeyKind::Kasme(k) => aka_confirm_resp::Key::Kasme(k.to_vec()),
+            KeyKind::Kseaf(k) => aka_confirm_resp::Key::Kseaf(k.to_vec()),
+        };
+        Ok(key)
     }
 }

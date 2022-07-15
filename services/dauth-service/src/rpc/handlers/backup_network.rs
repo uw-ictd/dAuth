@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use prost::Message;
 
-use auth_vector::types::ResStarHash;
+use auth_vector::types::XResStarHash;
 
 use crate::core;
 use crate::data::context::DauthContext;
@@ -19,7 +19,7 @@ use crate::rpc::dauth::remote::{
     EnrollBackupCommitResp, EnrollBackupPrepareReq, EnrollBackupPrepareResp, FloodVectorReq,
     FloodVectorResp, GetBackupAuthVectorReq, GetBackupAuthVectorResp, GetKeyShareReq,
     GetKeyShareResp, ReplaceShareReq, ReplaceShareResp, WithdrawBackupReq, WithdrawBackupResp,
-    WithdrawSharesReq, WithdrawSharesResp,
+    WithdrawSharesReq, WithdrawSharesResp, get_key_share_req
 };
 use crate::rpc::utilities;
 
@@ -508,6 +508,7 @@ impl BackupNetworkHandler {
                     xres_star_hash: av_result.xres_star_hash.to_vec(),
                     autn: av_result.autn.to_vec(),
                     seqnum: av_result.seqnum,
+                    xres_hash: av_result.xres_hash.to_vec(),
                 }),
             };
 
@@ -536,17 +537,33 @@ impl BackupNetworkHandler {
             let mut signed_request_bytes = Vec::new();
             message.encode(&mut signed_request_bytes)?;
 
-            let key_share = core::confirm_keys::get_key_share(
-                context.clone(),
-                payload.hash_xres_star[..].try_into()?,
-                &signed_request_bytes,
-            )
-            .await?;
+            let request_hash = payload.hash.ok_or(DauthError::InvalidMessageError("Missing res(star) hash".to_string()))?;
+            let request_preimage = payload.preimage.ok_or(DauthError::InvalidMessageError("Missing res(star) hash".to_string()))?;
 
-            let payload = delegated_confirmation_share::Payload {
-                xres_star_hash: payload.hash_xres_star,
-                confirmation_share: Vec::from(key_share.as_slice()),
+            // TODO(matt9j) This was supposed to be the actual signed share from
+            // the host, not constructed on demand in the backup network's
+            // signing key as done below : /
+            let key_share = match request_hash {
+                get_key_share_req::payload::Hash::XresStarHash(xres_star_hash) => {
+                    core::confirm_keys::get_key_share(
+                        context.clone(),
+                        xres_star_hash[..].try_into()?,
+                        &signed_request_bytes,
+                    )
+                    .await?
+                },
+                get_key_share_req::payload::Hash::XresHash(xres_hash) => {
+                    unimplemented!()
+                }
             };
+
+            let payload =
+                delegated_confirmation_share::Payload {
+                    xres_star_hash: key_share.xres_star_hash.to_vec(),
+                    xres_hash: key_share.xres_hash.to_vec(),
+                    kseaf_confirmation_share: key_share.kseaf_share.to_vec(),
+                    kasme_confirmation_share: key_share.kasme_share.to_vec(),
+                };
 
             let dshare = DelegatedConfirmationShare {
                 message: Some(signing::sign_message(
@@ -574,15 +591,13 @@ impl BackupNetworkHandler {
             .new_share
             .ok_or(DauthError::DataError("No new share received".to_string()))?;
 
-        let old_xres_star_hash: ResStarHash = request.replaced_share_xres_star_hash[..].try_into()?;
+        let old_xres_star_hash: XResStarHash = request.replaced_share_xres_star_hash[..].try_into()?;
 
-        let (new_xres_star_hash, new_key_share) =
-            utilities::handle_key_share(context.clone(), dshare).await?;
+        let new_key_share = utilities::handle_key_share(context.clone(), dshare).await?;
 
         core::confirm_keys::replace_key_share(
             context,
             &old_xres_star_hash,
-            &new_xres_star_hash,
             &new_key_share,
         )
         .await?;

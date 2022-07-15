@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use auth_vector::types::{ResStarHash, Kseaf, ResStar};
+use auth_vector::types::{XResStarHash, Kseaf, ResStar, XResHash, Kasme, Res};
 use prost::Message;
 use tonic::transport::Channel;
 use tonic::transport::Endpoint;
@@ -13,7 +13,7 @@ use crate::data::vector::AuthVectorRes;
 use crate::rpc::dauth::common::UserIdKind;
 use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
 use crate::rpc::dauth::remote::{
-    get_home_auth_vector_req, get_home_confirm_key_req, ReportHomeAuthConsumedReq,
+    get_home_auth_vector_req, get_home_confirm_key_req, get_home_confirm_key_resp, ReportHomeAuthConsumedReq,
     ReportHomeKeyShareConsumedReq, SignedMessage,
 };
 use crate::rpc::dauth::remote::{GetHomeAuthVectorReq, GetHomeConfirmKeyReq};
@@ -71,10 +71,10 @@ pub async fn get_auth_vector(
 }
 
 /// Get the kseaf value at the end of an auth vector transaction.
-pub async fn get_confirm_key(
+pub async fn get_confirm_key_kseaf(
     context: Arc<DauthContext>,
     res_star: &ResStar,
-    xres_star_hash: &ResStarHash,
+    xres_star_hash: &XResStarHash,
     address: &str,
 ) -> Result<Kseaf, DauthError> {
     let mut client = get_client(context.clone(), address).await?;
@@ -85,15 +85,49 @@ pub async fn get_confirm_key(
                 context.clone(),
                 SignPayloadType::GetHomeConfirmKeyReq(get_home_confirm_key_req::Payload {
                     serving_network_id: context.local_context.id.clone(),
-                    res_star: res_star.to_vec(),
-                    hash_xres_star: xres_star_hash.to_vec(),
+                    preimage: Some(get_home_confirm_key_req::payload::Preimage::ResStar(res_star.to_vec())),
+                    hash: Some(get_home_confirm_key_req::payload::Hash::XresStarHash(xres_star_hash.to_vec())),
                 }),
             )),
         })
         .await?
         .into_inner();
 
-    Ok(response.kseaf[..].try_into()?)
+    if let Some(get_home_confirm_key_resp::Key::Kseaf(kseaf)) = response.key {
+        Ok(kseaf[..].try_into()?)
+    } else {
+        Err(DauthError::KeyTypeError("Expected kseaf but unable to extract from message".to_string()))
+    }
+}
+
+/// Get the kseaf value at the end of an auth vector transaction.
+pub async fn get_confirm_key_kasme(
+    context: Arc<DauthContext>,
+    res: &Res,
+    xres_hash: &XResHash,
+    address: &str,
+) -> Result<Kasme, DauthError> {
+    let mut client = get_client(context.clone(), address).await?;
+
+    let response = client
+        .get_confirm_key(GetHomeConfirmKeyReq {
+            message: Some(signing::sign_message(
+                context.clone(),
+                SignPayloadType::GetHomeConfirmKeyReq(get_home_confirm_key_req::Payload {
+                    serving_network_id: context.local_context.id.clone(),
+                    preimage: Some(get_home_confirm_key_req::payload::Preimage::Res(res.to_vec())),
+                    hash: Some(get_home_confirm_key_req::payload::Hash::XresHash(xres_hash.to_vec())),
+                }),
+            )),
+        })
+        .await?
+        .into_inner();
+
+    if let Some(get_home_confirm_key_resp::Key::Kasme(kasme)) = response.key {
+        Ok(kasme[..].try_into()?)
+    } else {
+        Err(DauthError::KeyTypeError("Expected kasme but unable to extract from message".to_string()))
+    }
 }
 
 /// Reports an auth vector as used to the home network.
@@ -101,7 +135,7 @@ pub async fn get_confirm_key(
 /// proof of the auth vector request.
 pub async fn report_auth_consumed(
     context: Arc<DauthContext>,
-    xres_star_hash: &ResStarHash,
+    xres_star_hash: &XResStarHash,
     user_id: &str,
     original_request: &Vec<u8>,
     address: &str,
@@ -113,7 +147,7 @@ pub async fn report_auth_consumed(
     let dvector = client
         .report_auth_consumed(ReportHomeAuthConsumedReq {
             backup_network_id: context.local_context.id.clone(),
-            hash_xres_star: xres_star_hash.to_vec(),
+            xres_star_hash: xres_star_hash.to_vec(),
             backup_auth_vector_req: Some(signed_message),
         })
         .await?

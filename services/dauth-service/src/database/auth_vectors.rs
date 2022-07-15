@@ -1,6 +1,8 @@
 use sqlx::sqlite::{SqlitePool, SqliteRow};
 use sqlx::{Row, Sqlite, Transaction};
 
+use auth_vector::types::XResHash;
+
 use crate::data::error::DauthError;
 
 /// Creates the auth vector table if it does not exist already.
@@ -10,6 +12,7 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
             user_id TEXT NOT NULL,
             seqnum INT NOT NULL,
             xres_star_hash BLOB NOT NULL,
+            xres_hash BLOB NOT NULL,
             autn BLOB NOT NULL,
             rand BLOB NOT NULL,
             sent INTEGER NOT NULL,
@@ -21,6 +24,13 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_auth_vector_id_xres_star_hash
         ON auth_vector_table (user_id, xres_star_hash);",
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_auth_vector_id_xres_hash
+        ON auth_vector_table (user_id, xres_hash);",
     )
     .execute(pool)
     .await?;
@@ -37,16 +47,18 @@ pub async fn add(
     id: &str,
     seqnum: i64,
     xres_star_hash: &[u8],
+    xres_hash: &XResHash,
     autn: &[u8],
     rand: &[u8],
 ) -> Result<(), DauthError> {
     sqlx::query(
         "INSERT INTO auth_vector_table
-        VALUES ($1,$2,$3,$4,$5,FALSE)",
+        VALUES ($1,$2,$3,$4,$5,$6,FALSE)",
     )
     .bind(id)
     .bind(seqnum)
     .bind(xres_star_hash)
+    .bind(xres_hash.as_slice())
     .bind(autn)
     .bind(rand)
     .execute(transaction)
@@ -72,7 +84,7 @@ pub async fn get_first(
 }
 
 /// Returns the auth vector with the corresponding xres_star_hash.
-pub async fn get_by_hash(
+pub async fn get_by_xres_star_hash(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
 ) -> Result<SqliteRow, DauthError> {
@@ -158,7 +170,7 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::{tempdir, TempDir};
 
-    use auth_vector::constants::{AUTN_LENGTH, RAND_LENGTH, RES_STAR_HASH_LENGTH};
+    use auth_vector::types::{AUTN_LENGTH, RAND_LENGTH, XRES_STAR_HASH_LENGTH, XRES_HASH_LENGTH};
 
     use crate::database::{auth_vectors, general};
 
@@ -216,7 +228,8 @@ mod tests {
                     &mut transaction,
                     &format!("test_id_{}", section),
                     row,
-                    &[row as u8; RES_STAR_HASH_LENGTH],
+                    &[row as u8; XRES_STAR_HASH_LENGTH],
+                    &[row as u8; XRES_HASH_LENGTH],
                     &[0_u8; AUTN_LENGTH],
                     &[0_u8; RAND_LENGTH],
                 )
@@ -239,7 +252,8 @@ mod tests {
             &mut transaction,
             "test_id_1",
             1,
-            &[0_u8; RES_STAR_HASH_LENGTH],
+            &[0_u8; XRES_STAR_HASH_LENGTH],
+            &[0_u8; XRES_HASH_LENGTH],
             &[0_u8; AUTN_LENGTH],
             &[0_u8; RAND_LENGTH],
         )
@@ -250,7 +264,8 @@ mod tests {
             &mut transaction,
             "test_id_1",
             1,
-            &[0_u8; RES_STAR_HASH_LENGTH],
+            &[0_u8; XRES_STAR_HASH_LENGTH],
+            &[0_u8; XRES_HASH_LENGTH],
             &[0_u8; AUTN_LENGTH],
             &[0_u8; RAND_LENGTH],
         )
@@ -271,7 +286,8 @@ mod tests {
             &mut transaction,
             "test_id_1",
             2,
-            &[2_u8; RES_STAR_HASH_LENGTH],
+            &[2_u8; XRES_STAR_HASH_LENGTH],
+            &[2_u8; XRES_HASH_LENGTH],
             &[0_u8; AUTN_LENGTH],
             &[0_u8; RAND_LENGTH],
         )
@@ -282,7 +298,8 @@ mod tests {
             &mut transaction,
             "test_id_1",
             0,
-            &[0_u8; RES_STAR_HASH_LENGTH],
+            &[0_u8; XRES_STAR_HASH_LENGTH],
+            &[0_u8; XRES_HASH_LENGTH],
             &[0_u8; AUTN_LENGTH],
             &[0_u8; RAND_LENGTH],
         )
@@ -293,7 +310,8 @@ mod tests {
             &mut transaction,
             "test_id_1",
             1,
-            &[1_u8; RES_STAR_HASH_LENGTH],
+            &[1_u8; XRES_STAR_HASH_LENGTH],
+            &[1_u8; XRES_HASH_LENGTH],
             &[0_u8; AUTN_LENGTH],
             &[0_u8; RAND_LENGTH],
         )
@@ -320,14 +338,15 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
 
-        let good_hash = [0_u8; RES_STAR_HASH_LENGTH];
-        let mut bad_hash = [0_u8; RES_STAR_HASH_LENGTH];
+        let good_hash = [0_u8; XRES_STAR_HASH_LENGTH];
+        let mut bad_hash = [0_u8; XRES_STAR_HASH_LENGTH];
         bad_hash[0] = 1;
 
         auth_vectors::add(
             &mut transaction,
             "test_id_1",
             0,
+            &good_hash,
             &good_hash,
             &[0_u8; AUTN_LENGTH],
             &[0_u8; RAND_LENGTH],
@@ -339,11 +358,11 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
 
-        assert!(auth_vectors::get_by_hash(&mut transaction, &bad_hash)
+        assert!(auth_vectors::get_by_xres_star_hash(&mut transaction, &bad_hash)
             .await
             .is_err());
 
-        let res = auth_vectors::get_by_hash(&mut transaction, &good_hash)
+        let res = auth_vectors::get_by_xres_star_hash(&mut transaction, &good_hash)
             .await
             .unwrap();
 
@@ -369,7 +388,8 @@ mod tests {
                     &mut transaction,
                     &format!("test_id_{}", section),
                     row,
-                    &[row as u8; RES_STAR_HASH_LENGTH],
+                    &[row as u8; XRES_STAR_HASH_LENGTH],
+                    &[row as u8; XRES_HASH_LENGTH],
                     &[0_u8; AUTN_LENGTH],
                     &[0_u8; RAND_LENGTH],
                 )
@@ -390,7 +410,7 @@ mod tests {
                 let count = auth_vectors::remove(
                     &mut transaction,
                     &format!("test_id_{}", section),
-                    &[row as u8; RES_STAR_HASH_LENGTH],
+                    &[row as u8; XRES_STAR_HASH_LENGTH],
                 )
                 .await
                 .unwrap();
@@ -417,7 +437,8 @@ mod tests {
                     &mut transaction,
                     &format!("test_id_{}", section),
                     row,
-                    &[row as u8; RES_STAR_HASH_LENGTH],
+                    &[row as u8; XRES_STAR_HASH_LENGTH],
+                    &[row as u8; XRES_HASH_LENGTH],
                     &[0_u8; AUTN_LENGTH],
                     &[0_u8; RAND_LENGTH],
                 )
@@ -471,7 +492,8 @@ mod tests {
                     &mut transaction,
                     &format!("test_id_{}", section),
                     row,
-                    &[row as u8; RES_STAR_HASH_LENGTH],
+                    &[row as u8; XRES_STAR_HASH_LENGTH],
+                    &[row as u8; XRES_HASH_LENGTH],
                     &[0_u8; AUTN_LENGTH],
                     &[0_u8; RAND_LENGTH],
                 )
@@ -497,7 +519,7 @@ mod tests {
                 auth_vectors::remove(
                     &mut transaction,
                     &format!("test_id_{}", section),
-                    &[row as u8; RES_STAR_HASH_LENGTH],
+                    &[row as u8; XRES_STAR_HASH_LENGTH],
                 )
                 .await
                 .unwrap();

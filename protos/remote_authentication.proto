@@ -149,13 +149,9 @@ message ReportHomeAuthConsumedReq {
     // The backup network that owned the auth vector.
     string backup_network_id = 1;
 
-    // The xres(*) hash that identifies the auth vector used.
-    oneof hash {
-        // The hash of xres or xres_star corresponding to the key share this network is
-        // claiming.
-        bytes xres_star_hash = 2;
-        bytes xres_hash = 4;
-    }
+    // The hash of xres_star corresponding to the key share this network is
+    // claiming.
+    bytes xres_star_hash = 2;
 
     // The signed auth request from the serving network that was given an auth
     // tuple.

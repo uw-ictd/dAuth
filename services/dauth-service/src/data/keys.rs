@@ -9,6 +9,12 @@ pub const TEMPORARY_CONSTANT_THRESHOLD: u8 = 3;
 const SHARE_LENGTH: usize = KSEAF_LENGTH + 1;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
+pub enum KeyKind {
+    Kasme(Kasme),
+    Kseaf(Kseaf),
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct CombinedKeyShare {
     pub kseaf_share: KseafShare,
     pub kasme_share: KasmeShare,
@@ -24,6 +30,9 @@ pub struct KasmeShare {
 impl KasmeShare {
     pub fn as_slice<'a>(&'a self) -> &'a [u8] {
         self.share.as_slice()
+    }
+    pub fn to_vec(self) -> Vec<u8> {
+        self.share.to_vec()
     }
 }
 
@@ -109,6 +118,9 @@ pub struct KseafShare {
 impl KseafShare {
     pub fn as_slice<'a>(&'a self) -> &'a [u8] {
         self.share.as_slice()
+    }
+    pub fn to_vec(self) -> Vec<u8> {
+        self.share.to_vec()
     }
 }
 

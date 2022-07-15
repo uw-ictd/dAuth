@@ -134,6 +134,7 @@ pub async fn generate_local_vector(
         rand: auth_vector_data.rand,
         autn: auth_vector_data.autn,
         xres_star_hash: auth_vector_data.xres_star_hash,
+        xres_hash: auth_vector_data.xres_hash,
     };
 
     database::kseafs::add(
@@ -163,6 +164,7 @@ pub async fn store_backup_auth_vector(
         &av_result.user_id,
         av_result.seqnum,
         &av_result.xres_star_hash,
+        &av_result.xres_hash,
         &av_result.autn,
         &av_result.rand.as_array(),
     )
@@ -188,6 +190,7 @@ pub async fn store_backup_auth_vectors(
             &av_result.user_id,
             av_result.seqnum,
             &av_result.xres_star_hash,
+            &av_result.xres_hash,
             &av_result.autn,
             &av_result.rand.as_array(),
         )
@@ -213,6 +216,7 @@ pub async fn store_backup_flood_vector(
         &av_result.user_id,
         av_result.seqnum,
         &av_result.xres_star_hash,
+        &&av_result.xres_hash,
         &av_result.autn,
         &av_result.rand.as_array(),
     )
@@ -276,7 +280,7 @@ pub async fn next_backup_auth_vector(
 pub async fn backup_auth_vector_used(
     context: Arc<DauthContext>,
     backup_network_id: &str,
-    xres_star_hash: &auth_vector::types::ResStarHash,
+    xres_star_hash: &auth_vector::types::XResStarHash,
 ) -> Result<Option<AuthVectorRes>, DauthError> {
     tracing::info!(
         "Auth vector reported used on {:?}: {:?}",
@@ -316,7 +320,7 @@ pub async fn backup_auth_vector_used(
 
     let (_, backup_networks) = clients::directory::lookup_user(context.clone(), &user_id).await?;
 
-    let mut key_shares = keys::create_shares_from_kseaf(
+    let mut kseaf_key_shares = keys::create_shares_from_kseaf(
         &auth_vector_data.kseaf,
         backup_networks.len() as u8,
         std::cmp::min(
@@ -326,16 +330,31 @@ pub async fn backup_auth_vector_used(
         &mut rand_0_8::thread_rng(),
     )?;
 
+    let mut kasme_key_shares = keys::create_shares_from_kasme(
+        &auth_vector_data.kasme,
+        backup_networks.len() as u8,
+        std::cmp::min(
+            context.backup_context.backup_key_threshold,
+            backup_networks.len() as u8,
+        ),
+        &mut rand_0_8::thread_rng(),
+    )?;
+
     for id in backup_networks {
-        let key_share = key_shares.pop().ok_or(DauthError::DataError(
+        let kseaf_share = kseaf_key_shares.pop().ok_or(DauthError::DataError(
+            "Failed to generate all key shares".to_string(),
+        ))?;
+        let kasme_share = kasme_key_shares.pop().ok_or(DauthError::DataError(
             "Failed to generate all key shares".to_string(),
         ))?;
         database::tasks::replace_key_shares::add(
             &mut transaction,
             &id,
             &auth_vector_data.xres_star_hash,
+            &auth_vector_data.xres_hash,
             xres_star_hash,
-            &key_share,
+            &kseaf_share,
+            &kasme_share,
         )
         .await?;
     }
@@ -348,6 +367,7 @@ pub async fn backup_auth_vector_used(
         rand: auth_vector_data.rand,
         autn: auth_vector_data.autn,
         xres_star_hash: auth_vector_data.xres_star_hash,
+        xres_hash: auth_vector_data.xres_hash,
     }))
 }
 

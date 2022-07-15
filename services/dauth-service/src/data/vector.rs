@@ -1,4 +1,4 @@
-use auth_vector::types::{Autn, ResStarHash, Id, Rand};
+use auth_vector::types::{Autn, XResStarHash, Id, Rand, XResHash};
 
 use crate::data::error::DauthError;
 use crate::rpc::dauth::common::AuthVector5G;
@@ -13,7 +13,8 @@ pub struct AuthVectorReq {
 pub struct AuthVectorRes {
     pub user_id: Id,
     pub seqnum: i64,
-    pub xres_star_hash: ResStarHash,
+    pub xres_star_hash: XResStarHash,
+    pub xres_hash: XResHash,
     pub autn: Autn,
     pub rand: Rand,
 }
@@ -29,6 +30,7 @@ impl AuthVectorRes {
                 xres_star_hash: self.xres_star_hash.to_vec(),
                 autn: self.autn.to_vec(),
                 seqnum: self.seqnum,
+                xres_hash: self.xres_hash.to_vec(),
             }),
         }
     }
@@ -40,6 +42,7 @@ impl AuthVectorRes {
             xres_star_hash: vector.xres_star_hash[..].try_into()?,
             autn: vector.autn[..].try_into()?,
             rand: vector.rand[..].try_into()?,
+            xres_hash: vector.xres_hash[..].try_into()?,
         })
     }
 }

@@ -1,6 +1,7 @@
 use sqlx::sqlite::SqlitePool;
 use sqlx::{FromRow, Sqlite, Transaction};
 
+use auth_vector::types::{XResHash, XResStarHash};
 use crate::data::error::DauthError;
 use crate::data::keys;
 
@@ -9,7 +10,7 @@ pub struct ReplaceKeyShareTask {
     pub backup_network_id: String,
     pub xres_star_hash: Vec<u8>,
     pub old_xres_star_hash: Vec<u8>,
-    pub key_share: keys::KseafShare,
+    pub key_share: keys::CombinedKeyShare,
 }
 
 impl TryFrom<ReplaceKeyShareTaskRow> for ReplaceKeyShareTask {
@@ -17,9 +18,14 @@ impl TryFrom<ReplaceKeyShareTaskRow> for ReplaceKeyShareTask {
     fn try_from(value: ReplaceKeyShareTaskRow) -> Result<Self, Self::Error> {
         Ok(ReplaceKeyShareTask {
             backup_network_id: value.backup_network_id,
-            xres_star_hash: value.xres_star_hash,
+            xres_star_hash: value.xres_star_hash.clone(),
             old_xres_star_hash: value.old_xres_star_hash,
-            key_share: value.key_share.try_into()?,
+            key_share: keys::CombinedKeyShare{
+                xres_star_hash: value.xres_star_hash.as_slice().try_into()?,
+                xres_hash: value.xres_hash.as_slice().try_into()?,
+                kseaf_share: value.kseaf_share.as_slice().try_into()?,
+                kasme_share: value.kasme_share.as_slice().try_into()?,
+            },
         })
     }
 }
@@ -28,8 +34,10 @@ impl TryFrom<ReplaceKeyShareTaskRow> for ReplaceKeyShareTask {
 pub struct ReplaceKeyShareTaskRow {
     pub backup_network_id: String,
     pub xres_star_hash: Vec<u8>,
+    pub xres_hash: Vec<u8>,
     pub old_xres_star_hash: Vec<u8>,
-    pub key_share: Vec<u8>,
+    pub kseaf_share: Vec<u8>,
+    pub kasme_share: Vec<u8>,
 }
 
 /// Creates the backup networks table if it does not exist already.
@@ -38,8 +46,10 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
         "CREATE TABLE IF NOT EXISTS replace_key_share_task_table (
             backup_network_id TEXT NOT NULL,
             xres_star_hash BLOB NOT NULL,
+            xres_hash BLOB NOT NULL,
             old_xres_star_hash BLOB NOT NULL,
-            key_share BLOB NOT NULL,
+            kseaf_share BLOB NOT NULL,
+            kasme_share BLOB NOT NULL,
             PRIMARY KEY (backup_network_id, xres_star_hash)
         );",
     )
@@ -55,17 +65,21 @@ pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     backup_network_id: &str,
     xres_star_hash: &[u8],
+    xres_hash: &XResHash,
     old_xres_star_hash: &[u8],
-    key_share: &keys::KseafShare,
+    kseaf_share: &keys::KseafShare,
+    kasme_share: &keys::KasmeShare,
 ) -> Result<(), DauthError> {
     sqlx::query(
         "INSERT INTO replace_key_share_task_table
-        VALUES ($1,$2,$3,$4)",
+        VALUES ($1,$2,$3,$4,$5,$6)",
     )
     .bind(backup_network_id)
     .bind(xres_star_hash)
+    .bind(xres_hash.as_slice())
     .bind(old_xres_star_hash)
-    .bind(key_share.share.as_slice())
+    .bind(kseaf_share.as_slice())
+    .bind(kasme_share.as_slice())
     .execute(transaction)
     .await?;
 
@@ -151,8 +165,10 @@ mod tests {
                 &mut transaction,
                 &format!("test_backup_network_{}", row),
                 &vec![row as u8],
+                &[row as u8; 16],
                 &vec![row as u8],
                 &keys::KseafShare { share: [0xFF; 33] },
+                &keys::KasmeShare { share: [0xEE; 33] },
             )
             .await
             .unwrap()
@@ -172,9 +188,11 @@ mod tests {
             tasks::replace_key_shares::add(
                 &mut transaction,
                 &format!("test_backup_network_{}", row),
-                &vec![row as u8],
-                &vec![row as u8],
+                &vec![row as u8; 16],
+                &[row as u8; 16],
+                &vec![row as u8; 16],
                 &keys::KseafShare { share: [0xEE; 33] },
+                &keys::KasmeShare { share: [0xEE; 33] },
             )
             .await
             .unwrap();
@@ -204,9 +222,11 @@ mod tests {
             tasks::replace_key_shares::add(
                 &mut transaction,
                 &format!("test_backup_network_{}", row),
-                &vec![row as u8],
-                &vec![row as u8],
+                &vec![row as u8; 16],
+                &[row as u8; 16],
+                &vec![row as u8; 16],
                 &keys::KseafShare { share: [0xDD; 33] },
+                &keys::KasmeShare { share: [0xEE; 33] },
             )
             .await
             .unwrap();
@@ -228,7 +248,7 @@ mod tests {
             tasks::replace_key_shares::remove(
                 &mut transaction,
                 &format!("test_backup_network_{}", row),
-                &vec![row as u8],
+                &vec![row as u8; 16],
             )
             .await
             .unwrap();
