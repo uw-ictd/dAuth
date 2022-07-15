@@ -2,18 +2,38 @@ use sqlx::sqlite::{SqlitePool, SqliteRow};
 use sqlx::{Row, Sqlite, Transaction};
 
 use crate::data::error::DauthError;
+use crate::data::keys;
+
+#[derive(sqlx::FromRow)]
+struct KeyShareRow {
+    pub xres_star_hash: Vec<u8>,
+    pub xres_hash: Vec<u8>,
+    pub user_id: String,
+    pub kseaf_share: Vec<u8>,
+    pub kasme_share: Vec<u8>,
+}
 
 /// Creates the kseaf table if it does not exist already.
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS key_share_table (
             xres_star_hash BLOB PRIMARY KEY,
+            xres_hash BLOB NOT NULL,
             user_id TEXT NOT NULL,
-            key_share BLOB NOT NULL
+            kseaf_share BLOB NOT NULL,
+            kasme_share BLOB NOT NULL
         );",
     )
     .execute(pool)
     .await?;
+
+    sqlx::query(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_key_share_xres_hash
+        ON key_share_table (xres_hash);",
+    )
+    .execute(pool)
+    .await?;
+
     Ok(())
 }
 
@@ -43,14 +63,21 @@ pub async fn add(
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
-) -> Result<SqliteRow, DauthError> {
-    Ok(sqlx::query(
+) -> Result<keys::CombinedKeyShare, DauthError> {
+    let row: KeyShareRow = sqlx::query_as(
         "SELECT * FROM key_share_table
         WHERE xres_star_hash=$1;",
     )
     .bind(xres_star_hash)
     .fetch_one(transaction)
-    .await?)
+    .await?;
+
+    Ok(keys::CombinedKeyShare {
+        kasme_share: row.kasme_share.try_into()?,
+        kseaf_share: row.kseaf_share.try_into()?,
+        xres_hash: row.xres_hash.try_into().or(Err(DauthError::DataError("Xres".to_string())))?,
+        xres_star_hash: row.xres_star_hash.try_into().or(Err(DauthError::DataError("xres_star".to_string())))?,
+    })
 }
 
 /// Returns the user id that the key share/vector belongs to.
@@ -93,7 +120,7 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::{tempdir, TempDir};
 
-    use auth_vector::constants::{KSEAF_LENGTH, RES_STAR_HASH_LENGTH, RES_STAR_LENGTH};
+    use auth_vector::types::{KSEAF_LENGTH, XRES_STAR_HASH_LENGTH, XRES_STAR_LENGTH};
 
     use crate::database::{general, key_shares};
 
@@ -134,7 +161,7 @@ mod tests {
             for row in 0..num_rows {
                 key_shares::add(
                     &mut transaction,
-                    &[section * num_rows + row; RES_STAR_HASH_LENGTH],
+                    &[section * num_rows + row; XRES_STAR_HASH_LENGTH],
                     "test_user_id",
                     &[section * num_rows + row; KSEAF_LENGTH],
                 )
@@ -159,7 +186,7 @@ mod tests {
             for row in 0..num_rows {
                 key_shares::add(
                     &mut transaction,
-                    &[section * num_rows + row; RES_STAR_HASH_LENGTH],
+                    &[section * num_rows + row; XRES_STAR_HASH_LENGTH],
                     "test_user_id",
                     &[section * num_rows + row; KSEAF_LENGTH],
                 )
@@ -175,20 +202,20 @@ mod tests {
             for row in 0..num_rows {
                 let res = key_shares::get(
                     &mut transaction,
-                    &[section * num_rows + row; RES_STAR_HASH_LENGTH],
+                    &[section * num_rows + row; XRES_STAR_HASH_LENGTH],
                 )
                 .await
                 .unwrap();
 
                 assert_eq!(
                     &[section * num_rows + row; KSEAF_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("key_share")
+                    res.kseaf_share.as_slice()
                 );
 
                 assert_eq!(
                     key_shares::get_user_id(
                         &mut transaction,
-                        &[section * num_rows + row; RES_STAR_HASH_LENGTH],
+                        &[section * num_rows + row; XRES_STAR_HASH_LENGTH],
                     )
                     .await
                     .unwrap(),
@@ -213,7 +240,7 @@ mod tests {
             for row in 0..num_rows {
                 key_shares::add(
                     &mut transaction,
-                    &[section * num_rows + row; RES_STAR_LENGTH],
+                    &[section * num_rows + row; XRES_STAR_LENGTH],
                     "test_user_id",
                     &[section * num_rows + row; KSEAF_LENGTH],
                 )
@@ -229,7 +256,7 @@ mod tests {
             for row in 0..num_rows {
                 key_shares::remove(
                     &mut transaction,
-                    &[section * num_rows + row; RES_STAR_LENGTH],
+                    &[section * num_rows + row; XRES_STAR_LENGTH],
                 )
                 .await
                 .unwrap();
@@ -244,7 +271,7 @@ mod tests {
                 // should have been deleted
                 assert!(key_shares::get(
                     &mut transaction,
-                    &[section * num_rows + row; RES_STAR_LENGTH],
+                    &[section * num_rows + row; XRES_STAR_LENGTH],
                 )
                 .await
                 .is_err());
@@ -267,7 +294,7 @@ mod tests {
             for row in 0..num_rows {
                 key_shares::add(
                     &mut transaction,
-                    &[section * num_rows + row; RES_STAR_LENGTH],
+                    &[section * num_rows + row; XRES_STAR_LENGTH],
                     "test_user_id",
                     &[section * num_rows + row; KSEAF_LENGTH],
                 )
@@ -283,19 +310,19 @@ mod tests {
             for row in 0..num_rows {
                 let res = key_shares::get(
                     &mut transaction,
-                    &[section * num_rows + row; RES_STAR_LENGTH],
+                    &[section * num_rows + row; XRES_STAR_LENGTH],
                 )
                 .await
                 .unwrap();
 
                 assert_eq!(
                     &[section * num_rows + row; KSEAF_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("key_share")
+                    res.kseaf_share.as_slice()
                 );
 
                 key_shares::remove(
                     &mut transaction,
-                    res.get_unchecked::<&[u8], &str>("xres_star_hash"),
+                    res.xres_star_hash.as_slice()
                 )
                 .await
                 .unwrap();
@@ -310,7 +337,7 @@ mod tests {
                 // should have been deleted
                 assert!(key_shares::get(
                     &mut transaction,
-                    &[section * num_rows + row; RES_STAR_LENGTH],
+                    &[section * num_rows + row; XRES_STAR_LENGTH],
                 )
                 .await
                 .is_err());
@@ -328,7 +355,7 @@ mod tests {
 
         key_shares::add(
             &mut transaction,
-            &[0_u8; RES_STAR_LENGTH],
+            &[0_u8; XRES_STAR_LENGTH],
             "test_user_id",
             &[1_u8; KSEAF_LENGTH],
         )
@@ -337,7 +364,7 @@ mod tests {
 
         key_shares::add(
             &mut transaction,
-            &[0_u8; RES_STAR_LENGTH],
+            &[0_u8; XRES_STAR_LENGTH],
             "test_user_id",
             &[1_u8; KSEAF_LENGTH],
         )
