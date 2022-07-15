@@ -89,6 +89,11 @@ public:
     );
 
     bool
+    abort_current_state(
+        mme_ue_t * const mme_ue
+    );
+
+    bool
     handle_request_auth_vector_res(
         mme_ue_t * const mme_ue
     );

@@ -111,12 +111,14 @@ mme_dauth_shim_request_auth_vector_resync(
         }
     }
 
-    if (access_dauth_local_auth_client_context(mme_ue->dauth_context).in_progress()) {
-        ogs_error("Received dauth client request when another request already in progress");
-        return false;
-    }
-
     dauth_mme::local_auth_client& client = access_dauth_local_auth_client_context(mme_ue->dauth_context);
+
+    if (client.in_progress()) {
+        ogs_error("Received dauth client request when another request already in progress");
+        if (!client.abort_current_state(mme_ue)) {
+            return false;
+        }
+    }
 
     return client.request_auth_vector(mme_ue, resync_info);
 }

@@ -146,6 +146,20 @@ dauth_mme::local_auth_client::handle_request_auth_vector_res(
 }
 
 bool
+dauth_mme::local_auth_client::abort_current_state(
+    mme_ue_t * const mme_ue
+) {
+    if (state_ == client_state::AUTH_DONE) {
+        ogs_warn("Resetting state from AUTH_DONE since no messages in flight");
+        state_ = client_state::INIT;
+        return true;
+    }
+
+    ogs_warn("In state {%d}", state_);
+    return false;
+}
+
+bool
 dauth_mme::local_auth_client::request_confirm_auth(
     mme_ue_t * const mme_ue,
     const uint8_t * const res
