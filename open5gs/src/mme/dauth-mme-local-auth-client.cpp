@@ -144,7 +144,9 @@ dauth_mme::local_auth_client::handle_request_auth_vector_res(
     if (mme_ue->nas_eps.ksi == OGS_NAS_KSI_NO_KEY_IS_AVAILABLE)
         mme_ue->nas_eps.ksi = 0;
 
-    ogs_info("[%s] Unpacked RPC response and about to send UE auth request", mme_ue->imsi_bcd);
+    ogs_info("[%s] LocalAuthentication.GetAuthVector RPC Success, sending auth request to UE", mme_ue->imsi_bcd);
+
+    state_ = client_state::AUTH_DONE;
 
     ogs_assert(OGS_OK ==
         nas_eps_send_authentication_request(mme_ue));
