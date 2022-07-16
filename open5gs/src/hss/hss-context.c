@@ -340,6 +340,7 @@ int hss_context_parse_config(void)
 
 int hss_db_auth_info(char *imsi_bcd, ogs_dbi_auth_info_t *auth_info)
 {
+    ogs_error("Requested auth info update in HSS-- should not happen with dAuth");
     int rv;
     char *supi = NULL;
 
@@ -360,6 +361,7 @@ int hss_db_auth_info(char *imsi_bcd, ogs_dbi_auth_info_t *auth_info)
 
 int hss_db_update_sqn(char *imsi_bcd, uint8_t *rand, uint64_t sqn)
 {
+    ogs_error("Requested SQN update in HSS-- should not happen with dAuth");
     int rv;
     char *supi = NULL;
 
@@ -379,25 +381,27 @@ int hss_db_update_sqn(char *imsi_bcd, uint8_t *rand, uint64_t sqn)
 
 int hss_db_update_imeisv(char *imsi_bcd, char *imeisv)
 {
-    int rv;
-    char *supi = NULL;
+    ogs_warn("Mocking the imeisv update to db does not need to happen with dAuth");
+    // int rv;
+    // char *supi = NULL;
 
-    ogs_assert(imsi_bcd);
+    // ogs_assert(imsi_bcd);
 
-    ogs_thread_mutex_lock(&self.db_lock);
-    supi = ogs_msprintf("%s-%s", OGS_ID_SUPI_TYPE_IMSI, imsi_bcd);
-    ogs_assert(supi);
+    // ogs_thread_mutex_lock(&self.db_lock);
+    // supi = ogs_msprintf("%s-%s", OGS_ID_SUPI_TYPE_IMSI, imsi_bcd);
+    // ogs_assert(supi);
 
-    rv = ogs_dbi_update_imeisv(supi, imeisv);
+    // rv = ogs_dbi_update_imeisv(supi, imeisv);
 
-    ogs_free(supi);
-    ogs_thread_mutex_unlock(&self.db_lock);
+    // ogs_free(supi);
+    // ogs_thread_mutex_unlock(&self.db_lock);
 
-    return rv;
+    return OGS_OK;
 }
 
 int hss_db_increment_sqn(char *imsi_bcd)
 {
+    ogs_error("Requested SQN update in HSS-- should not happen with dAuth");
     int rv;
     char *supi = NULL;
 
@@ -428,7 +432,7 @@ int hss_db_subscription_data(
     supi = ogs_msprintf("%s-%s", OGS_ID_SUPI_TYPE_IMSI, imsi_bcd);
     ogs_assert(supi);
 
-    rv = ogs_dbi_subscription_data(supi, subscription_data);
+    rv = ogs_dbi_default_subscription_data(supi, subscription_data);
 
     ogs_free(supi);
     ogs_thread_mutex_unlock(&self.db_lock);
