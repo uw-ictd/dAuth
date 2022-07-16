@@ -733,7 +733,7 @@ void emm_state_authentication(ogs_fsm_t *s, mme_event_t *e)
             ogs_nas_eps_authentication_failure_t *authentication_failure =
                 &message->emm.authentication_failure;
             ogs_nas_authentication_failure_parameter_t
-                *authentication_failure_parameter = 
+                *authentication_failure_parameter =
                     &authentication_failure->
                         authentication_failure_parameter;
 
