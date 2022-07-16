@@ -119,7 +119,7 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
                 &user_info_config.get_opc()?,
                 *user_info_config
                     .sqn_slice_max
-                    .get(&0)
+                    .get(sqn_slice)
                     .ok_or(DauthError::ConfigError(format!(
                         "Missing key slice for {}",
                         sqn_slice
