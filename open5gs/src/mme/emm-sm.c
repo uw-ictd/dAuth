@@ -922,6 +922,7 @@ void emm_state_security_mode(ogs_fsm_t *s, mme_event_t *e)
             mme_s6a_send_ulr(mme_ue);
 
             if (mme_ue->next.m_tmsi) {
+                ogs_info("IMSI[%s] Security mode complete", mme_ue->imsi_bcd);
                 OGS_FSM_TRAN(s, &emm_state_initial_context_setup);
             } else {
                 ogs_fatal("MME always creates new GUTI");
