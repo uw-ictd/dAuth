@@ -38,7 +38,7 @@ message AKAVectorReq {
 
     // The resynchronization info field is rare, so don't use one of the
     // precious single-byte field ids.
-    d_auth.AKAResyncInfo resync_info = 16;
+    optional d_auth.AKAResyncInfo resync_info = 16;
 }
 
 message AKAVectorResp {

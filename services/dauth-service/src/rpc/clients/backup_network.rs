@@ -117,6 +117,7 @@ pub async fn get_auth_vector(
     context: Arc<DauthContext>,
     user_id: &str,
     address: &str,
+    resync_vector: Option<XResStarHash>,
 ) -> Result<AuthVectorRes, DauthError> {
     let mut client = get_client(context.clone(), address).await?;
 
@@ -128,6 +129,7 @@ pub async fn get_auth_vector(
                     serving_network_id: context.local_context.id.clone(),
                     user_id_type: UserIdKind::Supi as i32,
                     user_id: user_id.as_bytes().to_vec(),
+                    xres_star_hash_resync: resync_vector.and_then(|v| Some(v.as_slice().to_vec())),
                 }),
             )),
         })

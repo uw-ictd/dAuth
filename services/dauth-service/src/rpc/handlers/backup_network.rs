@@ -492,6 +492,17 @@ impl BackupNetworkHandler {
         if let SignPayloadType::GetBackupAuthVectorReq(payload) = verify_result {
             let user_id = std::str::from_utf8(payload.user_id.as_slice())?.to_string();
 
+            // If we get any information about stale sequence numbers in our
+            // auth list, remove them before proceeding.
+            if let Some(resync_xres_star_hash) = payload.xres_star_hash_resync {
+                let mut transaction = context.local_context.database_pool.begin().await?;
+                // Don't remove flood vectors though until receiving a
+                // confirmation, since we need to be sure they are used.
+                // crate::database::flood_vectors::remove(&mut transaction, &user_id, &resync_xres_star_hash).await?;
+                crate::database::auth_vectors::remove(&mut transaction, &user_id, &resync_xres_star_hash).await?;
+                transaction.commit().await?;
+            }
+
             let av_result = core::auth_vectors::next_backup_auth_vector(
                 context.clone(),
                 &AuthVectorReq {

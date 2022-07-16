@@ -1,4 +1,4 @@
-use auth_vector::types::Rand;
+use auth_vector::types::{Rand, XResStarHash};
 
 #[derive(Clone, Debug)]
 pub enum AuthSource {
@@ -10,4 +10,5 @@ pub enum AuthSource {
 pub struct AuthState {
     pub rand: Rand,
     pub source: AuthSource,
+    pub xres_star_hash: XResStarHash,
 }

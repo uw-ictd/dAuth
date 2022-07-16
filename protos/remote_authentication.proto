@@ -291,6 +291,11 @@ message GetBackupAuthVectorReq {
         // TODO(matt9j) Probably don't want to actually sign over the user id so
         // the message can be revealed later without revealing the id?
         bytes user_id = 3;
+
+        // A courtesy notification from the serving network of a previously
+        // attempted auth vector that was rejected due to a synchronization
+        // error.
+        optional bytes xres_star_hash_resync = 4;
     }
     SignedMessage message = 1;
 }

@@ -43,6 +43,7 @@ impl LocalAuthentication for LocalAuthenticationHandler {
                     self.context.clone(),
                     &user_id,
                     &self.context.local_context.id,
+                    content.resync_info.is_some()
                 )
                 .await
                 {

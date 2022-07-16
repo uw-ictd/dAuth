@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use auth_vector::{self, data::AuthVectorData};
+use auth_vector::{self, data::AuthVectorData, types::XResStarHash};
 use sqlx::{Sqlite, Transaction};
 
 use crate::core;
@@ -25,6 +25,7 @@ pub async fn find_vector(
     context: Arc<DauthContext>,
     user_id: &str,
     network_id: &str,
+    is_resync_attempt: bool,
 ) -> Result<AuthVectorRes, DauthError> {
     tracing::info!("Attempting to find a vector: {}-{}", user_id, network_id);
     // First see if this node has key material to generate the vector itself.
@@ -40,6 +41,7 @@ pub async fn find_vector(
     }
 
     tracing::info!("Failed to generate vector locally: {:?}", res);
+
     // Attempt to lookup the vector from the home network directly.
     let (home_network_id, backup_network_ids) =
         clients::directory::lookup_user(context.clone(), user_id).await?;
@@ -61,12 +63,23 @@ pub async fn find_vector(
             AuthState {
                 rand: vector.rand.clone(),
                 source: AuthSource::HomeNetwork,
+                xres_star_hash: vector.xres_star_hash.clone(),
             },
         );
         return Ok(vector);
     }
 
     tracing::info!("Failed to get vector from home network: {:?}", res);
+
+    // Lookup our authentication state for this user to see if we have
+    // previously sent a tuple.
+    let mut resync_xres_star_hash: Option<XResStarHash> = None;
+
+    // Only attempt to look up the prior used vector if this is a resync
+    if is_resync_attempt {
+        resync_xres_star_hash = context.backup_context.auth_states.lock().await.get(user_id).and_then(|state| Some(state.xres_star_hash));
+    }
+
     // Attempt to lookup an auth vector from the backup networks in parallel.
     let mut request_set = tokio::task::JoinSet::new();
 
@@ -75,6 +88,7 @@ pub async fn find_vector(
             context.clone(),
             user_id.to_string(),
             backup_network_id.to_string(),
+            resync_xres_star_hash,
         ));
     }
 
@@ -87,6 +101,7 @@ pub async fn find_vector(
                         AuthState {
                             rand: vector.rand.clone(),
                             source: AuthSource::BackupNetwork,
+                            xres_star_hash: vector.xres_star_hash.clone(),
                         },
                     );
                     return Ok(vector);
@@ -107,11 +122,12 @@ async fn get_auth_vector_from_network_id(
     context: Arc<DauthContext>,
     user_id: String,
     backup_network_id: String,
+    resync_xres_star_hash: Option<XResStarHash>,
 ) -> Result<AuthVectorRes, DauthError> {
     let (backup_address, _) =
         clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
 
-    clients::backup_network::get_auth_vector(context.clone(), &user_id, &backup_address).await
+    clients::backup_network::get_auth_vector(context.clone(), &user_id, &backup_address, resync_xres_star_hash).await
 }
 
 /// Generates an auth vector that will be verified locally.
@@ -254,7 +270,7 @@ pub async fn next_backup_auth_vector(
 
         database::flood_vectors::mark_sent(&mut transaction, &vector.user_id, vector.seqnum)
             .await?;
-        // database::flood_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
+        // database::flood_vectors::remove(&mut transaction, &vector.user_id, &vector.xres_star_hash).await?;
 
         tracing::info!("Flood vector found: {:?}", vector);
     } else {
@@ -263,7 +279,7 @@ pub async fn next_backup_auth_vector(
             .to_auth_vector()?;
 
         database::auth_vectors::mark_sent(&mut transaction, &vector.user_id, vector.seqnum).await?;
-        // database::auth_vectors::remove(&mut transaction, &vector.user_id, vector.seqnum).await?;
+        // database::auth_vectors::remove(&mut transaction, &vector.user_id, &vector.xres_star_hash).await?;
 
         tracing::info!("Backup vector found: {:?}", vector);
     };
