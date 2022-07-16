@@ -21,6 +21,8 @@ pub struct DauthConfig {
     pub max_backup_vectors: i64,
     pub task_startup_delay: f64,
     pub task_interval: f64,
+    pub mcc: String,
+    pub mnc: String,
     pub local_auth_addr: Option<String>,
     pub max_recorded_metrics: Option<i64>,
     pub backup_key_threshold: Option<i64>,

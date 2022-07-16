@@ -34,6 +34,8 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             signing_keys: keys,
             num_sqn_slices: config.num_sqn_slices,
             max_backup_vectors: config.max_backup_vectors,
+            mcc: config.mcc,
+            mnc: config.mnc,
         },
         backup_context: BackupContext {
             backup_key_threshold: config

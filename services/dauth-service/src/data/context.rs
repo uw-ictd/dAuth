@@ -30,6 +30,8 @@ pub struct LocalContext {
     pub signing_keys: Keypair,
     pub num_sqn_slices: i64,
     pub max_backup_vectors: i64,
+    pub mcc: String,
+    pub mnc: String,
 }
 
 #[derive(Debug)]
