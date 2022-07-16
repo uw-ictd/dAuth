@@ -1,5 +1,6 @@
 use crate::types::AuthVectorConversionError;
 use crate::types::{Ck, Ik, Autn};
+use crate::get_encoded_plmn;
 
 use hmac::{Hmac};
 use sha2::{Sha256};
@@ -41,18 +42,16 @@ impl TryFrom<Vec<u8>> for Kasme {
 }
 
 impl Kasme {
-    pub fn derive(ck: &Ck, ik: &Ik, autn: &Autn) -> Self {
+    pub fn derive(mcc: &str, mnc: &str, ck: &Ck, ik: &Ik, autn: &Autn) -> Self {
         let mut key = Vec::new();
         key.extend(ck);
         key.extend(ik);
 
         let mut data = vec![FC_KASME];
-        let octet_1 = (crate::constants::MCC_BYTES[1] << 4) & crate::constants::MCC_BYTES[0];
-        let octet_2 = (crate::constants::MNC_BYTES[2] << 4) & crate::constants::MCC_BYTES[2];
-        let octet_3 = (crate::constants::MNC_BYTES[1] << 4) & crate::constants::MNC_BYTES[0];
 
-        data.extend(vec![octet_1, octet_2, octet_3].iter());
-        let sn_id_len = 0x03 as u16;
+        let mut sn_id = get_encoded_plmn(mcc, mnc).unwrap();
+        let sn_id_len = sn_id.len() as u16;
+        data.append(&mut sn_id);
         data.extend(sn_id_len.to_be_bytes());
 
         let sqn_xor_ak = &autn[..6];

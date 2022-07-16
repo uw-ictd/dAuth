@@ -1,4 +1,3 @@
-pub mod constants;
 pub mod data;
 pub mod types;
 
@@ -6,17 +5,19 @@ use milenage::Milenage;
 use rand as r;
 
 use crate::data::AuthVectorData;
+use crate::types::AuthVectorConversionError;
 
 /// Uses provided k, opc, and rand with milenage.
 /// Returns tuple of auth vector data (xres, rand, sqn_xor_ak, mac_a)
-pub fn generate_vector(k: &types::K, opc: &types::Opc, sqn: &types::Sqn) -> AuthVectorData {
+pub fn generate_vector(mcc: &str, mnc: &str, k: &types::K, opc: &types::Opc, sqn: &types::Sqn) -> AuthVectorData {
     let rand= types::Rand::new(&mut r::thread_rng());
 
-    generate_vector_with_rand(k, opc, &rand, sqn)
+    generate_vector_with_rand(mcc, mnc, k, opc, &rand, sqn)
 }
 
 /// Generate auth vector data with a provided rand
 fn generate_vector_with_rand(
+    mcc: &str, mnc: &str,
     k: &types::K,
     opc: &types::Opc,
     rand: &types::Rand,
@@ -27,7 +28,7 @@ fn generate_vector_with_rand(
     let (xres, ck, ik, ak) = m.f2345(&rand.as_array());
 
     let xres_star = m
-        .compute_res_star(constants::MCC, constants::MNC, &rand.as_array(), &xres)
+        .compute_res_star(mcc, mnc, &rand.as_array(), &xres)
         .unwrap();
 
     let xres_star_hash = types::gen_xres_star_hash(rand, &xres_star);
@@ -37,8 +38,8 @@ fn generate_vector_with_rand(
 
     let autn = types::build_autn(sqn, &ak, rand, &mut m);
 
-    let kseaf = types::gen_kseaf(&types::gen_kausf(&ck, &ik, &autn));
-    let kasme = types::Kasme::derive(&ck, &ik, &autn);
+    let kseaf = types::gen_kseaf(mcc, mnc, &types::gen_kausf(mcc, mnc, &ck, &ik, &autn));
+    let kasme = types::Kasme::derive(mcc, mnc, &ck, &ik, &autn);
 
     AuthVectorData {
         xres_star_hash,
@@ -52,21 +53,40 @@ fn generate_vector_with_rand(
     }
 }
 
-
-fn get_snn() -> String {
-    if constants::MNC.len() == 2 {
-        format!(
-            "5G:mnc0{}.mcc{}.3gppnetwork.org",
-            constants::MNC,
-            constants::MCC,
-        )
-    } else {
-        format!(
-            "5G:mnc{}.mcc{}.3gppnetwork.org",
-            constants::MNC,
-            constants::MCC,
-        )
+// Encode the PLMN for keying per TS 33.401: A.2-1
+fn get_encoded_plmn(mcc: &str, mnc: &str) -> Result<Vec<u8>, AuthVectorConversionError> {
+    if mcc.len() != 3 {
+        return Err(AuthVectorConversionError::BoundsError());
     }
+
+    if !(mnc.len() == 3 || mnc.len() == 2) {
+        return Err(AuthVectorConversionError::BoundsError());
+    }
+
+    // Decode so each "digit" is mapped to a standalone byte.
+    let mut mcc_bytes: Vec<u8> = Vec::new();
+    for digit in mcc.chars() {
+        mcc_bytes.push(u8::from_str_radix(&digit.to_string(), 10)?);
+    }
+
+    assert_eq!(mcc_bytes.len(), 3);
+
+    let mut mnc_bytes: Vec<u8> = Vec::new();
+    for digit in mnc.chars() {
+        mnc_bytes.push(u8::from_str_radix(&digit.to_string(), 10)?);
+    }
+
+    if mnc_bytes.len() == 2 {
+        mnc_bytes.push(0x0F);
+    }
+
+    assert_eq!(mnc_bytes.len(), 3);
+
+    return Ok(vec![
+        (mcc_bytes[1] << 4) | mcc_bytes[0],
+        (mnc_bytes[2] << 4) | mcc_bytes[2],
+        (mnc_bytes[1] << 4) | mnc_bytes[0],
+    ])
 }
 
 #[cfg(test)]
@@ -77,7 +97,59 @@ mod tests {
     use milenage::Milenage;
 
     use crate::generate_vector_with_rand;
+    use crate::get_encoded_plmn;
     use crate::types;
+
+    #[test]
+    fn test_generation_eps_5g_combined() {
+        // Used from successful ueransim 5G attach
+        let k: types::K = hex::decode("3aef49b1c6ee9700d42afca230cb0589")
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let opc: types::Opc = hex::decode("e006d9ca10142b42b2830f3c603c3d63")
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let rand: types::Rand = hex::decode("645f677edb96b100e3db14eae181c8e4")
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let sqn: types::Sqn = hex::decode("000000003803").unwrap().try_into().unwrap();
+
+        let result = generate_vector_with_rand("910", "54", &k, &opc, &rand, &sqn);
+
+        // Shared EPS and 5G values:
+        assert_eq!("645f677edb96b100e3db14eae181c8e4", hex::encode(result.rand.as_array()));
+        assert_eq!("f37a166fd60880001e2530ed5a1e4d11", hex::encode(result.autn));
+
+        // 5G-specific values:
+        // assert_eq!(
+        //     "4cc63b268aa5ff97516cc3ee0c5fad53",
+        //     hex::encode(result.xres_star_hash)
+        // ); // Need to confirm
+        // assert_eq!(
+        //     "b2cb4eda3b7fa56fb0bfefde811560a366836bcd2b14782d9293460efa9792af",
+        //     hex::encode(result.kseaf)
+        // ); // Need to confirm
+
+        // EPS(4G)-specific values:
+        assert_eq!("669c736ebf393c6e", hex::encode(result.xres));
+        assert_eq!("3b85f4778a99be5324c7d233e4b68defc2db856a468125224f42f240e91926a5", hex::encode(result.kasme.as_array()));
+    }
+
+    #[test]
+    fn test_plmn_encode() {
+        // Used from successful ueransim 5G attach
+        assert_eq!(get_encoded_plmn("910", "54").unwrap(), hex::decode("19f045").unwrap());
+
+        // Test Edge Case Errors
+        assert!(get_encoded_plmn("9", "54").is_err());
+        assert!(get_encoded_plmn("910", "5").is_err());
+        assert!(get_encoded_plmn("CAT", "5").is_err());
+        assert!(get_encoded_plmn("9101337", "5").is_err());
+        assert!(get_encoded_plmn("910", "51337").is_err());
+    }
 
     #[test]
     fn test_generation() {
@@ -96,7 +168,7 @@ mod tests {
             .unwrap();
         let sqn: types::Sqn = hex::decode("000000000021").unwrap().try_into().unwrap();
 
-        let result = generate_vector_with_rand(&k, &opc, &rand, &sqn);
+        let result = generate_vector_with_rand("901", "70", &k, &opc, &rand, &sqn);
 
         assert_eq!("562d716dbd058b475cfecdbb48ed038f", hex::encode(result.rand.as_array()));
         assert_eq!("67c325a93c6880006ed9f592d86b709c", hex::encode(result.autn));

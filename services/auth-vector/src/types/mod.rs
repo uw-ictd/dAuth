@@ -26,6 +26,12 @@ pub enum AuthVectorConversionError {
 
     #[error("Conversion outside limits of destination type")]
     SliceConversionError(#[from] std::array::TryFromSliceError),
+
+    #[error("Could not convert hex input")]
+    HexConversionError(#[from] hex::FromHexError),
+
+    #[error("Could not parse integer input")]
+    IntConversionError(#[from] std::num::ParseIntError),
 }
 
 pub type Id = String;

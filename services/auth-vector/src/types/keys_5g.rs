@@ -2,7 +2,6 @@ use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
 use crate::types::{Ck, Ik, Autn};
-use crate::get_snn;
 
 pub const KAUSF_LENGTH: usize = 32;
 pub const KSEAF_LENGTH: usize = 32;
@@ -12,15 +11,15 @@ const FC_KSEAF: u8 = 0x6C;
 pub type Kausf = [u8; KAUSF_LENGTH];
 pub type Kseaf = [u8; KSEAF_LENGTH];
 
-pub fn gen_kausf(ck: &Ck, ik: &Ik, autn: &Autn) -> Kausf {
+pub fn gen_kausf(mcc: &str, mnc: &str, ck: &Ck, ik: &Ik, autn: &Autn) -> Kausf {
     let mut key = Vec::new();
     key.extend(ck);
     key.extend(ik);
 
     let mut data = vec![FC_KAUSF];
 
-    data.extend(get_snn().as_bytes());
-    let snn_len = get_snn().as_bytes().len() as u16;
+    data.extend(get_snn(mcc, mnc).as_bytes());
+    let snn_len = get_snn(mcc, mnc).as_bytes().len() as u16;
     let snn_len = snn_len.to_be_bytes();
     data.extend(snn_len);
 
@@ -39,10 +38,10 @@ pub fn gen_kausf(ck: &Ck, ik: &Ik, autn: &Autn) -> Kausf {
         .expect("All data should have correct size")
 }
 
-pub fn gen_kseaf(kausf: &Kausf) -> Kseaf {
+pub fn gen_kseaf(mcc: &str, mnc: &str, kausf: &Kausf) -> Kseaf {
     let mut data = vec![FC_KSEAF];
-    data.extend(get_snn().as_bytes());
-    let snn_len = get_snn().as_bytes().len() as u16;
+    data.extend(get_snn(mcc, mnc).as_bytes());
+    let snn_len = get_snn(mcc, mnc).as_bytes().len() as u16;
     let snn_len = snn_len.to_be_bytes();
     data.extend(snn_len);
 
@@ -53,4 +52,20 @@ pub fn gen_kseaf(kausf: &Kausf) -> Kseaf {
     mac.finalize().into_bytes()[..32]
         .try_into()
         .expect("All data should have correct size")
+}
+
+fn get_snn(mcc: &str, mnc: &str) -> String {
+    if mnc.len() == 2 {
+        format!(
+            "5G:mnc0{}.mcc{}.3gppnetwork.org",
+            mnc,
+            mcc,
+        )
+    } else {
+        format!(
+            "5G:mnc{}.mcc{}.3gppnetwork.org",
+            mnc,
+            mcc,
+        )
+    }
 }
