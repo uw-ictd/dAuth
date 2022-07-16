@@ -97,7 +97,10 @@ const char *mme_event_get_name(mme_event_t *e)
     case MME_EVT_SGSAP_LO_CONNREFUSED:
         return "MME_EVT_SGSAP_LO_CONNREFUSED";
 
-    default: 
+    case MME_EVT_RPC_COMPLETION:
+        return "MME_EVT_RPC_COMPLETION";
+
+    default:
        break;
     }
 
