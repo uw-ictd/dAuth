@@ -178,6 +178,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             .get(backup_network_id)
             .ok_or(DauthError::DataError("Failed to get shares".to_string()))?;
 
+        tracing::info!(?backup_network_id, ?user_id, "Enrolling backup network");
         backup_network::enroll_backup_prepare(
             context.clone(),
             user_id,
