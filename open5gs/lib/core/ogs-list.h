@@ -47,6 +47,7 @@ typedef struct ogs_list_s ogs_lnode_t;
     (dst)->next = (src)->next; \
 } while (0)
 
+#ifndef __cplusplus
 static ogs_inline void *ogs_list_first(const ogs_list_t *list)
 {
     return list->next;
@@ -205,6 +206,8 @@ static ogs_inline int ogs_list_count(const ogs_list_t *list)
         i++;
     return i;
 }
+
+#endif
 
 #ifdef __cplusplus
 }
