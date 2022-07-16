@@ -108,8 +108,14 @@ impl LocalAuthenticationHandler {
         let user_id = std::str::from_utf8(payload.user_id.as_slice())?.to_string();
 
         let res = match payload.response.ok_or(DauthError::InvalidMessageError("Missing required UE response".to_string()))? {
-            aka_confirm_req::Response::Res(r) => ResKind::Res(r.try_into().or(Err(DauthError::DataError("brokenRes".to_string())))?),
-            aka_confirm_req::Response::ResStar(r) => ResKind::ResStar(r.try_into().or(Err(DauthError::DataError("brokenResStar".to_string())))?),
+            aka_confirm_req::Response::Res(r) => {
+                tracing::debug!(?r, "Received Res");
+                ResKind::Res(r.try_into().or(Err(DauthError::DataError("brokenRes".to_string())))?)
+            },
+            aka_confirm_req::Response::ResStar(r) =>{
+                tracing::debug!(?r, "Received Res*");
+                ResKind::ResStar(r.try_into().or(Err(DauthError::DataError("brokenResStar".to_string())))?)
+            },
         };
 
         let key = match core::confirm_keys::confirm_authentication(self.context.clone(), &user_id, res).await? {
