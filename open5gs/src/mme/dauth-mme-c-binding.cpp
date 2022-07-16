@@ -92,8 +92,6 @@ mme_dauth_shim_request_auth_vector_resync(
     mme_ue_t * const mme_ue,
     const ogs_nas_authentication_failure_parameter_t * const resync_info
 ) {
-    ogs_error("Received dauth client request auth vector when currently unimplemented");
-
     // Allocate a new client for this UE if one does not exist already.
     if (mme_ue->dauth_context.local_auth_client == nullptr) {
         mme_context_t* mme_context = mme_self();
@@ -114,7 +112,7 @@ mme_dauth_shim_request_auth_vector_resync(
     dauth_mme::local_auth_client& client = access_dauth_local_auth_client_context(mme_ue->dauth_context);
 
     if (client.in_progress()) {
-        ogs_error("Received dauth client request when another request already in progress");
+        ogs_info("Received dauth client request when another request already in progress");
         if (!client.abort_current_state(mme_ue)) {
             return false;
         }

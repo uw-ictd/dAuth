@@ -55,6 +55,8 @@ dauth_mme::local_auth_client::request_auth_vector(
     mme_ue_t * const mme_ue,
     const ogs_nas_authentication_failure_parameter_t * const resync_info
 ) {
+    ogs_debug("[%s] Entering request auth vector", mme_ue->imsi_bcd);
+
     if (state_ != client_state::INIT) {
         ogs_error("Bad local client state [%d]", state_);
     }
@@ -76,13 +78,13 @@ dauth_mme::local_auth_client::request_auth_vector(
         auth_vector_req_.set_allocated_resync_info(&resync_info_);
     }
 
-    ogs_debug("[%s] Sending LocalAuthentication.GetAuthVector request", supi.c_str());
     grpc_context_ = std::make_unique<grpc::ClientContext>();
     auth_vector_rpc_ = stub_->PrepareAsyncGetAuthVector(grpc_context_.get(), auth_vector_req_, completion_queue_);
 
     // Update state before sending externally visible call.
     state_ = client_state::WAITING_AUTH_RESP;
 
+    ogs_info("[%s] Sending LocalAuthentication.GetAuthVector request to dauth", supi.c_str());
     auth_vector_rpc_->StartCall();
     auth_vector_rpc_->Finish(&auth_vector_resp_, &grpc_status_, this);
 
@@ -94,6 +96,8 @@ bool
 dauth_mme::local_auth_client::handle_request_auth_vector_res(
     mme_ue_t * const mme_ue
 ) {
+    ogs_debug("[%s] Handling request auth vector response", mme_ue->imsi_bcd);
+
     if (state_ != client_state::WAITING_AUTH_RESP) {
         ogs_error("Bad local client state [%d]", state_);
     }
@@ -109,7 +113,8 @@ dauth_mme::local_auth_client::handle_request_auth_vector_res(
         );
         return false;
     }
-    ogs_info("[%s] LocalAuthentication.GetAuthVector RPC Success", mme_ue->imsi_bcd);
+
+    ogs_debug("[%s] Handle request auth vector RPC completed ok, unpacking response", mme_ue->imsi_bcd);
 
     if (auth_vector_resp_.error() != AKAVectorResp_ErrorKind::AKAVectorResp_ErrorKind_NO_ERROR) {
         ogs_error(
@@ -150,12 +155,12 @@ dauth_mme::local_auth_client::abort_current_state(
     mme_ue_t * const mme_ue
 ) {
     if (state_ == client_state::AUTH_DONE) {
-        ogs_warn("Resetting state from AUTH_DONE since no messages in flight");
+        ogs_debug("Resetting state from AUTH_DONE since no messages in flight");
         state_ = client_state::INIT;
         return true;
     }
 
-    ogs_warn("In state {%d}", state_);
+    ogs_warn("Tried to abort but cannot since in state {%d}", state_);
     return false;
 }
 
@@ -196,6 +201,7 @@ dauth_mme::local_auth_client::request_confirm_auth(
     // Update state before sending externally visible request.
     state_ = client_state::WAITING_CONFIRM_RESP;
 
+    ogs_info("[%s] Sending LocalAuthentication.ConfirmAuth request to dauth", supi.c_str());
     confirm_auth_rpc_->StartCall();
     confirm_auth_rpc_->Finish(&confirm_auth_resp_, &grpc_status_, this);
 
@@ -222,12 +228,12 @@ dauth_mme::local_auth_client::handle_request_confirm_auth_res(
         );
         return false;
     }
-    ogs_info("[%s] LocalAuthentication.ConfirmAuth RPC Success", mme_ue->imsi_bcd);
 
     ogs_assert(confirm_auth_resp_.has_kasme());
     ogs_assert(confirm_auth_resp_.kasme().length() == OGS_SHA256_DIGEST_SIZE);
     memcpy(mme_ue->kasme, confirm_auth_resp_.kasme().c_str(), confirm_auth_resp_.kasme().length());
 
+    ogs_info("[%s] LocalAuthentication.ConfirmAuth RPC Success. Transitioning to security mode update state", mme_ue->imsi_bcd);
     // Update state before sending externally visible response.
     state_ = client_state::DONE;
     OGS_FSM_TRAN(&mme_ue->sm, &emm_state_security_mode);
