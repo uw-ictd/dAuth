@@ -39,6 +39,10 @@ pub async fn get(
     .await?)
 }
 
+#[derive(Debug, Clone, Copy, sqlx::FromRow)]
+struct SqnMaxRow {
+    pub sqn_max: i64,
+}
 /// Insert user info and replace if exists.
 pub async fn upsert(
     transaction: &mut Transaction<'_, Sqlite>,
@@ -48,6 +52,25 @@ pub async fn upsert(
     sqn_max: i64,
     sqn_slice: i64,
 ) -> Result<(), DauthError> {
+    // HACK Don't ever decrease a user's sequence number unless the slice config
+    // changes...
+    let mut sqn_to_insert = sqn_max;
+    let user_max_sqn: Option<SqnMaxRow> = sqlx::query_as(
+            "SELECT sqn_max FROM user_info_table
+            WHERE id=$1 AND sqn_slice=$2;
+            "
+        )
+        .bind(user_id)
+        .bind(sqn_slice)
+        .fetch_optional::<&mut Transaction<'_, Sqlite>>(transaction)
+        .await?;
+
+    let user_max_sqn = user_max_sqn.unwrap_or(SqnMaxRow{sqn_max: 32});
+    let user_max_sqn = user_max_sqn.sqn_max;
+    if (user_max_sqn % 32) == (sqn_max % 32) {
+        sqn_to_insert = std::cmp::max(user_max_sqn, sqn_max);
+    }
+
     sqlx::query(
         "REPLACE INTO user_info_table
         VALUES ($1,$2,$3,$4,$5);",
@@ -55,9 +78,9 @@ pub async fn upsert(
     .bind(user_id)
     .bind(k)
     .bind(opc)
-    .bind(sqn_max)
+    .bind(sqn_to_insert)
     .bind(sqn_slice)
-    .execute(transaction)
+    .execute::<&mut Transaction<'_, Sqlite>>(transaction)
     .await?;
 
     Ok(())
