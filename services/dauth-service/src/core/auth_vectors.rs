@@ -144,6 +144,13 @@ pub async fn generate_local_vector(
     )
     .await?;
 
+    database::kasmes::add(
+        &mut transaction,
+        &auth_vector_data.xres,
+        &auth_vector_data.kasme,
+    )
+    .await?;
+
     tracing::info!("Auth vector generated: {:?}", av_response);
     transaction.commit().await?;
 

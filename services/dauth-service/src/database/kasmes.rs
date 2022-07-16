@@ -1,6 +1,7 @@
 use sqlx::sqlite::{SqlitePool, SqliteRow};
 use sqlx::{Sqlite, Transaction};
 
+use auth_vector::types::Kasme;
 use crate::data::error::DauthError;
 
 /// Creates the kasme table if it does not exist already.
@@ -22,14 +23,14 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     uuid: &[u8],
-    value: &[u8],
+    value: &Kasme,
 ) -> Result<(), DauthError> {
     sqlx::query(
         "INSERT INTO kasme_table
         VALUES ($1,$2)",
     )
     .bind(uuid)
-    .bind(value)
+    .bind(value.to_vec())
     .execute(transaction)
     .await?;
 
@@ -117,7 +118,7 @@ mod tests {
                 kasmes::add(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
-                    &[section * num_rows + row; KASME_LENGTH],
+                    &vec![section * num_rows + row; KASME_LENGTH].try_into().unwrap(),
                 )
                 .await
                 .unwrap();
@@ -141,7 +142,7 @@ mod tests {
                 kasmes::add(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
-                    &[section * num_rows + row; KASME_LENGTH],
+                    &vec![section * num_rows + row; KASME_LENGTH].try_into().unwrap(),
                 )
                 .await
                 .unwrap();
@@ -184,7 +185,7 @@ mod tests {
                 kasmes::add(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
-                    &[section * num_rows + row; KASME_LENGTH],
+                    &vec![section * num_rows + row; KASME_LENGTH].try_into().unwrap(),
                 )
                 .await
                 .unwrap();
@@ -237,7 +238,7 @@ mod tests {
                 kasmes::add(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
-                    &[section * num_rows + row; KASME_LENGTH],
+                    &vec![section * num_rows + row; KASME_LENGTH].try_into().unwrap(),
                 )
                 .await
                 .unwrap();
@@ -297,7 +298,7 @@ mod tests {
         kasmes::add(
             &mut transaction,
             &[0_u8; XRES_STAR_LENGTH],
-            &[1_u8; KASME_LENGTH],
+            &vec![1_u8; KASME_LENGTH].try_into().unwrap(),
         )
         .await
         .unwrap();
@@ -305,7 +306,7 @@ mod tests {
         kasmes::add(
             &mut transaction,
             &[0_u8; XRES_STAR_LENGTH],
-            &[1_u8; KASME_LENGTH],
+            &vec![1_u8; KASME_LENGTH].try_into().unwrap(),
         )
         .await
         .unwrap();
