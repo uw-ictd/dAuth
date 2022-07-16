@@ -94,6 +94,8 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             );
         }
 
+        tracing::info!(?backup_network_id, ?user_id, "Building auth vectors for backup network");
+
         // for each vector (up to max), build a new vector and set of key shares
         for _ in 0..std::cmp::max(
             0,

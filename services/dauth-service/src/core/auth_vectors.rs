@@ -390,10 +390,10 @@ pub async fn build_auth_vector(
         .await?
         .to_user_info()?;
 
+    tracing::info!(?user_id, ?sqn_slice, "sqn"=?user_info.sqn, "Generating Vector for user");
+
     let auth_vector_data =
         auth_vector::generate_vector(&context.local_context.mcc, &context.local_context.mnc, &user_info.k, &user_info.opc, &user_info.sqn.try_into()?);
-
-    tracing::warn!(?user_id, ?auth_vector_data, "Generated Vector for user");
 
     user_info.sqn += context.local_context.num_sqn_slices;
 
