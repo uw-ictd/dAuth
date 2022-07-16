@@ -51,10 +51,10 @@ pub async fn confirm_authentication(
 
     let key = match combined_res {
         ResKind::Res(r) => {
-            confirm_authentication_eps(&context, user_id, &r, &state, &backup_network_ids, &address).await?
+            confirm_authentication_eps(&context, &r, &state, &backup_network_ids, &address).await?
         },
         ResKind::ResStar(r) => {
-            confirm_authentication_5g(&context, user_id, &r, &state, &backup_network_ids, &address).await?
+            confirm_authentication_5g(&context, &r, &state, &backup_network_ids, &address).await?
         }
     };
 
@@ -65,7 +65,6 @@ pub async fn confirm_authentication(
 
 async fn confirm_authentication_5g(
     context: &Arc<DauthContext>,
-    user_id: &str,
     res_star: &ResStar,
     state: &AuthState,
     backup_network_ids: &Vec<String>,
@@ -139,7 +138,6 @@ async fn confirm_authentication_5g(
 
 async fn confirm_authentication_eps(
     context: &Arc<DauthContext>,
-    user_id: &str,
     res: &Res,
     state: &AuthState,
     backup_network_ids: &Vec<String>,
