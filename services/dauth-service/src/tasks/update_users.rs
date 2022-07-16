@@ -16,9 +16,10 @@ use crate::rpc::clients::{backup_network, directory};
 /// First registers each user with the directory service,
 /// then enrolls all of the user's backup networks.
 pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
+    // T0: Get set of tasks
     let mut transaction = context.local_context.database_pool.begin().await.unwrap();
     let user_ids = database::tasks::update_users::get_user_ids(&mut transaction).await?;
-    transaction.commit().await.unwrap();
+    transaction.commit().await.unwrap(); // T0 end
 
     if user_ids.is_empty() {
         tracing::debug!("Nothing to do for update user task");
@@ -52,6 +53,7 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
 async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Result<(), DauthError> {
     let user_id = &user_id;
 
+    // T1: Get all backups for the user
     let mut transaction = context.local_context.database_pool.begin().await.unwrap();
     let user_data: Vec<(String, i64)> =
         database::tasks::update_users::get_user_data(&mut transaction, &user_id)
@@ -59,6 +61,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             .into_iter()
             .filter(|v| v.0 != context.local_context.id)
             .collect();
+    transaction.commit().await?; // T1 end
 
     let mut backup_network_ids = Vec::new();
     let mut vectors_map = HashMap::new();
@@ -74,10 +77,13 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
 
     /* create vectors and shares */
     for (backup_network_id, sqn_slice) in &user_data {
+        // T2: Collect existing vectors (one transaction for each backup network)
+        let mut transaction = context.local_context.database_pool.begin().await.unwrap();
         let num_existing_vectors =
             database::vector_state::get_all_by_id(&mut transaction, user_id, backup_network_id)
                 .await?
                 .len() as i64;
+        transaction.commit().await?; // T2 end
 
         if num_existing_vectors > 0 {
             tracing::info!(
@@ -93,6 +99,8 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             0,
             context.local_context.max_backup_vectors - num_existing_vectors,
         ) {
+            // T3: Build auth vector (up to max backups for each backup network)
+            let mut transaction = context.local_context.database_pool.begin().await.unwrap();
             let (vector, seqnum) = core::auth_vectors::build_auth_vector(
                 context.clone(),
                 &mut transaction,
@@ -100,6 +108,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
                 *sqn_slice,
             )
             .await?;
+            transaction.commit().await?; // T3 end
 
             let (xres_star_hash, xres_hash, rand) = (vector.xres_star_hash.clone(), vector.xres_hash.clone(), vector.rand.clone());
             let mut rng = rand_0_8::thread_rng();
@@ -177,6 +186,8 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
         )
         .await?;
 
+        // T4: Enroll backup network, then store vector states
+        let mut transaction = context.local_context.database_pool.begin().await.unwrap();
         database::backup_networks::upsert(
             &mut transaction,
             user_id,
@@ -204,6 +215,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             )
             .await?;
         }
+        transaction.commit().await?; // T4 end
 
         // drop rand before sending
         // TODO: allow backups to have rand? Would allow them to check res
@@ -223,6 +235,8 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
         .await?;
     }
 
+    // T5: Task is complete, so remove
+    let mut transaction = context.local_context.database_pool.begin().await.unwrap();
     database::tasks::update_users::remove(&mut transaction, &user_id).await?;
     transaction.commit().await?; // TODO: confirm a transaction this long is okay
 
