@@ -702,8 +702,8 @@ int ogs_dbi_default_subscription_data(char *supi,
     subscription_data->subscribed_rau_tau_timer = 12; // bson i32
 
     // Overall AMBR
-    subscription_data->ambr.downlink = (0x1 << 19); // AMBR bits/s 100Mibit
-    subscription_data->ambr.uplink = (0x1 << 19); // AMBR bits/s 100Mibit
+    subscription_data->ambr.downlink = (0x1 << 29); // AMBR bits/s 500Mibit
+    subscription_data->ambr.uplink = (0x1 << 29); // AMBR bits/s 500Mibit
 
     // Slice Config
     subscription_data->num_of_slice = 1;
@@ -728,8 +728,8 @@ int ogs_dbi_default_subscription_data(char *supi,
     session->qos.arp.priority_level = 8; //bson i32;
     session->qos.arp.pre_emption_capability = 1; //bson i32
     session->qos.arp.pre_emption_vulnerability = 2; //bson i32
-    session->ambr.downlink = (0x1 << 19); // AMBR bits/s 100Mibit
-    session->ambr.uplink = (0x1 << 19); // AMBR bits/s 100Mibit
+    session->ambr.downlink = (0x1 << 29); // AMBR bits/s 500Mibit
+    session->ambr.uplink = (0x1 << 29); // AMBR bits/s 500Mibit
 
     ogs_free(supi_type);
     ogs_free(supi_id);
