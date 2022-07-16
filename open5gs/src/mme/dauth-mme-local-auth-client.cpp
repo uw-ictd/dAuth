@@ -74,9 +74,10 @@ dauth_mme::local_auth_client::request_auth_vector(
     auth_vector_req_.set_user_id_type(::d_auth::UserIdKind::SUPI);
 
     if(resync_info) {
-        ogs_debug("[%s] Filling d_auth::AKAResyncInfo request", supi.c_str());
-        resync_info_.set_auts(resync_info->auts, resync_info->length);
-        auth_vector_req_.set_allocated_resync_info(&resync_info_);
+        ogs_debug("[%s] Filling d_auth::AKAResyncInfo request auts", supi.c_str());
+        auth_vector_req_.mutable_resync_info()->set_auts(resync_info->auts, resync_info->length);
+        ogs_debug("[%s] Setting rand", supi.c_str());
+        auth_vector_req_.mutable_resync_info()->set_rand(mme_ue->rand, OGS_RAND_LEN);
     }
 
     grpc_context_ = std::make_unique<grpc::ClientContext>();
