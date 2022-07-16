@@ -49,24 +49,24 @@ typedef struct ogs_list_s ogs_lnode_t;
 
 static ogs_inline void *ogs_list_first(const ogs_list_t *list)
 {
-    return (void *)list->next;
+    return list->next;
 }
 
 static ogs_inline void *ogs_list_last(const ogs_list_t *list)
 {
-    return (void *)list->prev;
+    return list->prev;
 }
 
 static ogs_inline void *ogs_list_next(void *lnode)
 {
-    ogs_list_t *node = (ogs_list_t *)lnode;
-    return (void *)node->next;
+    ogs_list_t *node = lnode;
+    return node->next;
 }
 
 static ogs_inline void *ogs_list_prev(void *lnode)
 {
-    ogs_list_t *node = (ogs_list_t *)lnode;
-    return (void *)node->prev;
+    ogs_list_t *node = lnode;
+    return node->prev;
 }
 
 #define ogs_list_entry(ptr, type, member) \
@@ -76,17 +76,13 @@ static ogs_inline void *ogs_list_prev(void *lnode)
     for (node = ogs_list_first(list); (node); \
         node = ogs_list_next(node))
 
-#define ogs_typed_list_for_each(list, node) \
-    for (node = (ogs_list_t *)ogs_list_first(list); (node); \
-        node = (ogs_list_t *)ogs_list_next(node))
-
 #define ogs_list_reverse_for_each(list, node) \
     for (node = ogs_list_last(list); (node); \
         node = ogs_list_prev(node))
 
 #define ogs_list_for_each_entry(list, node, member) \
     for (node = ogs_list_entry(ogs_list_first(list), typeof(*node), member); \
-            (&node->member); \
+            (node) && (&node->member); \
                 node = ogs_list_entry( \
                         ogs_list_next(&node->member), typeof(*node), member))
 
@@ -97,14 +93,14 @@ static ogs_inline void *ogs_list_prev(void *lnode)
 
 #define ogs_list_for_each_entry_safe(list, n, node, member) \
     for (node = ogs_list_entry(ogs_list_first(list), typeof(*node), member); \
-            (&node->member) && \
+            (node) && (&node->member) && \
                 (n = ogs_list_entry( \
                     ogs_list_next(&node->member), typeof(*node), member), 1); \
             node = n)
 
 static ogs_inline void ogs_list_prepend(ogs_list_t *list, void *lnode)
 {
-    ogs_list_t *node = (ogs_list_t *)lnode;
+    ogs_list_t *node = lnode;
 
     node->prev = NULL;
     node->next = list->next;
@@ -117,7 +113,7 @@ static ogs_inline void ogs_list_prepend(ogs_list_t *list, void *lnode)
 
 static ogs_inline void ogs_list_add(ogs_list_t *list, void *lnode)
 {
-    ogs_list_t *node = (ogs_list_t *)lnode;
+    ogs_list_t *node = lnode;
 
     node->prev = list->prev;
     node->next = NULL;
@@ -130,7 +126,7 @@ static ogs_inline void ogs_list_add(ogs_list_t *list, void *lnode)
 
 static ogs_inline void ogs_list_remove(ogs_list_t *list, void *lnode)
 {
-    ogs_list_t *node = (ogs_list_t *)lnode;
+    ogs_list_t *node = lnode;
     ogs_list_t *prev = node->prev;
     ogs_list_t *next = node->next;
 
@@ -148,8 +144,8 @@ static ogs_inline void ogs_list_remove(ogs_list_t *list, void *lnode)
 static ogs_inline void ogs_list_insert_prev(
         ogs_list_t *list, void *lnext, void *lnode)
 {
-    ogs_list_t *node = (ogs_list_t *)lnode;
-    ogs_list_t *next = (ogs_list_t *)lnext;
+    ogs_list_t *node = lnode;
+    ogs_list_t *next = lnext;
 
     node->prev = next->prev;
     node->next = next;
@@ -163,8 +159,8 @@ static ogs_inline void ogs_list_insert_prev(
 static ogs_inline void ogs_list_insert_next(
         ogs_list_t *list, void *lprev, void *lnode)
 {
-    ogs_list_t *node = (ogs_list_t *)lnode;
-    ogs_list_t *prev = (ogs_list_t *)lprev;
+    ogs_list_t *node = lnode;
+    ogs_list_t *prev = lprev;
 
     node->prev = prev;
     node->next = prev->next;
@@ -182,10 +178,10 @@ typedef int (*ogs_list_compare_f)(ogs_lnode_t *n1, ogs_lnode_t *n2);
 static ogs_inline void __ogs_list_insert_sorted(
     ogs_list_t *list, void *lnode, ogs_list_compare_f compare)
 {
-    ogs_list_t *node = (ogs_list_t *)lnode;
+    ogs_list_t *node = lnode;
     ogs_list_t *iter = NULL;
 
-    ogs_typed_list_for_each(list, iter) {
+    ogs_list_for_each(list, iter) {
         if ((*compare)(node, iter) < 0) {
             ogs_list_insert_prev(list, iter, node);
             break;
@@ -205,7 +201,7 @@ static ogs_inline int ogs_list_count(const ogs_list_t *list)
 {
     ogs_list_t *node;
     int i = 0;
-    ogs_typed_list_for_each(list, node)
+    ogs_list_for_each(list, node)
         i++;
     return i;
 }
