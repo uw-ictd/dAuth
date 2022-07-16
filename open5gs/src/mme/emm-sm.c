@@ -698,9 +698,7 @@ void emm_state_authentication(ogs_fsm_t *s, mme_event_t *e)
                     authentication_response_parameter->res,
                     authentication_response_parameter->length,
                     res_hash);
-                if (memcmp(authentication_response_parameter->res,
-                        mme_ue->xres,
-                        authentication_response_parameter->length) != 0) {
+                if (memcmp(res_hash, mme_ue->xres_hash, mme_ue->xres_len) != 0) {
                     ogs_info("IMSI[%s] Received invalid auth response", mme_ue->imsi_bcd);
 
                     ogs_log_hexdump(OGS_LOG_WARN,
