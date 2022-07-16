@@ -857,6 +857,7 @@ void emm_state_security_mode(ogs_fsm_t *s, mme_event_t *e)
 
     switch (e->id) {
     case OGS_FSM_ENTRY_SIG:
+        ogs_debug("IMSI[%s] Entering security mode SM", mme_ue->imsi_bcd);
         CLEAR_MME_UE_TIMER(mme_ue->t3460);
         ogs_assert(OGS_OK ==
             nas_eps_send_security_mode_command(mme_ue));

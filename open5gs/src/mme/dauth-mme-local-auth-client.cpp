@@ -29,6 +29,7 @@
 #include "local_authentication.grpc.pb.h"
 #include "local_authentication.pb.h"
 
+#include "mme-event.h"
 #include "nas-path.h"
 #include "mme-sm.h"
 #include "core/ogs-core.h"
@@ -242,6 +243,13 @@ dauth_mme::local_auth_client::handle_request_confirm_auth_res(
     // Update state before sending externally visible response.
     state_ = client_state::DONE;
     OGS_FSM_TRAN(&mme_ue->sm, &emm_state_security_mode);
+    // Trigger the state machine since we're transitioning states outside a
+    // running event context. Possibly leaking the event? Not sure what the
+    // error handling should be like also if the new event cannot be created for
+    // some reason.
+    mme_event_t * entry_event = mme_event_new((mme_event_e) 0);
+    entry_event->mme_ue = mme_ue;
+    ogs_fsm_dispatch(&mme_ue->sm, entry_event);
     state_ = client_state::INIT;
 
     return true;
