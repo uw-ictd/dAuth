@@ -518,7 +518,7 @@ int ogs_dbi_session_default_data(char *supi, ogs_s_nssai_t *s_nssai, char *dnn,
     ogs_session_data_t zero_data;
 
     ogs_assert(supi);
-    ogs_assert(s_nssai);
+
     ogs_assert(dnn);
     ogs_assert(session_data);
 
@@ -532,15 +532,17 @@ int ogs_dbi_session_default_data(char *supi, ogs_s_nssai_t *s_nssai, char *dnn,
     supi_id = ogs_id_get_value(supi);
     ogs_assert(supi_id);
 
+    ogs_info("SUPI[%s] Generating default session data", supi);
     // The subscriber is created on demand, so use the default subscriber
     // parameters.
-    if ((ogs_strncasecmp("internet\0", dnn, 9) == 0) && (s_nssai->sst == 1) ) {
+    if ((ogs_strncasecmp("internet\0", dnn, 9) == 0) && (!s_nssai || (s_nssai->sst == 1)) ) {
         found = true;
         goto done;
     }
 
 done:
     if (found == false) {
+        ogs_assert(s_nssai);
         ogs_error("Cannot find SUPI[%s] S_NSSAI[SST:%d SD:0x%x] DNN[%s] in DB",
                 supi_id, s_nssai->sst, s_nssai->sd.v, dnn);
 
