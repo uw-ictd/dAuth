@@ -272,7 +272,8 @@ impl HomeNetworkHandler {
                     get_home_confirm_key_resp::Key::Kseaf(kseaf.to_vec())
                 },
                 Preimage::Res(res) => {
-                    unimplemented!()
+                    let kasme = core::confirm_keys::get_confirm_key_res(context, res.as_slice().try_into()?).await?;
+                    get_home_confirm_key_resp::Key::Kasme(kasme.to_vec())
                 }
             };
 
