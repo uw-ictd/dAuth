@@ -1,6 +1,7 @@
 use crate::types;
 
 /// Contains all auth vector data
+#[derive(Debug, Clone)]
 pub struct AuthVectorData {
     pub xres_star_hash: types::XResStarHash,
     pub xres_star: types::XResStar,
