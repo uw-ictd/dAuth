@@ -545,7 +545,7 @@ impl BackupNetworkHandler {
             // signing key as done below : /
             let key_share = match request_hash {
                 get_key_share_req::payload::Hash::XresStarHash(xres_star_hash) => {
-                    core::confirm_keys::get_key_share(
+                    core::confirm_keys::get_key_share_5g(
                         context.clone(),
                         xres_star_hash[..].try_into()?,
                         &signed_request_bytes,
@@ -553,7 +553,12 @@ impl BackupNetworkHandler {
                     .await?
                 },
                 get_key_share_req::payload::Hash::XresHash(xres_hash) => {
-                    unimplemented!()
+                    core::confirm_keys::get_key_share_eps(
+                        context.clone(),
+                        xres_hash.as_slice().try_into()?,
+                        &signed_request_bytes,
+                    )
+                    .await?
                 }
             };
 
