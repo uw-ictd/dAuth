@@ -17,6 +17,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <cstddef>
 #include <grpcpp/grpcpp.h>
 #include <memory>
 #include <string.h>
@@ -167,7 +168,8 @@ dauth_mme::local_auth_client::abort_current_state(
 bool
 dauth_mme::local_auth_client::request_confirm_auth(
     mme_ue_t * const mme_ue,
-    const uint8_t * const res
+    const uint8_t * const res,
+    size_t res_len
 ) {
     if (state_ != client_state::AUTH_DONE) {
         ogs_error("Bad local client state [%d]", state_);
@@ -192,7 +194,7 @@ dauth_mme::local_auth_client::request_confirm_auth(
     ogs_debug("[%s] Filling d_auth::AKAConfirmReq request", supi.c_str());
     confirm_auth_req_.set_user_id(supi);
     confirm_auth_req_.set_user_id_type(::d_auth::UserIdKind::SUPI);
-    confirm_auth_req_.set_res(res, OGS_MAX_RES_LEN);
+    confirm_auth_req_.set_res(res, res_len);
 
     ogs_debug("[%s] Sending LocalAuthentication.ConfirmAuth request", supi.c_str());
     grpc_context_ = std::make_unique<grpc::ClientContext>();

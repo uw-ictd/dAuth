@@ -17,6 +17,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <cstddef>
 #include <grpcpp/grpcpp.h>
 #include <memory>
 #include <string.h>
@@ -124,7 +125,8 @@ mme_dauth_shim_request_auth_vector_resync(
 bool
 mme_dauth_shim_request_confirm_auth(
     mme_ue_t * const mme_ue,
-    const uint8_t * const res
+    const uint8_t * const res,
+    const size_t res_len
 ) {
     ogs_assert(mme_ue->dauth_context.local_auth_client);
     if (!mme_ue->dauth_context.local_auth_client) {
@@ -133,7 +135,7 @@ mme_dauth_shim_request_confirm_auth(
 
     dauth_mme::local_auth_client& client = access_dauth_local_auth_client_context(mme_ue->dauth_context);
 
-    return client.request_confirm_auth(mme_ue, res);
+    return client.request_confirm_auth(mme_ue, res, res_len);
 }
 
 // Compute res_hash from res

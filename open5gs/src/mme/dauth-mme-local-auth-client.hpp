@@ -28,6 +28,7 @@
 
 #include "mme-event.h"
 
+#include <cstddef>
 #include <memory>
 
 #include <grpcpp/grpcpp.h>
@@ -101,7 +102,8 @@ public:
     bool
     request_confirm_auth(
         mme_ue_t * const mme_ue,
-        const uint8_t * const res
+        const uint8_t * const res,
+        size_t res_len
         // ogs_sbi_stream_t *stream
     );
 

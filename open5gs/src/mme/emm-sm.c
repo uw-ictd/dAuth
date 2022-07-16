@@ -718,7 +718,12 @@ void emm_state_authentication(ogs_fsm_t *s, mme_event_t *e)
 
                 } else {
                     // Received a valid Auth response here, need to get the key before transitioning to security mode state!
-                    mme_dauth_shim_request_confirm_auth(mme_ue, authentication_response_parameter->res);
+                    ogs_info("IMSI[%s] Received validated auth response", mme_ue->imsi_bcd);
+                    mme_dauth_shim_request_confirm_auth(
+                        mme_ue,
+                        authentication_response_parameter->res,
+                        authentication_response_parameter->length
+                    );
                     // OGS_FSM_TRAN(&mme_ue->sm, &emm_state_security_mode);
                 }
             }
