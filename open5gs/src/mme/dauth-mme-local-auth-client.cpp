@@ -114,7 +114,18 @@ dauth_mme::local_auth_client::handle_request_auth_vector_res(
             grpc_status_.error_code(),
             grpc_status_.error_message().c_str()
         );
-        return false;
+        ogs_assert(OGS_OK ==
+                nas_eps_send_authentication_reject(mme_ue));
+        OGS_FSM_TRAN(&mme_ue->sm, &emm_state_exception);
+        // Trigger the state machine since we're transitioning states outside a
+        // running event context. Possibly leaking the event? Not sure what the
+        // error handling should be like also if the new event cannot be created for
+        // some reason.
+        mme_event_t * entry_event = mme_event_new((mme_event_e) 0);
+        entry_event->mme_ue = mme_ue;
+        ogs_fsm_dispatch(&mme_ue->sm, entry_event);
+        state_ = client_state::INIT;
+        return true;
     }
 
     ogs_debug("[%s] Handle request auth vector RPC completed ok, unpacking response", mme_ue->imsi_bcd);
@@ -125,7 +136,18 @@ dauth_mme::local_auth_client::handle_request_auth_vector_res(
             mme_ue->imsi_bcd,
             auth_vector_resp_.error()
         );
-        return false;
+        ogs_assert(OGS_OK ==
+                nas_eps_send_authentication_reject(mme_ue));
+        OGS_FSM_TRAN(&mme_ue->sm, &emm_state_exception);
+        // Trigger the state machine since we're transitioning states outside a
+        // running event context. Possibly leaking the event? Not sure what the
+        // error handling should be like also if the new event cannot be created for
+        // some reason.
+        mme_event_t * entry_event = mme_event_new((mme_event_e) 0);
+        entry_event->mme_ue = mme_ue;
+        ogs_fsm_dispatch(&mme_ue->sm, entry_event);
+        state_ = client_state::INIT;
+        return true;
     }
 
     // Debug sanity checks on size.
@@ -221,8 +243,8 @@ dauth_mme::local_auth_client::handle_request_confirm_auth_res(
 ) {
     if (state_ != client_state::WAITING_CONFIRM_RESP) {
         ogs_error("Bad local client state [%d]", state_);
+        return false;
     }
-    ogs_assert(state_ == client_state::WAITING_CONFIRM_RESP);
 
     // Handle failure
     if (!grpc_status_.ok()) {
@@ -232,7 +254,20 @@ dauth_mme::local_auth_client::handle_request_confirm_auth_res(
             grpc_status_.error_code(),
             grpc_status_.error_message().c_str()
         );
-        return false;
+
+        ogs_assert(OGS_OK ==
+                nas_eps_send_authentication_reject(mme_ue));
+        OGS_FSM_TRAN(&mme_ue->sm, &emm_state_exception);
+        // Trigger the state machine since we're transitioning states outside a
+        // running event context. Possibly leaking the event? Not sure what the
+        // error handling should be like also if the new event cannot be created for
+        // some reason.
+        mme_event_t * entry_event = mme_event_new((mme_event_e) 0);
+        entry_event->mme_ue = mme_ue;
+        ogs_fsm_dispatch(&mme_ue->sm, entry_event);
+        state_ = client_state::INIT;
+
+        return true;
     }
 
     ogs_assert(confirm_auth_resp_.has_kasme());
@@ -273,10 +308,10 @@ dauth_mme::local_auth_client::notify_rpc_complete(void) {
         case DONE:
         default:
             ogs_error("Received rpc completion notify in bad state [%d]", state_);
-            ogs_assert(false);
+            return false;
     }
 
-    return false;
+    ogs_assert(false);
 }
 
 bool
