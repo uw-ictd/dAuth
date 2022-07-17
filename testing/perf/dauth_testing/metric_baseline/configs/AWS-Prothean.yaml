@@ -1,0 +1,14 @@
+directory:
+  hostname: "100.79.143.58"
+  id: "AWS-directory"
+  is_vagrant: false
+
+ueransim:
+  hostname: "100.87.240.90"
+  id: "Prothean-ueransim"
+  is_vagrant: false
+
+services:
+  - hostname: "100.79.143.58"
+    id: "AWS-service"
+    is_vagrant: false

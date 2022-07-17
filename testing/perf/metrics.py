@@ -76,15 +76,21 @@ class PerfMetrics:
         """
         res = dict()
         res["test_name"] = self.test_name
-        for name in self.get_names():
-            res[name] = {
-                "cmd_tags": self.get_command_tags(name),
-                "results": self.get_results(name),
-                "averages": self.get_average(name),
-            }
-        res["total_averages"] = self.get_total_average()
         res["test_duration"] = self.test_time
         res["total_auths"] = self.total_auths
+        res["nanoseconds_since_auth"] = list()
+        res["nanoseconds_since_registration"] = list()
+        for name in self.get_names():
+            test_res = self.get_results(name)
+            res["nanoseconds_since_auth"].extend(test_res["nanoseconds_since_auth"])
+            res["nanoseconds_since_registration"].extend(test_res["nanoseconds_since_registration"])
+            # res[name] = {
+            #     "results": self.get_results(name),
+            #     "averages": self.get_average(name),
+            # }
+        # res["total_averages"] = self.get_total_average()
+
+        res["total_auths"] = len(res["nanoseconds_since_auth"])
         
         return json.dumps(res)
     
@@ -95,18 +101,12 @@ class PerfMetrics:
         
         Expects the following structure:
             '{
-                "result":"Ok",
                 "nanoseconds_since_auth":<int>,
                 "nanoseconds_since_registration":<int>,
-                "nanoseconds_to_establish_session":<int>,
                 "ue_supi":"90170xxxxxxxxxx",
-                "command_tag":<int>
              }'
         """
         dataset = json.loads(json_string)
-        
-        if dataset["result"] != "Ok":
-            raise Exception("Invalid result state: {}".format(dataset["result"]))
         
         name = dataset["ue_supi"]
         
@@ -116,8 +116,6 @@ class PerfMetrics:
                     [dataset["nanoseconds_since_auth"]],
                 "nanoseconds_since_registration":
                     [dataset["nanoseconds_since_registration"]],
-                "nanoseconds_to_establish_session":
-                    [dataset["nanoseconds_to_establish_session"]],
             }
         else:
             results: Dict[str, List[int]] = self._results[name]
@@ -125,10 +123,3 @@ class PerfMetrics:
                 dataset["nanoseconds_since_auth"])
             results["nanoseconds_since_registration"].append(
                 dataset["nanoseconds_since_registration"])
-            results["nanoseconds_to_establish_session"].append(
-                dataset["nanoseconds_to_establish_session"])
-        
-        if name not in self._tags:
-            self._tags[name] = list()
-        
-        self._tags[name].append(dataset["command_tag"])

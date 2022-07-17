@@ -19,12 +19,14 @@ class NetworkSetup:
     def __init__(self, state: NetworkState) -> None:
         self.state: NetworkState = state
         
-        self._max_ues_per_gnb = 10
-        self._max_gnbs = 10
+        self._max_ues_per_gnb = 25
+        self._max_gnbs = 40
         self._temp_dir = "/tmp/ueransim-perf-configs"
         
         self.gnb_index = 0
         self.key_threshold = None
+        
+        self.gnb_outs = list()
 
     def setup_name(self) -> str:
         pass
@@ -48,14 +50,14 @@ class NetworkSetup:
         
         num_gnbs = num_ues // self._max_ues_per_gnb
         
-        if num_ues % self._max_gnbs > 0:
+        if num_ues % self._max_ues_per_gnb > 0:
             num_gnbs += 1
             
         if num_gnbs > self._max_gnbs:
             raise PerfException("Max number of UEs exceeded")
         
         # clear out previous configs if they exist
-        self.state.ueransim.run_command(" ".join(["rm", "-rf", self._temp_dir]))
+        self.state.ueransim.run_command(" ".join(["sudo", "rm", "-rf", self._temp_dir]))
         self.state.ueransim.run_command(" ".join(["mkdir", self._temp_dir]))
         
         gnb_paths = list()
@@ -101,7 +103,9 @@ class NetworkSetup:
             TestingLogger.logger.info("Distributing UEs across {} gNB(s)".format(len(gnb_paths)))
             
             for config_path in gnb_paths:
-                self.state.ueransim.add_gnb(config_path)
+                gnb = self.state.ueransim.add_gnb(config_path)
+                
+                self.gnb_outs.append((config_path, gnb.stdout, gnb.stderr))
         else:
             raise PerfException("GNB configs not specified")
         
@@ -165,25 +169,32 @@ class NetworkSetup:
             TestingLogger.logger.info("Processing output (varies by iterations*interval)")
             metrics = PerfMetrics(self.setup_name() + ":<n,i,t>({},{},{})".format(num_ues, interval, iterations))
             for line in output:
+                TestingLogger.logger.debug("Stdout: {}".format(line.rstrip()))
                 try:
-                    metrics.add_result_from_json(line)
+                    json_line = line.split("[nas] [info] [dAUTH] ")[1].strip()
+                    TestingLogger.logger.info("Json line: " + json_line)
+                    metrics.add_result_from_json(json_line)
                 except Exception as e:
-                    TestingLogger.logger.debug("Failed<{}>: {}".format(e, line.rstrip()))
-                    
                     if "[error]" in line:
                         TestingLogger.logger.error("UERANSIM error detected: {}".format(line.rstrip()))
                 
             # output closed, test over
             metrics.test_time = time.time() - start
-            metrics.total_auths = iterations*num_ues
+            metrics.total_auths = num_ues
                 
             for line in err:
                 TestingLogger.logger.debug("Stderr: " + line.rstrip())
+    
+            self.state.ueransim.remove_devices()
+            for (path, stout, stderr) in self.gnb_outs:
+                for line in stout:
+                    TestingLogger.logger.debug(f"gNG out: ({path}) " + line.rstrip())
+                for line in stderr:
+                    TestingLogger.logger.debug(f"gNG err: ({path}) " + line.rstrip())
                 
             TestingLogger.logger.info("Results:")
             for name in metrics.get_names():
                 TestingLogger.logger.info("  " + name)
-                TestingLogger.logger.info("   cmd tags: " + str(metrics.get_command_tags(name)))
                 TestingLogger.logger.info("   values  : " + str(metrics.get_results(name)))
                 TestingLogger.logger.info("   averages: " + str(metrics.get_average(name)))
             TestingLogger.logger.info("  All")
@@ -191,14 +202,16 @@ class NetworkSetup:
             TestingLogger.logger.info("   total auths: " + str(metrics.total_auths))
             TestingLogger.logger.info("   test time  : " + str(metrics.test_time))
             
+            # REMOVE FOR BASELINE
             TestingLogger.logger.info("Waiting for metrics")
-            sleep(5)
+            sleep(3)
             
             print(metrics.get_results_json())
+            
+            # REMOVE FOR BASELINE
             print(self.get_dauth_stats())
 
         except PerfException as e:
             TestingLogger.logger.error("Failed to run: {}".format(e))
         
         TestingLogger.logger.info("Perf completed")
-        self.state.ueransim.remove_devices()

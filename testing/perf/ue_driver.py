@@ -45,7 +45,7 @@ class UeransimUe(object):
         # Setup the control socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(("127.0.0.1", 0))
-        self.sock.settimeout(5.0)
+        self.sock.settimeout(30.0)
         log.info(f"Communicating with {name} at port {self.ue_process_control_port} from {self.sock.getsockname()}")
 
         # Communication metadata
@@ -107,9 +107,9 @@ class UeransimUe(object):
 
 
 def run_test_loop(ue: UeransimUe, interval: float, iterations: int):
-    time.sleep(1)
     for i in range(iterations):
-        print(ue.send_command("deregister sync-disable-5g"), flush=True)
+        # print(ue.send_command("deregister sync-disable-5g"), flush=True)
+        ue.send_command("deregister sync-disable-5g")
         # Sleeps here seem to help with open5gs stability : (
         time.sleep(max(0.5, interval/2))
         print(ue.send_command("reconnect {}".format(i)), flush=True)
@@ -160,7 +160,7 @@ def main() -> None:
     interval = args.interval*0.001
     
     # Use this to space out the UE starts across half an interval
-    spawn_delay = interval / (num_ues * 2)
+    spawn_delay = interval / (num_ues)
     
     ue_configs = []
     for filename in os.listdir(args.config_dir):
@@ -174,15 +174,18 @@ def main() -> None:
     for i in range(num_ues):
         config = ue_configs[i % len(ue_configs)]
         imsi = "imsi-90170{}".format(str(i+1).zfill(10))
+        print("Adding", imsi)
         ues.append(UeransimUe(imsi, config))
         time.sleep(spawn_delay)
-    
+        
+    # time.sleep(interval/2)
+
     threads = []
     for ue in ues:
         threads.append(threading.Thread(
             target= lambda: run_test_loop(ue, interval, args.iterations)))
         threads[-1].start()
-        time.sleep(spawn_delay)
+        # time.sleep(spawn_delay)
 
 if __name__ == "__main__":
     main()

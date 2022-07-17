@@ -25,7 +25,7 @@ def generate_variations(config_name: str, config_content: dict) -> List[Union[st
     other_configs = list()
     
     for num_backups in (2, 4, 8):
-        for random_set in range(10):
+        for random_set in range(5):
             new_config = copy.deepcopy(config_content)
             
             backups = random.sample(new_config["services"][2:], num_backups)
