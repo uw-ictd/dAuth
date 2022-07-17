@@ -53,10 +53,10 @@ async fn report_key_shares(
     report: ReportKeyShareTask,
 ) -> Result<ReportKeyShareTask, DauthError> {
     let (home_network_id, _) =
-        clients::directory::lookup_user(context.clone(), &report.user_id).await?;
+        clients::directory::lookup_user(&context, &report.user_id).await?;
 
     let (address, _) =
-        clients::directory::lookup_network(context.clone(), &home_network_id).await?;
+        clients::directory::lookup_network(&context, &home_network_id).await?;
 
     clients::home_network::report_key_share_consumed(
         context,

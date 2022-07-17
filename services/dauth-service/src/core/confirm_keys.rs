@@ -26,7 +26,7 @@ pub async fn confirm_authentication(
     tracing::info!("Confirming auth with res: {:?}", combined_res);
 
     let (home_network_id, backup_network_ids) =
-        clients::directory::lookup_user(context.clone(), user_id).await?;
+        clients::directory::lookup_user(&context, user_id).await?;
 
     if home_network_id == context.local_context.id {
         tracing::info!("User owned by this network");
@@ -37,7 +37,7 @@ pub async fn confirm_authentication(
     }
 
     let (address, _) =
-        clients::directory::lookup_network(context.clone(), &home_network_id).await?;
+        clients::directory::lookup_network(&context, &home_network_id).await?;
 
     let state;
 
@@ -218,7 +218,7 @@ async fn kseaf_key_share_from_network_id(
     backup_network_id: String,
 ) -> Result<keys::KseafShare, DauthError> {
     let (backup_address, _) =
-        clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
+        clients::directory::lookup_network(&context, &backup_network_id).await?;
 
     clients::backup_network::get_kseaf_key_share(
         context.clone(),
@@ -236,7 +236,7 @@ async fn kasme_key_share_from_network_id(
     backup_network_id: String,
 ) -> Result<keys::KasmeShare, DauthError> {
     let (backup_address, _) =
-        clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
+        clients::directory::lookup_network(&context, &backup_network_id).await?;
 
     clients::backup_network::get_kasme_key_share(
         context,

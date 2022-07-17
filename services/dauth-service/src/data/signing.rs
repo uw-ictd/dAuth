@@ -93,7 +93,7 @@ async fn verify_message_with_id(
     message: &remote::SignedMessage,
     signer_id: &str,
 ) -> Result<(), DauthError> {
-    let (_, public_key) = directory::lookup_network(context.clone(), signer_id).await?;
+    let (_, public_key) = directory::lookup_network(&context, signer_id).await?;
 
     public_key.verify(
         &message.container,

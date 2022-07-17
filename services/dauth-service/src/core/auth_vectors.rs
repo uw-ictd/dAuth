@@ -44,10 +44,10 @@ pub async fn find_vector(
 
     // Attempt to lookup the vector from the home network directly.
     let (home_network_id, backup_network_ids) =
-        clients::directory::lookup_user(context.clone(), user_id).await?;
+        clients::directory::lookup_user(&context, user_id).await?;
 
     let (home_address, _) =
-        clients::directory::lookup_network(context.clone(), &home_network_id).await?;
+        clients::directory::lookup_network(&context, &home_network_id).await?;
 
     let res = clients::home_network::get_auth_vector(
         context.clone(),
@@ -125,7 +125,7 @@ async fn get_auth_vector_from_network_id(
     resync_xres_star_hash: Option<XResStarHash>,
 ) -> Result<AuthVectorRes, DauthError> {
     let (backup_address, _) =
-        clients::directory::lookup_network(context.clone(), &backup_network_id).await?;
+        clients::directory::lookup_network(&context, &backup_network_id).await?;
 
     clients::backup_network::get_auth_vector(context.clone(), &user_id, &backup_address, resync_xres_star_hash).await
 }
@@ -341,7 +341,7 @@ pub async fn backup_auth_vector_used(
     )
     .await?;
 
-    let (_, backup_networks) = clients::directory::lookup_user(context.clone(), &user_id).await?;
+    let (_, backup_networks) = clients::directory::lookup_user(&context, &user_id).await?;
 
     let mut kseaf_key_shares = keys::create_shares_from_kseaf(
         &auth_vector_data.kseaf,

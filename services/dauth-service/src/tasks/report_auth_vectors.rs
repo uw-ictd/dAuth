@@ -55,14 +55,14 @@ async fn report_auth_vector(
 ) -> Result<ReportAuthVectorTask, DauthError> {
     tracing::debug!("Looking up home network ID for user {}", &report.user_id);
     let (home_network_id, _) =
-        clients::directory::lookup_user(context.clone(), &report.user_id).await?;
+        clients::directory::lookup_user(&context, &report.user_id).await?;
 
     tracing::debug!(
         "Looking up address for home network id {}",
         &home_network_id
     );
     let (address, _) =
-        clients::directory::lookup_network(context.clone(), &home_network_id).await?;
+        clients::directory::lookup_network(&context, &home_network_id).await?;
 
     tracing::debug!("Reporting auth consumed to home network");
     let possible_av_result = clients::home_network::report_auth_consumed(

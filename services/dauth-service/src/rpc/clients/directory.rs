@@ -32,7 +32,7 @@ pub async fn register(context: Arc<DauthContext>) -> Result<(), DauthError> {
 /// and public key of the provided network id
 /// Returns pair (address, public key)
 pub async fn lookup_network(
-    context: Arc<DauthContext>,
+    context: &Arc<DauthContext>,
     network_id: &str,
 ) -> Result<(String, PublicKey), DauthError> {
     let mut cache = context.backup_context.directory_network_cache.lock().await;
@@ -63,7 +63,7 @@ pub async fn lookup_network(
 /// and the backup networks of the provided user.
 /// Returns pair (home nework, vec<backup networks>)
 pub async fn lookup_user(
-    context: Arc<DauthContext>,
+    context: &Arc<DauthContext>,
     user_id: &str,
 ) -> Result<(String, Vec<String>), DauthError> {
     let mut cache = context.backup_context.directory_user_cache.lock().await;

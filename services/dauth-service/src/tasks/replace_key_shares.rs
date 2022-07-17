@@ -60,7 +60,7 @@ async fn replace_key_share(
     replace_delay.tick().await;
 
     let (address, _) =
-        clients::directory::lookup_network(context.clone(), &replace.backup_network_id).await?;
+        clients::directory::lookup_network(&context, &replace.backup_network_id).await?;
 
     clients::backup_network::replace_key_share(context, &replace, &address).await?;
 

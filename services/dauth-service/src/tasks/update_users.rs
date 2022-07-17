@@ -171,7 +171,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
 
     /* enroll backups */
     for (backup_network_id, seqnum_slice) in &user_data {
-        let (address, _) = directory::lookup_network(context.clone(), &backup_network_id).await?;
+        let (address, _) = directory::lookup_network(&context, &backup_network_id).await?;
 
         let vectors = vectors_map
             .get(backup_network_id)
