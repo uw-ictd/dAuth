@@ -53,4 +53,7 @@ pub enum DauthError {
 
     #[error("Received incorrect key type for 4G/5G context -- {0}")]
     KeyTypeError(String),
+
+    #[error("Unable to make filesystem write {0}")]
+    IoError(#[from] std::io::Error),
 }

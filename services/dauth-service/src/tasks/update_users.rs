@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs;
+use std::io::prelude::*;
 use std::sync::Arc;
 
 use auth_vector::types::Rand;
@@ -24,29 +26,28 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
         transaction.commit().await.unwrap(); // T0 end
     }
 
+    let mut complete = true;
     if user_ids.is_empty() {
         tracing::debug!("Nothing to do for update user task");
     } else {
         tracing::info!("Found {} user update(s) pending", user_ids.len());
 
-        let mut tasks = Vec::new();
-
         for user_id in user_ids {
-            tasks.push(tokio::spawn(handle_user_update(context.clone(), user_id)));
-        }
-
-        for task in tasks {
-            match task.await {
-                Ok(task_res) => {
-                    if let Err(e) = task_res {
-                        tracing::warn!("Failed to handle user update: {}", e);
-                    }
-                }
-                Err(je) => {
-                    tracing::warn!("Error while joining: {}", je)
+            match handle_user_update(context.clone(), user_id).await {
+                Ok(_) => {}
+                Err(e) => {
+                    complete = false;
+                    tracing::warn!("Failed to handle user update: {}", e);
                 }
             }
         }
+    }
+
+    if complete {
+        fs::create_dir_all("/tmp/dauth/")?;
+        let mut file = fs::File::create("/tmp/dauth/registration_complete.status")?;
+        file.write_all("ready".as_bytes())?;
+        file.sync_all()?;
     }
     Ok(())
 }
@@ -268,7 +269,10 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             &key_shares,
             &address,
         )
-        .await.or_else(
+        .await.and_then(|()| {
+            tracing::error!(?user_id, ?backup_network_id, "Successful enroll backup commit");
+            Ok(())
+        }).or_else(
             |e| {
                 tracing::error!(?e, ?user_id, ?backup_network_id, "Failed to enroll backup commit");
                 Err(e)
