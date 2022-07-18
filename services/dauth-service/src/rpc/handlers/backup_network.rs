@@ -435,7 +435,7 @@ impl BackupNetworkHandler {
                 let mut processed_vectors = Vec::new();
                 for dvector in content.vectors {
                     processed_vectors.push(
-                        utilities::handle_delegated_vector(context.clone(), dvector, &user_id)
+                        utilities::handle_delegated_vector(&context, dvector, &user_id)
                             .await,
                     );
                 }
@@ -691,7 +691,7 @@ impl BackupNetworkHandler {
 
                     core::auth_vectors::store_backup_flood_vector(
                         context.clone(),
-                        &utilities::handle_delegated_vector(context, dvector, &user_id).await?,
+                        &utilities::handle_delegated_vector(&context, dvector, &user_id).await?,
                     )
                     .await?;
 
