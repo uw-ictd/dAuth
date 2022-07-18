@@ -24,7 +24,7 @@ task_interval: 1.0
 num_sqn_slices: 32
 
 # Max number of auth vectors a backup network should have at one time
-max_backup_vectors: 100
+max_backup_vectors: 3
 
 # Number of backup keys needed to create kseaf
 backup_key_threshold: 3

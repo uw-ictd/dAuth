@@ -1,3 +1,4 @@
+import logging
 from time import sleep
 from typing import List
 
@@ -103,6 +104,7 @@ class NetworkState:
 
         for service in self.services:
             service.stop_service()
+            service.clear_ready_state()
             service.run_command(
                 " ".join([
                     "sudo",
@@ -135,6 +137,21 @@ class NetworkState:
             service.remove_db()
             service.remove_keys()
             service.start_service()
+
+        for i in range(120):
+            sleep(1)
+            all_ready = True
+            for service in self.services:
+                if not service.is_ready():
+                    all_ready = False
+                    break
+
+            if all_ready:
+                logging.info("Setup ready after %d iterations", i)
+                return
+
+        logging.error("Not ready even after 2 minute timout!")
+        raise SystemError("Dauth nodes not ready, cannot proceed with test")
 
         # Not ideal, but UERANSIM seems to need this delay to work correctly.
         # Without it, immediately adding gNBs and UEs causes the first

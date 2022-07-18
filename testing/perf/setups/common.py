@@ -160,6 +160,7 @@ class NetworkSetup:
             TestingLogger.logger.info("Waiting for network to settle")
             sleep(10)
 
+
             TestingLogger.logger.info("Running after-settle commands")
             self._after_settle()
 

@@ -57,7 +57,17 @@ class DauthServiceConnection(Connection):
         Calls stop on the systemd dauth service.
         Returns the resulting stdout and stderr.
         """
+
         command = " ".join(["sudo", "systemctl", "stop", self.service_name])
+
+        return self.run_command(command)
+
+    def clear_ready_state(self) -> Union[str, str]:
+        """
+        Clears the ready state file from the fs
+        """
+
+        command = " ".join(["sudo", "rm", "/tmp/dauth/registration_complete.status"])
 
         return self.run_command(command)
 
@@ -142,5 +152,15 @@ class DauthServiceConnection(Connection):
             raise Exception("Failed to get all metrics! {}".format(res))
 
         return json.dumps(res)
-                
-                
+
+    def is_ready(self) -> str:
+        """ Examine he registration status file on the remote host to determine if ready
+        """
+        command = " ".join(["cat", "/tmp/dauth/registration_complete.status"])
+        stdout = self.run_input_command(command)[1]
+
+        # Only examine the first line for now
+        for line in stdout:
+            if line == "ready":
+                return True
+            return False
