@@ -51,7 +51,7 @@ pub async fn add(
         (xres_star_hash, xres_hash, user_id, kseaf_share, kasme_share)
         VALUES ($1,$2,$3,$4,$5)",
     )
-    .bind(key_share.xres_hash.as_slice())
+    .bind(key_share.xres_star_hash.as_slice())
     .bind(key_share.xres_hash.as_slice())
     .bind(user_id)
     .bind(key_share.kseaf_share.as_slice())
