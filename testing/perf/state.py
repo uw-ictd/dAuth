@@ -104,7 +104,26 @@ class NetworkState:
         for service in self.services:
             service.stop_service()
             service.run_command(
-                " ".join(["sudo", "systemctl", "restart", "'open5gs-*'"])
+                " ".join([
+                    "sudo",
+                    "systemctl",
+                    "restart",
+                    "open5gs-amfd",
+                    "open5gs-ausfd",
+                    "open5gs-bsfd",
+                    "open5gs-nrfd",
+                    "open5gs-nssfd",
+                    "open5gs-pcfd",
+                    "open5gs-smfd",
+                    "open5gs-udmd",
+                    "open5gs-udrd",
+                    "open5gs-upfd",
+                    "open5gs-sgwcd",
+                    "open5gs-sgwud",
+                    "open5gs-hssd",
+                    "open5gs-mmed",
+                    "open5gs-pcrfd"
+                ])
             )
 
         self.directory.stop_service()
