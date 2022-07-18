@@ -18,7 +18,7 @@ for FILE in ./testing/perf/dauth_testing/metric_set_2/configs/*
 do
   NAME="$(basename $FILE .yaml)"
 
-  for THRESHOLD in 8
+  for THRESHOLD in 2 4 6 8
   do
     for NUM_UES in 10 20 40 60 80 100 120 140
     do
@@ -30,6 +30,13 @@ do
         4)
           # Don't allow with only 2 backups
           if [[ "$FILE" == *"nbu2"* ]]; then
+            break
+          fi
+          ;;
+
+        6)
+          # Don't allow with only 2 backups or 4 backups
+          if [[ ("$FILE" == *"nbu2"*) || ("$FILE" == *"nbu4"*) ]]; then
             break
           fi
           ;;
