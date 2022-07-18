@@ -1,5 +1,5 @@
-mcc: '901'          # Mobile Country Code value
-mnc: '70'           # Mobile Network Code value (2 or 3 digits)
+mcc: '910'          # Mobile Country Code value
+mnc: '54'           # Mobile Network Code value (2 or 3 digits)
 
 nci: '0x000000030'  # NR Cell Identity (36-bit)
 idLength: 32        # NR gNB ID length in bits [22...32]

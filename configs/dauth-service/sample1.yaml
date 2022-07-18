@@ -26,9 +26,12 @@ num_sqn_slices: 32
 # Max number of auth vectors a backup network should have at one time
 max_backup_vectors: 10
 
+mcc: "910"
+mnc: "54"
+
 # The set of users for this network (for testing)
 users: {
-  "imsi-901700000000001": {
+  "imsi-910540000000001": {
     "k": "465B5CE8B199B49FAA5F0A2EE238A6BC",
     "opc": "E8ED289DEBA952E4283B54E88E6183CA",
 
@@ -44,7 +47,7 @@ users: {
       "colte-2": 1
     }
   },
-  "imsi-901700000000011": {
+  "imsi-910540000000011": {
     "k": "11111111111111111111111111111111",
     "opc": "E8ED289DEBA952E4283B54E88E6183CA",
 
@@ -60,7 +63,7 @@ users: {
       "colte-2": 1
     }
   },
-  "imsi-901700000000012": {
+  "imsi-910540000000012": {
     "k": "22222222222222222222222222222222",
     "opc": "E8ED289DEBA952E4283B54E88E6183CA",
 
