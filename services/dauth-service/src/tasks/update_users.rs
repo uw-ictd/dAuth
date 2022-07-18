@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use auth_vector::types::{Rand, XResStarHash};
+use auth_vector::types::Rand;
 
 use crate::core;
 use crate::data::context::DauthContext;

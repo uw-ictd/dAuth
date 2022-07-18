@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use auth_vector::types::ResStar;
-
 use crate::core;
 use crate::data::combined_res::{ResKind, XResHashKind};
 use crate::data::context::DauthContext;

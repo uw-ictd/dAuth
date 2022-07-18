@@ -3,7 +3,7 @@ use sqlx::{FromRow, Sqlite, Transaction};
 
 use crate::data::error::DauthError;
 use crate::data::keys;
-use auth_vector::types::{XResHash, XResStarHash};
+use auth_vector::types::XResHash;
 
 #[derive(Clone)]
 pub struct ReplaceKeyShareTask {

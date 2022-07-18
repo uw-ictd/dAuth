@@ -47,9 +47,9 @@ pub fn gen_xres_hash(rand: &Rand, xres: &XRes) -> XResHash {
         .expect("All data should have correct size")
 }
 
+#[cfg(test)]
 mod test {
     use super::*;
-    use hex;
     #[test]
     fn test_xres_hash_generation() {
         let rand: Rand = vec![

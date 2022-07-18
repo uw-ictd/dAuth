@@ -1,4 +1,4 @@
-use sqlx::sqlite::{SqlitePool, SqliteRow};
+use sqlx::sqlite::SqlitePool;
 use sqlx::{Row, Sqlite, Transaction};
 
 use crate::data::error::DauthError;
@@ -153,14 +153,13 @@ pub async fn remove(
 mod tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
-    use sqlx::{Row, SqlitePool};
+    use sqlx::SqlitePool;
     use tempfile::{tempdir, TempDir};
 
     use auth_vector::types::{
         KSEAF_LENGTH, XRES_HASH_LENGTH, XRES_STAR_HASH_LENGTH, XRES_STAR_LENGTH,
     };
 
-    use crate::data::keys;
     use crate::data::keys::CombinedKeyShare;
     use crate::database::{general, key_shares};
 

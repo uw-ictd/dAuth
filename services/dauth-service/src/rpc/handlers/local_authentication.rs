@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use auth_vector::types::Kseaf;
-
 use crate::core;
 use crate::data::combined_res::ResKind;
 use crate::data::context::DauthContext;
