@@ -166,16 +166,14 @@ pub async fn report_auth_consumed(
 /// Sends the original signed request for the auth vector as
 /// proof of the auth vector request.
 pub async fn report_key_share_consumed(
-    context: Arc<DauthContext>,
+    context: &Arc<DauthContext>,
     original_request: &Vec<u8>,
-    address: &str,
+    home_net_client: &mut HomeNetworkClient<Channel>,
 ) -> Result<(), DauthError> {
-    let mut client = get_client(context.clone(), address).await?;
-
     let signed_message = SignedMessage::decode(&original_request[..])?;
 
     // no key share is sent in return yet
-    let _res = client
+    let _res = home_net_client
         .report_key_share_consumed(ReportHomeKeyShareConsumedReq {
             backup_network_id: context.local_context.id.clone(),
             get_key_share_req: Some(signed_message),
@@ -188,7 +186,7 @@ pub async fn report_key_share_consumed(
 
 /// Returns a client to the service at the provided address.
 /// Builds and caches a client if one does not exist.
-async fn get_client(
+pub async fn get_client(
     context: Arc<DauthContext>,
     address: &str,
 ) -> Result<HomeNetworkClient<Channel>, DauthError> {
