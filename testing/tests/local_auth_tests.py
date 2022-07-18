@@ -35,11 +35,11 @@ class LocalAuthTests:
 
         if num_users < 1:
             raise TestingException("Number of users is less than 1")
-        elif num_users > 9999999999:  # can represent 901700000000001-901709999999999
+        elif num_users > 9999999999:  # can represent 910540000000001-910549999999999
             raise TestingException("Too many users to represent")
         else:
             for i in range(num_users):
-                imsi = "imsi-90170{}".format(str(i+1).zfill(10))
+                imsi = "imsi-91054{}".format(str(i+1).zfill(10))
                 service_config.add_user(imsi, sqn_slice_max, backup_network_ids)
         
         self.state.service1.change_config(service_config)
@@ -56,7 +56,7 @@ class LocalAuthTests:
         
         # simply connect and see if successful
         gnb = self.state.start_and_check_gnb(self.gnb_config_path)
-        ue = self.state.start_and_check_ue(self.ue_config_path, "imsi-901700000000001", 1)
+        ue = self.state.start_and_check_ue(self.ue_config_path, "imsi-910540000000001", 1)
         
     def _test_multiple_connections(self):
         """
@@ -70,7 +70,7 @@ class LocalAuthTests:
         
         # simply connect and see if successful
         gnb = self.state.start_and_check_gnb(self.gnb_config_path)
-        ue = self.state.start_and_check_ue(self.ue_config_path, "imsi-901700000000001", 10)
+        ue = self.state.start_and_check_ue(self.ue_config_path, "imsi-910540000000001", 10)
 
     def run_tests(self):
         """

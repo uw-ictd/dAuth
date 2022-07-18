@@ -108,11 +108,11 @@ def run_test_loop(ue, count):
         # Sleeps here seem to help with open5gs stability : (
         time.sleep(0.5)
 
-test_ue0 = UeransimUe(name="imsi-901700000000001", config_index="")
+test_ue0 = UeransimUe(name="imsi-910540000000001", config_index="")
 print(test_ue0.request_echo("FISHSTICKS"))
 
-test_ue1 = UeransimUe(name="imsi-901700000000011", config_index="1")
-test_ue2 = UeransimUe(name="imsi-901700000000012", config_index="2")
+test_ue1 = UeransimUe(name="imsi-910540000000011", config_index="1")
+test_ue2 = UeransimUe(name="imsi-910540000000012", config_index="2")
 
 print("Sleeping to allow nodes to settle")
 time.sleep(2)
