@@ -1,5 +1,5 @@
 directory:
-  hostname: "100.67.118.83"
+  hostname: "100.88.189.43"
   id: "Azure-directory"
   is_vagrant: false
 
@@ -15,7 +15,7 @@ services:
     is_vagrant: false
 
   # Second service is always the serving network (when applicable)
-  - hostname: "100.67.118.83"
+  - hostname: "100.88.189.43"
     id: "Azure-service"
     is_vagrant: false
 
@@ -23,7 +23,7 @@ services:
   - hostname: "100.76.33.70"
     id: "Cobble-service"
     is_vagrant: false
-  - hostname: "100.79.143.58"
+  - hostname: "100.115.171.79"
     id: "AWS-service"
     is_vagrant: false
   - hostname: "100.78.102.100"
@@ -32,10 +32,10 @@ services:
   - hostname: "100.108.62.90"
     id: "Boron-service"
     is_vagrant: false
-  - hostname: "100.123.120.112"
+  - hostname: "100.77.105.59"
     id: "Digital_Ocean-service"
     is_vagrant: false
-  - hostname: "100.124.222.94"
+  - hostname: "100.109.15.3"
     id: "GCP-service"
     is_vagrant: false
   - hostname: "100.127.153.71"

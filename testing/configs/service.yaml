@@ -29,5 +29,9 @@ max_backup_vectors: 100
 # Number of backup keys needed to create kseaf
 backup_key_threshold: 3
 
+mcc: "910"
+
+mnc: "54"
+
 # The set of users for this network (for testing)
 users: { }

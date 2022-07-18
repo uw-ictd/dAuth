@@ -103,7 +103,7 @@ class PerfMetrics:
             '{
                 "nanoseconds_since_auth":<int>,
                 "nanoseconds_since_registration":<int>,
-                "ue_supi":"90170xxxxxxxxxx",
+                "ue_supi":"91054xxxxxxxxxx",
              }'
         """
         dataset = json.loads(json_string)

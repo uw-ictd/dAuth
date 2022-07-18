@@ -1,5 +1,5 @@
 directory:
-  hostname: "100.67.118.83"
+  hostname: "100.88.189.43"
   id: "Azure-directory"
   is_vagrant: false
 
@@ -9,6 +9,6 @@ ueransim:
   is_vagrant: false
 
 services:
-  - hostname: "100.67.118.83"
+  - hostname: "100.88.189.43"
     id: "Azure-service"
     is_vagrant: false

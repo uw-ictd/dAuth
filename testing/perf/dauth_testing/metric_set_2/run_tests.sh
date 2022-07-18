@@ -1,8 +1,11 @@
-mkdir ./testing/perf/dauth_testing/metric_set_2/configs/ 2>/dev/null
-mkdir ./testing/perf/dauth_testing/metric_set_2/results/ 2>/dev/null
+ARCHIVE_DIR = $(date --iso-8601=s)
+mkdir -p ./testing/perf/dauth_testing/metric_set_2/archive/${ARCHIVE_DIR} 2>/dev/null
 
-rm ./testing/perf/dauth_testing/metric_set_2/configs/* 2>/dev/null
-rm ./testing/perf/dauth_testing/metric_set_2/results/* 2>/dev/null
+mv ./testing/perf/dauth_testing/metric_set_2/configs ./testing/perf/dauth_testing/metric_set_2/archive/${ARCHIVE_DIR}
+mv ./testing/perf/dauth_testing/metric_set_2/results ./testing/perf/dauth_testing/metric_set_2/archive/${ARCHIVE_DIR}
+
+mkdir ./testing/perf/dauth_testing/metric_set_2/configs/
+mkdir ./testing/perf/dauth_testing/metric_set_2/results/
 
 mkdir ./testing/perf/dauth_testing/metric_set_2/logs/ 2>/dev/null
 rm ./testing/perf/dauth_testing/metric_set_2/logs/* 2>/dev/null
@@ -17,7 +20,7 @@ do
 
   for THRESHOLD in 8
   do
-    for NUM_UES in 10 20 50
+    for NUM_UES in 10 20 40 60 80 100 120 140
     do
       case $THRESHOLD in
         2)
