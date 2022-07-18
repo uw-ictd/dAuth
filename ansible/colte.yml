@@ -27,6 +27,7 @@
           - libsctp1
           - libtins4.0
           - mongodb
+          - libtalloc2
         state: present
 
     # - name: Copy network config
