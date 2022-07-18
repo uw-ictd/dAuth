@@ -54,7 +54,7 @@ pub async fn get_auth_vector(
         ))?;
 
     if let SignPayloadType::DelegatedAuthVector5G(dvector) =
-        signing::verify_message(context.clone(), &message).await?
+        signing::verify_message(&context, &message).await?
     {
         Ok(AuthVectorRes::from_av5_g(
             user_id,

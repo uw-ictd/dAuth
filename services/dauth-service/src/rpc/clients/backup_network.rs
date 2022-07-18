@@ -53,7 +53,7 @@ pub async fn enroll_backup_prepare(
     ))?;
 
     if let SignPayloadType::EnrollBackupPrepareReq(payload) =
-        signing::verify_message(context.clone(), &message).await?
+        signing::verify_message(&context, &message).await?
     {
         if payload == sent_payload {
             Ok(())
@@ -147,7 +147,7 @@ pub async fn get_auth_vector(
         ))?;
 
     if let SignPayloadType::DelegatedAuthVector5G(payload) =
-        signing::verify_message(context.clone(), &message).await?
+        signing::verify_message(&context, &message).await?
     {
         let vector = payload.v.ok_or(DauthError::ClientError(
             "Missing vector content".to_string(),
@@ -198,7 +198,7 @@ pub async fn get_kseaf_key_share(
         .ok_or_else(|| DauthError::ClientError("Missing delegated key share".to_string()))?;
 
     if let SignPayloadType::DelegatedConfirmationShare(payload) =
-        signing::verify_message(context.clone(), &message).await?
+        signing::verify_message(&context, &message).await?
     {
         Ok(payload.kseaf_confirmation_share[..].try_into()?)
     } else {
@@ -239,7 +239,7 @@ pub async fn get_kasme_key_share(
         .ok_or_else(|| DauthError::ClientError("Missing delegated key share".to_string()))?;
 
     if let SignPayloadType::DelegatedConfirmationShare(payload) =
-        signing::verify_message(context.clone(), &message).await?
+        signing::verify_message(&context, &message).await?
     {
         Ok(payload.kasme_confirmation_share[..].try_into()?)
     } else {

@@ -104,7 +104,7 @@ async fn verify_message_with_id(
 }
 
 pub async fn verify_message(
-    context: Arc<DauthContext>,
+    context: &Arc<DauthContext>,
     message: &remote::SignedMessage,
 ) -> Result<SignPayloadType, DauthError> {
     let container = remote::signed_message::Container::decode(message.container.as_slice())?;

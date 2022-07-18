@@ -61,7 +61,7 @@ pub async fn handle_delegated_vector(
     user_id: &str,
 ) -> Result<AuthVectorRes, DauthError> {
     let verify_result = signing::verify_message(
-        context.clone(),
+        context,
         &dvector.message.ok_or(DauthError::InvalidMessageError(
             "Missing content".to_string(),
         ))?,
@@ -88,7 +88,7 @@ pub async fn handle_key_share(
     dshare: DelegatedConfirmationShare,
 ) -> Result<(keys::CombinedKeyShare), DauthError> {
     let verify_result = signing::verify_message(
-        context,
+        &context,
         &dshare.message.ok_or(DauthError::InvalidMessageError(
             "Missing content".to_string(),
         ))?,

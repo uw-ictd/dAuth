@@ -40,7 +40,7 @@ impl HomeNetwork for HomeNetworkHandler {
                     tonic::Status::new(tonic::Code::NotFound, "No message received")
                 })?;
 
-                let verify_result = signing::verify_message(self.context.clone(), &message)
+                let verify_result = signing::verify_message(&self.context, &message)
                     .await
                     .or_else(|e| {
                         Err(tonic::Status::new(
@@ -91,7 +91,7 @@ impl HomeNetwork for HomeNetworkHandler {
                     tonic::Status::new(tonic::Code::NotFound, "No message received")
                 })?;
 
-                let verify_result = signing::verify_message(self.context.clone(), &message)
+                let verify_result = signing::verify_message(&self.context, &message)
                     .await
                     .or_else(|e| {
                         Err(tonic::Status::new(
@@ -137,7 +137,7 @@ impl HomeNetwork for HomeNetworkHandler {
                     tonic::Status::new(tonic::Code::NotFound, "No message received")
                 })?;
 
-                let verify_result = signing::verify_message(self.context.clone(), &message)
+                let verify_result = signing::verify_message(&self.context, &message)
                     .await
                     .or_else(|e| {
                         Err(tonic::Status::new(
@@ -187,7 +187,7 @@ impl HomeNetwork for HomeNetworkHandler {
                     tonic::Status::new(tonic::Code::NotFound, "No message received")
                 })?;
 
-                let verify_result = signing::verify_message(self.context.clone(), &message)
+                let verify_result = signing::verify_message(&self.context, &message)
                     .await
                     .or_else(|e| {
                         Err(tonic::Status::new(
