@@ -1,4 +1,4 @@
-ARCHIVE_DIR = $(date --iso-8601=s)
+ARCHIVE_DIR=$(date --iso-8601=s)
 mkdir -p ./testing/perf/dauth_testing/metric_set_2/archive/${ARCHIVE_DIR} 2>/dev/null
 
 mv ./testing/perf/dauth_testing/metric_set_2/configs ./testing/perf/dauth_testing/metric_set_2/archive/${ARCHIVE_DIR}
