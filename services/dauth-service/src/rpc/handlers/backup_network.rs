@@ -15,11 +15,11 @@ use crate::rpc::dauth::remote::{
     delegated_auth_vector5_g, delegated_confirmation_share, SignedMessage,
 };
 use crate::rpc::dauth::remote::{
-    DelegatedAuthVector5G, DelegatedConfirmationShare, EnrollBackupCommitReq,
+    get_key_share_req, DelegatedAuthVector5G, DelegatedConfirmationShare, EnrollBackupCommitReq,
     EnrollBackupCommitResp, EnrollBackupPrepareReq, EnrollBackupPrepareResp, FloodVectorReq,
     FloodVectorResp, GetBackupAuthVectorReq, GetBackupAuthVectorResp, GetKeyShareReq,
     GetKeyShareResp, ReplaceShareReq, ReplaceShareResp, WithdrawBackupReq, WithdrawBackupResp,
-    WithdrawSharesReq, WithdrawSharesResp, get_key_share_req
+    WithdrawSharesReq, WithdrawSharesResp,
 };
 use crate::rpc::utilities;
 
@@ -46,7 +46,7 @@ impl BackupNetwork for BackupNetworkHandler {
                     tonic::Status::new(tonic::Code::NotFound, "No message received")
                 })?;
 
-                let verify_result = signing::verify_message(self.context.clone(), &message)
+                let verify_result = signing::verify_message(&self.context, &message)
                     .await
                     .or_else(|e| {
                         Err(tonic::Status::new(
@@ -133,7 +133,7 @@ impl BackupNetwork for BackupNetworkHandler {
                     ))
                 })?;
 
-                let verify_result = signing::verify_message(self.context.clone(), &message)
+                let verify_result = signing::verify_message(&self.context, &message)
                     .await
                     .or_else(|e| {
                         Err(tonic::Status::new(
@@ -180,7 +180,7 @@ impl BackupNetwork for BackupNetworkHandler {
                     tonic::Status::new(tonic::Code::NotFound, "No message received")
                 })?;
 
-                let verify_result = signing::verify_message(self.context.clone(), &message)
+                let verify_result = signing::verify_message(&self.context, &message)
                     .await
                     .or_else(|e| {
                         Err(tonic::Status::new(
@@ -260,7 +260,7 @@ impl BackupNetwork for BackupNetworkHandler {
                     tonic::Status::new(tonic::Code::NotFound, "No message received")
                 })?;
 
-                let verify_result = signing::verify_message(self.context.clone(), &message)
+                let verify_result = signing::verify_message(&self.context, &message)
                     .await
                     .or_else(|e| {
                         Err(tonic::Status::new(
@@ -302,7 +302,7 @@ impl BackupNetwork for BackupNetworkHandler {
                     tonic::Status::new(tonic::Code::NotFound, "No message received")
                 })?;
 
-                let verify_result = signing::verify_message(self.context.clone(), &message)
+                let verify_result = signing::verify_message(&self.context, &message)
                     .await
                     .or_else(|e| {
                         Err(tonic::Status::new(
@@ -344,7 +344,7 @@ impl BackupNetwork for BackupNetworkHandler {
                     tonic::Status::new(tonic::Code::NotFound, "No message received")
                 })?;
 
-                let verify_result = signing::verify_message(self.context.clone(), &message)
+                let verify_result = signing::verify_message(&self.context, &message)
                     .await
                     .or_else(|e| {
                         Err(tonic::Status::new(
@@ -435,8 +435,7 @@ impl BackupNetworkHandler {
                 let mut processed_vectors = Vec::new();
                 for dvector in content.vectors {
                     processed_vectors.push(
-                        utilities::handle_delegated_vector(&context, dvector, &user_id)
-                            .await,
+                        utilities::handle_delegated_vector(&context, dvector, &user_id).await,
                     );
                 }
                 core::auth_vectors::store_backup_auth_vectors(
@@ -499,7 +498,12 @@ impl BackupNetworkHandler {
                 // Don't remove flood vectors though until receiving a
                 // confirmation, since we need to be sure they are used.
                 // crate::database::flood_vectors::remove(&mut transaction, &user_id, &resync_xres_star_hash).await?;
-                crate::database::auth_vectors::remove(&mut transaction, &user_id, &resync_xres_star_hash).await?;
+                crate::database::auth_vectors::remove(
+                    &mut transaction,
+                    &user_id,
+                    &resync_xres_star_hash,
+                )
+                .await?;
                 transaction.commit().await?;
             }
 
@@ -548,8 +552,12 @@ impl BackupNetworkHandler {
             let mut signed_request_bytes = Vec::new();
             message.encode(&mut signed_request_bytes)?;
 
-            let request_hash = payload.hash.ok_or(DauthError::InvalidMessageError("Missing res(star) hash".to_string()))?;
-            let request_preimage = payload.preimage.ok_or(DauthError::InvalidMessageError("Missing res(star) hash".to_string()))?;
+            let request_hash = payload.hash.ok_or(DauthError::InvalidMessageError(
+                "Missing res(star) hash".to_string(),
+            ))?;
+            let request_preimage = payload.preimage.ok_or(DauthError::InvalidMessageError(
+                "Missing res(star) hash".to_string(),
+            ))?;
 
             // TODO(matt9j) This was supposed to be the actual signed share from
             // the host, not constructed on demand in the backup network's
@@ -562,7 +570,7 @@ impl BackupNetworkHandler {
                         &signed_request_bytes,
                     )
                     .await?
-                },
+                }
                 get_key_share_req::payload::Hash::XresHash(xres_hash) => {
                     core::confirm_keys::get_key_share_eps(
                         context.clone(),
@@ -573,13 +581,12 @@ impl BackupNetworkHandler {
                 }
             };
 
-            let payload =
-                delegated_confirmation_share::Payload {
-                    xres_star_hash: key_share.xres_star_hash.to_vec(),
-                    xres_hash: key_share.xres_hash.to_vec(),
-                    kseaf_confirmation_share: key_share.kseaf_share.to_vec(),
-                    kasme_confirmation_share: key_share.kasme_share.to_vec(),
-                };
+            let payload = delegated_confirmation_share::Payload {
+                xres_star_hash: key_share.xres_star_hash.to_vec(),
+                xres_hash: key_share.xres_hash.to_vec(),
+                kseaf_confirmation_share: key_share.kseaf_share.to_vec(),
+                kasme_confirmation_share: key_share.kasme_share.to_vec(),
+            };
 
             let dshare = DelegatedConfirmationShare {
                 message: Some(signing::sign_message(
@@ -607,16 +614,12 @@ impl BackupNetworkHandler {
             .new_share
             .ok_or(DauthError::DataError("No new share received".to_string()))?;
 
-        let old_xres_star_hash: XResStarHash = request.replaced_share_xres_star_hash[..].try_into()?;
+        let old_xres_star_hash: XResStarHash =
+            request.replaced_share_xres_star_hash[..].try_into()?;
 
         let new_key_share = utilities::handle_key_share(context.clone(), dshare).await?;
 
-        core::confirm_keys::replace_key_share(
-            context,
-            &old_xres_star_hash,
-            &new_key_share,
-        )
-        .await?;
+        core::confirm_keys::replace_key_share(context, &old_xres_star_hash, &new_key_share).await?;
 
         Ok(tonic::Response::new(ReplaceShareResp {}))
     }

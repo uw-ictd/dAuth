@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::task::JoinSet;
 
 use crate::data::context::DauthContext;
@@ -71,8 +71,7 @@ async fn report_to_network(
     reports: Vec<ReportKeyShareTask>,
 ) -> Result<(), DauthError> {
     tracing::info!(?network_id, "Reporting key share(s) used to home network");
-    let (home_net_address, _) =
-        clients::directory::lookup_network(&context, &network_id).await?;
+    let (home_net_address, _) = clients::directory::lookup_network(&context, &network_id).await?;
 
     let mut client = clients::home_network::get_client(context.clone(), &home_net_address).await?;
 
@@ -87,10 +86,7 @@ async fn report_to_network(
         .await?;
 
         let mut transaction = context.local_context.database_pool.begin().await?;
-            database::tasks::report_key_shares::remove(
-                &mut transaction,
-                &report.xres_star_hash,
-            )
+        database::tasks::report_key_shares::remove(&mut transaction, &report.xres_star_hash)
             .await?;
         transaction.commit().await?;
     }

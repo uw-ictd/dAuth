@@ -3,11 +3,14 @@ use tracing::*;
 
 use auth_vector::{
     self,
-    types::{XResStarHash, ResStar, Res, XResHash},
+    types::{Res, ResStar, XResHash, XResStarHash},
 };
 
 use crate::data::state::AuthState;
-use crate::data::{context::DauthContext, error::DauthError, keys, state::AuthSource, combined_res::ResKind, combined_res::XResHashKind};
+use crate::data::{
+    combined_res::ResKind, combined_res::XResHashKind, context::DauthContext, error::DauthError,
+    keys, state::AuthSource,
+};
 use crate::database;
 use crate::database::utilities::DauthDataUtilities;
 use crate::rpc::clients;
@@ -31,13 +34,16 @@ pub async fn confirm_authentication(
     if home_network_id == context.local_context.id {
         tracing::info!("User owned by this network");
         return match combined_res {
-            ResKind::ResStar(res_star) => Ok(keys::KeyKind::Kseaf(get_confirm_key_res_star(context.clone(), res_star).await?)),
-            ResKind::Res(res) => Ok(keys::KeyKind::Kasme(get_confirm_key_res(context.clone(), res).await?)),
+            ResKind::ResStar(res_star) => Ok(keys::KeyKind::Kseaf(
+                get_confirm_key_res_star(context.clone(), res_star).await?,
+            )),
+            ResKind::Res(res) => Ok(keys::KeyKind::Kasme(
+                get_confirm_key_res(context.clone(), res).await?,
+            )),
         };
     }
 
-    let (address, _) =
-        clients::directory::lookup_network(&context, &home_network_id).await?;
+    let (address, _) = clients::directory::lookup_network(&context, &home_network_id).await?;
 
     let state;
 
@@ -52,15 +58,13 @@ pub async fn confirm_authentication(
     let key = match combined_res {
         ResKind::Res(r) => {
             confirm_authentication_eps(&context, &r, &state, &backup_network_ids, &address).await?
-        },
+        }
         ResKind::ResStar(r) => {
             confirm_authentication_5g(&context, &r, &state, &backup_network_ids, &address).await?
         }
     };
 
     Ok(key)
-
-
 }
 
 async fn confirm_authentication_5g(
@@ -209,8 +213,6 @@ async fn confirm_authentication_eps(
     Ok(keys::KeyKind::Kasme(key))
 }
 
-
-
 async fn kseaf_key_share_from_network_id(
     context: Arc<DauthContext>,
     xres_star_hash: XResStarHash,
@@ -238,13 +240,7 @@ async fn kasme_key_share_from_network_id(
     let (backup_address, _) =
         clients::directory::lookup_network(&context, &backup_network_id).await?;
 
-    clients::backup_network::get_kasme_key_share(
-        context,
-        xres_hash,
-        res,
-        backup_address,
-    )
-    .await
+    clients::backup_network::get_kasme_key_share(context, xres_hash, res, backup_address).await
 }
 
 /// Gets the Kseaf value for the auth vector from this network.
@@ -296,12 +292,7 @@ pub async fn store_key_shares(
     let mut transaction = context.local_context.database_pool.begin().await?;
 
     for share in key_shares {
-        database::key_shares::add(
-            &mut transaction,
-            user_id,
-            &share,
-        )
-        .await?;
+        database::key_shares::add(&mut transaction, user_id, &share).await?;
     }
     transaction.commit().await?;
     Ok(())
@@ -324,12 +315,7 @@ pub async fn replace_key_share(
 
     let user_id = database::key_shares::get_user_id(&mut transaction, old_xres_star_hash).await?;
     database::key_shares::remove(&mut transaction, old_xres_star_hash).await?;
-    database::key_shares::add(
-        &mut transaction,
-        &user_id,
-        new_key_share,
-    )
-    .await?;
+    database::key_shares::add(&mut transaction, &user_id, new_key_share).await?;
 
     transaction.commit().await?;
 
@@ -347,8 +333,8 @@ pub async fn get_key_share_5g(
     // TODO(matt9j) Should get the rand as part of the key share to validate the hashes...
     let mut transaction = context.local_context.database_pool.begin().await?;
 
-    let key_share = database::key_shares::get_from_xres_star_hash(&mut transaction, xres_star_hash)
-        .await?;
+    let key_share =
+        database::key_shares::get_from_xres_star_hash(&mut transaction, xres_star_hash).await?;
 
     let user_id = database::key_shares::get_user_id(&mut transaction, xres_star_hash).await?;
 
@@ -380,8 +366,7 @@ pub async fn get_key_share_eps(
     // TODO(matt9j) Should get the rand as part of the key share to validate the hashes...
     let mut transaction = context.local_context.database_pool.begin().await?;
 
-    let key_share = database::key_shares::get_from_xres_hash(&mut transaction, xres_hash)
-        .await?;
+    let key_share = database::key_shares::get_from_xres_hash(&mut transaction, xres_hash).await?;
 
     let user_id = database::key_shares::get_user_id(&mut transaction, xres_hash).await?;
 
@@ -432,10 +417,20 @@ pub async fn key_share_used(
 
     let state = match xresponse_hash {
         XResHashKind::XResStarHash(xres_star_hash) => {
-            database::key_share_state::get_by_xres_star_hash(&mut transaction, xres_star_hash, backup_network_id).await?
-        },
+            database::key_share_state::get_by_xres_star_hash(
+                &mut transaction,
+                xres_star_hash,
+                backup_network_id,
+            )
+            .await?
+        }
         XResHashKind::XResHash(xres_hash) => {
-            database::key_share_state::get_by_xres_hash(&mut transaction, xres_hash, backup_network_id).await?
+            database::key_share_state::get_by_xres_hash(
+                &mut transaction,
+                xres_hash,
+                backup_network_id,
+            )
+            .await?
         }
     };
 
@@ -455,17 +450,27 @@ pub async fn key_share_used(
         XResHashKind::XResStarHash(xres_star_hash) => {
             if let ResKind::ResStar(res_star) = response {
                 validate_xres_star_hash(xres_star_hash, res_star, &state.rand)?;
-                database::key_share_state::remove_by_xres_star_hash(&mut transaction, xres_star_hash, backup_network_id).await?;
+                database::key_share_state::remove_by_xres_star_hash(
+                    &mut transaction,
+                    xres_star_hash,
+                    backup_network_id,
+                )
+                .await?;
             } else {
                 return Err(DauthError::DataError(
                     "Provided xres* with no res*".to_string(),
                 ));
             }
-        },
+        }
         XResHashKind::XResHash(xres_hash) => {
             if let ResKind::Res(res) = response {
                 validate_xres_hash(xres_hash, res, &state.rand)?;
-                database::key_share_state::remove_by_xres_hash(&mut transaction, xres_hash, backup_network_id).await?;
+                database::key_share_state::remove_by_xres_hash(
+                    &mut transaction,
+                    xres_hash,
+                    backup_network_id,
+                )
+                .await?;
             } else {
                 return Err(DauthError::DataError(
                     "Provided xres with no res".to_string(),
@@ -473,8 +478,6 @@ pub async fn key_share_used(
             }
         }
     };
-
-
 
     transaction.commit().await?;
 

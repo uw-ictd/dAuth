@@ -1,6 +1,6 @@
 use sha2::{Digest, Sha256};
 
-use crate::types::{Rand};
+use crate::types::Rand;
 
 pub const XRES_LENGTH: usize = 8;
 pub const XRES_MAX_LENGTH: usize = 16;
@@ -47,13 +47,20 @@ pub fn gen_xres_hash(rand: &Rand, xres: &XRes) -> XResHash {
         .expect("All data should have correct size")
 }
 
+#[cfg(test)]
 mod test {
-    use hex;
     use super::*;
     #[test]
     fn test_xres_hash_generation() {
-        let rand: Rand = vec![246, 147, 62, 56, 185, 219, 209, 227, 91, 190, 163, 252, 167, 115, 177, 79].try_into().unwrap();
+        let rand: Rand = vec![
+            246, 147, 62, 56, 185, 219, 209, 227, 91, 190, 163, 252, 167, 115, 177, 79,
+        ]
+        .try_into()
+        .unwrap();
         let xres: XRes = vec![57, 87, 184, 116, 63, 206, 76, 85].try_into().unwrap();
-        assert_eq!(gen_xres_hash(&rand, &xres).to_vec(), hex::decode("61fd5d624e2f737c04b2a156991e3ce7").unwrap());
+        assert_eq!(
+            gen_xres_hash(&rand, &xres).to_vec(),
+            hex::decode("61fd5d624e2f737c04b2a156991e3ce7").unwrap()
+        );
     }
 }

@@ -1,7 +1,7 @@
 use tracing::instrument;
 
-use auth_vector::types::{KSEAF_LENGTH, KASME_LENGTH};
-use auth_vector::types::{Kseaf,Kasme,XResStarHash,XResHash};
+use auth_vector::types::{Kasme, Kseaf, XResHash, XResStarHash};
+use auth_vector::types::{KASME_LENGTH, KSEAF_LENGTH};
 
 use crate::data::error::DauthError;
 
@@ -79,7 +79,8 @@ pub fn create_shares_from_kasme<T: rand_0_8::RngCore + std::fmt::Debug>(
         );
         return Err(DauthError::ShamirShareError());
     }
-    let secret = shamir::SecretData::with_secret_bytes(&input.as_array(), threshold_share_count, rng);
+    let secret =
+        shamir::SecretData::with_secret_bytes(&input.as_array(), threshold_share_count, rng);
 
     let mut shares: Vec<KasmeShare> = Vec::new();
     for i in 1u8..share_count + 1 {
@@ -107,7 +108,6 @@ pub fn recover_kasme_from_shares(
         None => Err(DauthError::ShamirShareError()),
     }
 }
-
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct KseafShare {

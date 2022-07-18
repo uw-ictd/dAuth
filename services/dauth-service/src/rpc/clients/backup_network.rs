@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use auth_vector::types::{XResStarHash, ResStar,Res,XResHash};
+use auth_vector::types::{Res, ResStar, XResHash, XResStarHash};
 use tonic::transport::Channel;
 
 use crate::data::context::DauthContext;
@@ -53,7 +53,7 @@ pub async fn enroll_backup_prepare(
     ))?;
 
     if let SignPayloadType::EnrollBackupPrepareReq(payload) =
-        signing::verify_message(context.clone(), &message).await?
+        signing::verify_message(&context, &message).await?
     {
         if payload == sent_payload {
             Ok(())
@@ -94,10 +94,7 @@ pub async fn enroll_backup_commit(
         ))
     }
     for share in key_shares {
-        dshares.push(utilities::build_delegated_share(
-            context.clone(),
-            &share,
-        ))
+        dshares.push(utilities::build_delegated_share(context.clone(), &share))
     }
 
     client
@@ -147,7 +144,7 @@ pub async fn get_auth_vector(
         ))?;
 
     if let SignPayloadType::DelegatedAuthVector5G(payload) =
-        signing::verify_message(context.clone(), &message).await?
+        signing::verify_message(&context, &message).await?
     {
         let vector = payload.v.ok_or(DauthError::ClientError(
             "Missing vector content".to_string(),
@@ -183,8 +180,12 @@ pub async fn get_kseaf_key_share(
                 context.clone(),
                 SignPayloadType::GetKeyShareReq(get_key_share_req::Payload {
                     serving_network_id: context.local_context.id.clone(),
-                    preimage: Some(get_key_share_req::payload::Preimage::ResStar(res_star.to_vec())),
-                    hash: Some(get_key_share_req::payload::Hash::XresStarHash(xres_star_hash.to_vec())),
+                    preimage: Some(get_key_share_req::payload::Preimage::ResStar(
+                        res_star.to_vec(),
+                    )),
+                    hash: Some(get_key_share_req::payload::Hash::XresStarHash(
+                        xres_star_hash.to_vec(),
+                    )),
                 }),
             )),
         })
@@ -198,7 +199,7 @@ pub async fn get_kseaf_key_share(
         .ok_or_else(|| DauthError::ClientError("Missing delegated key share".to_string()))?;
 
     if let SignPayloadType::DelegatedConfirmationShare(payload) =
-        signing::verify_message(context.clone(), &message).await?
+        signing::verify_message(&context, &message).await?
     {
         Ok(payload.kseaf_confirmation_share[..].try_into()?)
     } else {
@@ -225,7 +226,9 @@ pub async fn get_kasme_key_share(
                 SignPayloadType::GetKeyShareReq(get_key_share_req::Payload {
                     serving_network_id: context.local_context.id.clone(),
                     preimage: Some(get_key_share_req::payload::Preimage::Res(res.to_vec())),
-                    hash: Some(get_key_share_req::payload::Hash::XresHash(xres_hash.to_vec())),
+                    hash: Some(get_key_share_req::payload::Hash::XresHash(
+                        xres_hash.to_vec(),
+                    )),
                 }),
             )),
         })
@@ -239,7 +242,7 @@ pub async fn get_kasme_key_share(
         .ok_or_else(|| DauthError::ClientError("Missing delegated key share".to_string()))?;
 
     if let SignPayloadType::DelegatedConfirmationShare(payload) =
-        signing::verify_message(context.clone(), &message).await?
+        signing::verify_message(&context, &message).await?
     {
         Ok(payload.kasme_confirmation_share[..].try_into()?)
     } else {

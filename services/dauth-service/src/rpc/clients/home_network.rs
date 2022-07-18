@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use auth_vector::types::{XResStarHash, Kseaf, ResStar, XResHash, Kasme, Res};
+use auth_vector::types::{Kasme, Kseaf, Res, ResStar, XResHash, XResStarHash};
 use prost::Message;
 use tonic::transport::Channel;
 use tonic::transport::Endpoint;
@@ -13,8 +13,8 @@ use crate::data::vector::AuthVectorRes;
 use crate::rpc::dauth::common::UserIdKind;
 use crate::rpc::dauth::remote::home_network_client::HomeNetworkClient;
 use crate::rpc::dauth::remote::{
-    get_home_auth_vector_req, get_home_confirm_key_req, get_home_confirm_key_resp, ReportHomeAuthConsumedReq,
-    ReportHomeKeyShareConsumedReq, SignedMessage,
+    get_home_auth_vector_req, get_home_confirm_key_req, get_home_confirm_key_resp,
+    ReportHomeAuthConsumedReq, ReportHomeKeyShareConsumedReq, SignedMessage,
 };
 use crate::rpc::dauth::remote::{GetHomeAuthVectorReq, GetHomeConfirmKeyReq};
 use crate::rpc::utilities;
@@ -54,7 +54,7 @@ pub async fn get_auth_vector(
         ))?;
 
     if let SignPayloadType::DelegatedAuthVector5G(dvector) =
-        signing::verify_message(context.clone(), &message).await?
+        signing::verify_message(&context, &message).await?
     {
         Ok(AuthVectorRes::from_av5_g(
             user_id,
@@ -85,8 +85,12 @@ pub async fn get_confirm_key_kseaf(
                 context.clone(),
                 SignPayloadType::GetHomeConfirmKeyReq(get_home_confirm_key_req::Payload {
                     serving_network_id: context.local_context.id.clone(),
-                    preimage: Some(get_home_confirm_key_req::payload::Preimage::ResStar(res_star.to_vec())),
-                    hash: Some(get_home_confirm_key_req::payload::Hash::XresStarHash(xres_star_hash.to_vec())),
+                    preimage: Some(get_home_confirm_key_req::payload::Preimage::ResStar(
+                        res_star.to_vec(),
+                    )),
+                    hash: Some(get_home_confirm_key_req::payload::Hash::XresStarHash(
+                        xres_star_hash.to_vec(),
+                    )),
                 }),
             )),
         })
@@ -96,7 +100,9 @@ pub async fn get_confirm_key_kseaf(
     if let Some(get_home_confirm_key_resp::Key::Kseaf(kseaf)) = response.key {
         Ok(kseaf[..].try_into()?)
     } else {
-        Err(DauthError::KeyTypeError("Expected kseaf but unable to extract from message".to_string()))
+        Err(DauthError::KeyTypeError(
+            "Expected kseaf but unable to extract from message".to_string(),
+        ))
     }
 }
 
@@ -115,8 +121,12 @@ pub async fn get_confirm_key_kasme(
                 context.clone(),
                 SignPayloadType::GetHomeConfirmKeyReq(get_home_confirm_key_req::Payload {
                     serving_network_id: context.local_context.id.clone(),
-                    preimage: Some(get_home_confirm_key_req::payload::Preimage::Res(res.to_vec())),
-                    hash: Some(get_home_confirm_key_req::payload::Hash::XresHash(xres_hash.to_vec())),
+                    preimage: Some(get_home_confirm_key_req::payload::Preimage::Res(
+                        res.to_vec(),
+                    )),
+                    hash: Some(get_home_confirm_key_req::payload::Hash::XresHash(
+                        xres_hash.to_vec(),
+                    )),
                 }),
             )),
         })
@@ -126,7 +136,9 @@ pub async fn get_confirm_key_kasme(
     if let Some(get_home_confirm_key_resp::Key::Kasme(kasme)) = response.key {
         Ok(kasme[..].try_into()?)
     } else {
-        Err(DauthError::KeyTypeError("Expected kasme but unable to extract from message".to_string()))
+        Err(DauthError::KeyTypeError(
+            "Expected kasme but unable to extract from message".to_string(),
+        ))
     }
 }
 
@@ -154,9 +166,9 @@ pub async fn report_auth_consumed(
 
     match dvector {
         None => Ok(None),
-        Some(dvector) => {
-            Ok(Some(utilities::handle_delegated_vector(context, dvector, user_id).await?))
-        }
+        Some(dvector) => Ok(Some(
+            utilities::handle_delegated_vector(context, dvector, user_id).await?,
+        )),
     }
 }
 

@@ -170,7 +170,7 @@ mod tests {
     use sqlx::{Row, SqlitePool};
     use tempfile::{tempdir, TempDir};
 
-    use auth_vector::types::{AUTN_LENGTH, RAND_LENGTH, XRES_STAR_HASH_LENGTH, XRES_HASH_LENGTH};
+    use auth_vector::types::{AUTN_LENGTH, RAND_LENGTH, XRES_HASH_LENGTH, XRES_STAR_HASH_LENGTH};
 
     use crate::database::{auth_vectors, general};
 
@@ -358,9 +358,11 @@ mod tests {
 
         let mut transaction = pool.begin().await.unwrap();
 
-        assert!(auth_vectors::get_by_xres_star_hash(&mut transaction, &bad_hash)
-            .await
-            .is_err());
+        assert!(
+            auth_vectors::get_by_xres_star_hash(&mut transaction, &bad_hash)
+                .await
+                .is_err()
+        );
 
         let res = auth_vectors::get_by_xres_star_hash(&mut transaction, &good_hash)
             .await

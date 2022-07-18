@@ -56,16 +56,16 @@ pub async fn upsert(
     // changes...
     let mut sqn_to_insert = sqn_max;
     let user_max_sqn: Option<SqnMaxRow> = sqlx::query_as(
-            "SELECT sqn_max FROM user_info_table
+        "SELECT sqn_max FROM user_info_table
             WHERE id=$1 AND sqn_slice=$2;
-            "
-        )
-        .bind(user_id)
-        .bind(sqn_slice)
-        .fetch_optional::<&mut Transaction<'_, Sqlite>>(transaction)
-        .await?;
+            ",
+    )
+    .bind(user_id)
+    .bind(sqn_slice)
+    .fetch_optional::<&mut Transaction<'_, Sqlite>>(transaction)
+    .await?;
 
-    let user_max_sqn = user_max_sqn.unwrap_or(SqnMaxRow{sqn_max: 32});
+    let user_max_sqn = user_max_sqn.unwrap_or(SqnMaxRow { sqn_max: 32 });
     let user_max_sqn = user_max_sqn.sqn_max;
     if (user_max_sqn % 32) == (sqn_max % 32) {
         sqn_to_insert = std::cmp::max(user_max_sqn, sqn_max);

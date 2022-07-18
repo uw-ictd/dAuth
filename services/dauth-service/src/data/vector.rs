@@ -1,4 +1,4 @@
-use auth_vector::types::{Autn, XResStarHash, Id, Rand, XResHash};
+use auth_vector::types::{Autn, Id, Rand, XResHash, XResStarHash};
 
 use crate::data::error::DauthError;
 use crate::rpc::dauth::common::AuthVector5G;

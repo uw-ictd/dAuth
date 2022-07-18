@@ -1,9 +1,9 @@
-use sqlx::sqlite::{SqlitePool, SqliteRow};
+use sqlx::sqlite::SqlitePool;
 use sqlx::{Row, Sqlite, Transaction};
 
-use auth_vector::types::{XResHash, XResStarHash};
 use crate::data::error::DauthError;
 use crate::data::keys;
+use auth_vector::types::{XResHash, XResStarHash};
 
 #[derive(sqlx::FromRow)]
 struct KeyShareRow {
@@ -17,7 +17,7 @@ struct KeyShareRow {
 /// Creates the kseaf table if it does not exist already.
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
     sqlx::query(
-     &   "CREATE TABLE IF NOT EXISTS key_share_table (
+        &"CREATE TABLE IF NOT EXISTS key_share_table (
             xres_star_hash BLOB PRIMARY KEY,
             xres_hash BLOB NOT NULL,
             user_id TEXT NOT NULL,
@@ -51,7 +51,7 @@ pub async fn add(
         (xres_star_hash, xres_hash, user_id, kseaf_share, kasme_share)
         VALUES ($1,$2,$3,$4,$5)",
     )
-    .bind(key_share.xres_hash.as_slice())
+    .bind(key_share.xres_star_hash.as_slice())
     .bind(key_share.xres_hash.as_slice())
     .bind(user_id)
     .bind(key_share.kseaf_share.as_slice())
@@ -78,8 +78,14 @@ pub async fn get_from_xres_star_hash(
     Ok(keys::CombinedKeyShare {
         kasme_share: row.kasme_share.try_into()?,
         kseaf_share: row.kseaf_share.try_into()?,
-        xres_hash: row.xres_hash.try_into().or(Err(DauthError::DataError("Xres".to_string())))?,
-        xres_star_hash: row.xres_star_hash.try_into().or(Err(DauthError::DataError("xres_star".to_string())))?,
+        xres_hash: row
+            .xres_hash
+            .try_into()
+            .or(Err(DauthError::DataError("Xres".to_string())))?,
+        xres_star_hash: row
+            .xres_star_hash
+            .try_into()
+            .or(Err(DauthError::DataError("xres_star".to_string())))?,
     })
 }
 
@@ -99,8 +105,14 @@ pub async fn get_from_xres_hash(
     Ok(keys::CombinedKeyShare {
         kasme_share: row.kasme_share.try_into()?,
         kseaf_share: row.kseaf_share.try_into()?,
-        xres_hash: row.xres_hash.try_into().or(Err(DauthError::DataError("Xres".to_string())))?,
-        xres_star_hash: row.xres_star_hash.try_into().or(Err(DauthError::DataError("xres_star".to_string())))?,
+        xres_hash: row
+            .xres_hash
+            .try_into()
+            .or(Err(DauthError::DataError("Xres".to_string())))?,
+        xres_star_hash: row
+            .xres_star_hash
+            .try_into()
+            .or(Err(DauthError::DataError("xres_star".to_string())))?,
     })
 }
 
@@ -141,14 +153,15 @@ pub async fn remove(
 mod tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
-    use sqlx::{Row, SqlitePool};
+    use sqlx::SqlitePool;
     use tempfile::{tempdir, TempDir};
 
-    use auth_vector::types::{KSEAF_LENGTH, XRES_STAR_HASH_LENGTH, XRES_STAR_LENGTH, XRES_HASH_LENGTH};
+    use auth_vector::types::{
+        KSEAF_LENGTH, XRES_HASH_LENGTH, XRES_STAR_HASH_LENGTH, XRES_STAR_LENGTH,
+    };
 
-    use crate::database::{general, key_shares};
     use crate::data::keys::CombinedKeyShare;
-    use crate::data::keys;
+    use crate::database::{general, key_shares};
 
     fn gen_name() -> String {
         let s: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -185,19 +198,19 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                let combined_share = CombinedKeyShare{
+                let combined_share = CombinedKeyShare {
                     xres_star_hash: [section * num_rows + row; XRES_STAR_HASH_LENGTH],
                     xres_hash: [section * num_rows + row; XRES_HASH_LENGTH],
-                    kseaf_share: vec![section * num_rows + row; KSEAF_LENGTH+1].try_into().unwrap(),
-                    kasme_share: vec![section * num_rows + row; KSEAF_LENGTH+1].try_into().unwrap(),
+                    kseaf_share: vec![section * num_rows + row; KSEAF_LENGTH + 1]
+                        .try_into()
+                        .unwrap(),
+                    kasme_share: vec![section * num_rows + row; KSEAF_LENGTH + 1]
+                        .try_into()
+                        .unwrap(),
                 };
-                key_shares::add(
-                    &mut transaction,
-                    "test_user_id",
-                    &combined_share,
-                )
-                .await
-                .unwrap();
+                key_shares::add(&mut transaction, "test_user_id", &combined_share)
+                    .await
+                    .unwrap();
             }
         }
         transaction.commit().await.unwrap();
@@ -215,19 +228,19 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                let combined_share = CombinedKeyShare{
+                let combined_share = CombinedKeyShare {
                     xres_star_hash: [section * num_rows + row; XRES_STAR_HASH_LENGTH],
                     xres_hash: [section * num_rows + row; XRES_HASH_LENGTH],
-                    kseaf_share: vec![section * num_rows + row; KSEAF_LENGTH+1].try_into().unwrap(),
-                    kasme_share: vec![section * num_rows + row; KSEAF_LENGTH+1].try_into().unwrap(),
+                    kseaf_share: vec![section * num_rows + row; KSEAF_LENGTH + 1]
+                        .try_into()
+                        .unwrap(),
+                    kasme_share: vec![section * num_rows + row; KSEAF_LENGTH + 1]
+                        .try_into()
+                        .unwrap(),
                 };
-                key_shares::add(
-                    &mut transaction,
-                    "test_user_id",
-                    &combined_share,
-                )
-                .await
-                .unwrap();
+                key_shares::add(&mut transaction, "test_user_id", &combined_share)
+                    .await
+                    .unwrap();
             }
         }
 
@@ -244,7 +257,7 @@ mod tests {
                 .unwrap();
 
                 assert_eq!(
-                    &[section * num_rows + row; KSEAF_LENGTH+1],
+                    &[section * num_rows + row; KSEAF_LENGTH + 1],
                     res.kseaf_share.as_slice()
                 );
 
@@ -274,19 +287,19 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                let combined_share = CombinedKeyShare{
+                let combined_share = CombinedKeyShare {
                     xres_star_hash: [section * num_rows + row; XRES_STAR_HASH_LENGTH],
                     xres_hash: [section * num_rows + row; XRES_HASH_LENGTH],
-                    kseaf_share: vec![section * num_rows + row; KSEAF_LENGTH+1].try_into().unwrap(),
-                    kasme_share: vec![section * num_rows + row; KSEAF_LENGTH+1].try_into().unwrap(),
+                    kseaf_share: vec![section * num_rows + row; KSEAF_LENGTH + 1]
+                        .try_into()
+                        .unwrap(),
+                    kasme_share: vec![section * num_rows + row; KSEAF_LENGTH + 1]
+                        .try_into()
+                        .unwrap(),
                 };
-                key_shares::add(
-                    &mut transaction,
-                    "test_user_id",
-                    &combined_share,
-                )
-                .await
-                .unwrap();
+                key_shares::add(&mut transaction, "test_user_id", &combined_share)
+                    .await
+                    .unwrap();
             }
         }
 
@@ -333,19 +346,19 @@ mod tests {
 
         for section in 0..num_sections {
             for row in 0..num_rows {
-                let combined_share = CombinedKeyShare{
+                let combined_share = CombinedKeyShare {
                     xres_star_hash: [section * num_rows + row; XRES_STAR_HASH_LENGTH],
                     xres_hash: [section * num_rows + row; XRES_HASH_LENGTH],
-                    kseaf_share: vec![section * num_rows + row; KSEAF_LENGTH+1].try_into().unwrap(),
-                    kasme_share: vec![section * num_rows + row; KSEAF_LENGTH+1].try_into().unwrap(),
+                    kseaf_share: vec![section * num_rows + row; KSEAF_LENGTH + 1]
+                        .try_into()
+                        .unwrap(),
+                    kasme_share: vec![section * num_rows + row; KSEAF_LENGTH + 1]
+                        .try_into()
+                        .unwrap(),
                 };
-                key_shares::add(
-                    &mut transaction,
-                    "test_user_id",
-                    &combined_share,
-                )
-                .await
-                .unwrap();
+                key_shares::add(&mut transaction, "test_user_id", &combined_share)
+                    .await
+                    .unwrap();
             }
         }
 
@@ -362,16 +375,13 @@ mod tests {
                 .unwrap();
 
                 assert_eq!(
-                    &[section * num_rows + row; KSEAF_LENGTH+1],
+                    &[section * num_rows + row; KSEAF_LENGTH + 1],
                     res.kseaf_share.as_slice()
                 );
 
-                key_shares::remove(
-                    &mut transaction,
-                    res.xres_star_hash.as_slice()
-                )
-                .await
-                .unwrap();
+                key_shares::remove(&mut transaction, res.xres_star_hash.as_slice())
+                    .await
+                    .unwrap();
             }
         }
 
@@ -398,27 +408,19 @@ mod tests {
     async fn test_add_dupicate_fail() {
         let (pool, _dir) = init().await;
         let mut transaction = pool.begin().await.unwrap();
-        let combined_share = CombinedKeyShare{
+        let combined_share = CombinedKeyShare {
             xres_star_hash: [1_u8; XRES_STAR_HASH_LENGTH],
             xres_hash: [1_u8; XRES_HASH_LENGTH],
-            kseaf_share: vec![1_u8; KSEAF_LENGTH+1].try_into().unwrap(),
-            kasme_share: vec![1_u8; KSEAF_LENGTH+1].try_into().unwrap(),
+            kseaf_share: vec![1_u8; KSEAF_LENGTH + 1].try_into().unwrap(),
+            kasme_share: vec![1_u8; KSEAF_LENGTH + 1].try_into().unwrap(),
         };
-        key_shares::add(
-            &mut transaction,
-            "test_user_id",
-            &combined_share,
-        )
-        .await
-        .unwrap();
+        key_shares::add(&mut transaction, "test_user_id", &combined_share)
+            .await
+            .unwrap();
 
-        key_shares::add(
-            &mut transaction,
-            "test_user_id",
-            &combined_share,
-        )
-        .await
-        .unwrap();
+        key_shares::add(&mut transaction, "test_user_id", &combined_share)
+            .await
+            .unwrap();
 
         transaction.commit().await.unwrap();
     }

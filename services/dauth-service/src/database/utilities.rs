@@ -1,4 +1,4 @@
-use auth_vector::types::{Kseaf,Kasme};
+use auth_vector::types::{Kasme, Kseaf};
 use sqlx::sqlite::SqliteRow;
 use sqlx::Row;
 

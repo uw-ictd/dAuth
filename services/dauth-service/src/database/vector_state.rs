@@ -54,13 +54,11 @@ pub async fn get(
     .await?;
 
     match possible_row {
-        Some(row) => {
-            Ok(Some((
-                row.try_get::<String, &str>("backup_network_id")?,
-                row.try_get::<String, &str>("user_id")?,
-            )))
-        }
-        None => Ok(None)
+        Some(row) => Ok(Some((
+            row.try_get::<String, &str>("backup_network_id")?,
+            row.try_get::<String, &str>("user_id")?,
+        ))),
+        None => Ok(None),
     }
 }
 

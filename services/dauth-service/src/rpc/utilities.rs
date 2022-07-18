@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use auth_vector::types::XResStarHash;
-
 use crate::data::{
     context::DauthContext, error::DauthError, keys, signing, signing::SignPayloadType,
     vector::AuthVectorRes,
@@ -61,7 +59,7 @@ pub async fn handle_delegated_vector(
     user_id: &str,
 ) -> Result<AuthVectorRes, DauthError> {
     let verify_result = signing::verify_message(
-        context.clone(),
+        context,
         &dvector.message.ok_or(DauthError::InvalidMessageError(
             "Missing content".to_string(),
         ))?,
@@ -86,9 +84,9 @@ pub async fn handle_delegated_vector(
 pub async fn handle_key_share(
     context: Arc<DauthContext>,
     dshare: DelegatedConfirmationShare,
-) -> Result<(keys::CombinedKeyShare), DauthError> {
+) -> Result<keys::CombinedKeyShare, DauthError> {
     let verify_result = signing::verify_message(
-        context,
+        &context,
         &dshare.message.ok_or(DauthError::InvalidMessageError(
             "Missing content".to_string(),
         ))?,
@@ -96,7 +94,7 @@ pub async fn handle_key_share(
     .await?;
 
     if let SignPayloadType::DelegatedConfirmationShare(payload) = verify_result {
-        Ok(keys::CombinedKeyShare{
+        Ok(keys::CombinedKeyShare {
             xres_star_hash: payload.xres_star_hash.as_slice().try_into()?,
             xres_hash: payload.xres_hash.as_slice().try_into()?,
             kasme_share: payload.kasme_confirmation_share.as_slice().try_into()?,
