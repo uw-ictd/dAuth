@@ -2,9 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use auth_vector::{
-    types::{Opc, K, K_LENGTH, OPC_LENGTH},
-};
+use auth_vector::types::{Opc, K, K_LENGTH, OPC_LENGTH};
 
 use crate::data::{error::DauthError, utilities};
 

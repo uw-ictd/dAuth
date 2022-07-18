@@ -1,6 +1,6 @@
+pub mod combined_res;
 pub mod config;
 pub mod context;
-pub mod combined_res;
 pub mod error;
 pub mod keys;
 pub mod opt;

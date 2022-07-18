@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use tokio::task::JoinSet;
 
@@ -64,7 +64,6 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
     Ok(())
 }
 
-
 async fn report_to_network(
     context: Arc<DauthContext>,
     network_id: String,
@@ -72,8 +71,7 @@ async fn report_to_network(
 ) -> Result<(), DauthError> {
     tracing::info!(?network_id, "Reporting auth vector(s) used to home network");
 
-    let (home_net_address, _) =
-        clients::directory::lookup_network(&context, &network_id).await?;
+    let (home_net_address, _) = clients::directory::lookup_network(&context, &network_id).await?;
 
     let mut client = clients::home_network::get_client(context.clone(), &home_net_address).await?;
 
@@ -95,11 +93,7 @@ async fn report_to_network(
 
         {
             let mut transaction = context.local_context.database_pool.begin().await?;
-                database::tasks::report_auth_vectors::remove(
-                    &mut transaction,
-                    report.task_id,
-                )
-                .await?;
+            database::tasks::report_auth_vectors::remove(&mut transaction, report.task_id).await?;
             transaction.commit().await?;
         }
     }

@@ -1,12 +1,12 @@
-mod res;
 mod autn;
 mod keys_5g;
 mod keys_eps;
+mod res;
 
-pub use res::*;
 pub use autn::*;
 pub use keys_5g::*;
 pub use keys_eps::*;
+pub use res::*;
 
 use thiserror::Error;
 
@@ -107,7 +107,7 @@ impl TryFrom<Vec<u8>> for Sqn {
     }
 }
 
-#[derive(Debug,Copy,Clone,PartialEq,Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Rand {
     data: [u8; RAND_LENGTH],
 }

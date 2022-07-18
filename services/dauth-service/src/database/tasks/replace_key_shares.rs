@@ -1,9 +1,9 @@
 use sqlx::sqlite::SqlitePool;
 use sqlx::{FromRow, Sqlite, Transaction};
 
-use auth_vector::types::{XResHash, XResStarHash};
 use crate::data::error::DauthError;
 use crate::data::keys;
+use auth_vector::types::{XResHash, XResStarHash};
 
 #[derive(Clone)]
 pub struct ReplaceKeyShareTask {
@@ -20,7 +20,7 @@ impl TryFrom<ReplaceKeyShareTaskRow> for ReplaceKeyShareTask {
             backup_network_id: value.backup_network_id,
             xres_star_hash: value.xres_star_hash.clone(),
             old_xres_star_hash: value.old_xres_star_hash,
-            key_share: keys::CombinedKeyShare{
+            key_share: keys::CombinedKeyShare {
                 xres_star_hash: value.xres_star_hash.as_slice().try_into()?,
                 xres_hash: value.xres_hash.as_slice().try_into()?,
                 kseaf_share: value.kseaf_share.as_slice().try_into()?,

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use auth_vector::types::{XResStarHash, Rand};
+use auth_vector::types::{Rand, XResStarHash};
 
 use crate::core;
 use crate::data::context::DauthContext;
@@ -94,7 +94,11 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             );
         }
 
-        tracing::info!(?backup_network_id, ?user_id, "Building auth vectors for backup network");
+        tracing::info!(
+            ?backup_network_id,
+            ?user_id,
+            "Building auth vectors for backup network"
+        );
 
         // for each vector (up to max), build a new vector and set of key shares
         for _ in 0..std::cmp::max(
@@ -112,7 +116,11 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             .await?;
             transaction.commit().await?; // T3 end
 
-            let (xres_star_hash, xres_hash, rand) = (vector.xres_star_hash.clone(), vector.xres_hash.clone(), vector.rand.clone());
+            let (xres_star_hash, xres_hash, rand) = (
+                vector.xres_star_hash.clone(),
+                vector.xres_hash.clone(),
+                vector.rand.clone(),
+            );
             let mut rng = rand_0_8::thread_rng();
 
             let kseaf_shares = keys::create_shares_from_kseaf(
@@ -126,20 +134,28 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             )?;
 
             let kasme_shares = keys::create_shares_from_kasme(
-                &vector.kasme, backup_network_ids.len() as u8, std::cmp::min(
+                &vector.kasme,
+                backup_network_ids.len() as u8,
+                std::cmp::min(
                     context.backup_context.backup_key_threshold,
                     backup_network_ids.len() as u8,
-                ), &mut rng)?;
+                ),
+                &mut rng,
+            )?;
 
             let mut shares: Vec<(keys::CombinedKeyShare, Rand)> = Vec::new();
 
             for (kseaf_share, kasme_share) in std::iter::zip(kseaf_shares, kasme_shares) {
-                shares.push((keys::CombinedKeyShare {
-                    xres_star_hash: xres_star_hash,
-                    xres_hash: xres_hash,
-                    kasme_share: kasme_share,
-                    kseaf_share: kseaf_share,
-                }.to_owned(), rand));
+                shares.push((
+                    keys::CombinedKeyShare {
+                        xres_star_hash: xres_star_hash,
+                        xres_hash: xres_hash,
+                        kasme_share: kasme_share,
+                        kseaf_share: kseaf_share,
+                    }
+                    .to_owned(),
+                    rand,
+                ));
             }
 
             vectors_map

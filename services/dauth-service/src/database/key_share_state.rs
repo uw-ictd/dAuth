@@ -5,7 +5,7 @@ use sqlx::{FromRow, Row, Sqlite, Transaction};
 use crate::data::error::DauthError;
 use auth_vector::types::{XResHash, XResStarHash};
 
-#[derive(Debug,FromRow,Clone)]
+#[derive(Debug, FromRow, Clone)]
 struct ShareStateRow {
     user_id: String,
     backup_network_id: String,
@@ -13,7 +13,7 @@ struct ShareStateRow {
     xres_star_hash: Vec<u8>,
 }
 
-#[derive(Debug,Clone,PartialEq,Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShareState {
     pub user_id: String,
     pub rand: Rand,
@@ -97,9 +97,7 @@ pub async fn get_by_xres_star_hash(
     .await?;
 
     match possible_row {
-        Some(row) => {
-            Ok(Some(row.try_into()?))
-        },
+        Some(row) => Ok(Some(row.try_into()?)),
         None => Ok(None),
     }
 }
@@ -120,9 +118,7 @@ pub async fn get_by_xres_hash(
     .await?;
 
     match possible_row {
-        Some(row) => {
-            Ok(Some(row.try_into()?))
-        },
+        Some(row) => Ok(Some(row.try_into()?)),
         None => Ok(None),
     }
 }
@@ -132,24 +128,22 @@ pub async fn get_all(
     xres_star_hash: &[u8],
     backup_network_id: &str,
 ) -> Result<(), DauthError> {
-    let rows = sqlx::query(
-        "SELECT * FROM key_share_state_table"
-    )
-    .bind(xres_star_hash)
-    .bind(backup_network_id)
-    .fetch_all(transaction)
-    .await?;
+    let rows = sqlx::query("SELECT * FROM key_share_state_table")
+        .bind(xres_star_hash)
+        .bind(backup_network_id)
+        .fetch_all(transaction)
+        .await?;
 
     tracing::info!("dumping key share state");
 
     for row in rows {
-        tracing::info!("{}",row.try_get::<String, &str>("user_id")?);
+        tracing::info!("{}", row.try_get::<String, &str>("user_id")?);
         tracing::info!("{:?}", row.try_get::<Vec<u8>, &str>("xres_star_hash")?);
         tracing::info!("{:?}", row.try_get::<String, &str>("backup_network_id")?);
         // tracing::info!("{}", row.try_get::<Vec<u8>, &str>("rand")?[..].try_into()?);
     }
 
-    Ok(( ))
+    Ok(())
 }
 
 /// Deletes a key share reference if found.
@@ -186,7 +180,6 @@ pub async fn remove_by_xres_hash(
 
     Ok(())
 }
-
 
 /* Testing */
 
@@ -274,7 +267,10 @@ mod tests {
                 .await
                 .unwrap()
                 .unwrap(),
-                key_share_state::ShareState{user_id:"test_user_id".to_string(), rand: vec![0u8; RAND_LENGTH].try_into().unwrap()},
+                key_share_state::ShareState {
+                    user_id: "test_user_id".to_string(),
+                    rand: vec![0u8; RAND_LENGTH].try_into().unwrap()
+                },
             );
         }
         transaction.commit().await.unwrap();
@@ -311,7 +307,10 @@ mod tests {
                 .await
                 .unwrap()
                 .unwrap(),
-                key_share_state::ShareState{user_id:"test_user_id".to_string(), rand: vec![0u8; RAND_LENGTH].try_into().unwrap()}
+                key_share_state::ShareState {
+                    user_id: "test_user_id".to_string(),
+                    rand: vec![0u8; RAND_LENGTH].try_into().unwrap()
+                }
             );
         }
         transaction.commit().await.unwrap();
@@ -335,8 +334,9 @@ mod tests {
                 &[row as u8; 16],
                 &format!("test_backup_network_{}", row),
             )
-            .await.unwrap().is_none()
-            );
+            .await
+            .unwrap()
+            .is_none());
         }
         transaction.commit().await.unwrap();
     }

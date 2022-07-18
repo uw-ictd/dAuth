@@ -1,15 +1,14 @@
-use crate::types::AuthVectorConversionError;
-use crate::types::{Ck, Ik, Autn};
 use crate::get_encoded_plmn;
+use crate::types::AuthVectorConversionError;
+use crate::types::{Autn, Ck, Ik};
 
-use hmac::{Hmac};
-use sha2::{Sha256};
+use hmac::Hmac;
+use sha2::Sha256;
 
 pub const KASME_LENGTH: usize = 32;
 pub const FC_KASME: u8 = 0x10;
 
-
-#[derive(Debug,Copy,Clone,PartialEq,Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Kasme {
     data: [u8; KASME_LENGTH],
 }
@@ -65,11 +64,11 @@ impl Kasme {
         let mut mac = HmacSha256::new_from_slice(&key).expect("HMAC can take key of any size");
         mac.update(&data);
 
-        Kasme{
+        Kasme {
             data: mac.finalize().into_bytes()[..KASME_LENGTH]
-            .try_into()
-            .expect("All data should have correct size")
-         }
+                .try_into()
+                .expect("All data should have correct size"),
+        }
     }
 
     pub fn as_array(self) -> [u8; KASME_LENGTH] {

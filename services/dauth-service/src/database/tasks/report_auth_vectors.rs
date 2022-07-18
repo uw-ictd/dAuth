@@ -181,7 +181,9 @@ mod tests {
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        let reports = tasks::report_auth_vectors::get(&mut transaction).await.unwrap();
+        let reports = tasks::report_auth_vectors::get(&mut transaction)
+            .await
+            .unwrap();
         for res in reports.iter() {
             assert!(names.contains(&res.user_id));
         }

@@ -46,8 +46,7 @@ pub async fn find_vector(
     let (home_network_id, backup_network_ids) =
         clients::directory::lookup_user(&context, user_id).await?;
 
-    let (home_address, _) =
-        clients::directory::lookup_network(&context, &home_network_id).await?;
+    let (home_address, _) = clients::directory::lookup_network(&context, &home_network_id).await?;
 
     let res = clients::home_network::get_auth_vector(
         context.clone(),
@@ -77,7 +76,13 @@ pub async fn find_vector(
 
     // Only attempt to look up the prior used vector if this is a resync
     if is_resync_attempt {
-        resync_xres_star_hash = context.backup_context.auth_states.lock().await.get(user_id).and_then(|state| Some(state.xres_star_hash));
+        resync_xres_star_hash = context
+            .backup_context
+            .auth_states
+            .lock()
+            .await
+            .get(user_id)
+            .and_then(|state| Some(state.xres_star_hash));
     }
 
     // Attempt to lookup an auth vector from the backup networks in parallel.
@@ -127,7 +132,13 @@ async fn get_auth_vector_from_network_id(
     let (backup_address, _) =
         clients::directory::lookup_network(&context, &backup_network_id).await?;
 
-    clients::backup_network::get_auth_vector(context.clone(), &user_id, &backup_address, resync_xres_star_hash).await
+    clients::backup_network::get_auth_vector(
+        context.clone(),
+        &user_id,
+        &backup_address,
+        resync_xres_star_hash,
+    )
+    .await
 }
 
 /// Generates an auth vector that will be verified locally.
@@ -408,8 +419,13 @@ pub async fn build_auth_vector(
 
     tracing::info!(?user_id, ?sqn_slice, "sqn"=?user_info.sqn, "Generating Vector for user");
 
-    let auth_vector_data =
-        auth_vector::generate_vector(&context.local_context.mcc, &context.local_context.mnc, &user_info.k, &user_info.opc, &user_info.sqn.try_into()?);
+    let auth_vector_data = auth_vector::generate_vector(
+        &context.local_context.mcc,
+        &context.local_context.mnc,
+        &user_info.k,
+        &user_info.opc,
+        &user_info.sqn.try_into()?,
+    );
 
     user_info.sqn += context.local_context.num_sqn_slices;
 

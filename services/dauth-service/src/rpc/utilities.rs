@@ -96,7 +96,7 @@ pub async fn handle_key_share(
     .await?;
 
     if let SignPayloadType::DelegatedConfirmationShare(payload) = verify_result {
-        Ok(keys::CombinedKeyShare{
+        Ok(keys::CombinedKeyShare {
             xres_star_hash: payload.xres_star_hash.as_slice().try_into()?,
             xres_hash: payload.xres_hash.as_slice().try_into()?,
             kasme_share: payload.kasme_confirmation_share.as_slice().try_into()?,

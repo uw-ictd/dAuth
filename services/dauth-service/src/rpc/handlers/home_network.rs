@@ -11,10 +11,10 @@ use crate::rpc::dauth::common::AuthVector5G;
 use crate::rpc::dauth::remote::delegated_auth_vector5_g;
 use crate::rpc::dauth::remote::home_network_server::HomeNetwork;
 use crate::rpc::dauth::remote::{
-    DelegatedAuthVector5G, GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq,
-    GetHomeConfirmKeyResp, ReportHomeAuthConsumedReq, ReportHomeAuthConsumedResp,
-    ReportHomeKeyShareConsumedReq, ReportHomeKeyShareConsumedResp, get_home_confirm_key_req, get_home_confirm_key_resp,
-    get_key_share_req
+    get_home_confirm_key_req, get_home_confirm_key_resp, get_key_share_req, DelegatedAuthVector5G,
+    GetHomeAuthVectorReq, GetHomeAuthVectorResp, GetHomeConfirmKeyReq, GetHomeConfirmKeyResp,
+    ReportHomeAuthConsumedReq, ReportHomeAuthConsumedResp, ReportHomeKeyShareConsumedReq,
+    ReportHomeKeyShareConsumedResp,
 };
 use crate::rpc::utilities;
 
@@ -266,13 +266,23 @@ impl HomeNetworkHandler {
     ) -> Result<tonic::Response<GetHomeConfirmKeyResp>, DauthError> {
         if let SignPayloadType::GetHomeConfirmKeyReq(payload) = verify_result {
             use get_home_confirm_key_req::payload::Preimage;
-            let key = match payload.preimage.ok_or(DauthError::InvalidMessageError("missing preimage".to_string()))? {
+            let key = match payload.preimage.ok_or(DauthError::InvalidMessageError(
+                "missing preimage".to_string(),
+            ))? {
                 Preimage::ResStar(res_star) => {
-                    let kseaf = core::confirm_keys::get_confirm_key_res_star(context, res_star.as_slice().try_into()?).await?;
+                    let kseaf = core::confirm_keys::get_confirm_key_res_star(
+                        context,
+                        res_star.as_slice().try_into()?,
+                    )
+                    .await?;
                     get_home_confirm_key_resp::Key::Kseaf(kseaf.to_vec())
-                },
+                }
                 Preimage::Res(res) => {
-                    let kasme = core::confirm_keys::get_confirm_key_res(context, res.as_slice().try_into()?).await?;
+                    let kasme = core::confirm_keys::get_confirm_key_res(
+                        context,
+                        res.as_slice().try_into()?,
+                    )
+                    .await?;
                     get_home_confirm_key_resp::Key::Kasme(kasme.to_vec())
                 }
             };
@@ -299,26 +309,21 @@ impl HomeNetworkHandler {
                 context.clone(),
                 &content.backup_network_id,
                 content.xres_star_hash[..].try_into()?,
-            ).await?;
+            )
+            .await?;
 
             match core_response {
-                Some(response) => {
-                    Ok(tonic::Response::new(ReportHomeAuthConsumedResp {
-                        vector: Some(utilities::build_delegated_vector(
-                            context,
-                            &response,
-                            &content.backup_network_id,
-                        )),
-                    }))
-                },
-                None => {
-                    Ok(tonic::Response::new(ReportHomeAuthConsumedResp {
-                        vector: None,
-                    }))
-                }
+                Some(response) => Ok(tonic::Response::new(ReportHomeAuthConsumedResp {
+                    vector: Some(utilities::build_delegated_vector(
+                        context,
+                        &response,
+                        &content.backup_network_id,
+                    )),
+                })),
+                None => Ok(tonic::Response::new(ReportHomeAuthConsumedResp {
+                    vector: None,
+                })),
             }
-
-
         } else {
             Err(DauthError::InvalidMessageError(format!(
                 "Incorrect message type: {:?}",
@@ -334,23 +339,31 @@ impl HomeNetworkHandler {
     ) -> Result<tonic::Response<ReportHomeKeyShareConsumedResp>, DauthError> {
         // TODO: Check the payload further
         if let SignPayloadType::GetKeyShareReq(payload) = verify_result {
-            let hash = match payload.hash.ok_or(DauthError::InvalidMessageError("Missing hash".to_string()))? {
-                get_key_share_req::payload::Hash::XresHash(h) => XResHashKind::XResHash(h.as_slice().try_into()?),
-                get_key_share_req::payload::Hash::XresStarHash(h) => XResHashKind::XResStarHash(h.as_slice().try_into()?),
+            let hash = match payload
+                .hash
+                .ok_or(DauthError::InvalidMessageError("Missing hash".to_string()))?
+            {
+                get_key_share_req::payload::Hash::XresHash(h) => {
+                    XResHashKind::XResHash(h.as_slice().try_into()?)
+                }
+                get_key_share_req::payload::Hash::XresStarHash(h) => {
+                    XResHashKind::XResStarHash(h.as_slice().try_into()?)
+                }
             };
 
-            let preimage = match payload.preimage.ok_or(DauthError::InvalidMessageError("Missing preimage".to_string()))? {
-                get_key_share_req::payload::Preimage::Res(r) => ResKind::Res(r.as_slice().try_into()?),
-                get_key_share_req::payload::Preimage::ResStar(r) => ResKind::ResStar(r.as_slice().try_into()?),
+            let preimage = match payload.preimage.ok_or(DauthError::InvalidMessageError(
+                "Missing preimage".to_string(),
+            ))? {
+                get_key_share_req::payload::Preimage::Res(r) => {
+                    ResKind::Res(r.as_slice().try_into()?)
+                }
+                get_key_share_req::payload::Preimage::ResStar(r) => {
+                    ResKind::ResStar(r.as_slice().try_into()?)
+                }
             };
 
-            core::confirm_keys::key_share_used(
-                context,
-                &preimage,
-                &hash,
-                backup_network_id,
-            )
-            .await?;
+            core::confirm_keys::key_share_used(context, &preimage, &hash, backup_network_id)
+                .await?;
             Ok(tonic::Response::new(ReportHomeKeyShareConsumedResp {
                 share: None, // TODO: requires extra state and generation cases
             }))

@@ -1,7 +1,7 @@
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
-use crate::types::{Ck, Ik, Autn};
+use crate::types::{Autn, Ck, Ik};
 
 pub const KAUSF_LENGTH: usize = 32;
 pub const KSEAF_LENGTH: usize = 32;
@@ -56,16 +56,8 @@ pub fn gen_kseaf(mcc: &str, mnc: &str, kausf: &Kausf) -> Kseaf {
 
 fn get_snn(mcc: &str, mnc: &str) -> String {
     if mnc.len() == 2 {
-        format!(
-            "5G:mnc0{}.mcc{}.3gppnetwork.org",
-            mnc,
-            mcc,
-        )
+        format!("5G:mnc0{}.mcc{}.3gppnetwork.org", mnc, mcc,)
     } else {
-        format!(
-            "5G:mnc{}.mcc{}.3gppnetwork.org",
-            mnc,
-            mcc,
-        )
+        format!("5G:mnc{}.mcc{}.3gppnetwork.org", mnc, mcc,)
     }
 }

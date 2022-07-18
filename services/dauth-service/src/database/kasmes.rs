@@ -1,8 +1,8 @@
 use sqlx::sqlite::{SqlitePool, SqliteRow};
 use sqlx::{Sqlite, Transaction};
 
-use auth_vector::types::Kasme;
 use crate::data::error::DauthError;
+use auth_vector::types::Kasme;
 
 /// Creates the kasme table if it does not exist already.
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
@@ -118,7 +118,9 @@ mod tests {
                 kasmes::add(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
-                    &vec![section * num_rows + row; KASME_LENGTH].try_into().unwrap(),
+                    &vec![section * num_rows + row; KASME_LENGTH]
+                        .try_into()
+                        .unwrap(),
                 )
                 .await
                 .unwrap();
@@ -142,7 +144,9 @@ mod tests {
                 kasmes::add(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
-                    &vec![section * num_rows + row; KASME_LENGTH].try_into().unwrap(),
+                    &vec![section * num_rows + row; KASME_LENGTH]
+                        .try_into()
+                        .unwrap(),
                 )
                 .await
                 .unwrap();
@@ -185,7 +189,9 @@ mod tests {
                 kasmes::add(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
-                    &vec![section * num_rows + row; KASME_LENGTH].try_into().unwrap(),
+                    &vec![section * num_rows + row; KASME_LENGTH]
+                        .try_into()
+                        .unwrap(),
                 )
                 .await
                 .unwrap();
@@ -238,7 +244,9 @@ mod tests {
                 kasmes::add(
                     &mut transaction,
                     &[section * num_rows + row; XRES_STAR_LENGTH],
-                    &vec![section * num_rows + row; KASME_LENGTH].try_into().unwrap(),
+                    &vec![section * num_rows + row; KASME_LENGTH]
+                        .try_into()
+                        .unwrap(),
                 )
                 .await
                 .unwrap();
