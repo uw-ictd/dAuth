@@ -17,9 +17,12 @@ use crate::rpc::clients::{backup_network, directory};
 /// then enrolls all of the user's backup networks.
 pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
     // T0: Get set of tasks
-    let mut transaction = context.local_context.database_pool.begin().await.unwrap();
-    let user_ids = database::tasks::update_users::get_user_ids(&mut transaction).await?;
-    transaction.commit().await.unwrap(); // T0 end
+    let user_ids;
+    {
+        let mut transaction = context.local_context.database_pool.begin().await.unwrap();
+        user_ids = database::tasks::update_users::get_user_ids(&mut transaction).await?;
+        transaction.commit().await.unwrap(); // T0 end
+    }
 
     if user_ids.is_empty() {
         tracing::debug!("Nothing to do for update user task");
@@ -54,14 +57,20 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
     let user_id = &user_id;
 
     // T1: Get all backups for the user
-    let mut transaction = context.local_context.database_pool.begin().await.unwrap();
-    let user_data: Vec<(String, i64)> =
-        database::tasks::update_users::get_user_data(&mut transaction, &user_id)
-            .await?
-            .into_iter()
-            .filter(|v| v.0 != context.local_context.id)
-            .collect();
-    transaction.commit().await?; // T1 end
+    let user_data: Vec<(String, i64)>;
+    {
+        let mut transaction = context.local_context.database_pool.begin().await.unwrap();
+        user_data =
+            database::tasks::update_users::get_user_data(&mut transaction, &user_id)
+                .await?
+                .into_iter()
+                .filter(|v| v.0 != context.local_context.id)
+                .collect();
+        transaction.commit().await.or_else(|e| {
+            tracing::error!(?e, "Failed to commit get user data");
+            Err(e)
+        })?; // T1 end
+    }
 
     let mut backup_network_ids = Vec::new();
     let mut vectors_map = HashMap::new();
@@ -187,7 +196,11 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
 
     /* enroll backups */
     for (backup_network_id, seqnum_slice) in &user_data {
-        let (address, _) = directory::lookup_network(&context, &backup_network_id).await?;
+        let (address, _) = directory::lookup_network(&context, &backup_network_id).await.or_else(
+            |e| {
+                tracing::error!(?e, "Failed to enroll backup");
+                Err(e)
+            })?;
 
         let vectors = vectors_map
             .get(backup_network_id)
@@ -203,7 +216,11 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             backup_network_id,
             &address,
         )
-        .await?;
+        .await.or_else(
+            |e| {
+                tracing::error!(?e, ?user_id, ?backup_network_id, "Failed to enroll backup prepare");
+                Err(e)
+            })?;
 
         // T4: Enroll backup network, then store vector states
         let mut transaction = context.local_context.database_pool.begin().await.unwrap();
@@ -251,13 +268,17 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             &key_shares,
             &address,
         )
-        .await?;
+        .await.or_else(
+            |e| {
+                tracing::error!(?e, ?user_id, ?backup_network_id, "Failed to enroll backup commit");
+                Err(e)
+            })?;
     }
 
     // T5: Task is complete, so remove
     let mut transaction = context.local_context.database_pool.begin().await.unwrap();
     database::tasks::update_users::remove(&mut transaction, &user_id).await?;
-    transaction.commit().await?; // TODO: confirm a transaction this long is okay
+    transaction.commit().await?;
 
     Ok(())
 }
