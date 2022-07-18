@@ -44,3 +44,9 @@ services:
   - hostname: "100.69.151.75"
     id: "uwbts3-service"
     is_vagrant: false
+  - hostname: "100.120.95.80"
+    id: "scn-skyway-library"
+    is_vagrant: false
+  - hostname: "100.92.22.56"
+    id: "scn-occ"
+    is_vagrant: false
