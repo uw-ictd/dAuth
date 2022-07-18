@@ -56,12 +56,12 @@ pub fn build_delegated_share(
 }
 
 pub async fn handle_delegated_vector(
-    context: Arc<DauthContext>,
+    context: &Arc<DauthContext>,
     dvector: DelegatedAuthVector5G,
     user_id: &str,
 ) -> Result<AuthVectorRes, DauthError> {
     let verify_result = signing::verify_message(
-        context,
+        context.clone(),
         &dvector.message.ok_or(DauthError::InvalidMessageError(
             "Missing content".to_string(),
         ))?,
