@@ -8,6 +8,7 @@ import altair as alt
 import pandas as pd
 
 import constants
+import helpers
 
 # Module specific format options
 pd.set_option('display.max_columns', None)
@@ -20,7 +21,6 @@ logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
-backup_metadata_extraction_regex = re.compile(r"^backup_auth:<H,S,B,T>\(([A-Z,a-z,\-]+),([A-Z,a-z,\-]+),(\[.+\]),([0-9]+)\):<n,i,t>\(([0-9]+),([0-9]+),([0-9]+)\)$")
 filename_metadata_extraction_regex = re.compile(r"^([0-9]+)-nbu[0-9]+-rs[0-9]+.out$")
 user_sim_number = re.compile(r"^90170([0-9]+)$")
 
@@ -58,7 +58,7 @@ def normalize_json_to_dataframe(result_directory_path: Path):
 
                 # See if the line is a high-level result line based on the presence of the test_name key
                 try:
-                    test_parameters = extract_metadata_from_test_name(parsed_json["test_name"])
+                    test_parameters = helpers.extract_metadata_from_backup_test_name(parsed_json["test_name"])
                 except KeyError:
                     # The line is a tokio timing line we're not using for now
                     pass
@@ -118,35 +118,6 @@ def normalize_json_to_dataframe(result_directory_path: Path):
     df["registration_ms"] = df["registration_ns"] / float(10**6)
 
     return df
-
-def extract_metadata_from_test_name(name_string: str) -> dict[str, str]:
-    print(name_string)
-    matches = backup_metadata_extraction_regex.fullmatch(name_string)
-    if len(matches.groups()) != 7:
-        log.error("Could not parse: %s", name_string)
-        raise ValueError("Invalid test name parsed")
-
-    result_groups = matches.groups()
-    backup_networks_string = result_groups[2]
-    backup_networks_string = backup_networks_string.replace("[", "")
-    backup_networks_string = backup_networks_string.replace("]", "")
-    backup_networks = backup_networks_string.split(",")
-
-    trimmed_network_list = []
-    for net in backup_networks:
-        trimmed_network_list.append(net.replace("'", "").strip())
-
-    res = {
-        "home_network": result_groups[0],
-        "serving_network": result_groups[1],
-        "backup_networks": trimmed_network_list,
-        "threshold": int(result_groups[3]),
-        "ue_count": int(result_groups[4]),
-        "backup_count": len(trimmed_network_list),
-    }
-    log.debug("Parsed test metadata: %s", res)
-
-    return res
 
 def extract_metadata_from_filename(name_string: str):
     match = filename_metadata_extraction_regex.fullmatch(name_string)
