@@ -21,7 +21,7 @@ do
   do
     NAME="$(basename $FILE .yaml)"
 
-    for NUM_UES in 10 20 50 75 100 200 300 400 500
+    for NUM_UES in 50 100 200 300 500 700
     do
       echo "Running" "$NAME" "with $NUM_UES UEs in 30s"
       python3 ./testing/perf/run_perf.py \
