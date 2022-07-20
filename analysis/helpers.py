@@ -31,6 +31,10 @@ def extract_metadata_from_backup_test_name(name_string: str) -> dict[str, str]:
         "target_time_ms": int(result_groups[5]),
         "backup_count": len(trimmed_network_list)
     }
+
+    # HACK Normalize UE count to 30s test
+    res["ue_count"] = int(res["ue_count"] / (res["target_time_ms"]/30000))
+
     log.debug("Parsed test metadata: %s", res)
 
     return res
