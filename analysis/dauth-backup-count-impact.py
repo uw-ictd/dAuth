@@ -21,7 +21,6 @@ logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
-filename_metadata_extraction_regex = re.compile(r"^([0-9]+)-nbu[0-9]+-rs[0-9]+.out$")
 user_sim_number = re.compile(r"^90170([0-9]+)$")
 
 def p50(x):
@@ -44,7 +43,7 @@ def normalize_json_to_dataframe(result_directory_path: Path):
     backup_network_inclusion_frequencies = defaultdict(lambda: 0)
     drop_counters_per_num_ues = defaultdict(lambda: 0)
     for filename in result_filenames:
-        scenario = extract_metadata_from_filename(filename.name)
+        scenario = helpers.extract_metadata_from_backup_filename(filename.name)
         with open(filename) as f:
             lines = []
             for line in f:
@@ -134,8 +133,9 @@ def extract_ue_number_from_imsi(imsi: str) -> int:
 
 def make_scenario_plot(df: pd.DataFrame, chart_output_path: Path, scenario:str):
     chart_output_path.mkdir(parents=True, exist_ok=True)
-    df = df.loc[(df["scenario"] == scenario) & (df["ue_count"] < 100) & (df["threshold"] == 2)]
+    df = df.loc[(df["scenario"] == scenario) & (df["threshold"] == 2)]
 
+    print("Making scenario plot")
     print(df)
 
     stats = df.groupby(["ue_count", "backup_count"]).agg({"registration_ms": [p50, p90, p99]})

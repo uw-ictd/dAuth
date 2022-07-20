@@ -21,7 +21,6 @@ logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
-filename_metadata_extraction_regex = re.compile(r"^([0-9]+)-nbu[0-9]+-rs[0-9]+.out$")
 user_sim_number = re.compile(r"^90170([0-9]+)$")
 
 def normalize_json_to_dataframe(result_directory_path: Path):
@@ -35,7 +34,7 @@ def normalize_json_to_dataframe(result_directory_path: Path):
     backup_network_inclusion_frequencies = defaultdict(lambda: 0)
     drop_counters_per_num_ues = defaultdict(lambda: 0)
     for filename in result_filenames:
-        scenario = extract_metadata_from_filename(filename.name)
+        scenario = helpers.extract_metadata_from_backup_filename(filename.name)
         with open(filename) as f:
             lines = []
             for line in f:
@@ -109,10 +108,6 @@ def normalize_json_to_dataframe(result_directory_path: Path):
     df["registration_ms"] = df["registration_ns"] / float(10**6)
 
     return df
-
-def extract_metadata_from_filename(name_string: str):
-    match = filename_metadata_extraction_regex.fullmatch(name_string)
-    return match.groups()[0]
 
 def extract_ue_number_from_imsi(imsi: str) -> int:
     match = user_sim_number.match(imsi)
@@ -265,7 +260,9 @@ def make_latency_cdf_small_multiple(number_ues, df: pd.DataFrame, cloud_df: pd.D
     ).save(chart_output_path/f"backup_latency_vs_cloud_cdf_{number_ues}_ues.png", scale_factor=2.0)
 
 def make_all_latency_cdfs(df: pd.DataFrame, cloud_df: pd.DataFrame, chart_output_path: Path):
-    for num_ues in [10, 20, 50]:
+    for num_ues in [10, 20, 40, 60, 80, 100, 120, 140]:
+    # for num_ues in [10, 100, 500]:
+        print(f"Making plot for {num_ues}")
         make_latency_cdf_small_multiple(num_ues, df, cloud_df, chart_output_path)
 
 if __name__ == "__main__":
@@ -279,4 +276,5 @@ if __name__ == "__main__":
     df = pd.read_parquet(intermediate_path/"backup_network_via_dauth.parquet")
 
     cloud_data = normalize_cloud_json_to_dataframe(Path("data/ueransim/open5gs-edge-core"))
+    print("cloud sample points", cloud_data["ue_count"].unique())
     make_all_latency_cdfs(df, cloud_data, charts_path)
