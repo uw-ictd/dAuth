@@ -220,7 +220,7 @@ def deploy_ueransim(ueransim_binary_directory, host):
     for component in components:
         binary_path = Path(ueransim_binary_directory, component).absolute()
         log.info("Deploying binary: %s to host %s", binary_path, host)
-        
+
         if '@' in host:
             name, ip = host.split("@", 2)
             connection.run(f"mkdir -p /home/{name}/ueransim/")
@@ -230,7 +230,7 @@ def deploy_ueransim(ueransim_binary_directory, host):
             connection.run("mkdir -p /home/vagrant/ueransim/")
             connection.put(binary_path, remote="/home/vagrant/ueransim/", preserve_mode=False)
             connection.run(f"chmod a+x /home/vagrant/ueransim/{component}")
-            
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="deploy dauth in a test environment")
@@ -343,6 +343,10 @@ if __name__ == "__main__":
             "No way to differentiate which host receives the directory and which do not."
         )
 
+    # Default values
+    dauth_package_path = None
+    dauth_directory_path = None
+
     if args.fast_debug:
         cargo_target = "debug"
         log.warn("Doing a debug build! Don't use for any performance testing")
@@ -357,6 +361,9 @@ if __name__ == "__main__":
     if args.build_dauth:
         log.info("Building dauth")
         build_dauth_services(target=cargo_target)
+        log.info("Building dauth packages")
+        dauth_package_path = package_dauth_service(target=cargo_target)
+        dauth_directory_path = package_dauth_directory_service(target=cargo_target)
 
     if args.build_open5gs:
         log.info("Building open5gs")
@@ -368,8 +375,9 @@ if __name__ == "__main__":
         build_ueransim(fast_build=args.fast_debug)
 
     if args.deploy_dauth:
-        log.info("Building dauth package")
-        dauth_package_path = package_dauth_service(target=cargo_target)
+        if dauth_package_path is None:
+            log.info("Building dauth package")
+            dauth_package_path = package_dauth_service(target=cargo_target)
         log.info("Deploying dauth package")
         if len(args.dest_host) == 0:
             log.error("Specified deploy but no deploy destinations provided")
@@ -377,13 +385,14 @@ if __name__ == "__main__":
             deploy_package(dauth_package_path, host)
 
     if args.deploy_dauth_directory:
-        log.info("Building dauth directory package")
-        directory_package_path = package_dauth_directory_service(target=cargo_target)
+        if dauth_directory_path is None:
+            log.info("Building dauth directory package")
+            dauth_directory_path = package_dauth_directory_service(target=cargo_target)
         log.info("Deploying dauth directory package")
         if len(args.dest_host) == 0:
             log.error("Specified deploy but no deploy destinations provided")
         assert len(args.dest_host) == 1
-        deploy_package(directory_package_path, args.dest_host[0])
+        deploy_package(dauth_directory_path, args.dest_host[0])
 
     if args.deploy_open5gs:
         log.info("Deploying open5gs packages")
@@ -391,13 +400,13 @@ if __name__ == "__main__":
             log.error("Specified deploy but no deploy destinations provided")
         for host in args.dest_host:
             deploy_open5gs_5gc_packages(Path("../open5gs-debs"), host)
-            
+
             if '@' in host:
                 name, ip = host.split("@", 2)
                 Connection(host).sudo(f"/home/{name}/scripts/open5gs-ip-config.py {ip}")
             else:
                 Connection(host).sudo("/home/vagrant/scripts/open5gs-ip-config.py")
-                
+
 
     if args.build_ueransim:
         log.info("Deploying ueransim")
