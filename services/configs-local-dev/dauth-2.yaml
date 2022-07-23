@@ -29,6 +29,9 @@ num_sqn_slices: 32
 # Max number of auth vectors a backup network should have at one time
 max_backup_vectors: 10
 
+mcc: "901"
+mnc: "70"
+
 # The set of users for this network (for testing)
 users: {
   "imsi-901700000000002": {
