@@ -293,6 +293,7 @@ def make_latency_cdf_small_multiple(number_ues, df: pd.DataFrame, cloud_df: pd.D
     ).save(chart_output_path/f"home_latency_vs_cloud_cdf_{number_ues}_ues.png", scale_factor=2.0)
 
 def make_all_latency_cdfs(df: pd.DataFrame, cloud_df: pd.DataFrame, chart_output_path: Path):
+    # for num_ues in [10, 20, 50, 75, 100, 200, 300, 400, 500]:
     for num_ues in [10, 20, 50, 100, 500]:
         make_latency_cdf_small_multiple(num_ues, df, cloud_df, chart_output_path)
 

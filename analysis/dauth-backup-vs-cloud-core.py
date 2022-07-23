@@ -260,7 +260,7 @@ def make_latency_cdf_small_multiple(number_ues, df: pd.DataFrame, cloud_df: pd.D
     ).save(chart_output_path/f"backup_latency_vs_cloud_cdf_{number_ues}_ues.png", scale_factor=2.0)
 
 def make_all_latency_cdfs(df: pd.DataFrame, cloud_df: pd.DataFrame, chart_output_path: Path):
-    for num_ues in [10, 20, 40, 60, 80, 100, 120, 140]:
+    for num_ues in [10, 25, 50, 100, 200, 300, 500]:
     # for num_ues in [10, 100, 500]:
         print(f"Making plot for {num_ues}")
         make_latency_cdf_small_multiple(num_ues, df, cloud_df, chart_output_path)
@@ -274,6 +274,7 @@ if __name__ == "__main__":
     df.to_parquet(intermediate_path/"backup_network_via_dauth.parquet")
 
     df = pd.read_parquet(intermediate_path/"backup_network_via_dauth.parquet")
+    print("dauth sample points", df["ue_count"].unique())
 
     cloud_data = normalize_cloud_json_to_dataframe(Path("data/ueransim/open5gs-edge-core"))
     print("cloud sample points", cloud_data["ue_count"].unique())
