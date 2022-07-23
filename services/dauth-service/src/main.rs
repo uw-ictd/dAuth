@@ -6,16 +6,18 @@ mod startup;
 mod tasks;
 
 use structopt::StructOpt;
-use tracing::Level;
-use tracing_subscriber;
+use tracing_subscriber::{filter, EnvFilter};
 
 use crate::data::opt::DauthOpt;
 use crate::rpc::server;
 
 #[tokio::main]
 async fn main() {
-    // TODO(nickfh7) Add configuring for logging
-    tracing_subscriber::fmt().with_max_level(Level::INFO).init();
+    let log_filter = EnvFilter::builder()
+        .with_default_directive(filter::LevelFilter::INFO.into())
+        .from_env_lossy();
+
+    tracing_subscriber::fmt().with_env_filter(log_filter).init();
 
     let dauth_opt = DauthOpt::from_args();
     let context = startup::build_context(dauth_opt)
