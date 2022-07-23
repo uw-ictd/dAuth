@@ -1,7 +1,8 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use auth_vector::types::{Res, ResStar, XResHash, XResStarHash};
-use tonic::transport::Channel;
+use tonic::transport::{Channel, Endpoint};
 
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
@@ -367,17 +368,39 @@ async fn get_client(
     context: Arc<DauthContext>,
     address: &str,
 ) -> Result<BackupNetworkClient<Channel>, DauthError> {
-    let mut clients = context.rpc_context.backup_clients.lock().await;
-
-    if !clients.contains_key(address) {
-        clients.insert(
-            address.to_string(),
-            BackupNetworkClient::connect(format!("http://{}", address)).await?,
-        );
+    // Acquire the lock and attempt to look up the client connection.
+    {
+        let clients = context.rpc_context.backup_clients.lock().await;
+        match clients.get(address) {
+            Some(cached_client) => {
+                return Ok(cached_client.clone());
+            }
+            None => {
+                // Fall through to create a client handling
+            }
+        }
     }
 
-    Ok(clients
-        .get(address)
-        .ok_or(DauthError::ClientError("Client not found".to_string()))?
-        .clone())
+    // No cached client was found, so attempt to open a connection
+
+    // TODO(matt9j) Keep track of if we've attempted and failed to open a
+    // connection before and don't retry for every request.
+    let endpoint = Endpoint::from_shared(format!("http://{}", address))
+        .unwrap()
+        .concurrency_limit(256)
+        .timeout(Duration::from_millis(100))
+        .connect_timeout(Duration::from_millis(50));
+    let client = BackupNetworkClient::connect(endpoint).await?;
+
+    // Store a clone in the cache for future connections
+
+    // By not holding the lock it is possible that another context has already
+    // added a client, but it's okay to overwrite it and drop it in this case.
+    let cache_client = client.clone();
+    {
+        let mut clients = context.rpc_context.backup_clients.lock().await;
+        clients.insert(address.to_string(), cache_client);
+    }
+
+    Ok(client)
 }
