@@ -215,14 +215,34 @@ pub async fn get_client(
 
     // No cached client was found, so attempt to open a connection
 
-    // TODO(matt9j) Keep track of if we've attempted and failed to open a
-    // connection before and don't retry for every request.
+    // First check if this network is known to be offline
+    {
+        let mut offline_cache = context.rpc_context.known_offline_networks.lock().await;
+        if let Some(retry_time) = offline_cache.get(address) {
+            if &std::time::Instant::now() < retry_time {
+                tracing::debug!(?address, "Attempted client connection to unavailable network");
+                return Err(DauthError::ClientError("Not re-attempting connection before retry timeout".to_string()));
+            } else {
+                offline_cache.remove(address);
+            }
+        }
+    }
+
+    // Attempt a connection
     let endpoint = Endpoint::from_shared(format!("http://{}", address))
         .unwrap()
         .concurrency_limit(256)
         .timeout(Duration::from_millis(100))
         .connect_timeout(Duration::from_millis(50));
-    let client = HomeNetworkClient::connect(endpoint).await?;
+    let client = HomeNetworkClient::connect(endpoint).await;
+
+    // If the connection fails, keep track and don't retry until the timeout expires.
+    if client.is_err() {
+        let mut offline_cache = context.rpc_context.known_offline_networks.lock().await;
+        offline_cache.insert(address.to_string(), std::time::Instant::now() + context.rpc_context.failed_connection_retry_cooldown);
+    }
+
+    let client = client?;
 
     // Store a clone in the cache for future connections
 

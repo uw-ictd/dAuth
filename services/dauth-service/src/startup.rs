@@ -55,6 +55,8 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
             backup_clients: tokio::sync::Mutex::new(HashMap::new()),
             home_clients: tokio::sync::Mutex::new(HashMap::new()),
             directory_client: tokio::sync::Mutex::new(None),
+            known_offline_networks: tokio::sync::Mutex::new(HashMap::new()),
+            failed_connection_retry_cooldown: Duration::from_secs(30),
         },
         tasks_context: TasksContext {
             start_time: Instant::now(),

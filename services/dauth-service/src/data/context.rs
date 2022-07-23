@@ -49,7 +49,9 @@ pub struct RpcContext {
     pub home_clients: tokio::sync::Mutex<HashMap<String, HomeNetworkClient<Channel>>>,
     pub backup_clients: tokio::sync::Mutex<HashMap<String, BackupNetworkClient<Channel>>>,
     pub directory_client: tokio::sync::Mutex<Option<DirectoryClient<Channel>>>,
+    pub known_offline_networks: tokio::sync::Mutex<HashMap<String, std::time::Instant>>,
     pub local_auth_addr: String,
+    pub failed_connection_retry_cooldown: std::time::Duration,
 }
 
 #[derive(Debug)]
