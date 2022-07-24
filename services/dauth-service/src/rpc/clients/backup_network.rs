@@ -388,8 +388,7 @@ async fn get_client(
     let endpoint = Endpoint::from_shared(format!("http://{}", address))
         .unwrap()
         .concurrency_limit(256)
-        .timeout(Duration::from_millis(100))
-        .connect_timeout(Duration::from_millis(50));
+        .connect_timeout(Duration::from_millis(200));
     let client = BackupNetworkClient::connect(endpoint).await?;
 
     // Store a clone in the cache for future connections
