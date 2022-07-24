@@ -1,0 +1,49 @@
+- name: Set up the directory service
+  hosts: directory_nodes
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    directory_package_version: "0.1.0"
+  become: yes
+  roles:
+    - "directory_host"
+
+- name: Set up the dauth service
+  hosts: all
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    dauth_src_semver_version: "0.1.0"
+  become: yes
+
+  tasks:
+    - name: Copy in dauth package
+      copy:
+        src: "../services/dauth_{{ dauth_src_semver_version }}~dev_amd64.deb"
+        dest: "/tmp/dauth_{{ dauth_src_semver_version }}~dev_amd64.deb"
+        remote_src: no
+      register: dauth_package_deb_instance
+
+    - name: Gather the package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Remove dauth package
+      apt:
+        name: "dauth"
+        state: "absent"
+        purge: no
+      when:
+        - "dauth_package_deb_instance.changed"
+    - name: Install dauth package
+      apt:
+        deb: "/tmp/dauth_{{ dauth_src_semver_version }}~dev_amd64.deb"
+        state: "present"
+      when:
+        - "dauth_package_deb_instance.changed or 'dauth' not in ansible_facts.packages"
+      register: dauth_package_installed
+
+    - name: Restart Dauth
+      systemd:
+        name: dauth
+        state: restarted
+      when:
+        - dauth_package_installed.changed

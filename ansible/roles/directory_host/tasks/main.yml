@@ -1,0 +1,38 @@
+- name: Copy in dauth directory package
+  copy:
+    src: "{{role_path}}/../../../services/dauth-directory_{{ directory_package_version }}~dev_amd64.deb"
+    dest: "/tmp/dauth-directory_{{ directory_package_version }}~dev_amd64.deb"
+    remote_src: no
+  register: directory_package_deb_instance
+
+- name: Gather the package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Remove dauth directory package
+  apt:
+    name: "dauth-directory"
+    state: "absent"
+    purge: no
+  when:
+    - "directory_package_deb_instance.changed"
+- name: Install dauth directory package
+  apt:
+    deb: "/tmp/dauth-directory_{{ directory_package_version }}~dev_amd64.deb"
+    state: "present"
+  when:
+    - "directory_package_deb_instance.changed or 'dauth-directory' not in ansible_facts.packages"
+  register: dauth_directory_package_installed
+
+- name: Write directory service config file
+  template:
+    src: "templates/dauth-directory-config.yaml.j2"
+    dest: "/etc/dauth/directory.yaml"
+  register: directory_config_file
+
+- name: Restart Dauth directory
+  systemd:
+    name: dauth-directory
+    state: restarted
+  when:
+    - "dauth_directory_package_installed.changed or directory_config_file.changed"
