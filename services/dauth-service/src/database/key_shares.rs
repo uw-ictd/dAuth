@@ -67,6 +67,7 @@ pub async fn get_from_xres_star_hash(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &XResStarHash,
 ) -> Result<keys::CombinedKeyShare, DauthError> {
+    tracing::debug!(?xres_star_hash, "querying for key share by xres_star_hash");
     let row: KeyShareRow = sqlx::query_as(
         "SELECT * FROM key_share_table
         WHERE xres_star_hash=$1;",
@@ -94,6 +95,7 @@ pub async fn get_from_xres_hash(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_hash: &XResHash,
 ) -> Result<keys::CombinedKeyShare, DauthError> {
+    tracing::debug!(?xres_hash, "querying for key share by xres_hash");
     let row: KeyShareRow = sqlx::query_as(
         "SELECT * FROM key_share_table
         WHERE xres_hash=$1;",
@@ -121,6 +123,7 @@ pub async fn get_user_id(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
 ) -> Result<String, DauthError> {
+    tracing::debug!(?xres_star_hash, "querying for key share user_id by xres_star_hash");
     Ok(sqlx::query(
         "SELECT * FROM key_share_table
         WHERE xres_star_hash=$1;",
