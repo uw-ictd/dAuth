@@ -78,12 +78,21 @@ async fn report_to_network(
     // Run reports to a single network serially for now. This could be
     // parallelized in the future, or we could build an aggregate API.
     for report in reports {
-        clients::home_network::report_key_share_consumed(
+        match clients::home_network::report_key_share_consumed(
             &context,
             &report.signed_request_bytes,
             &mut client,
         )
-        .await?;
+        .await {
+            Ok(_) => (),
+            Err(DauthError::ClientError(msg)) => {
+                clients::home_network::mark_endpoint_offline(&context, &home_net_address).await;
+                return Err(DauthError::ClientError(msg));
+            },
+            Err(e) => {
+                return Err(e);
+            }
+        };
 
         let mut transaction = context.local_context.database_pool.begin().await?;
         database::tasks::report_key_shares::remove(&mut transaction, &report.xres_star_hash)

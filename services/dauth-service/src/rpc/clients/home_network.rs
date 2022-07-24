@@ -41,7 +41,15 @@ pub async fn get_auth_vector(
 
     request.set_timeout(timeout);
 
-    let response = client.get_auth_vector(request).await?.into_inner();
+    let response = match client.get_auth_vector(request).await{
+        Ok(res) => res.into_inner(),
+        Err(status) => {
+            if status.code() == tonic::Code::Unavailable {
+                mark_endpoint_offline(&context, address).await;
+            }
+            return Err(status.into());
+        }
+    };
 
     let message = response
         .vector
@@ -79,7 +87,7 @@ pub async fn get_confirm_key_kseaf(
 ) -> Result<Kseaf, DauthError> {
     let mut client = get_client(context.clone(), address).await?;
 
-    let response = client
+    let response = match client
         .get_confirm_key(GetHomeConfirmKeyReq {
             message: Some(signing::sign_message(
                 context.clone(),
@@ -94,8 +102,15 @@ pub async fn get_confirm_key_kseaf(
                 }),
             )),
         })
-        .await?
-        .into_inner();
+        .await {
+            Ok(res) => res.into_inner(),
+            Err(status) => {
+                if status.code() == tonic::Code::Unavailable {
+                    mark_endpoint_offline(&context, address).await;
+                }
+                return Err(status.into());
+            }
+        };
 
     if let Some(get_home_confirm_key_resp::Key::Kseaf(kseaf)) = response.key {
         Ok(kseaf[..].try_into()?)
@@ -115,7 +130,7 @@ pub async fn get_confirm_key_kasme(
 ) -> Result<Kasme, DauthError> {
     let mut client = get_client(context.clone(), address).await?;
 
-    let response = client
+    let response = match client
         .get_confirm_key(GetHomeConfirmKeyReq {
             message: Some(signing::sign_message(
                 context.clone(),
@@ -130,8 +145,15 @@ pub async fn get_confirm_key_kasme(
                 }),
             )),
         })
-        .await?
-        .into_inner();
+        .await {
+            Ok(res) => res.into_inner(),
+            Err(status) => {
+                if status.code() == tonic::Code::Unavailable {
+                    mark_endpoint_offline(&context, address).await;
+                }
+                return Err(status.into());
+            }
+        };
 
     if let Some(get_home_confirm_key_resp::Key::Kasme(kasme)) = response.key {
         Ok(kasme[..].try_into()?)
@@ -255,4 +277,19 @@ pub async fn get_client(
     }
 
     Ok(client)
+}
+
+pub async fn mark_endpoint_offline(
+    context: &Arc<DauthContext>,
+    address: &str,
+) -> () {
+    let retry_timeout = std::time::Instant::now() + context.rpc_context.failed_connection_retry_cooldown;
+    let address_string = address.to_string();
+
+    {
+        let mut clients = context.rpc_context.home_clients.lock().await;
+        let mut offline_cache = context.rpc_context.known_offline_networks.lock().await;
+        clients.remove(address);
+        offline_cache.insert(address_string, retry_timeout);
+    }
 }

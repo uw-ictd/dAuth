@@ -78,14 +78,23 @@ async fn report_to_network(
     // Run reports to a single network serially for now. This could be
     // parallelized in the future, or we could build an aggregate API.
     for report in reports {
-        let possible_av_result = clients::home_network::report_auth_consumed(
+        let possible_av_result = match clients::home_network::report_auth_consumed(
             &context,
             &report.xres_star_hash[..].try_into()?,
             &report.user_id,
             &report.signed_request_bytes,
             &mut client,
         )
-        .await?;
+        .await {
+            Ok(res) => res,
+            Err(DauthError::ClientError(e)) => {
+                clients::home_network::mark_endpoint_offline(&context, &home_net_address).await;
+                return Err(DauthError::ClientError(e));
+            },
+            Err(e) => {
+                return Err(e);
+            }
+        };
 
         if let Some(av_result) = possible_av_result {
             core::auth_vectors::store_backup_auth_vector(context.clone(), &av_result).await?;
