@@ -35,7 +35,7 @@ pub async fn lookup_network(
     context: Arc<DirectoryContext>,
     network_id: &str,
 ) -> Result<(String, Vec<u8>), DirectoryError> {
-    tracing::info!("Looup network called: {:?}", network_id);
+    tracing::info!("Lookup network called: {:?}", network_id);
 
     let mut transaction = context.database_pool.begin().await?;
     let res = database::networks::get(&mut transaction, network_id).await?;
@@ -50,7 +50,7 @@ pub async fn lookup_user(
     context: Arc<DirectoryContext>,
     user_id: &str,
 ) -> Result<(String, Vec<String>), DirectoryError> {
-    tracing::info!("Looup user called: {:?}", user_id);
+    tracing::info!("Lookup user called: {:?}", user_id);
 
     let mut transaction = context.database_pool.begin().await?;
     let home_network_id = database::users::get(&mut transaction, user_id).await?;
