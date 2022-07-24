@@ -39,7 +39,7 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
                         transaction.commit().await?;
                     }
                     Err(e) => {
-                        tracing::warn!("Failed to execute replace task: {}", e)
+                        tracing::info!("Failed to execute replace task: {}", e)
                     }
                 },
                 Err(je) => {

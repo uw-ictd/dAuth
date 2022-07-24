@@ -262,7 +262,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             &address,
         )
         .await.and_then(|()| {
-            tracing::error!(?user_id, ?backup_network_id, "Successful enroll backup commit");
+            tracing::info!(?user_id, ?backup_network_id, "Successful enroll backup commit");
             Ok(())
         }).or_else(
             |e| {

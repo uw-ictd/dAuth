@@ -17,11 +17,12 @@ pub struct LocalAuthenticationHandler {
 impl LocalAuthentication for LocalAuthenticationHandler {
     /// Local request for a vector that will be used on this network.
     /// No authentication is done.
+    #[tracing::instrument(skip_all)]
     async fn get_auth_vector(
         &self,
         request: tonic::Request<AkaVectorReq>,
     ) -> Result<tonic::Response<AkaVectorResp>, tonic::Status> {
-        tracing::info!("Request: {:?}", request);
+        tracing::debug!(?request, "Request received");
 
         let monitor = tokio_metrics::TaskMonitor::new();
 
@@ -66,11 +67,12 @@ impl LocalAuthentication for LocalAuthenticationHandler {
 
     /// Local request for to complete auth process for a vector.
     /// No authentication is done.
+    #[tracing::instrument(skip_all)]
     async fn confirm_auth(
         &self,
         request: tonic::Request<AkaConfirmReq>,
     ) -> Result<tonic::Response<AkaConfirmResp>, tonic::Status> {
-        tracing::info!("Request: {:?}", request);
+        tracing::debug!(?request, "Request received");
 
         let monitor = tokio_metrics::TaskMonitor::new();
 

@@ -116,17 +116,17 @@ async fn confirm_authentication_5g(
                                 break;
                             }
                         }
-                        Err(e) => tracing::warn!("Failed to get key share: {}", e),
+                        Err(e) => tracing::info!("Failed to get key share: {}", e),
                     },
                     Err(e) => {
-                        tracing::warn!("Failed to get key share: {}", e)
+                        tracing::info!("Failed to get key share: {}", e)
                     }
                 }
             }
 
             if key_shares.len() < share_threshold.into() {
-                tracing::warn!(
-                    "Insufficient valid responses {} of {} needed to compute the kseaf",
+                tracing::error!(
+                    "Insufficient valid responses, {} of {} needed to compute kseaf, auth cannot proceed",
                     key_shares.len(),
                     share_threshold
                 );
@@ -189,17 +189,17 @@ async fn confirm_authentication_eps(
                                 break;
                             }
                         }
-                        Err(e) => tracing::warn!("Failed to get key share: {}", e),
+                        Err(e) => tracing::info!("Failed to get key share: {}", e),
                     },
                     Err(e) => {
-                        tracing::warn!("Failed to get key share: {}", e)
+                        tracing::info!("Failed to get key share: {}", e)
                     }
                 }
             }
 
             if key_shares.len() < share_threshold.into() {
-                tracing::warn!(
-                    "Insufficient valid responses {} of {} needed to compute the kseaf",
+                tracing::error!(
+                    "Insufficient valid responses, {} of {} needed to compute kasme, auth cannot proceed",
                     key_shares.len(),
                     share_threshold
                 );

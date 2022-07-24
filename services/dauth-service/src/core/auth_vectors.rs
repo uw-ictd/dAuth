@@ -21,13 +21,13 @@ use crate::rpc::clients;
 /// 2. Lookup the home network of the user and request a vector
 /// 3. Request a vector from all backup networks
 /// Stores auth state for 2 and 3.
+#[tracing::instrument(skip(context))]
 pub async fn find_vector(
     context: Arc<DauthContext>,
     user_id: &str,
     network_id: &str,
     is_resync_attempt: bool,
 ) -> Result<AuthVectorRes, DauthError> {
-    tracing::info!("Attempting to find a vector: {}-{}", user_id, network_id);
     // First see if this node has key material to generate the vector itself.
     let res = generate_local_vector(
         context.clone(),
@@ -40,7 +40,8 @@ pub async fn find_vector(
         return Ok(vector);
     }
 
-    tracing::info!("Failed to generate vector locally: {:?}", res);
+    tracing::debug!(?res, "Unable to generate local vector");
+    tracing::info!("Unable to generate vector locally, attempting to fall back to home network");
 
     // Attempt to lookup the vector from the home network directly.
     let (home_network_id, backup_network_ids) =
@@ -68,7 +69,8 @@ pub async fn find_vector(
         return Ok(vector);
     }
 
-    tracing::info!("Failed to get vector from home network: {:?}", res);
+    tracing::debug!(?res, "Unable to get vector from home network.");
+    tracing::info!("Unable to get vector from home network, attempting backup networks");
 
     // Lookup our authentication state for this user to see if we have
     // previously sent a tuple.
@@ -117,7 +119,7 @@ pub async fn find_vector(
         }
     }
 
-    tracing::warn!("No auth vector found");
+    tracing::error!(?user_id, "No auth vector found, authentication cannot proceed");
     Err(DauthError::NotFoundError(
         "No auth vector found".to_string(),
     ))
@@ -148,7 +150,7 @@ pub async fn generate_local_vector(
     user_id: &str,
     sqn_slice: i64,
 ) -> Result<AuthVectorRes, DauthError> {
-    tracing::info!("Generating new vector: {}:{}", user_id, sqn_slice);
+    tracing::info!("Attempting to generate new vector locally");
 
     let mut transaction = context.local_context.database_pool.begin().await?;
 

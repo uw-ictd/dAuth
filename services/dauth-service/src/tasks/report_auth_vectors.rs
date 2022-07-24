@@ -52,7 +52,7 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
                         // No action for successful report.
                     }
                     Err(e) => {
-                        tracing::warn!(?e, "Failed to execute report key share task");
+                        tracing::info!(?e, "Failed to execute report auth vector task");
                     }
                 },
                 Err(e) => {
