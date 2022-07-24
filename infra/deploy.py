@@ -26,7 +26,7 @@ def build_dauth_services(target):
     subprocess.run(cmd, check=True, cwd="../services")
 
 
-def package_dauth_service(target, package_name="dauth-service_0.1.0~dev_amd64.deb"):
+def package_dauth_service(target, package_name="dauth_0.1.0~dev_amd64.deb"):
     """Package the dauth service per external nfpm.yaml config file"""
     with open("../services/nfpm-dauth.yaml") as f:
         nfpm_config = f.read()
@@ -57,7 +57,7 @@ def package_dauth_service(target, package_name="dauth-service_0.1.0~dev_amd64.de
 
 
 def package_dauth_directory_service(
-    target, package_name="dauth-directory-service_0.1.0~dev_amd64.deb"
+    target, package_name="dauth-directory_0.1.0~dev_amd64.deb"
 ):
     """Package the dauth directory service per external nfpm.yaml config file"""
     with open("../services/nfpm-directory.yaml") as f:
