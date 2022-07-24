@@ -6,7 +6,7 @@ use crate::database;
 /// Constructs the sqlite pool for running queries.
 pub async fn build_pool(database_path: &str) -> Result<SqlitePool, DirectoryError> {
     Ok(SqlitePoolOptions::new()
-        .max_connections(10)
+        .max_connections(1)
         .connect_with(
             SqliteConnectOptions::new()
                 .create_if_missing(true)
