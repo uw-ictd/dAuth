@@ -4,7 +4,7 @@ platform: "linux"
 
 # Upstream Version. (required)
 # This will expand any env var you set in the field, eg version: v${SEMVER}
-version: ${VERSION}
+version: "0.1.0"
 
 # Version Epoch.
 # Default is extracted from `version` if it is semver compatible.
