@@ -138,7 +138,7 @@ class NetworkState:
             service.remove_keys()
             service.start_service()
 
-        for i in range(120):
+        for i in range(600):
             sleep(1)
             all_ready = True
             for service in self.services:
@@ -150,7 +150,7 @@ class NetworkState:
                 logging.info("Setup ready after %d iterations", i)
                 return
 
-        logging.error("Not ready even after 2 minute timout!")
+        logging.error("Not ready even after 10 minute timout!")
         raise SystemError("Dauth nodes not ready, cannot proceed with test")
 
         # Not ideal, but UERANSIM seems to need this delay to work correctly.
