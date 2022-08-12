@@ -34,7 +34,7 @@ def normalize_json_to_dataframe(result_directory_path: Path):
     backup_network_inclusion_frequencies = defaultdict(lambda: 0)
     drop_counters_per_num_ues = defaultdict(lambda: 0)
     for filename in result_filenames:
-        scenario = helpers.extract_metadata_from_backup_filename(filename.name)
+        filename_parameters = helpers.extract_metadata_from_backup_filename(filename.name)
         with open(filename) as f:
             lines = []
             for line in f:
@@ -54,9 +54,9 @@ def normalize_json_to_dataframe(result_directory_path: Path):
                     pass
                     continue
 
+                test_parameters = test_parameters | filename_parameters
                 test_parameters["total_test_duration_s"] = float(parsed_json["test_duration"])
                 test_parameters["total_test_auth_count"] = int(parsed_json["total_auths"])
-                test_parameters["scenario"] = constants.label_from_scenario(scenario)
 
                 # name_appearance_count[parsed_json["test_name"]] += 1
 
@@ -260,7 +260,7 @@ def make_latency_cdf_small_multiple(number_ues, df: pd.DataFrame, cloud_df: pd.D
     ).save(chart_output_path/f"backup_latency_vs_cloud_cdf_{number_ues}_ues.png", scale_factor=2.0)
 
 def make_all_latency_cdfs(df: pd.DataFrame, cloud_df: pd.DataFrame, chart_output_path: Path):
-    for num_ues in [10, 25, 50, 100, 200, 300, 500]:
+    for num_ues in [10, 50, 100, 200, 300, 500, 1000]:
     # for num_ues in [10, 100, 500]:
         print(f"Making plot for {num_ues}")
         make_latency_cdf_small_multiple(num_ues, df, cloud_df, chart_output_path)
