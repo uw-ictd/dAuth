@@ -43,7 +43,7 @@ def normalize_json_to_dataframe(result_directory_path: Path):
     backup_network_inclusion_frequencies = defaultdict(lambda: 0)
     drop_counters_per_num_ues = defaultdict(lambda: 0)
     for filename in result_filenames:
-        scenario = helpers.extract_metadata_from_backup_filename(filename.name)
+        filename_parameters = helpers.extract_metadata_from_backup_filename(filename.name)
         with open(filename) as f:
             lines = []
             for line in f:
@@ -63,9 +63,9 @@ def normalize_json_to_dataframe(result_directory_path: Path):
                     pass
                     continue
 
+                test_parameters = test_parameters | filename_parameters
                 test_parameters["total_test_duration_s"] = float(parsed_json["test_duration"])
                 test_parameters["total_test_auth_count"] = int(parsed_json["total_auths"])
-                test_parameters["scenario"] = constants.label_from_scenario(scenario)
 
                 # name_appearance_count[parsed_json["test_name"]] += 1
 
@@ -101,15 +101,9 @@ def normalize_json_to_dataframe(result_directory_path: Path):
                 for net in test_parameters["backup_networks"]:
                     backup_network_inclusion_frequencies[net] += 1
 
-    print(drop_count)
-
     backup_drop_ratios = dict()
     for net in backup_network_inclusion_frequencies.keys():
         backup_drop_ratios[net] = drop_counters_per_backup_network[net] / backup_network_inclusion_frequencies[net]
-
-    print(backup_drop_ratios)
-
-    print(drop_counters_per_num_ues)
 
     df = pd.DataFrame(data=datapoints)
     df["auths_per_second"] = df["total_test_auth_count"] / df["total_test_duration_s"]
@@ -135,9 +129,6 @@ def make_scenario_plot(df: pd.DataFrame, chart_output_path: Path, scenario:str):
     chart_output_path.mkdir(parents=True, exist_ok=True)
     df = df.loc[(df["scenario"] == scenario) & (df["threshold"] == 2)]
 
-    print("Making scenario plot")
-    print(df)
-
     stats = df.groupby(["ue_count", "backup_count"]).agg({"registration_ms": [p50, p90, p99]})
 
     # Flatten the dataframe for altair
@@ -150,8 +141,6 @@ def make_scenario_plot(df: pd.DataFrame, chart_output_path: Path, scenario:str):
         value_name="registration_ms",
     )
 
-    print(stats)
-
     #alt.Chart(df).mark_line(opacity=0.5, interpolate='step-after').encode(
     alt.Chart(stats).mark_line(fill=None).encode(
         x=alt.X(
@@ -161,9 +150,9 @@ def make_scenario_plot(df: pd.DataFrame, chart_output_path: Path, scenario:str):
             "registration_ms:Q",
             title="ns_register",
             axis=alt.Axis(labels=True),
-            # scale=alt.Scale(
-            #     type="symlog"
-            # ),
+            scale=alt.Scale(
+                type="symlog"
+            ),
         ),
         color=alt.Color(
             "backup_count:O",

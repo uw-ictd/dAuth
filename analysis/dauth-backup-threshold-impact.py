@@ -14,7 +14,7 @@ import helpers
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width', None)
-pd.set_option('display.max_rows', 40)
+pd.set_option('display.max_rows', 80)
 
 logging.basicConfig()
 
@@ -28,6 +28,9 @@ def p50(x):
 
 def p90(x):
     return x.quantile(0.9)
+
+def p95(x):
+    return x.quantile(0.95)
 
 def p99(x):
     return x.quantile(0.99)
@@ -43,7 +46,7 @@ def normalize_json_to_dataframe(result_directory_path: Path):
     backup_network_inclusion_frequencies = defaultdict(lambda: 0)
     drop_counters_per_num_ues = defaultdict(lambda: 0)
     for filename in result_filenames:
-        scenario = helpers.extract_metadata_from_backup_filename(filename.name)
+        filename_parameters = helpers.extract_metadata_from_backup_filename(filename.name)
         with open(filename) as f:
             lines = []
             for line in f:
@@ -63,9 +66,9 @@ def normalize_json_to_dataframe(result_directory_path: Path):
                     pass
                     continue
 
+                test_parameters = test_parameters | filename_parameters
                 test_parameters["total_test_duration_s"] = float(parsed_json["test_duration"])
                 test_parameters["total_test_auth_count"] = int(parsed_json["total_auths"])
-                test_parameters["scenario"] = constants.label_from_scenario(scenario)
 
                 # name_appearance_count[parsed_json["test_name"]] += 1
 
@@ -101,15 +104,9 @@ def normalize_json_to_dataframe(result_directory_path: Path):
                 for net in test_parameters["backup_networks"]:
                     backup_network_inclusion_frequencies[net] += 1
 
-    print(drop_count)
-
     backup_drop_ratios = dict()
     for net in backup_network_inclusion_frequencies.keys():
         backup_drop_ratios[net] = drop_counters_per_backup_network[net] / backup_network_inclusion_frequencies[net]
-
-    print(backup_drop_ratios)
-
-    print(drop_counters_per_num_ues)
 
     df = pd.DataFrame(data=datapoints)
     df["auths_per_second"] = df["total_test_auth_count"] / df["total_test_duration_s"]
@@ -135,25 +132,85 @@ def make_scenario_plot(df: pd.DataFrame, chart_output_path: Path, scenario:str):
     df = df.loc[(df["scenario"] == scenario) & (df["backup_count"] == 8)]
     #df = df.loc[(df["ue_count"] < 30) & (df["backup_count"] == 8)]
 
-    print(df)
-
-    stats = df.groupby(["ue_count", "threshold"]).agg({"registration_ms": [p50, p90, p99]})
+    stats = df.groupby(["ue_count", "threshold", "test_seed"]).agg({"registration_ms": [p50, p90, p95, p99]})
 
     # Flatten the dataframe for altair
     stats = stats.reset_index()
     stats.columns = stats.columns = ['_'.join(col).strip().strip("_") for col in stats.columns.values]
-    stats = stats.melt(
+
+    alt.Chart(stats).mark_point().encode(
+        x=alt.X(
+            "ue_count:Q"
+        ),
+        y=alt.Y(
+            "registration_ms_p99:Q",
+            title="ns_register",
+            axis=alt.Axis(labels=True),
+            # scale=alt.Scale(
+            #     type="symlog"
+            # ),
+        ),
+        color=alt.Color(
+            "threshold:O",
+            scale=alt.Scale(scheme="category10"),
+        ),
+        # shape=alt.Shape(
+        #     "quantile:N"
+        # ),
+        strokeDash=alt.StrokeDash(
+            "threshold:O"
+        ),
+        detail=alt.Detail(
+            "test_seed:N"
+        )
+    ).properties(
+        width=500,
+    ).save(
+        chart_output_path/f"threshold_impact_scenario_{scenario}_q99_samples.png",
+        scale_factor=2,
+    )
+
+    alt.Chart(stats).mark_boxplot().encode(
+        x=alt.X(
+            "threshold:O"
+        ),
+        y=alt.Y(
+            "registration_ms_p99:Q",
+            title="ns_register",
+            axis=alt.Axis(labels=True),
+            # scale=alt.Scale(
+            #     type="symlog"
+            # ),
+        ),
+        color=alt.Color(
+            "threshold:O",
+            scale=alt.Scale(scheme="category10"),
+        ),
+    ).properties(
+        width=500,
+    ).facet(
+        column="ue_count:N"
+    ).save(
+        chart_output_path/f"threshold_impact_scenario_{scenario}_small_multiple.png",
+        scale_factor=2,
+    )
+
+    agg_stats = df.groupby(["ue_count", "threshold"]).agg({"registration_ms": [p50, p90, p95, p99]})
+
+    # Flatten the dataframe for altair
+    agg_stats = agg_stats.reset_index()
+    agg_stats.columns = agg_stats.columns = ['_'.join(col).strip().strip("_") for col in agg_stats.columns.values]
+
+    agg_stats = agg_stats.melt(
         id_vars=["ue_count", "threshold"],
-        value_vars=["registration_ms_p50", "registration_ms_p90", "registration_ms_p99"],
+        value_vars=["registration_ms_p50", "registration_ms_p90", "registration_ms_p95", "registration_ms_p99"],
         var_name="quantile",
         value_name="registration_ms",
     )
 
-    print(stats)
-
-    #alt.Chart(df).mark_line(opacity=0.5, interpolate='step-after').encode(
-    alt.Chart(stats).mark_line(fill=None).encode(
-        x=alt.X(
+    # alt.Chart(agg_stats).mark_line(opacity=0.5, interpolate='step-after').encode(
+    alt.Chart(agg_stats).mark_line().encode(
+                x=alt.X(
             "ue_count:Q"
         ),
         y=alt.Y(
@@ -170,9 +227,6 @@ def make_scenario_plot(df: pd.DataFrame, chart_output_path: Path, scenario:str):
         ),
         shape=alt.Shape(
             "quantile:N"
-        ),
-        strokeDash=alt.StrokeDash(
-            "threshold:O"
         ),
         detail=alt.Detail(
             "quantile:N"

@@ -1,8 +1,9 @@
+import constants
 import logging
 import re
 
 backup_test_name_metadata_extraction_regex = re.compile(r"^backup_auth:<H,S,B,T>\(([A-Z,a-z,\-]+),([A-Z,a-z,\-]+),(\[.+\]),([0-9]+)\):<n,i,t>\(([0-9]+),([0-9]+),([0-9]+)\)$")
-backup_filename_metadata_extraction_regex = re.compile(r"^([0-9]+)-nbu[0-9]+-rs[0-9]+.out$")
+backup_filename_metadata_extraction_regex = re.compile(r"^([0-9]+)-nbu[0-9]+-rs([0-9]+).out$")
 
 log = logging.getLogger(__name__)
 
@@ -41,4 +42,8 @@ def extract_metadata_from_backup_test_name(name_string: str) -> dict[str, str]:
 
 def extract_metadata_from_backup_filename(name_string: str):
     match = backup_filename_metadata_extraction_regex.fullmatch(name_string)
-    return match.groups()[0]
+    res = {
+        "scenario": constants.label_from_scenario(match.groups()[0]),
+        "test_seed": int(match.groups()[1])
+    }
+    return res
