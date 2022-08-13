@@ -207,6 +207,7 @@ def make_cdfs(df: pd.DataFrame, chart_output_path: Path):
             "attach_time_ms:Q",
             title="Attach Time (ms)",
             axis=alt.Axis(labels=True),
+            scale=alt.Scale(zero=True),
         ),
         y=alt.Y(
             "cdf:Q",
@@ -220,13 +221,7 @@ def make_cdfs(df: pd.DataFrame, chart_output_path: Path):
             "label:N",
             scale=alt.Scale(scheme="tableau10"),
             title="Test Condition",
-            legend=alt.Legend(
-                orient="bottom-right",
-                fillColor="white",
-                labelLimit=500,
-                padding=5,
-                strokeColor="black",
-            ),
+            legend=None,
         ),
         # strokeDash=alt.StrokeDash(
         #     "label:N",
@@ -236,12 +231,15 @@ def make_cdfs(df: pd.DataFrame, chart_output_path: Path):
     sparse_point_df = df
 
     last_included_value = None
+    last_indluded_y_value = None
     last_label = None
     include_row = []
     for index, row in sparse_point_df.iterrows():
         if ((not last_included_value or row["attach_time_ms"] > (10 + last_included_value)) or
+            (not last_indluded_y_value or row["cdf"] > (0.07 + last_indluded_y_value)) or
             (not last_label or row["label"] != last_label)):
             last_included_value = row["attach_time_ms"]
+            last_indluded_y_value = row["cdf"]
             last_label = row["label"]
             include_row.append(True)
         else:
@@ -254,6 +252,7 @@ def make_cdfs(df: pd.DataFrame, chart_output_path: Path):
     cdf_points = alt.Chart(sparse_point_df).mark_point(opacity=1.0, filled=True, size=60).encode(
         x=alt.X(
             "attach_time_ms:Q",
+            scale=alt.Scale(zero=True),
         ),
         y=alt.Y(
             "cdf:Q",
@@ -262,13 +261,7 @@ def make_cdfs(df: pd.DataFrame, chart_output_path: Path):
             "label:N",
             scale=alt.Scale(scheme="tableau10"),
             title="Test Condition",
-            legend=alt.Legend(
-                orient="bottom-right",
-                fillColor="white",
-                labelLimit=500,
-                padding=5,
-                strokeColor="black",
-            ),
+            legend=None,
         ),
         shape=alt.Shape(
             "label:N",
