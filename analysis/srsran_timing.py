@@ -153,7 +153,7 @@ def make_boxplots(df: pd.DataFrame, chart_output_path: Path):
         ),
         color=alt.Color(
             "condition:N",
-            scale=alt.Scale(scheme="tableau10"),
+            scale=alt.Scale(scheme="dark2"),
             title="System",
             legend=alt.Legend(
                 orient="bottom-right",
@@ -213,6 +213,7 @@ def make_cdfs(df: pd.DataFrame, chart_output_path: Path):
             "cdf:Q",
             title="CDF (Attach Time)",
             axis=alt.Axis(labels=True),
+            scale = alt.Scale(domain=[0, 1.0])
             # scale=alt.Scale(
             #     type="symlog"
             # ),

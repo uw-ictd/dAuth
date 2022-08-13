@@ -29,6 +29,9 @@ def p50(x):
 def p90(x):
     return x.quantile(0.9)
 
+def p95(x):
+    return x.quantile(0.95)
+
 def p99(x):
     return x.quantile(0.99)
 
@@ -174,6 +177,148 @@ def make_scenario_plot(df: pd.DataFrame, chart_output_path: Path, scenario:str):
         scale_factor=2,
     )
 
+def make_combined_plot(df: pd.DataFrame, chart_output_path: Path):
+    chart_output_path.mkdir(parents=True, exist_ok=True)
+    # df = df.loc[(df["threshold"] == 2) & (df["ue_count"] < 1200)]
+    # df = df.loc[(df["threshold"] == 2) & (df["backup_count"] > 2)]
+    df = df.loc[(df["threshold"] == 2)]
+
+    stats = df.groupby(["ue_count", "backup_count"]).agg({"registration_ms": [p50, p90, p95, p99]})
+
+    # Flatten the dataframe for altair
+    stats = stats.reset_index()
+    stats.columns = stats.columns = ['_'.join(col).strip().strip("_") for col in stats.columns.values]
+    stats = stats.melt(
+        id_vars=["ue_count", "backup_count"],
+        value_vars=["registration_ms_p50", "registration_ms_p90", "registration_ms_p95", "registration_ms_p99"],
+        var_name="quantile",
+        value_name="registration_ms",
+    )
+
+    stats = stats.replace({"registration_ms_p50":"p50", "registration_ms_p90":"p90", "registration_ms_p95":"p95", "registration_ms_p99":"p99"})
+
+    #alt.Chart(df).mark_line(opacity=0.5, interpolate='step-after').encode(
+    alt.Chart(stats).mark_line(fill=None, opacity=0.8, clip=True).encode(
+        x=alt.X(
+            "ue_count:Q",
+            title="Authentications Per Minute",
+        ),
+        y=alt.Y(
+            "registration_ms:Q",
+            title="Attach Time (ms) (Clipped)",
+            axis=alt.Axis(labels=True),
+            scale=alt.Scale(
+                domain=(0,2000),
+                # type="symlog"
+            ),
+        ),
+        color=alt.Color(
+            "backup_count:O",
+            scale=alt.Scale(scheme="category10"),
+            title="Backup Count",
+            legend=alt.Legend(
+                orient="top-left",
+                fillColor="white",
+                labelLimit=500,
+                padding=5,
+                strokeColor="black",
+            ),
+
+        ),
+        shape=alt.Shape(
+            "quantile:N",
+            title="Quantile",
+            legend=alt.Legend(
+                orient="top-left",
+                fillColor="white",
+                labelLimit=500,
+                padding=5,
+                strokeColor="black",
+            ),
+
+        ),
+        strokeDash=alt.StrokeDash(
+            "backup_count:O",
+            title="Backup Count",
+            legend=alt.Legend(
+                orient="top-left",
+                fillColor="white",
+                labelLimit=500,
+                padding=5,
+                strokeColor="black",
+            ),
+
+        ),
+        detail=alt.Detail(
+            "quantile:N"
+        )
+    ).properties(
+        width=500,
+    ).save(
+        chart_output_path/"backup_count_impact_combined_clipped.png",
+        scale_factor=2,
+    )
+
+    alt.Chart(stats).mark_line(fill=None, opacity=0.8).encode(
+        x=alt.X(
+            "ue_count:Q",
+            title="Authentications Per Minute",
+        ),
+        y=alt.Y(
+            "registration_ms:Q",
+            title="Attach Time (ms)",
+            axis=alt.Axis(labels=True),
+            # scale=alt.Scale(
+            #     domain=(0,2000),
+            #     # type="symlog"
+            # ),
+        ),
+        color=alt.Color(
+            "backup_count:O",
+            scale=alt.Scale(scheme="category10"),
+            title="Backup Count",
+            legend=alt.Legend(
+                orient="top-left",
+                fillColor="white",
+                labelLimit=500,
+                padding=5,
+                strokeColor="black",
+            ),
+        ),
+        shape=alt.Shape(
+            "quantile:N",
+            title="Quantile",
+            legend=alt.Legend(
+                orient="top-left",
+                fillColor="white",
+                labelLimit=500,
+                padding=5,
+                strokeColor="black",
+            ),
+        ),
+        strokeDash=alt.StrokeDash(
+            "backup_count:O",
+            title="Backup Count",
+            legend=alt.Legend(
+                orient="top-left",
+                fillColor="white",
+                labelLimit=500,
+                padding=5,
+                strokeColor="black",
+            ),
+
+        ),
+        detail=alt.Detail(
+            "quantile:N"
+        )
+    ).properties(
+        width=500,
+    ).save(
+        chart_output_path/"backup_count_impact_combined.png",
+        scale_factor=2,
+    )
+
+
 def make_all_scenario_plots(df, chart_output_path):
     scenarios = []
     for string in ["1", "2", "3", "4"]:
@@ -186,5 +331,7 @@ if __name__ == "__main__":
     charts_path = intermediate_path/"renders"
     # Read in and build parquet from raw data df =
     df = normalize_json_to_dataframe(Path("data/ueransim/dauth/metric_set_2"))
+    df["ue_count"] = df["ue_count"] * 2
 
     make_all_scenario_plots(df, charts_path)
+    make_combined_plot(df, charts_path)

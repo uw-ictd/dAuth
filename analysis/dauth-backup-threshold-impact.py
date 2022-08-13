@@ -210,12 +210,13 @@ def make_scenario_plot(df: pd.DataFrame, chart_output_path: Path, scenario:str):
 
     # alt.Chart(agg_stats).mark_line(opacity=0.5, interpolate='step-after').encode(
     alt.Chart(agg_stats).mark_line().encode(
-                x=alt.X(
-            "ue_count:Q"
+        x=alt.X(
+            "ue_count:Q",
+            title="Authentications Per Minute"
         ),
         y=alt.Y(
             "registration_ms:Q",
-            title="ns_register",
+            title="Attach Time (ms)",
             axis=alt.Axis(labels=True),
             # scale=alt.Scale(
             #     type="symlog"
@@ -224,9 +225,11 @@ def make_scenario_plot(df: pd.DataFrame, chart_output_path: Path, scenario:str):
         color=alt.Color(
             "threshold:O",
             scale=alt.Scale(scheme="category10"),
+            title="Threshold",
         ),
         shape=alt.Shape(
-            "quantile:N"
+            "quantile:N",
+            title="Quantile"
         ),
         detail=alt.Detail(
             "quantile:N"
@@ -235,6 +238,62 @@ def make_scenario_plot(df: pd.DataFrame, chart_output_path: Path, scenario:str):
         width=500,
     ).save(
         chart_output_path/f"threshold_impact_scenario_{scenario}.png",
+        scale_factor=2,
+    )
+
+def make_combined_plot(df: pd.DataFrame, chart_output_path: Path):
+    chart_output_path.mkdir(parents=True, exist_ok=True)
+    df = df.loc[(df["backup_count"] == 8)]
+
+    agg_stats = df.groupby(["ue_count", "threshold"]).agg({"registration_ms": [p50, p90, p95, p99]})
+
+    # Flatten the dataframe for altair
+    agg_stats = agg_stats.reset_index()
+    agg_stats.columns = agg_stats.columns = ['_'.join(col).strip().strip("_") for col in agg_stats.columns.values]
+
+    agg_stats = agg_stats.melt(
+        id_vars=["ue_count", "threshold"],
+        value_vars=["registration_ms_p50", "registration_ms_p90", "registration_ms_p95", "registration_ms_p99"],
+        var_name="quantile",
+        value_name="registration_ms",
+    )
+
+    agg_stats = agg_stats.replace({"registration_ms_p50":"p50", "registration_ms_p90":"p90", "registration_ms_p95":"p95", "registration_ms_p99":"p99"})
+
+    # alt.Chart(agg_stats).mark_line(opacity=0.5, interpolate='step-after').encode(
+    alt.Chart(agg_stats).mark_line(opacity=0.8).encode(
+        x=alt.X(
+            "ue_count:Q",
+            title="Authentications Per Minute"
+        ),
+        y=alt.Y(
+            "registration_ms:Q",
+            title="Attach Time (ms)",
+            axis=alt.Axis(labels=True),
+            # scale=alt.Scale(
+            #     type="symlog"
+            # ),
+        ),
+        color=alt.Color(
+            "threshold:O",
+            scale=alt.Scale(scheme="category10"),
+            title="Threshold",
+        ),
+        strokeDash=alt.StrokeDash(
+            "threshold:O",
+            title="Threshold"
+        ),
+        shape=alt.Shape(
+            "quantile:N",
+            title="Quantile"
+        ),
+        detail=alt.Detail(
+            "quantile:N"
+        )
+    ).properties(
+        width=500,
+    ).save(
+        chart_output_path/"threshold_impact_combined.png",
         scale_factor=2,
     )
 
@@ -250,5 +309,7 @@ if __name__ == "__main__":
     charts_path = intermediate_path/"renders"
     # Read in and build parquet from raw data df =
     df = normalize_json_to_dataframe(Path("data/ueransim/dauth/metric_set_2"))
+    df["ue_count"] = df["ue_count"] * 2
 
     make_all_scenario_plots(df, charts_path)
+    make_combined_plot(df, charts_path)
