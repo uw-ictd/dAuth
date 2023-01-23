@@ -277,6 +277,8 @@ pub async fn replace_key_share(
 }
 
 /// Withdraws backup status from a backup network.
+/// Not currently used.
+#[allow(dead_code)]
 pub async fn withdraw_backup(
     context: Arc<DauthContext>,
     user_id: &str,
@@ -303,6 +305,8 @@ pub async fn withdraw_backup(
 }
 
 /// Withdraws all matching shares from a backup network.
+/// Not currently used.
+#[allow(dead_code)]
 pub async fn withdraw_shares(
     context: Arc<DauthContext>,
     xres_star_hashs: Vec<XResStarHash>,
@@ -332,6 +336,8 @@ pub async fn withdraw_shares(
 }
 
 /// Sends a flood vector to a backup network.
+/// Not currently used.
+#[allow(dead_code)]
 pub async fn flood_vector(
     context: Arc<DauthContext>,
     backup_network_id: &str,

@@ -87,6 +87,8 @@ pub async fn upsert(
 }
 
 /// Remove user info if exists.
+/// Not currently used.
+#[allow(dead_code)]
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &Id,

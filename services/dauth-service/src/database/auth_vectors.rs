@@ -84,6 +84,8 @@ pub async fn get_first(
 }
 
 /// Returns the auth vector with the corresponding xres_star_hash.
+/// Not currently used.
+#[allow(dead_code)]
 pub async fn get_by_xres_star_hash(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],

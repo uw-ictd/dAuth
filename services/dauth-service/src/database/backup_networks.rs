@@ -44,6 +44,8 @@ pub async fn upsert(
 }
 
 /// Gets the backup info for a given network and user id
+/// Not currently used.
+#[allow(dead_code)]
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
@@ -77,6 +79,8 @@ pub async fn get_slice(
 }
 
 /// Removes the network as a backup for this network
+/// Not currently used.
+#[allow(dead_code)]
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
