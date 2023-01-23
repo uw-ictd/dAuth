@@ -6,7 +6,7 @@ use std::sync::Arc;
 use auth_vector::data::AuthVectorData;
 use auth_vector::types::Rand;
 
-use crate::core;
+use crate::common;
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
 use crate::data::keys;
@@ -127,7 +127,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
                 0,
                 context.local_context.max_backup_vectors - num_existing_vectors,
             ) {
-                let (vector, seqnum) = core::auth_vectors::build_auth_vector(
+                let (vector, seqnum) = common::auth_vectors::build_auth_vector(
                     context.clone(),
                     &mut transaction,
                     user_id,

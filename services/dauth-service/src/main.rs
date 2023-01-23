@@ -1,4 +1,4 @@
-mod core;
+mod common;
 mod data;
 mod database;
 mod rpc;
