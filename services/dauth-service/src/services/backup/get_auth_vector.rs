@@ -11,7 +11,7 @@ use crate::database::utilities::DauthDataUtilities;
 /// Returns the next backup auth vector.
 /// Checks flood vectors first, then auth vector.
 /// Returns auth vector with lowest sequence number.
-pub async fn next_backup_auth_vector(
+pub async fn get_auth_vector(
     context: Arc<DauthContext>,
     av_request: &AuthVectorReq,
     signed_request_bytes: &Vec<u8>,

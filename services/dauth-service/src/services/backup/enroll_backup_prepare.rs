@@ -4,7 +4,7 @@ use crate::data::{context::DauthContext, error::DauthError};
 use crate::database;
 
 /// Sets the provided user id as a being backed up by this network.
-pub async fn set_backup_user(
+pub async fn enroll_backup_prepare(
     context: Arc<DauthContext>,
     user_id: &str,
     home_network_id: &str,

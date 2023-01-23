@@ -5,7 +5,7 @@ use crate::database;
 
 /// Removes all key shares.
 /// On failure, removes none.
-pub async fn remove_key_shares(
+pub async fn withdraw_shares(
     context: Arc<DauthContext>,
     xres_star_hashs: Vec<&auth_vector::types::XResStarHash>,
 ) -> Result<(), DauthError> {

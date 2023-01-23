@@ -5,7 +5,7 @@ use crate::database;
 
 // Store a new flood vector as a backup.
 // Will be used before any normal auth vectors.
-pub async fn store_backup_flood_vector(
+pub async fn flood_vectors(
     context: Arc<DauthContext>,
     av_result: &AuthVectorRes,
 ) -> Result<(), DauthError> {
