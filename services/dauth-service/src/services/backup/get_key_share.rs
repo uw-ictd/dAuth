@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use crate::data::{
-    context::DauthContext, error::DauthError, keys,
-};
+use crate::data::{context::DauthContext, error::DauthError, keys};
 use crate::database;
 
 /// Returns a key share value corresponding to the xres* hash.

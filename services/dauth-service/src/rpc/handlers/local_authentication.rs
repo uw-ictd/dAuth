@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::services::local;
 use crate::data::combined_res::ResKind;
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
@@ -8,6 +7,7 @@ use crate::data::keys::KeyKind;
 use crate::rpc::dauth::local::local_authentication_server::LocalAuthentication;
 use crate::rpc::dauth::local::{aka_confirm_req, aka_confirm_resp};
 use crate::rpc::dauth::local::{AkaConfirmReq, AkaConfirmResp, AkaVectorReq, AkaVectorResp};
+use crate::services::local;
 
 pub struct LocalAuthenticationHandler {
     pub context: Arc<DauthContext>,
@@ -130,13 +130,10 @@ impl LocalAuthenticationHandler {
             }
         };
 
-        let key =
-            match local::confirm_auth(self.context.clone(), &user_id, res)
-                .await?
-            {
-                KeyKind::Kasme(k) => aka_confirm_resp::Key::Kasme(k.to_vec()),
-                KeyKind::Kseaf(k) => aka_confirm_resp::Key::Kseaf(k.to_vec()),
-            };
+        let key = match local::confirm_auth(self.context.clone(), &user_id, res).await? {
+            KeyKind::Kasme(k) => aka_confirm_resp::Key::Kasme(k.to_vec()),
+            KeyKind::Kseaf(k) => aka_confirm_resp::Key::Kseaf(k.to_vec()),
+        };
         Ok(key)
     }
 }

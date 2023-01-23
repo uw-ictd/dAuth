@@ -1,10 +1,6 @@
 use std::sync::Arc;
 
-use crate::data::{
-    context::DauthContext,
-    error::DauthError,
-    vector::AuthVectorRes,
-};
+use crate::data::{context::DauthContext, error::DauthError, vector::AuthVectorRes};
 use crate::database;
 
 // Store a new flood vector as a backup.

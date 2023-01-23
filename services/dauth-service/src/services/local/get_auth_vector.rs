@@ -27,11 +27,7 @@ pub async fn get_auth_vector(
     is_resync_attempt: bool,
 ) -> Result<AuthVectorRes, DauthError> {
     // First see if this node has key material to generate the vector itself.
-    let res = generate_local_vector(
-        context.clone(),
-        user_id,
-    )
-    .await;
+    let res = generate_local_vector(context.clone(), user_id).await;
 
     if let Ok(vector) = res {
         return Ok(vector);

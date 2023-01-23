@@ -1,11 +1,6 @@
 use std::sync::Arc;
 
-use crate::data::{
-    context::DauthContext,
-    error::DauthError,
-    keys,
-    vector::AuthVectorRes,
-};
+use crate::data::{context::DauthContext, error::DauthError, keys, vector::AuthVectorRes};
 use crate::database;
 
 /// Store all auth vectors in the set.

@@ -3,11 +3,7 @@ use std::sync::Arc;
 use auth_vector::{self, data::AuthVectorData};
 use sqlx::{Sqlite, Transaction};
 
-use crate::data::{
-    context::DauthContext,
-    error::DauthError,
-    vector::AuthVectorRes,
-};
+use crate::data::{context::DauthContext, error::DauthError, vector::AuthVectorRes};
 use crate::database;
 use crate::database::utilities::DauthDataUtilities;
 

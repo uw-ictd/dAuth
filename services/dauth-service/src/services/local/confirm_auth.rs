@@ -7,8 +7,7 @@ use auth_vector::{
 
 use crate::data::state::AuthState;
 use crate::data::{
-    combined_res::ResKind, context::DauthContext, error::DauthError,
-    keys, state::AuthSource,
+    combined_res::ResKind, context::DauthContext, error::DauthError, keys, state::AuthSource,
 };
 use crate::database;
 use crate::database::utilities::DauthDataUtilities;

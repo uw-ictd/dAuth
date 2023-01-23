@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use auth_vector;
 
-use crate::data::{
-    context::DauthContext, error::DauthError,
-};
+use crate::data::{context::DauthContext, error::DauthError};
 use crate::database;
 use crate::database::utilities::DauthDataUtilities;
 

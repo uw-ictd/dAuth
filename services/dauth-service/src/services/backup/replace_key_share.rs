@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use crate::data::{
-    context::DauthContext, error::DauthError, keys,
-};
+use crate::data::{context::DauthContext, error::DauthError, keys};
 use crate::database;
 
 /// Replace the old key share if found.
