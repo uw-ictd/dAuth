@@ -20,7 +20,7 @@ use crate::rpc::clients;
 /// 2. Else, check the home network for a Kseaf value.
 /// 3. If not from the home network, get key shares from the backup networks.
 #[tracing::instrument(level = "debug")]
-pub async fn confirm_authentication(
+pub async fn confirm_auth(
     context: Arc<DauthContext>,
     user_id: &str,
     combined_res: ResKind,

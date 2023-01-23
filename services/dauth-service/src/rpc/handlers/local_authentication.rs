@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::core;
+use crate::services::local;
 use crate::data::combined_res::ResKind;
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
@@ -38,7 +38,7 @@ impl LocalAuthentication for LocalAuthenticationHandler {
                     }
                 }
 
-                match core::auth_vectors::find_vector(
+                match local::get_auth_vector(
                     self.context.clone(),
                     &user_id,
                     &self.context.local_context.id,
@@ -131,7 +131,7 @@ impl LocalAuthenticationHandler {
         };
 
         let key =
-            match core::confirm_keys::confirm_authentication(self.context.clone(), &user_id, res)
+            match local::confirm_auth(self.context.clone(), &user_id, res)
                 .await?
             {
                 KeyKind::Kasme(k) => aka_confirm_resp::Key::Kasme(k.to_vec()),

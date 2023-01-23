@@ -20,7 +20,7 @@ use crate::rpc::clients;
 /// 3. Request a vector from all backup networks
 /// Stores auth state for 2 and 3.
 #[tracing::instrument(skip(context))]
-pub async fn find_vector(
+pub async fn get_auth_vector(
     context: Arc<DauthContext>,
     user_id: &str,
     network_id: &str,
@@ -30,7 +30,6 @@ pub async fn find_vector(
     let res = generate_local_vector(
         context.clone(),
         user_id,
-        get_seqnum_slice(context.clone(), user_id, network_id).await?,
     )
     .await;
 
@@ -149,7 +148,6 @@ async fn get_auth_vector_from_network_id(
 async fn generate_local_vector(
     context: Arc<DauthContext>,
     user_id: &str,
-    sqn_slice: i64,
 ) -> Result<AuthVectorRes, DauthError> {
     tracing::info!("Attempting to generate new vector locally");
 
@@ -222,21 +220,4 @@ async fn build_auth_vector(
     .await?;
 
     Ok((auth_vector_data, user_info.sqn))
-}
-
-/// Gets the seqnum slice assigned to a backup network for a user.
-async fn get_seqnum_slice(
-    context: Arc<DauthContext>,
-    user_id: &str,
-    network_id: &str,
-) -> Result<i64, DauthError> {
-    if network_id == context.local_context.id {
-        Ok(0)
-    } else {
-        let mut transaction = context.local_context.database_pool.begin().await?;
-        let slice =
-            database::backup_networks::get_slice(&mut transaction, user_id, network_id).await?;
-        transaction.commit().await?;
-        Ok(slice)
-    }
 }
