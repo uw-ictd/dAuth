@@ -3,8 +3,8 @@ use std::fs;
 use std::io::prelude::*;
 use std::sync::Arc;
 
-use auth_vector::types::Rand;
 use auth_vector::data::AuthVectorData;
+use auth_vector::types::Rand;
 
 use crate::core;
 use crate::data::context::DauthContext;
@@ -68,12 +68,11 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
     let user_data: Vec<(String, i64)>;
     {
         let mut transaction = context.local_context.database_pool.begin().await.unwrap();
-        user_data =
-            database::tasks::update_users::get_user_data(&mut transaction, &user_id)
-                .await?
-                .into_iter()
-                .filter(|v| v.0 != context.local_context.id)
-                .collect();
+        user_data = database::tasks::update_users::get_user_data(&mut transaction, &user_id)
+            .await?
+            .into_iter()
+            .filter(|v| v.0 != context.local_context.id)
+            .collect();
         transaction.commit().await.or_else(|e| {
             tracing::error!(?e, "Failed to commit get user data");
             Err(e)
@@ -104,9 +103,9 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
         // shares outside the transaction loop.
         for (backup_network_id, sqn_slice) in &user_data {
             let num_existing_vectors =
-            database::vector_state::get_all_by_id(&mut transaction, user_id, backup_network_id)
-                .await?
-                .len() as i64;
+                database::vector_state::get_all_by_id(&mut transaction, user_id, backup_network_id)
+                    .await?
+                    .len() as i64;
 
             if num_existing_vectors > 0 {
                 tracing::info!(
@@ -136,7 +135,11 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
                 )
                 .await?;
 
-                update_tasks.push(CreatedVector { backup_network_id: backup_network_id.clone(), seqnum: seqnum, vector: vector });
+                update_tasks.push(CreatedVector {
+                    backup_network_id: backup_network_id.clone(),
+                    seqnum: seqnum,
+                    vector: vector,
+                });
             }
         }
 
@@ -144,8 +147,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
     }
 
     /* create vectors and shares */
-    for task in update_tasks
-    {
+    for task in update_tasks {
         let vector = task.vector;
         let backup_network_id = &task.backup_network_id;
         let seqnum = task.seqnum;
@@ -220,8 +222,9 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
 
     /* enroll backups */
     for (backup_network_id, _) in &user_data {
-        let (address, _) = directory::lookup_network(&context, &backup_network_id).await.or_else(
-            |e| {
+        let (address, _) = directory::lookup_network(&context, &backup_network_id)
+            .await
+            .or_else(|e| {
                 tracing::error!(?e, "Failed to enroll backup");
                 Err(e)
             })?;
@@ -240,11 +243,16 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             backup_network_id,
             &address,
         )
-        .await.or_else(
-            |e| {
-                tracing::error!(?e, ?user_id, ?backup_network_id, "Failed to enroll backup prepare");
-                Err(e)
-            })?;
+        .await
+        .or_else(|e| {
+            tracing::error!(
+                ?e,
+                ?user_id,
+                ?backup_network_id,
+                "Failed to enroll backup prepare"
+            );
+            Err(e)
+        })?;
 
         // drop rand before sending
         // TODO: allow backups to have rand? Would allow them to check res
@@ -261,22 +269,32 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             &key_shares,
             &address,
         )
-        .await.and_then(|()| {
-            tracing::info!(?user_id, ?backup_network_id, "Successful enroll backup commit");
+        .await
+        .and_then(|()| {
+            tracing::info!(
+                ?user_id,
+                ?backup_network_id,
+                "Successful enroll backup commit"
+            );
             Ok(())
-        }).or_else(
-            |e| {
-                tracing::error!(?e, ?user_id, ?backup_network_id, "Failed to enroll backup commit");
-                Err(e)
-            })?;
+        })
+        .or_else(|e| {
+            tracing::error!(
+                ?e,
+                ?user_id,
+                ?backup_network_id,
+                "Failed to enroll backup commit"
+            );
+            Err(e)
+        })?;
     }
 
     {
         let mut transaction = context.local_context.database_pool.begin().await.unwrap();
         for (backup_network_id, seqnum_slice) in &user_data {
             let vectors = vectors_map
-            .get(backup_network_id)
-            .ok_or(DauthError::DataError("Failed to get vectors".to_string()))?;
+                .get(backup_network_id)
+                .ok_or(DauthError::DataError("Failed to get vectors".to_string()))?;
             let shares = shares_map
                 .get(backup_network_id)
                 .ok_or(DauthError::DataError("Failed to get shares".to_string()))?;

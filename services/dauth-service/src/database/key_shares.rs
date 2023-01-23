@@ -123,7 +123,10 @@ pub async fn get_user_id(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
 ) -> Result<String, DauthError> {
-    tracing::debug!(?xres_star_hash, "querying for key share user_id by xres_star_hash");
+    tracing::debug!(
+        ?xres_star_hash,
+        "querying for key share user_id by xres_star_hash"
+    );
     Ok(sqlx::query(
         "SELECT * FROM key_share_table
         WHERE xres_star_hash=$1;",

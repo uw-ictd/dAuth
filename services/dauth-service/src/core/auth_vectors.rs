@@ -119,7 +119,10 @@ pub async fn find_vector(
         }
     }
 
-    tracing::error!(?user_id, "No auth vector found, authentication cannot proceed");
+    tracing::error!(
+        ?user_id,
+        "No auth vector found, authentication cannot proceed"
+    );
     Err(DauthError::NotFoundError(
         "No auth vector found".to_string(),
     ))

@@ -41,7 +41,7 @@ pub async fn get_auth_vector(
 
     request.set_timeout(timeout);
 
-    let response = match client.get_auth_vector(request).await{
+    let response = match client.get_auth_vector(request).await {
         Ok(res) => res.into_inner(),
         Err(status) => {
             if status.code() == tonic::Code::Unavailable {
@@ -102,15 +102,16 @@ pub async fn get_confirm_key_kseaf(
                 }),
             )),
         })
-        .await {
-            Ok(res) => res.into_inner(),
-            Err(status) => {
-                if status.code() == tonic::Code::Unavailable {
-                    mark_endpoint_offline(&context, address).await;
-                }
-                return Err(status.into());
+        .await
+    {
+        Ok(res) => res.into_inner(),
+        Err(status) => {
+            if status.code() == tonic::Code::Unavailable {
+                mark_endpoint_offline(&context, address).await;
             }
-        };
+            return Err(status.into());
+        }
+    };
 
     if let Some(get_home_confirm_key_resp::Key::Kseaf(kseaf)) = response.key {
         Ok(kseaf[..].try_into()?)
@@ -145,15 +146,16 @@ pub async fn get_confirm_key_kasme(
                 }),
             )),
         })
-        .await {
-            Ok(res) => res.into_inner(),
-            Err(status) => {
-                if status.code() == tonic::Code::Unavailable {
-                    mark_endpoint_offline(&context, address).await;
-                }
-                return Err(status.into());
+        .await
+    {
+        Ok(res) => res.into_inner(),
+        Err(status) => {
+            if status.code() == tonic::Code::Unavailable {
+                mark_endpoint_offline(&context, address).await;
             }
-        };
+            return Err(status.into());
+        }
+    };
 
     if let Some(get_home_confirm_key_resp::Key::Kasme(kasme)) = response.key {
         Ok(kasme[..].try_into()?)
@@ -242,8 +244,13 @@ pub async fn get_client(
         let mut offline_cache = context.rpc_context.known_offline_networks.lock().await;
         if let Some(retry_time) = offline_cache.get(address) {
             if &std::time::Instant::now() < retry_time {
-                tracing::debug!(?address, "Attempted client connection to unavailable network");
-                return Err(DauthError::ClientError("Not re-attempting connection before retry timeout".to_string()));
+                tracing::debug!(
+                    ?address,
+                    "Attempted client connection to unavailable network"
+                );
+                return Err(DauthError::ClientError(
+                    "Not re-attempting connection before retry timeout".to_string(),
+                ));
             } else {
                 offline_cache.remove(address);
             }
@@ -261,7 +268,10 @@ pub async fn get_client(
     // If the connection fails, keep track and don't retry until the timeout expires.
     if client.is_err() {
         let mut offline_cache = context.rpc_context.known_offline_networks.lock().await;
-        offline_cache.insert(address.to_string(), std::time::Instant::now() + context.rpc_context.failed_connection_retry_cooldown);
+        offline_cache.insert(
+            address.to_string(),
+            std::time::Instant::now() + context.rpc_context.failed_connection_retry_cooldown,
+        );
     }
 
     let client = client?;
@@ -279,11 +289,9 @@ pub async fn get_client(
     Ok(client)
 }
 
-pub async fn mark_endpoint_offline(
-    context: &Arc<DauthContext>,
-    address: &str,
-) -> () {
-    let retry_timeout = std::time::Instant::now() + context.rpc_context.failed_connection_retry_cooldown;
+pub async fn mark_endpoint_offline(context: &Arc<DauthContext>, address: &str) -> () {
+    let retry_timeout =
+        std::time::Instant::now() + context.rpc_context.failed_connection_retry_cooldown;
     let address_string = address.to_string();
 
     {

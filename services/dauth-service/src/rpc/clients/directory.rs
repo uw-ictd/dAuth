@@ -58,8 +58,10 @@ pub async fn lookup_network(
         .await?
         .into_inner();
 
-    let res = (response.address,
-        PublicKey::from_bytes(&response.public_key)?,);
+    let res = (
+        response.address,
+        PublicKey::from_bytes(&response.public_key)?,
+    );
 
     // Re-acquire the lock and update the cache
     {
