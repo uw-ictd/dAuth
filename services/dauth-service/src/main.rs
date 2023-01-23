@@ -3,6 +3,7 @@ mod data;
 mod database;
 mod rpc;
 mod startup;
+mod services;
 mod tasks;
 
 use structopt::StructOpt;
