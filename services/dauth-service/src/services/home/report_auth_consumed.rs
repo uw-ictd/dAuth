@@ -11,7 +11,7 @@ use crate::rpc::clients;
 // Report that a vector given to a backup network has been used.
 /// Returns a new vector to replace the used vector.
 /// Sends new key shares to all other backup networks for the same user.
-pub async fn backup_auth_vector_used(
+pub async fn report_auth_consumed(
     context: Arc<DauthContext>,
     backup_network_id: &str,
     xres_star_hash: &auth_vector::types::XResStarHash,

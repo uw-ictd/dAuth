@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::core;
 use crate::data::combined_res::{ResKind, XResHashKind};
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
@@ -15,6 +14,7 @@ use crate::rpc::dauth::remote::{
     ReportHomeKeyShareConsumedResp,
 };
 use crate::rpc::utilities;
+use crate::services::home;
 
 pub struct HomeNetworkHandler {
     pub context: Arc<DauthContext>,
@@ -47,11 +47,8 @@ impl HomeNetwork for HomeNetworkHandler {
                         ))
                     })?;
 
-                match HomeNetworkHandler::get_home_auth_vector_hlp(
-                    self.context.clone(),
-                    verify_result,
-                )
-                .await
+                match HomeNetworkHandler::get_auth_vector_hlp(self.context.clone(), verify_result)
+                    .await
                 {
                     Ok(result) => Ok(result),
                     Err(e) => {
@@ -219,7 +216,7 @@ impl HomeNetwork for HomeNetworkHandler {
 }
 
 impl HomeNetworkHandler {
-    async fn get_home_auth_vector_hlp(
+    async fn get_auth_vector_hlp(
         context: Arc<DauthContext>,
         verify_result: SignPayloadType,
     ) -> Result<tonic::Response<GetHomeAuthVectorResp>, DauthError> {
@@ -228,8 +225,7 @@ impl HomeNetworkHandler {
 
             // TODO: Handle reputation
 
-            let av_result =
-                core::auth_vectors::generate_local_vector(context.clone(), &user_id, 0).await?;
+            let av_result = home::get_auth_vector(context.clone(), &user_id).await?;
 
             let payload = delegated_auth_vector5_g::Payload {
                 serving_network_id: context.local_context.id.clone(),
@@ -268,19 +264,14 @@ impl HomeNetworkHandler {
                 "missing preimage".to_string(),
             ))? {
                 Preimage::ResStar(res_star) => {
-                    let kseaf = core::confirm_keys::get_confirm_key_res_star(
-                        context,
-                        res_star.as_slice().try_into()?,
-                    )
-                    .await?;
+                    let kseaf =
+                        home::get_confirm_key_res_star(context, res_star.as_slice().try_into()?)
+                            .await?;
                     get_home_confirm_key_resp::Key::Kseaf(kseaf.to_vec())
                 }
                 Preimage::Res(res) => {
-                    let kasme = core::confirm_keys::get_confirm_key_res(
-                        context,
-                        res.as_slice().try_into()?,
-                    )
-                    .await?;
+                    let kasme =
+                        home::get_confirm_key_res(context, res.as_slice().try_into()?).await?;
                     get_home_confirm_key_resp::Key::Kasme(kasme.to_vec())
                 }
             };
@@ -303,7 +294,7 @@ impl HomeNetworkHandler {
     ) -> Result<tonic::Response<ReportHomeAuthConsumedResp>, DauthError> {
         // TODO: Check the payload further
         if let SignPayloadType::GetBackupAuthVectorReq(_payload) = verify_result {
-            let core_response = core::auth_vectors::backup_auth_vector_used(
+            let core_response = home::report_auth_consumed(
                 context.clone(),
                 &content.backup_network_id,
                 content.xres_star_hash[..].try_into()?,
@@ -360,8 +351,7 @@ impl HomeNetworkHandler {
                 }
             };
 
-            core::confirm_keys::key_share_used(context, &preimage, &hash, backup_network_id)
-                .await?;
+            home::report_key_share_used(context, &preimage, &hash, backup_network_id).await?;
             Ok(tonic::Response::new(ReportHomeKeyShareConsumedResp {
                 share: None, // TODO: requires extra state and generation cases
             }))

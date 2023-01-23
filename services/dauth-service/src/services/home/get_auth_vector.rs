@@ -9,10 +9,9 @@ use crate::database::utilities::DauthDataUtilities;
 
 /// Generates an auth vector that will be verified locally.
 /// Stores the kseaf directly, without key shares.
-pub async fn generate_local_vector(
+pub async fn get_auth_vector(
     context: Arc<DauthContext>,
     user_id: &str,
-    sqn_slice: i64,
 ) -> Result<AuthVectorRes, DauthError> {
     tracing::info!("Attempting to generate new vector locally");
 
