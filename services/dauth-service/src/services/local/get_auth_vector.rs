@@ -17,51 +17,111 @@ use crate::rpc::clients;
 /// 2. Lookup the home network of the user and request a vector
 /// 3. Request a vector from all backup networks
 /// Stores auth state for 2 and 3.
-#[tracing::instrument(skip(context))]
+#[tracing::instrument(skip(context), name = "local::get_auth_vector")]
 pub async fn get_auth_vector(
     context: Arc<DauthContext>,
     user_id: &str,
     network_id: &str,
     is_resync_attempt: bool,
 ) -> Result<AuthVectorRes, DauthError> {
-    // First see if this node has key material to generate the vector itself.
-    let res = common::auth_vectors::generate_local_vector(context.clone(), user_id).await;
+    tracing::info!("Getting auth vector for local authentication");
 
-    if let Ok(vector) = res {
-        return Ok(vector);
+    match common::auth_vectors::generate_local_vector(context.clone(), user_id).await {
+        Ok(auth_vector_res) => {
+            tracing::debug!(?user_id, "Successfully generated an auth vector locally");
+            return Ok(auth_vector_res);
+        }
+        Err(e) => {
+            tracing::debug!(?e, "Failed to generate local vector");
+        }
     }
 
-    tracing::debug!(?res, "Unable to generate local vector");
-    tracing::info!("Unable to generate vector locally, attempting to fall back to home network");
+    match attempt_home_network_request(context.clone(), user_id).await {
+        Ok(auth_vector_res) => {
+            tracing::debug!(
+                ?user_id,
+                "Successfully requested auth vector from home network"
+            );
+            return Ok(auth_vector_res);
+        }
+        Err(e) => {
+            tracing::debug!(?e, "Failed to request an auth vector from home network");
+        }
+    }
+
+    match attempt_backup_network_request(context.clone(), user_id, is_resync_attempt).await {
+        Ok(auth_vector_res) => {
+            tracing::debug!(
+                ?user_id,
+                "Successfully requested auth vector from backup networks"
+            );
+            return Ok(auth_vector_res);
+        }
+        Err(e) => {
+            tracing::debug!(?e, "Failed to request an auth vector from backup networks");
+        }
+    }
+
+    tracing::error!(?user_id, "Failed to acquire auth vector from any source");
+    Err(DauthError::NotFoundError(
+        "Failed to acquire auth vector from any source".to_string(),
+    ))
+}
+
+/// Attempts to ask the user's home network for a vector.
+/// If successful, returns resulting vector.
+/// Otherwise, returns None.
+async fn attempt_home_network_request(
+    context: Arc<DauthContext>,
+    user_id: &str,
+) -> Result<AuthVectorRes, DauthError> {
+    tracing::info!(
+        ?user_id,
+        "Attempting to request auth vector from home network"
+    );
 
     // Attempt to lookup the vector from the home network directly.
-    let (home_network_id, backup_network_ids) =
-        clients::directory::lookup_user(&context, user_id).await?;
-
+    let (home_network_id, _) = clients::directory::lookup_user(&context, user_id).await?;
     let (home_address, _) = clients::directory::lookup_network(&context, &home_network_id).await?;
 
-    let res = clients::home_network::get_auth_vector(
+    match clients::home_network::get_auth_vector(
         context.clone(),
         user_id,
         &home_address,
         Duration::from_millis(100),
     )
-    .await;
-
-    if let Ok(vector) = res {
-        context.backup_context.auth_states.lock().await.insert(
-            user_id.to_string(),
-            AuthState {
-                rand: vector.rand.clone(),
-                source: AuthSource::HomeNetwork,
-                xres_star_hash: vector.xres_star_hash.clone(),
-            },
-        );
-        return Ok(vector);
+    .await
+    {
+        Ok(vector) => {
+            context.backup_context.auth_states.lock().await.insert(
+                user_id.to_string(),
+                AuthState {
+                    rand: vector.rand.clone(),
+                    source: AuthSource::HomeNetwork,
+                    xres_star_hash: vector.xres_star_hash.clone(),
+                },
+            );
+            Ok(vector)
+        }
+        Err(e) => Err(e),
     }
+}
 
-    tracing::debug!(?res, "Unable to get vector from home network.");
-    tracing::info!("Unable to get vector from home network, attempting backup networks");
+/// Attempts to ask the user's backup networks for a vector.
+/// If successful, returns resulting vector.
+/// Otherwise, returns None.
+async fn attempt_backup_network_request(
+    context: Arc<DauthContext>,
+    user_id: &str,
+    is_resync_attempt: bool,
+) -> Result<AuthVectorRes, DauthError> {
+    tracing::info!(
+        ?user_id,
+        "Attempting to request auth vector from backup networks"
+    );
+
+    // Attempt to lookup the vector from the home network directly.
+    let (_, backup_network_ids) = clients::directory::lookup_user(&context, user_id).await?;
 
     // Lookup our authentication state for this user to see if we have
     // previously sent a tuple.
@@ -93,29 +153,25 @@ pub async fn get_auth_vector(
     while let Some(response_result) = request_set.join_one().await {
         match response_result {
             Ok(response) => match response {
-                Ok(vector) => {
+                Ok(auth_vector_result) => {
                     context.backup_context.auth_states.lock().await.insert(
                         user_id.to_string(),
                         AuthState {
-                            rand: vector.rand.clone(),
+                            rand: auth_vector_result.rand.clone(),
                             source: AuthSource::BackupNetwork,
-                            xres_star_hash: vector.xres_star_hash.clone(),
+                            xres_star_hash: auth_vector_result.xres_star_hash.clone(),
                         },
                     );
-                    return Ok(vector);
+                    return Ok(auth_vector_result);
                 }
-                Err(e) => tracing::debug!("Failed to get auth from single backup: {}", e),
+                Err(e) => tracing::debug!("Failed to get auth from backup: {}", e),
             },
-            Err(e) => tracing::debug!("Failed to get auth from single backup: {}", e),
+            Err(e) => tracing::debug!("Failed to get auth from backup: {}", e),
         }
     }
 
-    tracing::error!(
-        ?user_id,
-        "No auth vector found, authentication cannot proceed"
-    );
     Err(DauthError::NotFoundError(
-        "No auth vector found".to_string(),
+        "Failed to get auth vector from backups".to_string(),
     ))
 }
 
