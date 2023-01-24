@@ -14,14 +14,14 @@ pub async fn generate_local_vector(
     context: Arc<DauthContext>,
     user_id: &str,
 ) -> Result<AuthVectorRes, DauthError> {
-    tracing::info!("Attempting to generate new vector locally");
+    tracing::info!(user_id, "Generating local vector");
 
     let mut transaction = context.local_context.database_pool.begin().await?;
 
     let (auth_vector_data, seqnum) =
         build_auth_vector(context.clone(), &mut transaction, &user_id, 0).await?;
 
-    let av_response = AuthVectorRes {
+    let auth_vector_res = AuthVectorRes {
         user_id: user_id.to_string(),
         seqnum,
         rand: auth_vector_data.rand,
@@ -44,10 +44,10 @@ pub async fn generate_local_vector(
     )
     .await?;
 
-    tracing::info!("Auth vector generated: {:?}", av_response);
     transaction.commit().await?;
 
-    Ok(av_response)
+    tracing::debug!(?auth_vector_res, "Local auth vector generated");
+    Ok(auth_vector_res)
 }
 
 /// Builds an auth vector and updates the user state.
@@ -58,11 +58,13 @@ pub async fn build_auth_vector(
     user_id: &str,
     sqn_slice: i64,
 ) -> Result<(AuthVectorData, i64), DauthError> {
+    tracing::info!(?user_id, ?sqn_slice, "Building auth vector");
+
     let mut user_info = database::user_infos::get(transaction, &user_id.to_string(), sqn_slice)
         .await?
         .to_user_info()?;
 
-    tracing::info!(?user_id, ?sqn_slice, "sqn"=?user_info.sqn, "Generating Vector for user");
+    tracing::debug!(?user_info, "User info found");
 
     let auth_vector_data = auth_vector::generate_vector(
         &context.local_context.mcc,
@@ -84,5 +86,6 @@ pub async fn build_auth_vector(
     )
     .await?;
 
+    tracing::debug!(?auth_vector_data, "sqn"=?user_info.sqn, "Auth vector built successfully");
     Ok((auth_vector_data, user_info.sqn))
 }
