@@ -14,7 +14,7 @@ pub async fn generate_local_vector(
     context: Arc<DauthContext>,
     user_id: &str,
 ) -> Result<AuthVectorRes, DauthError> {
-    tracing::info!(user_id, "Generating local vector");
+    tracing::info!(?user_id, "Generating local vector");
 
     let mut transaction = context.local_context.database_pool.begin().await?;
 
