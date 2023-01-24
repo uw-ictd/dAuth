@@ -4,10 +4,7 @@ use auth_vector::{self, data::AuthVectorData};
 use sqlx::{Sqlite, Transaction};
 
 use crate::data::vector::AuthVectorRes;
-use crate::data::{
-    context::DauthContext,
-    error::DauthError,
-};
+use crate::data::{context::DauthContext, error::DauthError};
 use crate::database;
 use crate::database::utilities::DauthDataUtilities;
 

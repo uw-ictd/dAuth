@@ -98,9 +98,9 @@ async fn report_to_network(
 
         if let Some(av_result) = possible_av_result {
             tracing::info!("Storing auth vector: {:?}", av_result);
-        
+
             let mut transaction = context.local_context.database_pool.begin().await?;
-        
+
             database::auth_vectors::add(
                 &mut transaction,
                 &av_result.user_id,
@@ -111,7 +111,7 @@ async fn report_to_network(
                 &av_result.rand.as_array(),
             )
             .await?;
-        
+
             transaction.commit().await?;
         }
 
