@@ -3,12 +3,55 @@ use std::sync::Arc;
 use auth_vector::{self, data::AuthVectorData};
 use sqlx::{Sqlite, Transaction};
 
+use crate::data::vector::AuthVectorRes;
 use crate::data::{
     context::DauthContext,
     error::DauthError,
 };
 use crate::database;
 use crate::database::utilities::DauthDataUtilities;
+
+/// Generates an auth vector that will be verified locally.
+/// Stores the kseaf directly, without key shares.
+pub async fn generate_local_vector(
+    context: Arc<DauthContext>,
+    user_id: &str,
+) -> Result<AuthVectorRes, DauthError> {
+    tracing::info!("Attempting to generate new vector locally");
+
+    let mut transaction = context.local_context.database_pool.begin().await?;
+
+    let (auth_vector_data, seqnum) =
+        build_auth_vector(context.clone(), &mut transaction, &user_id, 0).await?;
+
+    let av_response = AuthVectorRes {
+        user_id: user_id.to_string(),
+        seqnum,
+        rand: auth_vector_data.rand,
+        autn: auth_vector_data.autn,
+        xres_star_hash: auth_vector_data.xres_star_hash,
+        xres_hash: auth_vector_data.xres_hash,
+    };
+
+    database::kseafs::add(
+        &mut transaction,
+        &auth_vector_data.xres_star,
+        &auth_vector_data.kseaf,
+    )
+    .await?;
+
+    database::kasmes::add(
+        &mut transaction,
+        &auth_vector_data.xres,
+        &auth_vector_data.kasme,
+    )
+    .await?;
+
+    tracing::info!("Auth vector generated: {:?}", av_response);
+    transaction.commit().await?;
+
+    Ok(av_response)
+}
 
 /// Builds an auth vector and updates the user state.
 /// Returns the auth vector and seqnum values.
