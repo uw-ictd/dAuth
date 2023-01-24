@@ -60,7 +60,7 @@ impl LocalAuthentication for LocalAuthenticationHandler {
 
         self.context
             .metrics_context
-            .record_metrics("local_authentication::get_auth_vector", monitor)
+            .record_metrics("local::get_auth_vector", monitor)
             .await;
         res
     }
@@ -98,7 +98,7 @@ impl LocalAuthentication for LocalAuthenticationHandler {
 
         self.context
             .metrics_context
-            .record_metrics("local_authentication::confirm_auth", monitor)
+            .record_metrics("local::confirm_auth", monitor)
             .await;
         res
     }
