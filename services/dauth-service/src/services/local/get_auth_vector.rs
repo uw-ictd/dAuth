@@ -26,7 +26,8 @@ pub async fn get_auth_vector(
 ) -> Result<AuthVectorRes, DauthError> {
     tracing::info!("Getting auth vector for local authentication");
 
-    let (home_network_id, backup_network_ids) = clients::directory::lookup_user(&context, user_id).await?;
+    let (home_network_id, backup_network_ids) =
+        clients::directory::lookup_user(&context, user_id).await?;
 
     if home_network_id == context.local_context.id {
         match common::auth_vectors::generate_local_vector(context.clone(), user_id).await {
@@ -37,7 +38,6 @@ pub async fn get_auth_vector(
             Err(e) => {
                 tracing::debug!(?e, "Failed to generate local vector");
             }
-
         }
 
         tracing::error!(?user_id, "Failed to generate auth vector for local user");
@@ -54,8 +54,15 @@ pub async fn get_auth_vector(
                 tracing::debug!(?e, "Failed to request an auth vector from home network");
             }
         }
-    
-        match attempt_backup_network_request(context.clone(), user_id, &backup_network_ids, is_resync_attempt).await {
+
+        match attempt_backup_network_request(
+            context.clone(),
+            user_id,
+            &backup_network_ids,
+            is_resync_attempt,
+        )
+        .await
+        {
             Ok(auth_vector_res) => {
                 tracing::debug!(
                     ?user_id,
@@ -68,7 +75,10 @@ pub async fn get_auth_vector(
             }
         }
 
-        tracing::error!(?user_id, "Failed to acquire auth vector from any remote source");
+        tracing::error!(
+            ?user_id,
+            "Failed to acquire auth vector from any remote source"
+        );
     }
 
     Err(DauthError::NotFoundError(
