@@ -18,19 +18,19 @@ use crate::rpc::clients;
 /// 1. If generated on this network, get Kseaf from the database.
 /// 2. Else, check the home network for a Kseaf value.
 /// 3. If not from the home network, get key shares from the backup networks.
-#[tracing::instrument(level = "debug")]
+#[tracing::instrument(skip(context), name = "local::confirm_auth")]
 pub async fn confirm_auth(
     context: Arc<DauthContext>,
     user_id: &str,
     combined_res: ResKind,
 ) -> Result<keys::KeyKind, DauthError> {
-    tracing::info!("Confirming auth with res: {:?}", combined_res);
+    tracing::info!("Confirming local authentication");
 
     let (home_network_id, backup_network_ids) =
         clients::directory::lookup_user(&context, user_id).await?;
 
     if home_network_id == context.local_context.id {
-        tracing::info!("User owned by this network");
+        tracing::debug!(?user_id, "User owned by this network");
         return match combined_res {
             ResKind::ResStar(res_star) => Ok(keys::KeyKind::Kseaf(
                 get_confirm_key_res_star(context.clone(), res_star).await?,
@@ -39,32 +39,44 @@ pub async fn confirm_auth(
                 get_confirm_key_res(context.clone(), res).await?,
             )),
         };
-    }
+    } else {
+        tracing::debug!(?user_id, ?home_network_id, "User owned by other network");
 
-    let (address, _) = clients::directory::lookup_network(&context, &home_network_id).await?;
+        let (address, _) = clients::directory::lookup_network(&context, &home_network_id).await?;
 
-    let state;
-
-    {
-        let mut map = context.backup_context.auth_states.lock().await;
-        state = map.remove(user_id).ok_or(DauthError::NotFoundError(
-            "Could not find state for auth transaction".to_string(),
-        ))?;
-        // drop mutex guard
-    }
-
-    let key = match combined_res {
-        ResKind::Res(r) => {
-            confirm_authentication_eps(&context, &r, &state, &backup_network_ids, &address).await?
+        let state;
+        {
+            let mut map = context.backup_context.auth_states.lock().await;
+            state = map.remove(user_id).ok_or(DauthError::NotFoundError(
+                "Could not find state for auth transaction".to_string(),
+            ))?;
+            // drop mutex guard
         }
-        ResKind::ResStar(r) => {
-            confirm_authentication_5g(&context, &r, &state, &backup_network_ids, &address).await?
-        }
-    };
 
-    Ok(key)
+        let key = match combined_res {
+            ResKind::Res(res) => {
+                confirm_authentication_eps(&context, &res, &state, &backup_network_ids, &address)
+                    .await?
+            }
+            ResKind::ResStar(res_star) => {
+                confirm_authentication_5g(
+                    &context,
+                    &res_star,
+                    &state,
+                    &backup_network_ids,
+                    &address,
+                )
+                .await?
+            }
+        };
+
+        Ok(key)
+    }
 }
 
+/// Confirm authentication for a 5G request.
+/// Checks local state to determine if the auth vector was given
+/// by the user's home network or a backup network.
 async fn confirm_authentication_5g(
     context: &Arc<DauthContext>,
     res_star: &ResStar,
@@ -72,6 +84,7 @@ async fn confirm_authentication_5g(
     backup_network_ids: &Vec<String>,
     address: &str,
 ) -> Result<keys::KeyKind, DauthError> {
+    tracing::info!("Confirming 5G auth");
     let xres_star_hash = auth_vector::types::gen_xres_star_hash(&state.rand, &res_star);
 
     let key = match state.source {
@@ -114,11 +127,9 @@ async fn confirm_authentication_5g(
                                 break;
                             }
                         }
-                        Err(e) => tracing::info!("Failed to get key share: {}", e),
+                        Err(error) => tracing::debug!(?error, "Failed to get key share"),
                     },
-                    Err(e) => {
-                        tracing::info!("Failed to get key share: {}", e)
-                    }
+                    Err(error) => tracing::debug!(?error, "Failed to get key share"),
                 }
             }
 
@@ -138,6 +149,9 @@ async fn confirm_authentication_5g(
     Ok(keys::KeyKind::Kseaf(key))
 }
 
+/// Confirm authentication for a 4G/EPS request.
+/// Checks local state to determine if the auth vector was given
+/// by the user's home network or a backup network.
 async fn confirm_authentication_eps(
     context: &Arc<DauthContext>,
     res: &Res,
@@ -145,6 +159,7 @@ async fn confirm_authentication_eps(
     backup_network_ids: &Vec<String>,
     address: &str,
 ) -> Result<keys::KeyKind, DauthError> {
+    tracing::info!("Confirming 4G/EPS auth");
     let xres_hash = auth_vector::types::gen_xres_hash(&state.rand, &res);
 
     let key = match state.source {
@@ -187,11 +202,9 @@ async fn confirm_authentication_eps(
                                 break;
                             }
                         }
-                        Err(e) => tracing::info!("Failed to get key share: {}", e),
+                        Err(error) => tracing::debug!(?error, "Failed to get key share"),
                     },
-                    Err(e) => {
-                        tracing::info!("Failed to get key share: {}", e)
-                    }
+                    Err(error) => tracing::debug!(?error, "Failed to get key share"),
                 }
             }
 
@@ -217,7 +230,7 @@ pub async fn get_confirm_key_res_star(
     context: Arc<DauthContext>,
     res_star: auth_vector::types::ResStar,
 ) -> Result<auth_vector::types::Kseaf, DauthError> {
-    tracing::info!("Getting confirm key for res_star: {:?}", res_star);
+    tracing::info!(?res_star, "Getting confirm key for res_star");
 
     let mut transaction = context.local_context.database_pool.begin().await?;
 
@@ -236,7 +249,7 @@ pub async fn get_confirm_key_res(
     context: Arc<DauthContext>,
     res: auth_vector::types::Res,
 ) -> Result<auth_vector::types::Kasme, DauthError> {
-    tracing::info!("Getting confirm key for res: {:?}", res);
+    tracing::info!(?res, "Getting confirm key for res");
 
     let mut transaction = context.local_context.database_pool.begin().await?;
 
