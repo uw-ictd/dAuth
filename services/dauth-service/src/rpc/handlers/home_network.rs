@@ -222,10 +222,10 @@ impl HomeNetworkHandler {
     ) -> Result<tonic::Response<GetHomeAuthVectorResp>, DauthError> {
         if let SignPayloadType::GetHomeAuthVectorReq(payload) = verify_result {
             let user_id = std::str::from_utf8(payload.user_id.as_slice())?.to_string();
+            let serving_network_id = payload.serving_network_id;
 
-            // TODO: Handle reputation
-
-            let av_result = home::get_auth_vector(context.clone(), &user_id).await?;
+            let av_result =
+                home::get_auth_vector(context.clone(), &user_id, &serving_network_id).await?;
 
             let payload = delegated_auth_vector5_g::Payload {
                 serving_network_id: context.local_context.id.clone(),
