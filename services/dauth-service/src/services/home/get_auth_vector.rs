@@ -12,8 +12,6 @@ pub async fn get_auth_vector(
     serving_network_id: &str,
 ) -> Result<AuthVectorRes, DauthError> {
     tracing::info!(
-        ?user_id,
-        ?serving_network_id,
         "Generating new vector for requesting network"
     );
 
