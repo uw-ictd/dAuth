@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::common;
 use crate::data::{combined_res::ResKind, context::DauthContext, error::DauthError, keys};
 
-#[tracing::instrument(skip(context), name = "home::get_auth_vector")]
+#[tracing::instrument(skip(context), name = "home::get_confirm_key")]
 pub async fn get_confirm_key(
     context: Arc<DauthContext>,
     combined_res: ResKind,
