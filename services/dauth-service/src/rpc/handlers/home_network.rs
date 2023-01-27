@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::data::combined_res::{ResKind, XResHashKind};
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
+use crate::data::keys::KeyKind;
 use crate::data::signing::{self, SignPayloadType};
 use crate::rpc::dauth::common::AuthVector5G;
 use crate::rpc::dauth::remote::delegated_auth_vector5_g;
@@ -260,20 +261,23 @@ impl HomeNetworkHandler {
     ) -> Result<tonic::Response<GetHomeConfirmKeyResp>, DauthError> {
         if let SignPayloadType::GetHomeConfirmKeyReq(payload) = verify_result {
             use get_home_confirm_key_req::payload::Preimage;
-            let key = match payload.preimage.ok_or(DauthError::InvalidMessageError(
+            let combined_res = match payload.preimage.ok_or(DauthError::InvalidMessageError(
                 "missing preimage".to_string(),
             ))? {
-                Preimage::ResStar(res_star) => {
-                    let kseaf =
-                        home::get_confirm_key_res_star(context, res_star.as_slice().try_into()?)
-                            .await?;
-                    get_home_confirm_key_resp::Key::Kseaf(kseaf.to_vec())
-                }
-                Preimage::Res(res) => {
-                    let kasme =
-                        home::get_confirm_key_res(context, res.as_slice().try_into()?).await?;
-                    get_home_confirm_key_resp::Key::Kasme(kasme.to_vec())
-                }
+                Preimage::ResStar(res_star) => ResKind::ResStar(
+                    res_star
+                        .try_into()
+                        .or(Err(DauthError::DataError("brokenResStar".to_string())))?,
+                ),
+                Preimage::Res(res) => ResKind::Res(
+                    res.try_into()
+                        .or(Err(DauthError::DataError("brokenRes".to_string())))?,
+                ),
+            };
+
+            let key = match home::get_confirm_key(context.clone(), combined_res).await? {
+                KeyKind::Kasme(k) => get_home_confirm_key_resp::Key::Kasme(k.to_vec()),
+                KeyKind::Kseaf(k) => get_home_confirm_key_resp::Key::Kseaf(k.to_vec()),
             };
 
             Ok(tonic::Response::new(GetHomeConfirmKeyResp {
