@@ -676,7 +676,7 @@ impl BackupNetworkHandler {
                         "Missing content".to_string(),
                     ))?;
 
-                    backup::flood_vectors(
+                    backup::flood_vector(
                         context.clone(),
                         &utilities::handle_delegated_vector(&context, dvector, &user_id).await?,
                     )
