@@ -3,13 +3,21 @@ use std::sync::Arc;
 use crate::data::{context::DauthContext, error::DauthError, keys, vector::AuthVectorRes};
 use crate::database;
 
+/// Confirms backup enrollment of this node for the provided user.
+/// Optionally stores a set of auth vectors and key shares for the user.
+#[tracing::instrument(
+    skip(context, auth_vectors, key_shares),
+    name = "backup::enroll_backup_commit"
+)]
 pub async fn enroll_backup_commit(
     context: Arc<DauthContext>,
     user_id: &str,
     auth_vectors: Vec<AuthVectorRes>,
     key_shares: Vec<keys::CombinedKeyShare>,
 ) -> Result<(), DauthError> {
-    tracing::info!("Storing auth vectors: {:?}", auth_vectors);
+    tracing::info!("Committing backup enrollment");
+
+    tracing::debug!("Storing auth vectors: {:?}", auth_vectors);
 
     let mut transaction = context.local_context.database_pool.begin().await?;
     for av in auth_vectors {
@@ -26,7 +34,7 @@ pub async fn enroll_backup_commit(
     }
     transaction.commit().await?;
 
-    tracing::info!("Handling multiple key store: {:?}", key_shares);
+    tracing::debug!("Storing key shares: {:?}", key_shares);
 
     let mut transaction = context.local_context.database_pool.begin().await?;
     for share in key_shares {
