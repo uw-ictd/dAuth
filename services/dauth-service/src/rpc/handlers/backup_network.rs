@@ -4,6 +4,7 @@ use prost::Message;
 
 use auth_vector::types::XResStarHash;
 
+use crate::data::combined_res::XResHashKind;
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
 use crate::data::signing::{self, SignPayloadType};
@@ -549,30 +550,24 @@ impl BackupNetworkHandler {
                 "Missing res(star) hash".to_string(),
             ))?;
             let _request_preimage = payload.preimage.ok_or(DauthError::InvalidMessageError(
-                "Missing res(star) hash".to_string(),
+                "Missing preimage".to_string(),
             ))?;
 
             // TODO(matt9j) This was supposed to be the actual signed share from
             // the host, not constructed on demand in the backup network's
             // signing key as done below : /
-            let key_share = match request_hash {
+            let combined_hash = match request_hash {
                 get_key_share_req::payload::Hash::XresStarHash(xres_star_hash) => {
-                    backup::get_key_share_5g(
-                        context.clone(),
-                        xres_star_hash[..].try_into()?,
-                        &signed_request_bytes,
-                    )
-                    .await?
+                    XResHashKind::XResStarHash(xres_star_hash[..].try_into()?)
                 }
                 get_key_share_req::payload::Hash::XresHash(xres_hash) => {
-                    backup::get_key_share_eps(
-                        context.clone(),
-                        xres_hash.as_slice().try_into()?,
-                        &signed_request_bytes,
-                    )
-                    .await?
+                    XResHashKind::XResHash(xres_hash[..].try_into()?)
                 }
             };
+
+            let key_share =
+                backup::get_key_share(context.clone(), &combined_hash, &signed_request_bytes)
+                    .await?;
 
             let payload = delegated_confirmation_share::Payload {
                 xres_star_hash: key_share.xres_star_hash.to_vec(),
