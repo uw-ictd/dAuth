@@ -34,9 +34,7 @@ pub async fn get_auth_vector(
 
         tracing::info!("Flood vector found: {:?}", vector);
     } else {
-        vector = database::auth_vectors::get_first(&mut transaction, &av_request.user_id)
-            .await?
-            .to_auth_vector()?;
+        vector = database::auth_vectors::get_first(&mut transaction, &av_request.user_id).await?;
 
         database::auth_vectors::mark_sent(&mut transaction, &vector.user_id, vector.seqnum).await?;
         // database::auth_vectors::remove(&mut transaction, &vector.user_id, &vector.xres_star_hash).await?;
