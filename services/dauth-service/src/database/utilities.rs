@@ -43,6 +43,7 @@ impl DauthDataUtilities for SqliteRow {
 
     fn to_user_info(&self) -> Result<UserInfo, DauthError> {
         Ok(UserInfo {
+            id: self.try_get::<String, &str>("id")?,
             k: self.try_get::<&[u8], &str>("k")?.try_into()?,
             opc: self.try_get::<&[u8], &str>("opc")?.try_into()?,
             sqn: self.try_get::<i64, &str>("sqn_max")?,
