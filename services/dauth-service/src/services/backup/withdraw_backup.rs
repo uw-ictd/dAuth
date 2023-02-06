@@ -6,12 +6,13 @@ use crate::database::utilities::DauthDataUtilities;
 
 /// Removes the user from being backup up on this network.
 /// Also removes all related auth vectors.
+#[tracing::instrument(skip(context), name = "backup::withdraw_backup")]
 pub async fn withdraw_backup(
     context: Arc<DauthContext>,
     user_id: &str,
     home_network_id: &str,
 ) -> Result<(), DauthError> {
-    tracing::info!("Withdrawing backup for user: {:?}", user_id);
+    tracing::info!("Withdrawing backup");
 
     let mut transaction = context.local_context.database_pool.begin().await?;
     let actual_network_id = database::backup_users::get(&mut transaction, user_id)
