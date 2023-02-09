@@ -1,5 +1,5 @@
 use sqlx::sqlite::SqlitePool;
-use sqlx::{Error as SqlxError, Row};
+use sqlx::Row;
 use sqlx::{Sqlite, Transaction};
 
 use crate::data::error::DauthError;
@@ -33,7 +33,7 @@ pub async fn upsert(
     user_id: &str,
     backup_network_id: &str,
     seqnum_slice: i64,
-) -> Result<(), SqlxError> {
+) -> Result<(), DauthError> {
     tracing::debug!("Upserting backup info");
 
     sqlx::query(
@@ -57,7 +57,7 @@ pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     backup_network_id: &str,
-) -> Result<i64, SqlxError> {
+) -> Result<i64, DauthError> {
     tracing::debug!("Getting backup info");
 
     Ok(sqlx::query(
@@ -77,7 +77,7 @@ pub async fn get_slice(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     backup_network_id: &str,
-) -> Result<i64, SqlxError> {
+) -> Result<i64, DauthError> {
     tracing::debug!("Getting seqnum slice");
 
     Ok(sqlx::query(
@@ -99,7 +99,7 @@ pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     backup_network_id: &str,
-) -> Result<(), SqlxError> {
+) -> Result<(), DauthError> {
     tracing::debug!("Removing backup info");
 
     sqlx::query(
