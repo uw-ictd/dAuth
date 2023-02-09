@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use crate::data::{context::DauthContext, error::DauthError};
 use crate::database;
-use crate::database::utilities::DauthDataUtilities;
 
 /// Removes the user from being backup up on this network.
 /// Also removes all related auth vectors.
@@ -15,9 +14,7 @@ pub async fn withdraw_backup(
     tracing::info!("Withdrawing backup");
 
     let mut transaction = context.local_context.database_pool.begin().await?;
-    let actual_network_id = database::backup_users::get(&mut transaction, user_id)
-        .await?
-        .to_backup_user_home_network_id()?;
+    let actual_network_id = database::backup_users::get(&mut transaction, user_id).await?;
     transaction.commit().await?;
 
     if actual_network_id != home_network_id {
