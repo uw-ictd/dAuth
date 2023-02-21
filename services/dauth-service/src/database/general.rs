@@ -5,7 +5,10 @@ use crate::data::error::DauthError;
 use crate::database;
 
 /// Constructs the sqlite pool for running queries.
+#[tracing::instrument(name = "database::general")]
 pub async fn build_pool(database_path: &str) -> Result<SqlitePool, DauthError> {
+    tracing::info!("Building database pool");
+
     Ok(SqlitePoolOptions::new()
         .max_connections(1)
         .connect_with(
@@ -20,7 +23,10 @@ pub async fn build_pool(database_path: &str) -> Result<SqlitePool, DauthError> {
 
 /// Builds the database connection pool.
 /// Creates the database and tables if they don't exist.
+#[tracing::instrument(name = "database::general")]
 pub async fn database_init(database_path: &str) -> Result<SqlitePool, DauthError> {
+    tracing::info!("Initializing database and all tables");
+
     let path = std::path::Path::new(database_path);
     let prefix = path.parent().unwrap();
     std::fs::create_dir_all(prefix).unwrap();
