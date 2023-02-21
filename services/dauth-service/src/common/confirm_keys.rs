@@ -33,9 +33,7 @@ pub async fn get_confirm_key_res(
 
     let mut transaction = context.local_context.database_pool.begin().await?;
 
-    let kasme = database::kasmes::get(&mut transaction, &res)
-        .await?
-        .to_kasme()?;
+    let kasme = database::kasmes::get(&mut transaction, &res).await?;
     database::kasmes::remove(&mut transaction, &res).await?;
 
     transaction.commit().await?;
