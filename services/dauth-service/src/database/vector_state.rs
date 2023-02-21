@@ -4,7 +4,10 @@ use sqlx::{Row, Sqlite, Transaction};
 use crate::data::error::DauthError;
 
 /// Creates the vector state table if it does not exist already.
+#[tracing::instrument(skip(pool), name = "database::vector_state")]
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    tracing::info!("Initialzing table");
+
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS vector_state_table (
             xres_star_hash BLOB PRIMARY KEY,
@@ -21,6 +24,7 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 
 /// Adds the auth vector as owned by the backup network.
 /// Use xres* hash as the reference for the auth vector.
+#[tracing::instrument(skip(transaction), name = "database::vector_state")]
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
@@ -41,10 +45,13 @@ pub async fn add(
 }
 
 /// Returns the owning network and user id of the auth vector.
+#[tracing::instrument(skip(transaction), name = "database::vector_state")]
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
 ) -> Result<Option<(String, String)>, DauthError> {
+    tracing::debug!("Getting vector state");
+
     let possible_row = sqlx::query(
         "SELECT * FROM vector_state_table
         WHERE xres_star_hash=$1;",
@@ -63,11 +70,14 @@ pub async fn get(
 }
 
 /// Returns the set of xres* hashes owned by the network for a given user.
+#[tracing::instrument(skip(transaction), name = "database::vector_state")]
 pub async fn get_all_by_id(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     backup_network_id: &str,
 ) -> Result<Vec<Vec<u8>>, DauthError> {
+    tracing::debug!("Getting all vector states for given id");
+
     let res = sqlx::query(
         "SELECT * FROM vector_state_table
         WHERE (user_id,backup_network_id)=($1,$2);",
@@ -85,10 +95,13 @@ pub async fn get_all_by_id(
 }
 
 /// Deletes a vector reference if found.
+#[tracing::instrument(skip(transaction), name = "database::vector_state")]
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
 ) -> Result<(), DauthError> {
+    tracing::debug!("Removing vector state");
+
     sqlx::query(
         "DELETE FROM vector_state_table
         WHERE xres_star_hash=$1",
