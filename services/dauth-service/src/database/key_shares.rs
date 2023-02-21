@@ -5,6 +5,7 @@ use crate::data::error::DauthError;
 use crate::data::keys;
 use auth_vector::types::{XResHash, XResStarHash};
 
+#[allow(dead_code)]
 #[derive(sqlx::FromRow)]
 struct KeyShareRow {
     pub xres_star_hash: Vec<u8>,
@@ -15,7 +16,10 @@ struct KeyShareRow {
 }
 
 /// Creates the kseaf table if it does not exist already.
+#[tracing::instrument(skip(pool), name = "database::key_shares")]
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    tracing::info!("Initialzing table");
+
     sqlx::query(
         &"CREATE TABLE IF NOT EXISTS key_share_table (
             xres_star_hash BLOB PRIMARY KEY,
@@ -41,11 +45,14 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 /* Queries */
 
 /// Inserts a key share
+#[tracing::instrument(skip(transaction), name = "database::key_shares")]
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     key_share: &keys::CombinedKeyShare,
 ) -> Result<(), DauthError> {
+    tracing::debug!("Adding key share");
+
     sqlx::query(
         "INSERT INTO key_share_table
         (xres_star_hash, xres_hash, user_id, kseaf_share, kasme_share)
@@ -63,11 +70,13 @@ pub async fn add(
 }
 
 /// Returns a key share if found.
+#[tracing::instrument(skip(transaction), name = "database::key_shares")]
 pub async fn get_from_xres_star_hash(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &XResStarHash,
 ) -> Result<keys::CombinedKeyShare, DauthError> {
-    tracing::debug!(?xres_star_hash, "querying for key share by xres_star_hash");
+    tracing::debug!("Getting key share with xres* hash");
+
     let row: KeyShareRow = sqlx::query_as(
         "SELECT * FROM key_share_table
         WHERE xres_star_hash=$1;",
@@ -91,11 +100,13 @@ pub async fn get_from_xres_star_hash(
 }
 
 /// Returns a key share if found.
+#[tracing::instrument(skip(transaction), name = "database::key_shares")]
 pub async fn get_from_xres_hash(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_hash: &XResHash,
 ) -> Result<keys::CombinedKeyShare, DauthError> {
-    tracing::debug!(?xres_hash, "querying for key share by xres_hash");
+    tracing::debug!("Getting key share with xres* hash");
+
     let row: KeyShareRow = sqlx::query_as(
         "SELECT * FROM key_share_table
         WHERE xres_hash=$1;",
@@ -119,14 +130,13 @@ pub async fn get_from_xres_hash(
 }
 
 /// Returns the user id that the key share/vector belongs to.
+#[tracing::instrument(skip(transaction), name = "database::key_shares")]
 pub async fn get_user_id(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
 ) -> Result<String, DauthError> {
-    tracing::debug!(
-        ?xres_star_hash,
-        "querying for key share user_id by xres_star_hash"
-    );
+    tracing::debug!("Getting user id from xres* hash");
+
     Ok(sqlx::query(
         "SELECT * FROM key_share_table
         WHERE xres_star_hash=$1;",
@@ -138,10 +148,13 @@ pub async fn get_user_id(
 }
 
 /// Deletes a key share if found.
+#[tracing::instrument(skip(transaction), name = "database::key_shares")]
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
 ) -> Result<(), DauthError> {
+    tracing::debug!("Removing key share state with xres* hash");
+
     sqlx::query(
         "DELETE FROM key_share_table
         WHERE xres_star_hash=$1",
