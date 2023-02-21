@@ -1,10 +1,15 @@
-use sqlx::sqlite::{SqlitePool, SqliteRow};
+use auth_vector::types::Kseaf;
+use sqlx::sqlite::SqlitePool;
 use sqlx::{Sqlite, Transaction};
 
 use crate::data::error::DauthError;
+use crate::database::utilities::DauthDataUtilities;
 
 /// Creates the kseaf table if it does not exist already.
+#[tracing::instrument(skip(pool), name = "database::kseafs")]
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    tracing::info!("Initialzing table");
+
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS kseaf_table (
             kseaf_uuid BLOB PRIMARY KEY,
@@ -19,11 +24,14 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 /* Queries */
 
 /// Inserts a kseaf with a given uuid and value.
+#[tracing::instrument(skip(transaction), name = "database::kseafs")]
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     uuid: &[u8],
     value: &[u8],
 ) -> Result<(), DauthError> {
+    tracing::info!("Adding kseaf");
+
     sqlx::query(
         "INSERT INTO kseaf_table
         VALUES ($1,$2)",
@@ -37,24 +45,31 @@ pub async fn add(
 }
 
 /// Returns a kseaf value if found.
+#[tracing::instrument(skip(transaction), name = "database::kseafs")]
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     uuid: &[u8],
-) -> Result<SqliteRow, DauthError> {
+) -> Result<Kseaf, DauthError> {
+    tracing::info!("Getting kseaf");
+
     Ok(sqlx::query(
         "SELECT * FROM kseaf_table
         WHERE kseaf_uuid=$1;",
     )
     .bind(uuid)
     .fetch_one(transaction)
-    .await?)
+    .await?
+    .to_kseaf()?)
 }
 
 /// Deletes a kseaf vaule if found.
+#[tracing::instrument(skip(transaction), name = "database::kseafs")]
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     uuid: &[u8],
 ) -> Result<(), DauthError> {
+    tracing::info!("Removing kseaf");
+
     sqlx::query(
         "DELETE FROM kseaf_table
         WHERE kseaf_uuid=$1",
@@ -72,7 +87,7 @@ pub async fn remove(
 mod tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
-    use sqlx::{Row, SqlitePool};
+    use sqlx::SqlitePool;
     use tempfile::{tempdir, TempDir};
 
     use auth_vector::types::{KSEAF_LENGTH, XRES_STAR_LENGTH};
@@ -160,10 +175,7 @@ mod tests {
                 .await
                 .unwrap();
 
-                assert_eq!(
-                    &[section * num_rows + row; KSEAF_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("kseaf_data")
-                );
+                assert_eq!([section * num_rows + row; KSEAF_LENGTH], res);
             }
         }
         transaction.commit().await.unwrap();
@@ -256,17 +268,9 @@ mod tests {
                 .await
                 .unwrap();
 
-                assert_eq!(
-                    &[section * num_rows + row; KSEAF_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("kseaf_data")
-                );
+                assert_eq!([section * num_rows + row; KSEAF_LENGTH], res);
 
-                kseafs::remove(
-                    &mut transaction,
-                    res.get_unchecked::<&[u8], &str>("kseaf_uuid"),
-                )
-                .await
-                .unwrap();
+                kseafs::remove(&mut transaction, &res).await.unwrap();
             }
         }
 
