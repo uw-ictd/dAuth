@@ -41,7 +41,10 @@ pub struct ReplaceKeyShareTaskRow {
 }
 
 /// Creates the backup networks table if it does not exist already.
+#[tracing::instrument(skip(pool), name = "database::tasks::replace_key_shares")]
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    tracing::info!("Initialzing table");
+
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS replace_key_share_task_table (
             backup_network_id TEXT NOT NULL,
@@ -61,6 +64,7 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 /* Queries */
 
 /// Adds a pending key share replace.
+#[tracing::instrument(skip(transaction), name = "database::tasks::replace_key_shares")]
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     backup_network_id: &str,
@@ -70,6 +74,8 @@ pub async fn add(
     kseaf_share: &keys::KseafShare,
     kasme_share: &keys::KasmeShare,
 ) -> Result<(), DauthError> {
+    tracing::debug!("Adding task");
+
     sqlx::query(
         "INSERT INTO replace_key_share_task_table
         VALUES ($1,$2,$3,$4,$5,$6)",
@@ -87,9 +93,12 @@ pub async fn add(
 }
 
 /// Gets all pending key share replaces.
+#[tracing::instrument(skip(transaction), name = "database::tasks::replace_key_shares")]
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
 ) -> Result<Vec<ReplaceKeyShareTask>, DauthError> {
+    tracing::debug!("Getting all tasks");
+
     let rows: Vec<ReplaceKeyShareTaskRow> =
         sqlx::query_as("SELECT * FROM replace_key_share_task_table")
             .fetch_all(transaction)
@@ -103,11 +112,14 @@ pub async fn get(
 }
 
 /// Removes a specific key share replace.
+#[tracing::instrument(skip(transaction), name = "database::tasks::replace_key_shares")]
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     backup_network_id: &str,
     xres_star_hash: &[u8],
 ) -> Result<(), DauthError> {
+    tracing::debug!("Removing task");
+
     sqlx::query(
         "DELETE FROM replace_key_share_task_table
         WHERE (backup_network_id,xres_star_hash)=($1,$2)",
