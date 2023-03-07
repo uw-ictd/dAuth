@@ -6,7 +6,7 @@ authors = ["Nick Durand <durandn@cs.washington.edu>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-setuptools = "^62.4.0"
+setuptools = "^65.5.1"
 paramiko = "^2.11.0"
 PyYAML = "^6.0"
 
