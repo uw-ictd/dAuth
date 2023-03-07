@@ -4,7 +4,7 @@ use prost::Message;
 
 use auth_vector::types::XResStarHash;
 
-use crate::core;
+use crate::data::combined_res::XResHashKind;
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
 use crate::data::signing::{self, SignPayloadType};
@@ -22,6 +22,7 @@ use crate::rpc::dauth::remote::{
     WithdrawSharesReq, WithdrawSharesResp,
 };
 use crate::rpc::utilities;
+use crate::services::backup;
 
 pub struct BackupNetworkHandler {
     pub context: Arc<DauthContext>,
@@ -390,7 +391,7 @@ impl BackupNetworkHandler {
                             payload.backup_network_id
                         )))
                     } else {
-                        core::users::set_backup_user(
+                        backup::enroll_backup_prepare(
                             context.clone(),
                             &user_id,
                             &payload.home_network_id,
@@ -426,10 +427,6 @@ impl BackupNetworkHandler {
             UserIdKind::Supi => {
                 let user_id = std::str::from_utf8(content.user_id.as_slice())?.to_string();
 
-                // TODO: possibly use home network id?
-                let _home_network_id =
-                    core::users::get_backup_user(context.clone(), &user_id).await?;
-
                 // collect all properly formated delegated vectors
                 // log and skip on error
                 let mut processed_vectors = Vec::new();
@@ -438,8 +435,18 @@ impl BackupNetworkHandler {
                         utilities::handle_delegated_vector(&context, dvector, &user_id).await,
                     );
                 }
-                core::auth_vectors::store_backup_auth_vectors(
+
+                // collect all properly formated delegated shares
+                // log and skip on error
+                let mut processed_shares = Vec::new();
+                for dshare in content.shares {
+                    processed_shares
+                        .push(utilities::handle_key_share(context.clone(), dshare).await);
+                }
+
+                backup::enroll_backup_commit(
                     context.clone(),
+                    &user_id,
                     processed_vectors
                         .into_iter()
                         .flat_map(|vector| {
@@ -449,19 +456,6 @@ impl BackupNetworkHandler {
                             })
                         })
                         .collect(),
-                )
-                .await?;
-
-                // collect all properly formated delegated shares
-                // log and skip on error
-                let mut processed_shares = Vec::new();
-                for dshare in content.shares {
-                    processed_shares
-                        .push(utilities::handle_key_share(context.clone(), dshare).await);
-                }
-                core::confirm_keys::store_key_shares(
-                    context.clone(),
-                    &user_id,
                     processed_shares
                         .into_iter()
                         .flat_map(|share| {
@@ -507,7 +501,7 @@ impl BackupNetworkHandler {
                 transaction.commit().await?;
             }
 
-            let av_result = core::auth_vectors::next_backup_auth_vector(
+            let av_result = backup::get_auth_vector(
                 context.clone(),
                 &AuthVectorReq {
                     user_id: user_id.to_string(),
@@ -555,31 +549,25 @@ impl BackupNetworkHandler {
             let request_hash = payload.hash.ok_or(DauthError::InvalidMessageError(
                 "Missing res(star) hash".to_string(),
             ))?;
-            let request_preimage = payload.preimage.ok_or(DauthError::InvalidMessageError(
-                "Missing res(star) hash".to_string(),
+            let _request_preimage = payload.preimage.ok_or(DauthError::InvalidMessageError(
+                "Missing preimage".to_string(),
             ))?;
 
             // TODO(matt9j) This was supposed to be the actual signed share from
             // the host, not constructed on demand in the backup network's
             // signing key as done below : /
-            let key_share = match request_hash {
+            let combined_hash = match request_hash {
                 get_key_share_req::payload::Hash::XresStarHash(xres_star_hash) => {
-                    core::confirm_keys::get_key_share_5g(
-                        context.clone(),
-                        xres_star_hash[..].try_into()?,
-                        &signed_request_bytes,
-                    )
-                    .await?
+                    XResHashKind::XResStarHash(xres_star_hash[..].try_into()?)
                 }
                 get_key_share_req::payload::Hash::XresHash(xres_hash) => {
-                    core::confirm_keys::get_key_share_eps(
-                        context.clone(),
-                        xres_hash.as_slice().try_into()?,
-                        &signed_request_bytes,
-                    )
-                    .await?
+                    XResHashKind::XResHash(xres_hash[..].try_into()?)
                 }
             };
+
+            let key_share =
+                backup::get_key_share(context.clone(), &combined_hash, &signed_request_bytes)
+                    .await?;
 
             let payload = delegated_confirmation_share::Payload {
                 xres_star_hash: key_share.xres_star_hash.to_vec(),
@@ -619,7 +607,7 @@ impl BackupNetworkHandler {
 
         let new_key_share = utilities::handle_key_share(context.clone(), dshare).await?;
 
-        core::confirm_keys::replace_key_share(context, &old_xres_star_hash, &new_key_share).await?;
+        backup::replace_key_share(context, &old_xres_star_hash, &new_key_share).await?;
 
         Ok(tonic::Response::new(ReplaceShareResp {}))
     }
@@ -637,17 +625,8 @@ impl BackupNetworkHandler {
                     payload.backup_network_id
                 )))
             } else {
-                if core::users::get_backup_user(context.clone(), &user_id).await?
-                    != payload.home_network_id
-                {
-                    Err(DauthError::InvalidMessageError(format!(
-                        "Not the correct home network",
-                    )))
-                } else {
-                    core::users::remove_backup_user(context, &user_id, &payload.home_network_id)
-                        .await?;
-                    Ok(tonic::Response::new(WithdrawBackupResp {}))
-                }
+                backup::withdraw_backup(context, &user_id, &payload.home_network_id).await?;
+                Ok(tonic::Response::new(WithdrawBackupResp {}))
             }
         } else {
             Err(DauthError::InvalidMessageError(format!(
@@ -662,7 +641,7 @@ impl BackupNetworkHandler {
         verify_result: SignPayloadType,
     ) -> Result<tonic::Response<WithdrawSharesResp>, DauthError> {
         if let SignPayloadType::WithdrawSharesReq(payload) = verify_result {
-            core::confirm_keys::remove_key_shares(
+            backup::withdraw_shares(
                 context,
                 payload
                     .xres_star_hash
@@ -692,7 +671,7 @@ impl BackupNetworkHandler {
                         "Missing content".to_string(),
                     ))?;
 
-                    core::auth_vectors::store_backup_flood_vector(
+                    backup::flood_vector(
                         context.clone(),
                         &utilities::handle_delegated_vector(&context, dvector, &user_id).await?,
                     )

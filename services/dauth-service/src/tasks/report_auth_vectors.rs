@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use tokio::task::JoinSet;
 
-use crate::core;
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
 use crate::database;
@@ -85,19 +84,35 @@ async fn report_to_network(
             &report.signed_request_bytes,
             &mut client,
         )
-        .await {
+        .await
+        {
             Ok(res) => res,
             Err(DauthError::ClientError(e)) => {
                 clients::home_network::mark_endpoint_offline(&context, &home_net_address).await;
                 return Err(DauthError::ClientError(e));
-            },
+            }
             Err(e) => {
                 return Err(e);
             }
         };
 
         if let Some(av_result) = possible_av_result {
-            core::auth_vectors::store_backup_auth_vector(context.clone(), &av_result).await?;
+            tracing::info!("Storing auth vector: {:?}", av_result);
+
+            let mut transaction = context.local_context.database_pool.begin().await?;
+
+            database::auth_vectors::add(
+                &mut transaction,
+                &av_result.user_id,
+                av_result.seqnum,
+                &av_result.xres_star_hash,
+                &av_result.xres_hash,
+                &av_result.autn,
+                &av_result.rand.as_array(),
+            )
+            .await?;
+
+            transaction.commit().await?;
         }
 
         {

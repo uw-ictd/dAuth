@@ -83,12 +83,13 @@ async fn report_to_network(
             &report.signed_request_bytes,
             &mut client,
         )
-        .await {
+        .await
+        {
             Ok(_) => (),
             Err(DauthError::ClientError(msg)) => {
                 clients::home_network::mark_endpoint_offline(&context, &home_net_address).await;
                 return Err(DauthError::ClientError(msg));
-            },
+            }
             Err(e) => {
                 return Err(e);
             }
