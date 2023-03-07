@@ -6,7 +6,6 @@ use sqlx::{Sqlite, Transaction};
 use crate::data::vector::AuthVectorRes;
 use crate::data::{context::DauthContext, error::DauthError};
 use crate::database;
-use crate::database::utilities::DauthDataUtilities;
 
 /// Generates an auth vector that will be verified locally.
 /// Stores the kseaf directly, without key shares.
@@ -60,9 +59,8 @@ pub async fn build_auth_vector(
 ) -> Result<(AuthVectorData, i64), DauthError> {
     tracing::info!(?user_id, ?sqn_slice, "Building auth vector");
 
-    let mut user_info = database::user_infos::get(transaction, &user_id.to_string(), sqn_slice)
-        .await?
-        .to_user_info()?;
+    let mut user_info =
+        database::user_infos::get(transaction, &user_id.to_string(), sqn_slice).await?;
 
     tracing::debug!(?user_info, "User info found");
 

@@ -5,7 +5,10 @@ use sqlx::{Sqlite, Transaction};
 use crate::data::error::DauthError;
 
 /// Creates the update user table if it does not exist already.
+#[tracing::instrument(skip(pool), name = "database::tasks::update_users")]
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    tracing::info!("Initialzing table");
+
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS task_update_users_table (
             user_id TEXT NOT NULL,
@@ -24,12 +27,15 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 /* Queries */
 
 /// Adds a user id with a set of backup network ids.
+#[tracing::instrument(skip(transaction), name = "database::tasks::update_users")]
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     sqn_slice: i64,
     backup_network_id: &str,
 ) -> Result<(), DauthError> {
+    tracing::debug!("Adding task");
+
     sqlx::query(
         "REPLACE INTO task_update_users_table
         VALUES ($1,$2,$3)",
@@ -44,9 +50,12 @@ pub async fn add(
 }
 
 /// Gets all user ids
+#[tracing::instrument(skip(transaction), name = "database::tasks::update_users")]
 pub async fn get_user_ids(
     transaction: &mut Transaction<'_, Sqlite>,
 ) -> Result<Vec<String>, DauthError> {
+    tracing::debug!("Getting all user ids");
+
     let mut result = Vec::new();
     let rows = sqlx::query("SELECT DISTINCT user_id FROM task_update_users_table")
         .fetch_all(transaction)
@@ -59,10 +68,13 @@ pub async fn get_user_ids(
 }
 
 /// Gets all backup network ids and sqn slices for a given user id.
+#[tracing::instrument(skip(transaction), name = "database::tasks::update_users")]
 pub async fn get_user_data(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
 ) -> Result<Vec<(String, i64)>, DauthError> {
+    tracing::debug!("Getting user data");
+
     let mut result = Vec::new();
     let rows = sqlx::query(
         "SELECT * FROM task_update_users_table
@@ -82,10 +94,13 @@ pub async fn get_user_data(
 }
 
 /// Removes a user id and all its backup network ids.
+#[tracing::instrument(skip(transaction), name = "database::tasks::update_users")]
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
 ) -> Result<(), DauthError> {
+    tracing::debug!("Removing task");
+
     sqlx::query(
         "DELETE FROM task_update_users_table
         WHERE user_id=$1",

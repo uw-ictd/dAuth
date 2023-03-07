@@ -6,7 +6,6 @@ use crate::data::{
     vector::{AuthVectorReq, AuthVectorRes},
 };
 use crate::database;
-use crate::database::utilities::DauthDataUtilities;
 
 /// Gets the next backup auth vector, checking for any available flood
 /// vectors first. If there are no flood vectors, returns the auth vector
@@ -23,10 +22,10 @@ pub async fn get_auth_vector(
 
     // Check for a flood vector first
     let vector;
-    if let Some(flood_row) =
+    if let Some(flood_res) =
         database::flood_vectors::get_first(&mut transaction, &av_request.user_id).await?
     {
-        vector = flood_row.to_auth_vector()?;
+        vector = flood_res;
 
         database::flood_vectors::mark_sent(&mut transaction, &vector.user_id, vector.seqnum)
             .await?;
@@ -34,9 +33,7 @@ pub async fn get_auth_vector(
 
         tracing::info!("Flood vector found: {:?}", vector);
     } else {
-        vector = database::auth_vectors::get_first(&mut transaction, &av_request.user_id)
-            .await?
-            .to_auth_vector()?;
+        vector = database::auth_vectors::get_first(&mut transaction, &av_request.user_id).await?;
 
         database::auth_vectors::mark_sent(&mut transaction, &vector.user_id, vector.seqnum).await?;
         // database::auth_vectors::remove(&mut transaction, &vector.user_id, &vector.xres_star_hash).await?;

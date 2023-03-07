@@ -1,12 +1,15 @@
-use sqlx::sqlite::{SqlitePool, SqliteRow};
-use sqlx::{Error as SqlxError, Row};
+use sqlx::sqlite::SqlitePool;
+use sqlx::Row;
 use sqlx::{Sqlite, Transaction};
 
 use crate::data::error::DauthError;
 
 /// Creates the backup networks table if it does not exist already.
 /// Contains all networks that are used as a backup for this network
+#[tracing::instrument(skip(pool), name = "database::backup_networks")]
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    tracing::info!("Initialzing table");
+
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS backup_networks_table (
             user_id TEXT NOT NULL,
@@ -24,12 +27,15 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 
 /// Adds a network as a backup for the user id and seqnum slice.
 /// Changes seqnum slice if user/network pair exists.
+#[tracing::instrument(skip(transaction), name = "database::backup_networks")]
 pub async fn upsert(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     backup_network_id: &str,
     seqnum_slice: i64,
-) -> Result<(), SqlxError> {
+) -> Result<(), DauthError> {
+    tracing::debug!("Upserting backup info");
+
     sqlx::query(
         "REPLACE INTO backup_networks_table
         VALUES ($1,$2,$3)",
@@ -46,11 +52,14 @@ pub async fn upsert(
 /// Gets the backup info for a given network and user id
 /// Not currently used.
 #[allow(dead_code)]
+#[tracing::instrument(skip(transaction), name = "database::backup_networks")]
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     backup_network_id: &str,
-) -> Result<SqliteRow, SqlxError> {
+) -> Result<i64, DauthError> {
+    tracing::debug!("Getting backup info");
+
     Ok(sqlx::query(
         "SELECT * FROM backup_networks_table
         WHERE (user_id,backup_network_id)=($1,$2);",
@@ -58,15 +67,19 @@ pub async fn get(
     .bind(user_id)
     .bind(backup_network_id)
     .fetch_one(transaction)
-    .await?)
+    .await?
+    .try_get::<i64, &str>("seq_num_slice")?)
 }
 
 /// Gets the seqnum slice for a given network and user id
+#[tracing::instrument(skip(transaction), name = "database::backup_networks")]
 pub async fn get_slice(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     backup_network_id: &str,
-) -> Result<i64, SqlxError> {
+) -> Result<i64, DauthError> {
+    tracing::debug!("Getting seqnum slice");
+
     Ok(sqlx::query(
         "SELECT seq_num_slice FROM backup_networks_table
         WHERE (user_id,backup_network_id)=($1,$2);",
@@ -81,11 +94,14 @@ pub async fn get_slice(
 /// Removes the network as a backup for this network
 /// Not currently used.
 #[allow(dead_code)]
+#[tracing::instrument(skip(transaction), name = "database::backup_networks")]
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     backup_network_id: &str,
-) -> Result<(), SqlxError> {
+) -> Result<(), DauthError> {
+    tracing::debug!("Removing backup info");
+
     sqlx::query(
         "DELETE FROM backup_networks_table
         WHERE (user_id,backup_network_id)=($1,$2)",
@@ -103,7 +119,7 @@ pub async fn remove(
 mod tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
-    use sqlx::{Row, SqlitePool};
+    use sqlx::SqlitePool;
     use tempfile::{tempdir, TempDir};
 
     use crate::database::{backup_networks, general};
@@ -192,7 +208,7 @@ mod tests {
                 .await
                 .unwrap();
 
-                assert_eq!(section, res.get_unchecked::<i64, &str>("seq_num_slice"));
+                assert_eq!(section, res);
             }
         }
         transaction.commit().await.unwrap();

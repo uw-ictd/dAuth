@@ -11,7 +11,10 @@ pub struct ReportKeyShareTask {
 }
 
 /// Creates the backup networks table if it does not exist already.
+#[tracing::instrument(skip(pool), name = "database::tasks::report_key_shares")]
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    tracing::info!("Initialzing table");
+
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS report_key_share_task_table (
             xres_star_hash BLOB PRIMARY KEY,
@@ -27,12 +30,15 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 /* Queries */
 
 /// Adds a pending key share used report.
+#[tracing::instrument(skip(transaction), name = "database::tasks::report_key_shares")]
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
     user_id: &str,
     signed_request_bytes: &Vec<u8>,
 ) -> Result<(), DauthError> {
+    tracing::debug!("Adding task");
+
     sqlx::query(
         "INSERT INTO report_key_share_task_table
         VALUES ($1,$2,$3)",
@@ -47,9 +53,12 @@ pub async fn add(
 }
 
 /// Gets all pending key share used reports.
+#[tracing::instrument(skip(transaction), name = "database::tasks::report_key_shares")]
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
 ) -> Result<Vec<ReportKeyShareTask>, DauthError> {
+    tracing::debug!("Getting all tasks");
+
     let rows = sqlx::query("SELECT * FROM report_key_share_task_table")
         .fetch_all(transaction)
         .await?;
@@ -62,6 +71,7 @@ pub async fn get(
 }
 
 /// Removes a specific key share replace.
+#[tracing::instrument(skip(transaction), name = "database::tasks::report_key_shares")]
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],

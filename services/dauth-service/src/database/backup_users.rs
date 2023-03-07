@@ -1,12 +1,15 @@
-use sqlx::sqlite::{SqlitePool, SqliteRow};
-use sqlx::Error as SqlxError;
+use sqlx::sqlite::SqlitePool;
 use sqlx::{Sqlite, Transaction};
 
 use crate::data::error::DauthError;
+use crate::database::utilities::DauthDataUtilities;
 
 /// Creates the backup users table if it does not exist already.
 /// Contains all users that are backed up on this network
+#[tracing::instrument(skip(pool), name = "database::backup_users")]
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    tracing::info!("Initialzing table");
+
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS backup_users_table (
             user_id TEXT NOT NULL,
@@ -22,11 +25,14 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 /* Queries */
 
 /// Adds the user id to set of backups on this network
+#[tracing::instrument(skip(transaction), name = "database::backup_users")]
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     home_network_id: &str,
-) -> Result<(), SqlxError> {
+) -> Result<(), DauthError> {
+    tracing::debug!("Adding user as backup");
+
     sqlx::query(
         "REPLACE INTO backup_users_table
         VALUES ($1,$2)",
@@ -40,25 +46,32 @@ pub async fn add(
 }
 
 /// Gets the home network of a given backed up user id
+#[tracing::instrument(skip(transaction), name = "database::backup_users")]
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
-) -> Result<SqliteRow, SqlxError> {
+) -> Result<String, DauthError> {
+    tracing::debug!("Getting backup user");
+
     Ok(sqlx::query(
         "SELECT * FROM backup_users_table
         WHERE user_id=$1;",
     )
     .bind(user_id)
     .fetch_one(transaction)
-    .await?)
+    .await?
+    .to_backup_user_home_network_id()?)
 }
 
 /// Removes the user id from the backups
+#[tracing::instrument(skip(transaction), name = "database::backup_users")]
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     home_network_id: &str,
-) -> Result<(), SqlxError> {
+) -> Result<(), DauthError> {
+    tracing::debug!("Removing backup user");
+
     sqlx::query(
         "DELETE FROM backup_users_table
         WHERE (user_id,home_network_id)=($1,$2)",

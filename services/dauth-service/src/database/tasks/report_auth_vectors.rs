@@ -12,7 +12,10 @@ pub struct ReportAuthVectorTask {
 }
 
 /// Creates the backup networks table if it does not exist already.
+#[tracing::instrument(skip(pool), name = "database::tasks::report_auth_vectors")]
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    tracing::info!("Initialzing table");
+
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS report_auth_vectors_task_table (
             task_id INTEGER PRIMARY KEY,
@@ -29,12 +32,15 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 /* Queries */
 
 /// Adds a pending auth vector used report.
+#[tracing::instrument(skip(transaction), name = "database::tasks::report_auth_vectors")]
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
     user_id: &str,
     signed_request_bytes: &Vec<u8>,
 ) -> Result<(), DauthError> {
+    tracing::debug!("Adding task");
+
     sqlx::query(
         "INSERT INTO report_auth_vectors_task_table (xres_star_hash, user_id, signed_request_bytes)
         VALUES ($1,$2,$3)",
@@ -49,9 +55,12 @@ pub async fn add(
 }
 
 /// Gets all pending auth vector used reports.
+#[tracing::instrument(skip(transaction), name = "database::tasks::report_auth_vectors")]
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
 ) -> Result<Vec<ReportAuthVectorTask>, DauthError> {
+    tracing::debug!("Getting all tasks");
+
     let rows: Vec<ReportAuthVectorTask> =
         sqlx::query_as("SELECT * FROM report_auth_vectors_task_table")
             .fetch_all(transaction)
@@ -61,10 +70,13 @@ pub async fn get(
 }
 
 /// Removes a specific auth vector used report.
+#[tracing::instrument(skip(transaction), name = "database::tasks::report_auth_vectors")]
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     row_id: i64,
 ) -> Result<(), DauthError> {
+    tracing::debug!("Removing task");
+
     sqlx::query(
         "DELETE FROM report_auth_vectors_task_table
         WHERE task_id=$1",

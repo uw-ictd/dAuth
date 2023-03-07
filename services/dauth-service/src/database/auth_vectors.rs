@@ -1,12 +1,17 @@
-use sqlx::sqlite::{SqlitePool, SqliteRow};
+use sqlx::sqlite::SqlitePool;
 use sqlx::{Row, Sqlite, Transaction};
 
 use auth_vector::types::XResHash;
 
 use crate::data::error::DauthError;
+use crate::data::vector::AuthVectorRes;
+use crate::database::utilities::DauthDataUtilities;
 
 /// Creates the auth vector table if it does not exist already.
+#[tracing::instrument(skip(pool), name = "database::auth_vectors")]
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    tracing::info!("Initializing table");
+
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS auth_vector_table (
             user_id TEXT NOT NULL,
@@ -42,6 +47,7 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 
 /// Inserts a vector with the given data.
 /// Returns an error if (id, seqnum) is not unique.
+#[tracing::instrument(skip(transaction), name = "database::auth_vectors")]
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     id: &str,
@@ -51,6 +57,8 @@ pub async fn add(
     autn: &[u8],
     rand: &[u8],
 ) -> Result<(), DauthError> {
+    tracing::debug!("Adding auth vector");
+
     sqlx::query(
         "INSERT INTO auth_vector_table
         VALUES ($1,$2,$3,$4,$5,$6,FALSE)",
@@ -68,10 +76,13 @@ pub async fn add(
 }
 
 /// Returns the first for a given id, sorted by rank (seqnum).
+#[tracing::instrument(skip(transaction), name = "database::auth_vectors")]
 pub async fn get_first(
     transaction: &mut Transaction<'_, Sqlite>,
     id: &str,
-) -> Result<SqliteRow, DauthError> {
+) -> Result<AuthVectorRes, DauthError> {
+    tracing::debug!("Getting first auth vector");
+
     Ok(sqlx::query(
         "SELECT * FROM auth_vector_table
         WHERE user_id=$1
@@ -80,16 +91,20 @@ pub async fn get_first(
     )
     .bind(id)
     .fetch_one(transaction)
-    .await?)
+    .await?
+    .to_auth_vector()?)
 }
 
 /// Returns the auth vector with the corresponding xres_star_hash.
 /// Not currently used.
 #[allow(dead_code)]
+#[tracing::instrument(skip(transaction), name = "database::auth_vectors")]
 pub async fn get_by_xres_star_hash(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
-) -> Result<SqliteRow, DauthError> {
+) -> Result<AuthVectorRes, DauthError> {
+    tracing::debug!("Adding auth vector by xres* hash");
+
     Ok(sqlx::query(
         "SELECT * FROM auth_vector_table
         WHERE xres_star_hash=$1
@@ -97,16 +112,20 @@ pub async fn get_by_xres_star_hash(
     )
     .bind(xres_star_hash)
     .fetch_one(transaction)
-    .await?)
+    .await?
+    .to_auth_vector()?)
 }
 
 /// Marks the vector with the (user_id, seqnum) pair as having been previously
 /// sent.
+#[tracing::instrument(skip(transaction), name = "database::auth_vectors")]
 pub async fn mark_sent(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     seqnum: i64,
 ) -> Result<(), DauthError> {
+    tracing::debug!("Marking auth vector as sent");
+
     sqlx::query(
         "UPDATE auth_vector_table
         SET sent=TRUE
@@ -120,11 +139,14 @@ pub async fn mark_sent(
 }
 
 /// Removes the vector with the (user_id, xres_star_hash) pair.
+#[tracing::instrument(skip(transaction), name = "database::auth_vectors")]
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     xres_star_hash: &[u8],
 ) -> Result<i32, DauthError> {
+    tracing::debug!("Removing auth vector");
+
     let presence_count: i32 = sqlx::query(
         "SELECT count(*) as count FROM auth_vector_table
         WHERE (user_id,xres_star_hash)=($1,$2);",
@@ -149,10 +171,13 @@ pub async fn remove(
 }
 
 /// Removes all vectors belonging to an id.
+#[tracing::instrument(skip(transaction), name = "database::auth_vectors")]
 pub async fn remove_all(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
 ) -> Result<(), DauthError> {
+    tracing::debug!("Removing all auth vectors for user");
+
     sqlx::query(
         "DELETE FROM auth_vector_table
         WHERE user_id=$1",
@@ -169,7 +194,7 @@ pub async fn remove_all(
 mod tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
-    use sqlx::{Row, SqlitePool};
+    use sqlx::SqlitePool;
     use tempfile::{tempdir, TempDir};
 
     use auth_vector::types::{AUTN_LENGTH, RAND_LENGTH, XRES_HASH_LENGTH, XRES_STAR_HASH_LENGTH};
@@ -328,8 +353,8 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!("test_id_1", res.get_unchecked::<&str, &str>("user_id"));
-        assert_eq!(0, res.get_unchecked::<i64, &str>("seqnum"));
+        assert_eq!("test_id_1", res.user_id);
+        assert_eq!(0, res.seqnum);
 
         transaction.commit().await.unwrap();
     }
@@ -370,8 +395,8 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!("test_id_1", res.get_unchecked::<&str, &str>("user_id"));
-        assert_eq!(0, res.get_unchecked::<i64, &str>("seqnum"));
+        assert_eq!("test_id_1", res.user_id);
+        assert_eq!(0, res.seqnum);
 
         transaction.commit().await.unwrap();
     }
@@ -528,11 +553,8 @@ mod tests {
                 .await
                 .unwrap();
 
-                assert_eq!(
-                    &format!("test_id_{}", section),
-                    res.get_unchecked::<&str, &str>("user_id")
-                );
-                assert_eq!(row, res.get_unchecked::<i64, &str>("seqnum"));
+                assert_eq!(format!("test_id_{}", section), res.user_id);
+                assert_eq!(row, res.seqnum);
             }
         }
 

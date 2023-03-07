@@ -1,11 +1,16 @@
-use sqlx::sqlite::{SqlitePool, SqliteRow};
+use sqlx::sqlite::SqlitePool;
 use sqlx::{Sqlite, Transaction};
 
-use crate::data::error::DauthError;
 use auth_vector::types::Kasme;
 
+use crate::data::error::DauthError;
+use crate::database::utilities::DauthDataUtilities;
+
 /// Creates the kasme table if it does not exist already.
+#[tracing::instrument(skip(pool), name = "database::kasmes")]
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    tracing::info!("Initialzing table");
+
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS kasme_table (
             kasme_uuid BLOB PRIMARY KEY,
@@ -20,11 +25,14 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 /* Queries */
 
 /// Inserts a kasme with a given uuid and value.
+#[tracing::instrument(skip(transaction), name = "database::kasmes")]
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     uuid: &[u8],
     value: &Kasme,
 ) -> Result<(), DauthError> {
+    tracing::debug!("Adding new kasme");
+
     sqlx::query(
         "INSERT INTO kasme_table
         VALUES ($1,$2)",
@@ -38,24 +46,31 @@ pub async fn add(
 }
 
 /// Returns a kasme value if found.
+#[tracing::instrument(skip(transaction), name = "database::kasmes")]
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     uuid: &[u8],
-) -> Result<SqliteRow, DauthError> {
+) -> Result<Kasme, DauthError> {
+    tracing::debug!("Getting kasme");
+
     Ok(sqlx::query(
         "SELECT * FROM kasme_table
         WHERE kasme_uuid=$1;",
     )
     .bind(uuid)
     .fetch_one(transaction)
-    .await?)
+    .await?
+    .to_kasme()?)
 }
 
 /// Deletes a kasme vaule if found.
+#[tracing::instrument(skip(transaction), name = "database::kasmes")]
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     uuid: &[u8],
 ) -> Result<(), DauthError> {
+    tracing::debug!("Removing kasme");
+
     sqlx::query(
         "DELETE FROM kasme_table
         WHERE kasme_uuid=$1",
@@ -73,7 +88,7 @@ pub async fn remove(
 mod tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
-    use sqlx::{Row, SqlitePool};
+    use sqlx::SqlitePool;
     use tempfile::{tempdir, TempDir};
 
     use auth_vector::types::{KASME_LENGTH, XRES_STAR_LENGTH};
@@ -165,10 +180,7 @@ mod tests {
                 .await
                 .unwrap();
 
-                assert_eq!(
-                    &[section * num_rows + row; KASME_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("kasme_data")
-                );
+                assert_eq!([section * num_rows + row; KASME_LENGTH], res.as_array());
             }
         }
         transaction.commit().await.unwrap();
@@ -265,14 +277,11 @@ mod tests {
                 .await
                 .unwrap();
 
-                assert_eq!(
-                    &[section * num_rows + row; KASME_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("kasme_data")
-                );
+                assert_eq!([section * num_rows + row; KASME_LENGTH], res.as_array(),);
 
                 kasmes::remove(
                     &mut transaction,
-                    res.get_unchecked::<&[u8], &str>("kasme_uuid"),
+                    &[section * num_rows + row; XRES_STAR_LENGTH],
                 )
                 .await
                 .unwrap();

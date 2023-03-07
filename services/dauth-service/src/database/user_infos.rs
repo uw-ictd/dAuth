@@ -1,11 +1,17 @@
 use auth_vector::types::Id;
-use sqlx::sqlite::{SqlitePool, SqliteRow};
+use sqlx::sqlite::SqlitePool;
 use sqlx::{Sqlite, Transaction};
 
 use crate::data::error::DauthError;
+use crate::data::user_info::UserInfo;
+use crate::database::utilities::DauthDataUtilities;
 
 /// Creates the table if it does not exist already.
+/// Contains the set of user infos owned by this network.
+#[tracing::instrument(skip(pool), name = "database::user_infos")]
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    tracing::info!("Initialzing table");
+
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS user_info_table (
             id TEXT NOT NULL,
@@ -24,11 +30,14 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 /* Queries */
 
 /// Get user info if exists.
+#[tracing::instrument(skip(transaction), name = "database::user_infos")]
 pub async fn get(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &Id,
     sqn_slice: i64,
-) -> Result<SqliteRow, DauthError> {
+) -> Result<UserInfo, DauthError> {
+    tracing::debug!("Getting user info");
+
     Ok(sqlx::query(
         "SELECT * FROM user_info_table
         WHERE (id,sqn_slice)=($1,$2);",
@@ -36,7 +45,8 @@ pub async fn get(
     .bind(user_id)
     .bind(sqn_slice)
     .fetch_one(transaction)
-    .await?)
+    .await?
+    .to_user_info()?)
 }
 
 #[derive(Debug, Clone, Copy, sqlx::FromRow)]
@@ -44,6 +54,7 @@ struct SqnMaxRow {
     pub sqn_max: i64,
 }
 /// Insert user info and replace if exists.
+#[tracing::instrument(skip(transaction), name = "database::user_infos")]
 pub async fn upsert(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &Id,
@@ -52,6 +63,8 @@ pub async fn upsert(
     sqn_max: i64,
     sqn_slice: i64,
 ) -> Result<(), DauthError> {
+    tracing::debug!("Upserting user info");
+
     // HACK Don't ever decrease a user's sequence number unless the slice config
     // changes...
     let mut sqn_to_insert = sqn_max;
@@ -65,7 +78,7 @@ pub async fn upsert(
     .fetch_optional::<&mut Transaction<'_, Sqlite>>(transaction)
     .await?;
 
-    let user_max_sqn = user_max_sqn.unwrap_or(SqnMaxRow { sqn_max: 32 });
+    let user_max_sqn = user_max_sqn.unwrap_or(SqnMaxRow { sqn_max: 0 });
     let user_max_sqn = user_max_sqn.sqn_max;
     if (user_max_sqn % 32) == (sqn_max % 32) {
         sqn_to_insert = std::cmp::max(user_max_sqn, sqn_max);
@@ -89,10 +102,13 @@ pub async fn upsert(
 /// Remove user info if exists.
 /// Not currently used.
 #[allow(dead_code)]
+#[tracing::instrument(skip(transaction), name = "database::user_infos")]
 pub async fn remove(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &Id,
 ) -> Result<(), DauthError> {
+    tracing::debug!("Removing user info");
+
     sqlx::query(
         "DELETE FROM user_info_table
         WHERE id=$1",
@@ -110,7 +126,7 @@ pub async fn remove(
 mod tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
-    use sqlx::{Row, SqlitePool};
+    use sqlx::SqlitePool;
     use tempfile::{tempdir, TempDir};
 
     use auth_vector::types::{K_LENGTH, OPC_LENGTH};
@@ -204,22 +220,10 @@ mod tests {
                 .await
                 .unwrap();
 
-                assert_eq!(
-                    format!("user_info_{}", section * num_rows + row),
-                    res.get_unchecked::<&str, &str>("id")
-                );
-                assert_eq!(
-                    &[section * num_rows + row; K_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("k")
-                );
-                assert_eq!(
-                    &[section * num_rows + row; OPC_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("opc")
-                );
-                assert_eq!(
-                    (section * num_rows + row) as i64,
-                    res.get_unchecked::<i64, &str>("sqn_max")
-                );
+                assert_eq!(format!("user_info_{}", section * num_rows + row), res.id);
+                assert_eq!([section * num_rows + row; K_LENGTH], res.k);
+                assert_eq!([section * num_rows + row; OPC_LENGTH], res.opc);
+                assert_eq!((section * num_rows + row) as i64, res.sqn);
             }
         }
         transaction.commit().await.unwrap();
@@ -315,19 +319,10 @@ mod tests {
                 .await
                 .unwrap();
 
-                assert_eq!(
-                    format!("user_info_{}", section * num_rows + row),
-                    res.get_unchecked::<&str, &str>("id")
-                );
-                assert_eq!(
-                    &[section * num_rows + row; K_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("k")
-                );
-                assert_eq!(
-                    &[section * num_rows + row; OPC_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("opc")
-                );
-                assert_eq!(1, res.get_unchecked::<i64, &str>("sqn_max"));
+                assert_eq!(format!("user_info_{}", section * num_rows + row), res.id);
+                assert_eq!([section * num_rows + row; K_LENGTH], res.k);
+                assert_eq!([section * num_rows + row; OPC_LENGTH], res.opc);
+                assert_eq!(1, res.sqn);
             }
         }
         transaction.commit().await.unwrap();
@@ -360,32 +355,17 @@ mod tests {
                 .await
                 .unwrap();
 
-                assert_eq!(
-                    format!("user_info_{}", section * num_rows + row),
-                    res.get_unchecked::<&str, &str>("id")
-                );
+                assert_eq!(format!("user_info_{}", section * num_rows + row), res.id);
 
                 // old values
-                assert_ne!(
-                    &[section * num_rows + row; K_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("k")
-                );
-                assert_ne!(
-                    &[section * num_rows + row; OPC_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("opc")
-                );
-                assert_ne!(1, res.get_unchecked::<i64, &str>("sqn_max"));
+                assert_ne!([section * num_rows + row; K_LENGTH], res.k);
+                assert_ne!([section * num_rows + row; OPC_LENGTH], res.opc);
+                assert_ne!(1, res.sqn);
 
                 // new values
-                assert_eq!(
-                    &[section * num_rows + row + 1; K_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("k")
-                );
-                assert_eq!(
-                    &[section * num_rows + row + 2; OPC_LENGTH],
-                    res.get_unchecked::<&[u8], &str>("opc")
-                );
-                assert_eq!(2, res.get_unchecked::<i64, &str>("sqn_max"));
+                assert_eq!([section * num_rows + row + 1; K_LENGTH], res.k);
+                assert_eq!([section * num_rows + row + 2; OPC_LENGTH], res.opc);
+                assert_eq!(2, res.sqn);
             }
         }
         transaction.commit().await.unwrap();

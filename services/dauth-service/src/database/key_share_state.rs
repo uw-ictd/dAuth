@@ -2,9 +2,11 @@ use auth_vector::types::Rand;
 use sqlx::sqlite::SqlitePool;
 use sqlx::{FromRow, Row, Sqlite, Transaction};
 
-use crate::data::error::DauthError;
 use auth_vector::types::{XResHash, XResStarHash};
 
+use crate::data::error::DauthError;
+
+#[allow(dead_code)]
 #[derive(Debug, FromRow, Clone)]
 struct ShareStateRow {
     user_id: String,
@@ -30,7 +32,10 @@ impl TryFrom<ShareStateRow> for ShareState {
 }
 
 /// Creates the key share state table if it does not exist already.
+#[tracing::instrument(skip(pool), name = "database::key_share_state")]
 pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
+    tracing::info!("Initialzing table");
+
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS key_share_state_table (
             xres_star_hash BLOB NOT NULL,
@@ -58,6 +63,7 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 
 /// Adds the key share as owned by the backup network.
 /// Use xres* hash and the backup network id as the reference.
+#[tracing::instrument(skip(transaction), name = "database::key_share_state")]
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &XResStarHash,
@@ -66,6 +72,8 @@ pub async fn add(
     user_id: &str,
     rand: &[u8],
 ) -> Result<(), DauthError> {
+    tracing::debug!("Adding key share state");
+
     sqlx::query(
         "INSERT INTO key_share_state_table
         VALUES ($1,$2,$3,$4,$5)",
@@ -82,11 +90,14 @@ pub async fn add(
 }
 
 /// Returns the user_id and rand for the key share.
+#[tracing::instrument(skip(transaction), name = "database::key_share_state")]
 pub async fn get_by_xres_star_hash(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &XResStarHash,
     backup_network_id: &str,
 ) -> Result<Option<ShareState>, DauthError> {
+    tracing::debug!("Getting key share state with xres* hash");
+
     let possible_row: Option<ShareStateRow> = sqlx::query_as(
         "SELECT * FROM key_share_state_table
         WHERE (xres_star_hash,backup_network_id)=($1,$2)",
@@ -103,11 +114,14 @@ pub async fn get_by_xres_star_hash(
 }
 
 /// Returns the user_id and rand for the key share.
+#[tracing::instrument(skip(transaction), name = "database::key_share_state")]
 pub async fn get_by_xres_hash(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_hash: &XResHash,
     backup_network_id: &str,
 ) -> Result<Option<ShareState>, DauthError> {
+    tracing::debug!("Getting key share state with xres hash");
+
     let possible_row: Option<ShareStateRow> = sqlx::query_as(
         "SELECT * FROM key_share_state_table
         WHERE (xres_hash,backup_network_id)=($1,$2)",
@@ -123,6 +137,8 @@ pub async fn get_by_xres_hash(
     }
 }
 
+#[allow(dead_code)]
+#[tracing::instrument(skip(transaction), name = "database::key_share_state")]
 pub async fn get_all(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
@@ -147,11 +163,14 @@ pub async fn get_all(
 }
 
 /// Deletes a key share reference if found.
+#[tracing::instrument(skip(transaction), name = "database::key_share_state")]
 pub async fn remove_by_xres_star_hash(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_star_hash: &[u8],
     backup_network_id: &str,
 ) -> Result<(), DauthError> {
+    tracing::debug!("Removing key share state with xres* hash");
+
     sqlx::query(
         "DELETE FROM key_share_state_table
         WHERE (xres_star_hash,backup_network_id)=($1,$2)",
@@ -164,11 +183,14 @@ pub async fn remove_by_xres_star_hash(
     Ok(())
 }
 
+#[tracing::instrument(skip(transaction), name = "database::key_share_state")]
 pub async fn remove_by_xres_hash(
     transaction: &mut Transaction<'_, Sqlite>,
     xres_hash: &XResHash,
     backup_network_id: &str,
 ) -> Result<(), DauthError> {
+    tracing::debug!("Removing key share state with xres hash");
+
     sqlx::query(
         "DELETE FROM key_share_state_table
         WHERE (xres_hash,backup_network_id)=($1,$2)",
