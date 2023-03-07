@@ -270,7 +270,12 @@ mod tests {
 
                 assert_eq!([section * num_rows + row; KSEAF_LENGTH], res);
 
-                kseafs::remove(&mut transaction, &res).await.unwrap();
+                kseafs::remove(
+                    &mut transaction,
+                    &[section * num_rows + row; XRES_STAR_LENGTH],
+                )
+                .await
+                .unwrap();
             }
         }
 

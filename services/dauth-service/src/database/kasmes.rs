@@ -279,9 +279,12 @@ mod tests {
 
                 assert_eq!([section * num_rows + row; KASME_LENGTH], res.as_array(),);
 
-                kasmes::remove(&mut transaction, &res.as_array())
-                    .await
-                    .unwrap();
+                kasmes::remove(
+                    &mut transaction,
+                    &[section * num_rows + row; XRES_STAR_LENGTH],
+                )
+                .await
+                .unwrap();
             }
         }
 
