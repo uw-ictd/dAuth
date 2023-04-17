@@ -12,7 +12,10 @@ use crate::rpc::dauth::remote::backup_network_server::BackupNetworkServer;
 use crate::rpc::dauth::remote::home_network_server::HomeNetworkServer;
 
 // TODO(matt9j) Probably should return a result in case server start fails
-#[tracing::instrument]
+#[tracing::instrument(
+    skip(context),
+    name = "server::start_servers"
+)]
 pub async fn start_servers(context: Arc<DauthContext>) {
     tracing::info!(
         "Hosting remote-facing RPC server on {}",
@@ -47,11 +50,11 @@ pub async fn start_servers(context: Arc<DauthContext>) {
     // complete. Select! cancells the other future, but this is okay since we
     // want to shutdown all endpoints if one of the endpoints fails.
     tokio::select! {
-        _ = external_server_join_handle => {
-            tracing::error!("Remote facing RPC server exited!")
+        Ok(error) = external_server_join_handle => {
+            tracing::error!(?error, "Remote (home and backup) RPC server exited")
         }
-        _ = local_server_join_handle => {
-            tracing::error!("Remote facing RPC server exited!")
+        Ok(error) = local_server_join_handle => {
+            tracing::error!(?error, "Local RPC server exited")
         }
     };
 }
