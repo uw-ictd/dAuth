@@ -1,0 +1,15 @@
+# The set of users to add
+users: { 
+   "imsi-901700000000002": {
+    "k": "465B5CE8B199B49FAA5F0A2EE238A6BC",
+    "opc": "E8ED289DEBA952E4283B54E88E6183CA",
+
+    # current sqn_max for the home network (slice 0)
+    "sqn_max": 32,
+
+    # Mapping of network id to slice,sqn_max tuple
+    "backups": {
+      "some-backup": [1, 33]
+    }
+  }
+}
