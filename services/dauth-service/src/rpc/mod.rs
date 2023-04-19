@@ -16,6 +16,9 @@ pub mod dauth {
     mod d_auth {
         tonic::include_proto!("d_auth");
     }
+    pub mod management {
+        tonic::include_proto!("dauth_management");
+    }
     pub mod local {
         tonic::include_proto!("dauth_local");
     }
