@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+
+package dauth_management;
+
+
+// Handles management interaction with dAuth.
+service Interaction {
+    // Adds the provided user to this network as an owned user.
+    // Existing users (by imsi/supi) will be overwritten.
+    rpc AddUser(AddUserReq) returns (CommandResp);
+
+    // Removes the provided user from this network if it exists.
+    rpc RemoveUser(RemoveUserReq) returns (CommandResp);
+}
+
+// Request to add a user to dAuth.
+message AddUserReq {
+    // Mapping from a sqn slice to current sqn slice max.
+    message Slice {
+        int64 slice = 1;
+        int64 max = 2;
+    }
+
+    // Mapping from id of assigned backup network to sqn slice.
+    message Backup {
+        string backup_id = 1;
+        int64 slice = 2;
+    }
+
+    // user info
+    string user_id = 1;
+    string k = 2;
+    string opc = 3;
+    
+    // backup and slice info
+    repeated Slice slices = 4;
+    repeated Backup backups = 5;
+}
+
+// Request to remove user from dAuth.
+message RemoveUserReq {
+    // Id of user to remove
+    string user_id = 1;
+}
+
+// Response for a given command.
+message CommandResp {
+    // Whether the request was successful or not
+    bool successful = 1;
+
+    // Any info for why command was/wasn't successful.
+    string info = 2;
+}
