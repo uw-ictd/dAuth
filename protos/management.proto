@@ -6,7 +6,7 @@ package dauth_management;
 
 
 // Handles management interaction with dAuth.
-service Interaction {
+service Management {
     // Adds the provided user to this network as an owned user.
     // Existing users (by imsi/supi) will be overwritten.
     rpc AddUser(AddUserReq) returns (CommandResp);
@@ -17,25 +17,20 @@ service Interaction {
 
 // Request to add a user to dAuth.
 message AddUserReq {
-    // Mapping from a sqn slice to current sqn slice max.
-    message Slice {
-        int64 slice = 1;
-        int64 max = 2;
-    }
-
     // Mapping from id of assigned backup network to sqn slice.
     message Backup {
         string backup_id = 1;
         int64 slice = 2;
+        int64 sqn_max = 3;
     }
 
     // user info
     string user_id = 1;
     string k = 2;
     string opc = 3;
+    int64 sqn_max = 4;
     
     // backup and slice info
-    repeated Slice slices = 4;
     repeated Backup backups = 5;
 }
 
