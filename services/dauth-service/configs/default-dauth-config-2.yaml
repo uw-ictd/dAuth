@@ -1,0 +1,37 @@
+# The id of this network
+id: "some-backup"
+
+# Address this network will host on for remote facing RPCs
+host_addr: "0.0.0.0:50054"
+
+# Address this network will host on for local facing RPCs
+local_auth_addr: "127.0.0.1:50053"
+
+# Address of the directory service
+directory_addr: "127.0.0.1:8900"
+
+# Keyfile for ed25519 keys used in signing remote messages
+ed25519_keyfile_path: "./out/dauth_service/backup/ed25519_keys"
+
+# Path to create/find the database
+database_path: "./out/dauth_service/backup/network_state_db.sqlite3"
+
+# Delay in seconds before tasks thread begins executing
+task_startup_delay: 1.0
+
+# Interval in seconds between checking for new tasks
+task_interval: 1.0
+
+# The number of vector slices possible (also determines max backup networks)
+# Slice 0 is always reserved for the home network
+num_sqn_slices: 32
+
+# Max number of auth vectors a backup network should have at one time
+max_backup_vectors: 10
+
+# Network PLMN configuration
+mcc: "901"
+mnc: "70"
+
+# The set of users for this network (for testing)
+users: { }

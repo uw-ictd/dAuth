@@ -41,10 +41,13 @@ users: {
 
     # Mapping of sqn slice to max sqn for that slice
     "sqn_slice_max": {
-      0: 32
+      0: 32,
+      1: 33,
     },
 
     # Mapping of network id to sqn slice
-    "backup_network_ids": { }
+    "backup_network_ids": { 
+      "some-backup" : 1,
+    }
   }
 }
