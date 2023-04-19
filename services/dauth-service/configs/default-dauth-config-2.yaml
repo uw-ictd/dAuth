@@ -1,11 +1,11 @@
 # The id of this network
-id: "some-backup"
+id: "some-backup-id"
 
 # Address this network will host on for remote facing RPCs
-host_addr: "0.0.0.0:50054"
+host_addr: "127.0.0.2:50052"
 
 # Address this network will host on for local facing RPCs
-local_auth_addr: "127.0.0.1:50053"
+local_auth_addr: "127.0.0.2:50051"
 
 # Address of the directory service
 directory_addr: "127.0.0.1:8900"

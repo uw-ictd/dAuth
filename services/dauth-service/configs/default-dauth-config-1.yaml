@@ -2,7 +2,7 @@
 id: "default-network-id"
 
 # Address this network will host on for remote facing RPCs
-host_addr: "0.0.0.0:50052"
+host_addr: "127.0.0.1:50052"
 
 # Address this network will host on for local facing RPCs
 local_auth_addr: "127.0.0.1:50051"
@@ -47,7 +47,7 @@ users: {
 
     # Mapping of network id to sqn slice
     "backup_network_ids": { 
-      "some-backup" : 1,
+      "some-backup-id" : 1,
     }
   }
 }

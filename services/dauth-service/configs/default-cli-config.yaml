@@ -9,7 +9,7 @@ users: {
 
     # Mapping of network id to slice,sqn_max tuple
     "backups": {
-      "some-backup": [1, 33]
+      "some-backup-id": [1, 33]
     }
   }
 }
