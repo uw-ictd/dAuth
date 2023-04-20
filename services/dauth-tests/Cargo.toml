@@ -1,0 +1,9 @@
+[package]
+name = "dauth-tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dev-dependencies]
+dauth-service = { path = "../dauth-service" }
+directory-service = { path = "../directory-service" }
