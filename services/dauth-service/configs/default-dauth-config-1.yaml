@@ -33,21 +33,24 @@ max_backup_vectors: 10
 mcc: "901"
 mnc: "70"
 
-# The set of users for this network (for testing)
-users: { 
-   "imsi-901700000000001": {
+# The list of users to add
+users: [
+  {
+    # User info
+    "user_id": "imsi-901700000000001",
     "k": "465B5CE8B199B49FAA5F0A2EE238A6BC",
     "opc": "E8ED289DEBA952E4283B54E88E6183CA",
 
-    # Mapping of sqn slice to max sqn for that slice
-    "sqn_slice_max": {
-      0: 32,
-      1: 33,
-    },
+    # current sqn_max for the home network (slice 0)
+    "sqn_max": 32,
 
-    # Mapping of network id to sqn slice
-    "backup_network_ids": { 
-      "some-backup-id" : 1,
-    }
+    # Mapping of network id to slice,sqn_max tuple
+    "backups": [
+      {
+        "backup_id": "some-backup-id",
+        "sqn_slice": 1,
+        "sqn_max": 33,
+      }
+    ]
   }
-}
+]

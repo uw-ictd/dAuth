@@ -34,4 +34,4 @@ mcc: "901"
 mnc: "70"
 
 # The set of users for this network (for testing)
-users: { }
+users: [ ]
