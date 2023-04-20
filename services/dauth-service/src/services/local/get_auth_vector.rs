@@ -167,7 +167,7 @@ async fn attempt_backup_network_request(
         ));
     }
 
-    while let Some(response_result) = request_set.join_one().await {
+    while let Some(response_result) = request_set.join_next().await {
         match response_result {
             Ok(response) => match response {
                 Ok(auth_vector_result) => {

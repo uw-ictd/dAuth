@@ -117,7 +117,7 @@ async fn confirm_authentication_5g(
                 ));
             }
 
-            while let Some(response_result) = request_set.join_one().await {
+            while let Some(response_result) = request_set.join_next().await {
                 match response_result {
                     Ok(key_share) => match key_share {
                         Ok(share) => {
@@ -192,7 +192,7 @@ async fn confirm_authentication_eps(
                 ));
             }
 
-            while let Some(response_result) = request_set.join_one().await {
+            while let Some(response_result) = request_set.join_next().await {
                 match response_result {
                     Ok(key_share) => match key_share {
                         Ok(share) => {
