@@ -4,5 +4,4 @@ members= [
     "dauth-service",
     "directory-service",
     "auth-vector",
-    "auth-testing",
 ]
