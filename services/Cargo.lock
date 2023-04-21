@@ -348,6 +348,9 @@ version = "0.1.0"
 dependencies = [
  "dauth-service",
  "directory-service",
+ "rand 0.7.3",
+ "tempfile",
+ "test-log",
 ]
 
 [[package]]
