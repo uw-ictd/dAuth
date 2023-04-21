@@ -4,8 +4,13 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use tempfile::{tempdir, TempDir};
 
-use dauth_service::data::config::{DauthConfig, UserInfoConfig};
+use dauth_service::data::config::DauthConfig;
 use dauth_service::data::context::DauthContext;
+
+/// Known functional K.
+pub const TEST_K: &str = "465B5CE8B199B49FAA5F0A2EE238A6BC";
+/// Known functional OPC.
+pub const TEST_OPC: &str = "E8ED289DEBA952E4283B54E88E6183CA";
 
 /// Test context that wraps a standard dAuth context.
 /// Includes test-specific fields as well.
@@ -17,7 +22,7 @@ pub struct TestContext {
 }
 
 impl TestContext {
-    pub async fn build_test_context(id: String, users: Vec<UserInfoConfig>, addr: String) -> Self {
+    pub async fn build_test_context(id: String, addr: String) -> Self {
         let rand_dir: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
         let temp_dir = tempdir().unwrap();
         let ed25519_keyfile_path = String::from(
@@ -39,14 +44,14 @@ impl TestContext {
 
         let config = DauthConfig {
             id,
-            users,
+            users: Vec::new(),
             host_addr: format!("{}:50052", addr),
             local_auth_addr: Some(format!("{}:50051", addr)),
             directory_addr: "127.0.0.1:8900".to_string(),
             ed25519_keyfile_path,
             database_path,
-            task_startup_delay: 1.0,
-            task_interval: 1.0,
+            task_startup_delay: 0.1,
+            task_interval: 0.1,
             num_sqn_slices: 32,
             max_backup_vectors: 10,
             mcc: "901".to_string(),

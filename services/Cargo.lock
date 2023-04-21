@@ -351,6 +351,7 @@ dependencies = [
  "rand 0.7.3",
  "tempfile",
  "test-log",
+ "tokio",
 ]
 
 [[package]]
