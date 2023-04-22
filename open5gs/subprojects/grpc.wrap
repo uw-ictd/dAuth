@@ -1,5 +1,0 @@
-[wrap-git]
-directory = grpc
-url = https://github.com/grpc/grpc
-revision = v1.39.1
-clone-recursive = true
