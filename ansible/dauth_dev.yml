@@ -99,9 +99,9 @@
     - name: Install newer meson from pip
       become: yes
       pip:
-        name: meson
+        name: "meson==1.1.0"
         executable: pip3
-        state: latest
+        state: present
 
     - name: Install poetry from pip
       become: yes
@@ -152,8 +152,10 @@
     - name: Install cmake
       become: yes
       apt:
-        name: cmake
-        state: latest
+        name:
+          - "cmake=3.26.3-0kitware1ubuntu20.04.1"
+          - "cmake-data=3.26.3-0kitware1ubuntu20.04.1"
+        state: present
 
     - name: Install nfpm
       become: yes
