@@ -99,6 +99,11 @@ def deploy_package(package_path, host):
     )
 
 
+def setup_open5gs_meson_directory():
+    """Run the meson build configure step, which will fetch external dependencies"""
+    subprocess.run("meson setup ./build", shell=True, check=True, cwd="../open5gs")
+
+
 def build_open5gs_packages(fast_build=False):
     """Builds our open5gs deb packages from source via dpkg-buildpkg"""
     command = [
@@ -368,6 +373,8 @@ if __name__ == "__main__":
 
     if args.build_open5gs:
         log.info("Building open5gs")
+        log.info("Configuring the meson build")
+        setup_open5gs_meson_directory()
         log.warning("Building and packaging open5gs may take a while : /")
         build_open5gs_packages(fast_build=open5gs_fast_unclean_build)
 
