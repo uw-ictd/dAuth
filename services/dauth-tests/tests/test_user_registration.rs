@@ -1,35 +1,34 @@
 use std::time::Duration;
 
-use dauth_service::data::config::UserInfoConfig;
+use dauth_tests::{TestDauthContext, TestDirectoryContext};
+
+const NUM_USERS: usize = 10;
 
 #[tokio::test]
 async fn test_simple_user_registration() {
-    let user_id = "test-user".to_string();
-    let test_context = dauth_tests::TestContext::build_test_context(
-        "test-network-id".to_string(),
-        "127.0.0.1".to_string(),
-    )
-    .await;
+    let test_context =
+        TestDauthContext::new("test-network-id".to_string(), "127.0.0.1".to_string()).await;
+    
+    let dir_context = TestDirectoryContext::new().await;
 
-    let context = test_context.context.clone();
-    tokio::spawn(async move { dauth_tests::run_test_env(context) });
-    tokio::time::sleep(Duration::from_secs_f32(0.1)).await;
+    let user_ids = test_context.add_users(NUM_USERS).await;
+    tokio::time::sleep(Duration::from_secs_f32(0.5)).await;
 
-    let context = test_context.context.clone();
-
-    dauth_service::management::add_user(
-        context.clone(),
-        &UserInfoConfig {
-            user_id: user_id.clone(),
-            k: dauth_tests::TEST_K.to_string(),
-            opc: dauth_tests::TEST_OPC.to_string(),
-            sqn_max: 32,
-            backups: Vec::new(),
-        },
-    )
-    .await
-    .unwrap();
-
-    let mut transaction = context.local_context.database_pool.begin().await.unwrap();
-    assert_eq!(dauth_service::database::user_infos::get(&mut transaction, &user_id, 0).await.unwrap().id, user_id);
+    test_context.check_users_exists(&user_ids).await;
+    dir_context.check_users_exists(&user_ids).await;
 }
+
+#[tokio::test]
+#[should_panic]
+async fn test_failed_user_registration() {
+    let test_context =
+        TestDauthContext::new("test-network-id".to_string(), "127.0.0.1".to_string()).await;
+    
+    let _dir_context = TestDirectoryContext::new().await;
+
+    let user_ids = vec!["unregistered-user".to_string()];
+    tokio::time::sleep(Duration::from_secs_f32(0.5)).await;
+
+    test_context.check_users_exists(&user_ids).await;  // Should fail
+}
+
