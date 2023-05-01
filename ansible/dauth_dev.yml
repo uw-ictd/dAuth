@@ -196,7 +196,7 @@
       git:
         repo: "https://github.com/grpc/grpc"
         clone: true
-        single_branch: true
+        # single_branch: true
         depth: 1
         dest: "/home/vagrant/grpc"
         recursive: true
