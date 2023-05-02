@@ -416,7 +416,7 @@ if __name__ == "__main__":
                 Connection(host).sudo("/home/vagrant/scripts/open5gs-ip-config.py")
 
 
-    if args.build_ueransim:
+    if args.deploy_ueransim:
         log.info("Deploying ueransim")
         if len(args.dest_host) == 0:
             log.error("Specified deploy but no deploy destinations provided")
