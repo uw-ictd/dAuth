@@ -25,7 +25,7 @@ Vagrant.configure(2) do |config|
     ueransim.vm.box = "ubuntu/focal64"
     ueransim.vm.hostname = "ueransim"
 
-    machine_ip = "192.168.60.200"
+    machine_ip = "192.168.56.200"
     ueransim.vm.network "private_network", ip: machine_ip
 
     ueransim.vm.provider "virtualbox" do |vb|
