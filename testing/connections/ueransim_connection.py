@@ -5,7 +5,7 @@ from paramiko.client import SSHClient
 
 from connections.connection import Connection
 from logger import TestingLogger
-from tests.config import UEConfig
+from .config import UEConfig
 
 
 class UeransimConnection(Connection):

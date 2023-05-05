@@ -1,4 +1,5 @@
 *.vagrant
+out
 output
 *.retry
 *.log

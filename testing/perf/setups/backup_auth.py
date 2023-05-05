@@ -78,7 +78,7 @@ class BackupAuthSetup(NetworkSetup):
             raise PerfException("Too many users to represent")
         else:
             for i in range(num_users):
-                imsi = "imsi-91054{}".format(str(i + 1).zfill(10))
+                imsi = "imsi-90170{}".format(str(i + 1).zfill(10))
                 service_config.add_user(imsi, sqn_slice_max, backup_network_ids)
 
         main_service.change_config(service_config)

@@ -30,7 +30,7 @@ class UeransimUe(object):
         # ToDo Make sure the imsi and keys make sense when generating many ues
         self.process_handle = subprocess.Popen(
             [
-                "/home/ictd/ueransim/nr-ue",
+                "./ueransim/nr-ue",
                 "-c",
                 config,
                 "--no-routing-config",
@@ -191,7 +191,7 @@ def main() -> None:
     ues = []
     for i in range(num_ues):
         config = ue_configs[i % len(ue_configs)]
-        imsi = "imsi-91054{}".format(str(i + 1).zfill(10))
+        imsi = "imsi-90170{}".format(str(i + 1).zfill(10))
         print("Adding", imsi)
         ues.append(UeransimUe(imsi, config))
         time.sleep(spawn_delay)
