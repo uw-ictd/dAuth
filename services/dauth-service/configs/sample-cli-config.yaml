@@ -1,3 +1,5 @@
+host_addr: "colte1.local:50051"
+
 # The set of users to add
 users: { 
    "imsi-901700000000003": {

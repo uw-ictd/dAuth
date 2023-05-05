@@ -33,6 +33,7 @@ pub struct UserInfoConfig {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CliConfig {
     pub users: HashMap<String, UserInfoConfig>,
+    pub host_addr: String,
 }
 
 #[tokio::main]
@@ -46,7 +47,7 @@ async fn main() {
 
     let config = build_config(CliOpt::from_args().config_path);
 
-    let mut client = ManagementClient::connect(format!("http://localhost:50051"))
+    let mut client = ManagementClient::connect(format!("http://{}", config.host_addr))
         .await
         .expect("Unable to connect to dauth server");
 
