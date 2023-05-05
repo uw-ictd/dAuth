@@ -44,7 +44,7 @@ pub async fn run_task(context: Arc<DauthContext>) -> Result<(), DauthError> {
             tasks.spawn(report_to_network(context.clone(), network, reports));
         }
 
-        while let Some(join_result) = tasks.join_one().await {
+        while let Some(join_result) = tasks.join_next().await {
             match join_result {
                 Ok(task_res) => match task_res {
                     Ok(_) => {
