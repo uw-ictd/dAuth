@@ -23,6 +23,7 @@ use crate::database;
 
 pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
     let config = build_config(dauth_opt.config_path)?;
+    tracing::info!(?config, "Config loaded");
 
     let keys = generate_keys(&config.ed25519_keyfile_path);
     let pool = database::general::database_init(&config.database_path).await?;
