@@ -1,5 +1,5 @@
 
-NAME="sample_backup_perf_test"
+NAME="sample_home_perf_test"
 CONFIG="./testing/perf/sample_configs/vagrant.yaml"
 
 mkdir -p ./out
