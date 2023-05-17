@@ -99,9 +99,9 @@
     - name: Install newer meson from pip
       become: yes
       pip:
-        name: meson
+        name: "meson==1.1.0"
         executable: pip3
-        state: latest
+        state: present
 
     - name: Install poetry from pip
       become: yes
@@ -152,8 +152,10 @@
     - name: Install cmake
       become: yes
       apt:
-        name: cmake
-        state: latest
+        name:
+          - "cmake=3.26.3-0kitware1ubuntu20.04.1"
+          - "cmake-data=3.26.3-0kitware1ubuntu20.04.1"
+        state: present
 
     - name: Install nfpm
       become: yes
@@ -189,6 +191,55 @@
     - name: Install or update rust stable
       shell:
         cmd: "/home/vagrant/.cargo/bin/rustup update stable"
+
+    - name: Fetch grpc source repo
+      git:
+        repo: "https://github.com/grpc/grpc"
+        clone: true
+        # single_branch: true
+        depth: 1
+        dest: "/home/vagrant/grpc"
+        recursive: true
+        version: "v1.39.1"
+      register: grpc_src
+
+    - name: Build abseil source
+      shell:
+        cmd: |
+          mkdir -p /home/vagrant/grpc/third_party/abseil-cpp/cmake/build
+          pushd /home/vagrant/grpc/third_party/abseil-cpp/cmake/build
+          cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE ../..
+          make -j $(nproc --all)
+          popd
+        executable: /bin/bash
+
+    - name: Install abseil from source
+      become: yes
+      shell:
+        cmd: "make install"
+        executable: /bin/bash
+        chdir: "/home/vagrant/grpc/third_party/abseil-cpp/cmake/build"
+
+    - name: Build grpc source
+      shell:
+        cmd: |
+          mkdir -p /home/vagrant/grpc/cmake/build
+          pushd /home/vagrant/grpc/cmake/build
+          cmake -DCMAKE_BUILD_TYPE=Release \
+            -DgRPC_INSTALL=ON \
+            -DgRPC_BUILD_TESTS=OFF \
+            ../..
+          make -j $(nproc --all)
+          popd
+        executable: /bin/bash
+
+    - name: Install grpc from source
+      become: yes
+      shell:
+        cmd: "make install"
+        executable: /bin/bash
+        chdir: "/home/vagrant/grpc/cmake/build"
+
 
     # - name: Configure forwarding and rounting (script)
     #   command: /home/vagrant/scripts/configure-fwd

@@ -71,7 +71,7 @@ contents:
     dst: "/lib/systemd/system/dauth-directory.service"
 
   # Config files
-  - src: ./directory-service/default-config.yaml
+  - src: ./directory-service/configs/default-directory-config.yaml
     dst: /etc/dauth/directory.yaml
     type: config
 

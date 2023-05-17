@@ -71,7 +71,7 @@ contents:
     dst: "/lib/systemd/system/dauth.service"
 
   # Config files
-  - src: ./dauth-service/default-config.yaml
+  - src: ./dauth-service/configs/default-dauth-config.yaml
     dst: /etc/dauth/dauth.yaml
     type: config
 
