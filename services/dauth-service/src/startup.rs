@@ -10,21 +10,36 @@ use ed25519_dalek::Keypair;
 use rand::rngs::OsRng;
 use serde_yaml;
 
-use crate::data::{
-    config::DauthConfig,
-    context::{
-        BackupContext, DauthContext, LocalContext, MetricsContext, RpcContext, TasksContext,
-    },
-    error::DauthError,
-    keys,
-    opt::DauthOpt,
-};
 use crate::database;
+use crate::{
+    data::{
+        config::DauthConfig,
+        context::{
+            BackupContext, DauthContext, LocalContext, MetricsContext, RpcContext, TasksContext,
+        },
+        error::DauthError,
+        keys,
+    },
+    management,
+};
 
-pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, DauthError> {
-    let config = build_config(dauth_opt.config_path)?;
-    tracing::info!(?config, "Config loaded");
+pub fn build_config_from_file(yaml_path: PathBuf) -> Result<DauthConfig, DauthError> {
+    match std::fs::read_to_string(yaml_path) {
+        Ok(yaml_string) => match serde_yaml::from_str(&yaml_string) {
+            Ok(config) => Ok(config),
+            Err(e) => Err(DauthError::ConfigError(format!(
+                "Config contents invalid: {}",
+                e
+            ))),
+        },
+        Err(e) => Err(DauthError::ConfigError(format!(
+            "Failed to open config file: {}",
+            e
+        ))),
+    }
+}
 
+pub async fn build_context(config: DauthConfig) -> Result<Arc<DauthContext>, DauthError> {
     let keys = generate_keys(&config.ed25519_keyfile_path);
     let pool = database::general::database_init(&config.database_path).await?;
 
@@ -74,73 +89,9 @@ pub async fn build_context(dauth_opt: DauthOpt) -> Result<Arc<DauthContext>, Dau
         },
     });
 
-    for (user_id, user_info_config) in config.users {
-        tracing::info!(
-            "inserting user info: {:?} - {:?}",
-            user_id,
-            user_info_config
-        );
-
-        let mut transaction = context.local_context.database_pool.begin().await?;
-        database::user_infos::upsert(
-            &mut transaction,
-            &user_id,
-            &user_info_config.get_k()?,
-            &user_info_config.get_opc()?,
-            *user_info_config
-                .sqn_slice_max
-                .get(&0)
-                .ok_or(DauthError::ConfigError("No home network slice".to_string()))?,
-            0, // home network
-        )
-        .await?;
-
-        if user_info_config.backup_network_ids.len() as i64 - 1
-            > context.local_context.num_sqn_slices
-        {
-            return Err(DauthError::ConfigError(format!(
-                "Not enough slices for all backup networks: {}",
-                user_id
-            )));
-        }
-
-        // add home network as a special case
-        // otherwise, if there are no backups, the directory is never notified
-        database::tasks::update_users::add(
-            &mut transaction,
-            &user_id,
-            0,
-            &context.local_context.id,
-        )
-        .await?;
-
-        for (backup_network_id, sqn_slice) in &user_info_config.backup_network_ids {
-            database::user_infos::upsert(
-                &mut transaction,
-                &user_id,
-                &user_info_config.get_k()?,
-                &user_info_config.get_opc()?,
-                *user_info_config
-                    .sqn_slice_max
-                    .get(sqn_slice)
-                    .ok_or(DauthError::ConfigError(format!(
-                        "Missing key slice for {}",
-                        sqn_slice
-                    )))?,
-                *sqn_slice,
-            )
-            .await?;
-
-            database::tasks::update_users::add(
-                &mut transaction,
-                &user_id,
-                *sqn_slice,
-                &backup_network_id,
-            )
-            .await?;
-        }
-
-        transaction.commit().await?;
+    for user_info in config.users {
+        tracing::info!(?user_info, "Adding new user");
+        management::add_user(context.clone(), &user_info).await?;
     }
 
     Ok(context)
@@ -172,20 +123,4 @@ fn build_keyfile(keyfile_path: &String) -> Keypair {
     std::fs::create_dir_all(prefix).unwrap();
     fs::write(path, keypair.to_bytes()).unwrap();
     keypair
-}
-
-fn build_config(yaml_path: PathBuf) -> Result<DauthConfig, DauthError> {
-    match std::fs::read_to_string(yaml_path) {
-        Ok(yaml_string) => match serde_yaml::from_str(&yaml_string) {
-            Ok(config) => Ok(config),
-            Err(e) => Err(DauthError::ConfigError(format!(
-                "Config contents invalid: {}",
-                e
-            ))),
-        },
-        Err(e) => Err(DauthError::ConfigError(format!(
-            "Failed to open config file: {}",
-            e
-        ))),
-    }
 }

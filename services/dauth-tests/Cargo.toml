@@ -1,0 +1,13 @@
+[package]
+name = "dauth-tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+tokio = { version = "^1.20.4", features = ["macros", "rt-multi-thread"]}
+rand = "0.7"
+tempfile = "3.3"
+test-log = { version = "0.2.10", features = ["trace"], default-features = false }
+dauth-service = { path = "../dauth-service" }
+directory-service = { path = "../directory-service" }

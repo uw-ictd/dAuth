@@ -1,6 +1,7 @@
 mod common;
 mod data;
 mod database;
+mod management;
 mod rpc;
 mod services;
 mod startup;
@@ -20,8 +21,9 @@ async fn main() {
 
     tracing_subscriber::fmt().with_env_filter(log_filter).init();
 
-    let dauth_opt = DauthOpt::from_args();
-    let context = startup::build_context(dauth_opt)
+    let config = startup::build_config_from_file(DauthOpt::from_args().config_path)
+        .expect("Failed to read configuration file");
+    let context = startup::build_context(config)
         .await
         .expect("Failed to generate context");
 

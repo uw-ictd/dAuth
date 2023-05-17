@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -6,6 +5,7 @@ use serde_yaml;
 use structopt::StructOpt;
 use tracing_subscriber::{filter, EnvFilter};
 
+use dauth_service::data::config::UserInfoConfig;
 use dauth_service::rpc::dauth::management::management_client::ManagementClient;
 use dauth_service::rpc::dauth::management::{add_user_req::Backup, AddUserReq};
 
@@ -20,19 +20,10 @@ struct CliOpt {
     pub config_path: PathBuf,
 }
 
-/// All info needed to configure a user.
-#[derive(Serialize, Deserialize, Debug)]
-pub struct UserInfoConfig {
-    pub k: String,
-    pub opc: String,
-    pub sqn_max: i64,
-    pub backups: HashMap<String, (i64, i64)>,
-}
-
 /// Holds user data from a corresponding YAML file
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CliConfig {
-    pub users: HashMap<String, UserInfoConfig>,
+    pub users: Vec<UserInfoConfig>,
     pub host_addr: String,
 }
 
@@ -51,22 +42,22 @@ async fn main() {
         .await
         .expect("Unable to connect to dauth server");
 
-    for (user_id, user_info) in config.users {
-        tracing::info!(?user_id, ?user_info, "Adding user");
+    for user_info in config.users {
+        tracing::info!(?user_info, "Adding user");
 
         let mut backups = Vec::new();
 
-        for (backup_id, (slice, sqn_max)) in user_info.backups {
+        for backup in user_info.backups {
             backups.push(Backup {
-                backup_id,
-                slice,
-                sqn_max,
+                backup_id: backup.backup_id,
+                slice: backup.sqn_slice,
+                sqn_max: backup.sqn_slice,
             });
         }
 
         let res = client
             .add_user(tonic::Request::new(AddUserReq {
-                user_id,
+                user_id: user_info.user_id,
                 k: user_info.k,
                 opc: user_info.opc,
                 sqn_max: user_info.sqn_max,
