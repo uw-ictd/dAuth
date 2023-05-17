@@ -9,9 +9,10 @@ use directory_service::data::config::DirectoryConfig;
 use directory_service::data::context::DirectoryContext;
 use tokio::task::JoinHandle;
 
-/// Test context that wraps a standard dAuth context.
-/// Includes test-specific fields as well.
-pub struct TestDirectoryContext {
+/// Test directory object that wraps a directory instance/context and any
+/// needed testing fields. Exposes functions that allow checking and
+/// manipulation of the underlying instance of the directory.
+pub struct TestDirectory {
     // Actual directory context
     pub context: Arc<DirectoryContext>,
     // Join handle to stop running
@@ -20,7 +21,9 @@ pub struct TestDirectoryContext {
     _temp_dir: TempDir,
 }
 
-impl TestDirectoryContext {
+impl TestDirectory {
+    /// Builds a new test object with the provided host,
+    /// but otherwise uses a default configuration.
     pub async fn new(host: &str) -> Result<Self, DirectoryError> {
         let rand_dir: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
         let temp_dir = tempdir().or_else(|e| {
@@ -59,7 +62,7 @@ impl TestDirectoryContext {
         })
     }
 
-    /// Checks if all users in provided list exist, panics if not.
+    /// Checks if all users in provided list exist, returns error if not.
     pub async fn check_users_exists(&self, user_ids: &Vec<String>) -> Result<(), DirectoryError> {
         let mut transaction = self.context.database_pool.begin().await?;
         for user_id in user_ids {

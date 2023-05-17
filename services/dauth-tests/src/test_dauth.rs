@@ -14,10 +14,11 @@ pub const TEST_K: &str = "465B5CE8B199B49FAA5F0A2EE238A6BC";
 /// Known functional OPC.
 pub const TEST_OPC: &str = "E8ED289DEBA952E4283B54E88E6183CA";
 
-/// Test context that wraps a standard dAuth context.
-/// Includes test-specific fields as well.
-pub struct TestDauthContext {
-    // Actual dauth context
+/// Test dauth object that wraps a dauth instance/context and any
+/// needed testing fields. Exposes functions that allow checking and
+/// manipulation of the underlying instance of dAuth.
+pub struct TestDauth {
+    // Internal dauth context
     pub context: Arc<DauthContext>,
     // Join handle to stop running
     _join_handle: JoinHandle<()>,
@@ -25,8 +26,8 @@ pub struct TestDauthContext {
     _temp_dir: TempDir,
 }
 
-impl TestDauthContext {
-    /// Builds a new test context with the provided id and host,
+impl TestDauth {
+    /// Builds a new test object with the provided id and host,
     /// but otherwise uses a default configuration.
     pub async fn new(id: &str, host: &str) -> Result<Self, DauthError> {
         let rand_dir: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
@@ -88,11 +89,10 @@ impl TestDauthContext {
         })
     }
 
-    /// Adds num_user users, panics on any failure.
-    pub async fn add_users(&self, num_users: usize) -> Result<Vec<String>, DauthError> {
+    /// Adds the provided, panics on any failure.
+    pub async fn add_users(&self, user_ids: &Vec<String>) -> Result<(), DauthError> {
         let mut users = Vec::new();
-        for user_id in 0..num_users {
-            let user_id = format!("user-{}-{}", self.context.local_context.id, user_id);
+        for user_id in user_ids {
             dauth_service::management::add_user(
                 self.context.clone(),
                 &UserInfoConfig {
@@ -108,7 +108,7 @@ impl TestDauthContext {
             users.push(user_id);
         }
 
-        Ok(users)
+        Ok(())
     }
 
     /// Checks if all users in provided list exist, panics if not.
