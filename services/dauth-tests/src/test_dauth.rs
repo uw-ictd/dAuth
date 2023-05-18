@@ -24,7 +24,7 @@ pub struct TestDauth {
 impl TestDauth {
     /// Builds a new test object with the provided id and host,
     /// but otherwise uses a default configuration.
-    pub async fn new(id: &str, host: &str) -> Result<Self, DauthError> {
+    pub async fn new(id: &str, host: &str, dir_host: &str) -> Result<Self, DauthError> {
         let rand_dir: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
         let temp_dir = tempdir()?;
         let ed25519_keyfile_path = String::from(
@@ -53,7 +53,7 @@ impl TestDauth {
             users: Vec::new(),
             host_addr: format!("{}:50052", host),
             local_auth_addr: Some(format!("{}:50051", host)),
-            directory_addr: "127.0.0.1:8900".to_string(),
+            directory_addr: format!("{}:8900", dir_host),
             ed25519_keyfile_path,
             database_path,
             task_startup_delay: 0.1,
@@ -94,15 +94,26 @@ impl TestDauth {
     }
 
     /// Checks if all users in provided list exist, panics if not.
-    pub async fn check_users_exists(&self, user_ids: &Vec<String>) -> Result<(), DauthError> {
+    pub async fn check_users_exists(&self, user_ids: &Vec<String>, sqn_slice: i64) -> Result<(), DauthError> {
         let mut transaction = self.context.local_context.database_pool.begin().await?;
         for user_id in user_ids {
             assert_eq!(
-                &dauth_service::database::user_infos::get(&mut transaction, &user_id, 0)
+                &dauth_service::database::user_infos::get(&mut transaction, &user_id, sqn_slice)
                     .await?
                     .id,
                 user_id
             );
+        }
+        transaction.commit().await?;
+        Ok(())
+    }
+
+
+    /// Checks if all users in provided list exist, panics if not.
+    pub async fn check_backup_user_exists(&self, user_ids: &Vec<String>) -> Result<(), DauthError> {
+        let mut transaction = self.context.local_context.database_pool.begin().await?;
+        for user_id in user_ids {
+            dauth_service::database::backup_users::get(&mut transaction, &user_id).await?;
         }
         transaction.commit().await?;
         Ok(())
