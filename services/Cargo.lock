@@ -346,12 +346,15 @@ dependencies = [
 name = "dauth-tests"
 version = "0.1.0"
 dependencies = [
+ "auth-vector",
  "dauth-service",
  "directory-service",
+ "prost",
  "rand 0.7.3",
  "tempfile",
  "test-log",
  "tokio",
+ "tonic",
 ]
 
 [[package]]

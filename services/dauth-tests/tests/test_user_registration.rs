@@ -1,6 +1,7 @@
 use std::time::Duration;
 
-use dauth_tests::{TestDauth, TestDirectory};
+use dauth_service::data::config::UserInfoConfig;
+use dauth_tests::{TestDauth, TestDirectory, TEST_K, TEST_OPC};
 
 const NUM_USERS: usize = 10;
 
@@ -11,12 +12,21 @@ async fn test_simple_user_registration() {
 
     let dir_context = TestDirectory::new("127.0.0.1").await.unwrap();
 
+    let mut user_infos = Vec::new();
     let mut user_ids = Vec::new();
     for num in 0..NUM_USERS {
-        user_ids.push(format!("user-{}-{}", id, num))
+        let user_id = format!("user-{}-{}", id, num);
+        user_ids.push(user_id.to_owned());
+        user_infos.push(UserInfoConfig {
+            user_id,
+            k: TEST_K.to_string(),
+            opc: TEST_OPC.to_string(),
+            sqn_max: 32,
+            backups: Vec::new(),
+        });
     }
 
-    test_context.add_users(&user_ids).await.unwrap();
+    test_context.add_users(&user_infos).await.unwrap();
     tokio::time::sleep(Duration::from_secs_f32(0.5)).await;
 
     test_context.check_users_exists(&user_ids).await.unwrap();

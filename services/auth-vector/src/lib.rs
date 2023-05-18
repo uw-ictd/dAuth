@@ -22,7 +22,7 @@ pub fn generate_vector(
 }
 
 /// Generate auth vector data with a provided rand
-fn generate_vector_with_rand(
+pub fn generate_vector_with_rand(
     mcc: &str,
     mnc: &str,
     k: &types::K,

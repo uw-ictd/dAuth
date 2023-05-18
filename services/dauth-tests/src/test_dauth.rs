@@ -9,11 +9,6 @@ use dauth_service::data::config::{DauthConfig, UserInfoConfig};
 use dauth_service::data::context::DauthContext;
 use tokio::task::JoinHandle;
 
-/// Known functional K.
-pub const TEST_K: &str = "465B5CE8B199B49FAA5F0A2EE238A6BC";
-/// Known functional OPC.
-pub const TEST_OPC: &str = "E8ED289DEBA952E4283B54E88E6183CA";
-
 /// Test dauth object that wraps a dauth instance/context and any
 /// needed testing fields. Exposes functions that allow checking and
 /// manipulation of the underlying instance of dAuth.
@@ -89,23 +84,10 @@ impl TestDauth {
         })
     }
 
-    /// Adds the provided, panics on any failure.
-    pub async fn add_users(&self, user_ids: &Vec<String>) -> Result<(), DauthError> {
-        let mut users = Vec::new();
-        for user_id in user_ids {
-            dauth_service::management::add_user(
-                self.context.clone(),
-                &UserInfoConfig {
-                    user_id: user_id.clone(),
-                    k: TEST_K.to_string(),
-                    opc: TEST_OPC.to_string(),
-                    sqn_max: 32,
-                    backups: Vec::new(),
-                },
-            )
-            .await?;
-
-            users.push(user_id);
+    /// Adds the provided users, panics on any failure.
+    pub async fn add_users(&self, user_infos: &Vec<UserInfoConfig>) -> Result<(), DauthError> {
+        for user_info in user_infos {
+            dauth_service::management::add_user(self.context.clone(), user_info).await?;
         }
 
         Ok(())
