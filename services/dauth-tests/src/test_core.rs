@@ -26,8 +26,8 @@ pub struct TestCore {
 }
 
 impl TestCore {
-    pub async fn new(addr: &str) -> Result<Self, DauthError> {
-        let endpoint = Endpoint::from_shared(format!("http://{}", addr)).expect("Invalid addr");
+    pub async fn new(host: &str) -> Result<Self, DauthError> {
+        let endpoint = Endpoint::from_shared(format!("http://{}:50051", host)).expect("Invalid host");
         let client = LocalAuthenticationClient::connect(endpoint).await?;
 
         Ok(Self {
