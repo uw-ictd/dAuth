@@ -108,14 +108,14 @@ def main():
 
     args = parser.parse_args()
 
-    if args.num_ues <= 10:
-        # Increase the number of samples but at the same steady-state rate
-        args.num_ues = args.num_ues * 100
-        args.interval = args.interval * 100
-    elif args.num_ues < 100:
-        # Increase the number of samples but at the same steady-state rate
-        args.num_ues = args.num_ues * 10
-        args.interval = args.interval * 10
+    # if args.num_ues <= 10:
+    #     # Increase the number of samples but at the same steady-state rate
+    #     args.num_ues = args.num_ues * 100
+    #     args.interval = args.interval * 100
+    # elif args.num_ues < 100:
+    #     # Increase the number of samples but at the same steady-state rate
+    #     args.num_ues = args.num_ues * 10
+    #     args.interval = args.interval * 10
 
     if args.debug:
         TestingLogger.logger.setLevel(logging.DEBUG)

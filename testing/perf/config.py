@@ -92,8 +92,8 @@ class GNBConfig(Config):
         Sets the ip to host on.
         """
         self.config["linkIp"] = ip
-        self.config["ngapIp"] = host_addr
-        self.config["gtpIp"] = host_addr
+        self.config["ngapIp"] = ip
+        self.config["gtpIp"] = ip
 
     def set_nci(self, nci: int) -> None:
         """

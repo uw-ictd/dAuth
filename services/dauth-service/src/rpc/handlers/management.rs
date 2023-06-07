@@ -1,10 +1,9 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::data::config::UserInfoConfig;
+use crate::data::config::{BackupConfig, UserInfoConfig};
 use crate::data::context::DauthContext;
 use crate::data::error::DauthError;
-use crate::database;
+use crate::management;
 use crate::rpc::dauth::management::management_server::Management;
 use crate::rpc::dauth::management::{AddUserReq, CommandResp, RemoveUserReq};
 
@@ -63,68 +62,24 @@ impl ManagementHandler {
         context: Arc<DauthContext>,
         add_user_req: AddUserReq,
     ) -> Result<(), DauthError> {
-        let user_id = add_user_req.user_id;
-        let mut sqn_slice_max = HashMap::new();
-        let mut backup_network_ids = HashMap::new();
-
+        let mut backups = Vec::new();
         for backup in add_user_req.backups {
-            sqn_slice_max.insert(backup.slice, backup.sqn_max);
-            backup_network_ids.insert(backup.backup_id, backup.slice);
+            backups.push(BackupConfig {
+                backup_id: backup.backup_id,
+                sqn_slice: backup.slice,
+                sqn_max: backup.sqn_max,
+            });
         }
 
         let user_info = UserInfoConfig {
+            user_id: add_user_req.user_id,
             k: add_user_req.k,
             opc: add_user_req.opc,
-            sqn_slice_max,
-            backup_network_ids,
+            sqn_max: add_user_req.sqn_max,
+            backups,
         };
 
-        let mut transaction = context.local_context.database_pool.begin().await?;
-        database::user_infos::upsert(
-            &mut transaction,
-            &user_id,
-            &user_info.get_k()?,
-            &user_info.get_opc()?,
-            add_user_req.sqn_max,
-            0, // home network
-        )
-        .await?;
-
-        database::tasks::update_users::add(
-            &mut transaction,
-            &user_id,
-            0,
-            &context.local_context.id,
-        )
-        .await?;
-
-        for (backup_network_id, sqn_slice) in &user_info.backup_network_ids {
-            database::user_infos::upsert(
-                &mut transaction,
-                &user_id,
-                &user_info.get_k()?,
-                &user_info.get_opc()?,
-                *user_info
-                    .sqn_slice_max
-                    .get(sqn_slice)
-                    .ok_or(DauthError::ConfigError(format!(
-                        "Missing key slice for {}",
-                        sqn_slice
-                    )))?,
-                *sqn_slice,
-            )
-            .await?;
-
-            database::tasks::update_users::add(
-                &mut transaction,
-                &user_id,
-                *sqn_slice,
-                &backup_network_id,
-            )
-            .await?;
-        }
-
-        transaction.commit().await?;
+        management::add_user(context.clone(), &user_info).await?;
 
         Ok(())
     }

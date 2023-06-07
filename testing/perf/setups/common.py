@@ -67,7 +67,7 @@ class NetworkSetup:
             gnb_config = GNBConfig(path.join(self.state.config_dir, "gnb.yaml"))
             ue_config = UEConfig(path.join(self.state.config_dir, "ue.yaml"))
 
-            ip = "127.0.0.{}".format(200 + i)
+            ip = "192.168.56.{}".format(200 + i)
 
             if i < 56:
                 gnb_config.set_ip(ip, host_addr)

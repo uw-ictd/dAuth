@@ -1,10 +1,9 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
 
 setup(name='testing',
       version='1.0',
-      description='Testing framework for dauth vms',
+      description='Testing framework for dauth',
       author='Nick Durand',
-      packages=['testing'],
-      package_dir={'testing': '..'},
+      packages=find_packages(),
       install_requires=["paramiko", "pyyaml"]
      )

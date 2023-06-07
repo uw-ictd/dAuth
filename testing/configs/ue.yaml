@@ -1,9 +1,9 @@
 # IMSI number of the UE. IMSI = [MCC|MNC|MSISDN] (In total 15 or 16 digits)
-supi: 'imsi-910540000000001'
+supi: 'imsi-901700000000001'
 # Mobile Country Code value of HPLMN
-mcc: '910'
+mcc: '901'
 # Mobile Network Code value of HPLMN (2 or 3 digits)
-mnc: '54'
+mnc: '70'
 
 # Permanent subscription key
 key: '465B5CE8B199B49FAA5F0A2EE238A6BC'
@@ -20,7 +20,7 @@ imeiSv: '4370816125816151'
 
 # List of gNB IP addresses for Radio Link Simulation
 gnbSearchList:
-  - 192.168.60.200
+  - 192.168.56.200
 
 # UAC Access Identities Configuration
 uacAic:

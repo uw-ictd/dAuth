@@ -2,9 +2,9 @@ import json
 from typing import IO, Union
 
 from paramiko.channel import ChannelFile
-from tests.config import ServiceConfig
 
-from connections.connection import Connection
+from .config import ServiceConfig
+from .connection import Connection
 
 
 class DauthServiceConnection(Connection):
