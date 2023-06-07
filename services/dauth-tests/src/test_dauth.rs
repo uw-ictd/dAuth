@@ -99,7 +99,11 @@ impl TestDauth {
     }
 
     /// Checks if all users in provided list exist, panics if not.
-    pub async fn check_users_exists(&self, user_ids: &Vec<String>, sqn_slice: i64) -> Result<(), DauthError> {
+    pub async fn check_users_exists(
+        &self,
+        user_ids: &Vec<String>,
+        sqn_slice: i64,
+    ) -> Result<(), DauthError> {
         let mut transaction = self.context.local_context.database_pool.begin().await?;
         for user_id in user_ids {
             assert_eq!(
@@ -112,7 +116,6 @@ impl TestDauth {
         transaction.commit().await?;
         Ok(())
     }
-
 
     /// Checks if all users in provided list exist, panics if not.
     pub async fn check_backup_user_exists(&self, user_ids: &Vec<String>) -> Result<(), DauthError> {

@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use dauth_service::data::config::{UserInfoConfig, BackupConfig};
+use dauth_service::data::config::{BackupConfig, UserInfoConfig};
 use dauth_tests::{TestDauth, TestDirectory, TEST_K, TEST_OPC};
 
 const NUM_USERS: usize = 10;
@@ -14,7 +14,15 @@ async fn test_user_reregister() {
     let mut backups = Vec::new();
     for backup_num in 0..NUM_BACKUPS {
         let backup_id = format!("test-backup-{}", backup_num);
-        backups.push(TestDauth::new(&backup_id, &format!("127.0.0.{}", 4+backup_num), "127.0.0.3").await.unwrap());
+        backups.push(
+            TestDauth::new(
+                &backup_id,
+                &format!("127.0.0.{}", 4 + backup_num),
+                "127.0.0.3",
+            )
+            .await
+            .unwrap(),
+        );
     }
 
     let dir_context = TestDirectory::new("127.0.0.3").await.unwrap();
@@ -80,7 +88,7 @@ async fn test_user_reregister() {
             backups: Vec::new(),
         });
     }
-    
+
     test_context.add_users(&user_infos).await.unwrap();
     tokio::time::sleep(Duration::from_secs_f32(5.0)).await;
 
@@ -89,5 +97,4 @@ async fn test_user_reregister() {
     for backup in &backups {
         assert!(backup.check_backup_user_exists(&user_ids).await.is_err());
     }
-
 }

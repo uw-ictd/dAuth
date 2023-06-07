@@ -93,7 +93,7 @@ pub async fn get_all(
         results.push(row.try_get::<String, &str>("backup_network_id")?);
     }
 
-    return Ok(results)
+    return Ok(results);
 }
 
 /// Gets the seqnum slice for a given network and user id
@@ -261,7 +261,9 @@ mod tests {
         transaction.commit().await.unwrap();
 
         let mut transaction = pool.begin().await.unwrap();
-        let results = backup_networks::get_all(&mut transaction, "test_user_id").await.unwrap();
+        let results = backup_networks::get_all(&mut transaction, "test_user_id")
+            .await
+            .unwrap();
         transaction.commit().await.unwrap();
 
         for section in 0..num_sections {

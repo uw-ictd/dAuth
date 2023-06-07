@@ -28,7 +28,7 @@ pub async fn withdraw_backup(
             database::auth_vectors::remove_all(&mut transaction, user_id).await?;
             database::key_shares::remove_all(&mut transaction, user_id).await?;
             transaction.commit().await?;
-    
+
             Ok(())
         }
     } else {

@@ -230,11 +230,14 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
 
         // Remove vectors and shares
         tracing::info!(?backup_network_id, "Withdrawing existing backup");
-        backup_network::withdraw_backup(context.clone(), user_id, &backup_network_id, &address).await?;
-        
+        backup_network::withdraw_backup(context.clone(), user_id, &backup_network_id, &address)
+            .await?;
+
         // Remove local state
         let mut transaction = context.local_context.database_pool.begin().await?;
-        let xres_list = database::vector_state::get_all_by_id(&mut transaction, user_id, &backup_network_id).await?;
+        let xres_list =
+            database::vector_state::get_all_by_id(&mut transaction, user_id, &backup_network_id)
+                .await?;
         for xres in xres_list {
             database::vector_state::remove(&mut transaction, &xres[..]).await?;
         }
@@ -257,7 +260,6 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             .get(backup_network_id)
             .ok_or(DauthError::DataError("Failed to get shares".to_string()))?;
 
-        
         // // Withdraw backup first if needed
         // let mut transaction = context.local_context.database_pool.begin().await?;
         // let withdraw = database::tasks::update_users::withdraw_first(&mut transaction, user_id, backup_network_id).await?;
@@ -267,7 +269,7 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
         //     // Remove vectors and shares
         //     tracing::info!(?backup_network_id, "Withdrawing new first");
         //     backup_network::withdraw_backup(context.clone(), user_id, backup_network_id, &address).await?;
-            
+
         //     // Remove local state
         //     let mut transaction = context.local_context.database_pool.begin().await?;
         //     let xres_list = database::vector_state::get_all_by_id(&mut transaction, user_id, backup_network_id).await?;

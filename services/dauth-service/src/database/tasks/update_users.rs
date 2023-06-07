@@ -222,7 +222,6 @@ mod tests {
         transaction.commit().await.unwrap();
     }
 
-
     #[tokio::test]
     async fn test_withdraw_first() {
         let (pool, _dir) = init().await;
@@ -264,27 +263,22 @@ mod tests {
         }
         transaction.commit().await.unwrap();
 
-
         let mut transaction = pool.begin().await.unwrap();
         for row in 0..num_rows {
-            assert!(
-                !tasks::update_users::withdraw_first(
-                    &mut transaction,
-                    &format!("test_user_id_{}", row),
-                    "test_network_id_a",
-                )
-                .await
-                .unwrap()
-            );
-            assert!(
-                tasks::update_users::withdraw_first(
-                    &mut transaction,
-                    &format!("test_user_id_{}", row),
-                    "test_network_id_b",
-                )
-                .await
-                .unwrap()
-            );
+            assert!(!tasks::update_users::withdraw_first(
+                &mut transaction,
+                &format!("test_user_id_{}", row),
+                "test_network_id_a",
+            )
+            .await
+            .unwrap());
+            assert!(tasks::update_users::withdraw_first(
+                &mut transaction,
+                &format!("test_user_id_{}", row),
+                "test_network_id_b",
+            )
+            .await
+            .unwrap());
         }
         transaction.commit().await.unwrap();
     }

@@ -29,7 +29,6 @@ pub async fn start_servers(context: Arc<DauthContext>) {
             .add_service(BackupNetworkServer::new(BackupNetworkHandler {
                 context: context.clone(),
             }))
-
             // WARNING: POTENTIALLY DANGEROUS!
             // Non-local sources can modify users using this interface.
             .add_service(ManagementServer::new(ManagementHandler {

@@ -185,7 +185,6 @@ pub async fn remove_all(
     Ok(())
 }
 
-
 /* Testing */
 
 #[cfg(test)]
@@ -373,7 +372,6 @@ mod tests {
         transaction.commit().await.unwrap();
     }
 
-
     /// Test that deletes work
     #[tokio::test]
     async fn test_remove_all() {
@@ -405,12 +403,9 @@ mod tests {
         transaction.commit().await.unwrap();
         let mut transaction = pool.begin().await.unwrap();
 
-        key_shares::remove_all(
-            &mut transaction,
-            "test_user_id",
-        )
-        .await
-        .unwrap();
+        key_shares::remove_all(&mut transaction, "test_user_id")
+            .await
+            .unwrap();
 
         transaction.commit().await.unwrap();
         let mut transaction = pool.begin().await.unwrap();

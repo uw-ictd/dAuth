@@ -67,7 +67,6 @@ impl TestDirectory {
         self.join_handle.abort()
     }
 
-
     /// Checks if all users in provided list exist, returns error if not.
     pub async fn check_users_exists(&self, user_ids: &Vec<String>) -> Result<(), DirectoryError> {
         let mut transaction = self.context.database_pool.begin().await?;

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use dauth_service::data::config::UserInfoConfig;
-use dauth_tests::{TestDauth, TestDirectory, TestCore, TEST_K, TEST_OPC};
+use dauth_tests::{TestCore, TestDauth, TestDirectory, TEST_K, TEST_OPC};
 
 const NUM_USERS: usize = 10;
 
