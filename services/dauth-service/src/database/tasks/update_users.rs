@@ -14,6 +14,7 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
             user_id TEXT NOT NULL,
             sqn_slice INT NOT NULL,
             backup_network_id INT NOT NULL,
+            withdraw_first INT NOT NULL,
             PRIMARY KEY (user_id, sqn_slice),
             FOREIGN KEY (user_id, sqn_slice) 
                 REFERENCES user_info_table(id, sqn_slice)
@@ -27,22 +28,25 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), DauthError> {
 /* Queries */
 
 /// Adds a user id with a set of backup network ids.
+/// Withrdaw first expects 1 (True) or 0 (False).
 #[tracing::instrument(skip(transaction), name = "database::tasks::update_users")]
 pub async fn add(
     transaction: &mut Transaction<'_, Sqlite>,
     user_id: &str,
     sqn_slice: i64,
     backup_network_id: &str,
+    withdraw_first: i64,
 ) -> Result<(), DauthError> {
     tracing::debug!("Adding task");
 
     sqlx::query(
         "REPLACE INTO task_update_users_table
-        VALUES ($1,$2,$3)",
+        VALUES ($1,$2,$3,$4)",
     )
     .bind(user_id)
     .bind(sqn_slice)
     .bind(backup_network_id)
+    .bind(withdraw_first)
     .execute(&mut *transaction)
     .await?;
 
@@ -91,6 +95,27 @@ pub async fn get_user_data(
         ));
     }
     Ok(result)
+}
+
+/// Returns true if this user/backup task needs to trigger a withdraw first.
+#[tracing::instrument(skip(transaction), name = "database::tasks::update_users")]
+pub async fn withdraw_first(
+    transaction: &mut Transaction<'_, Sqlite>,
+    user_id: &str,
+    backup_network_id: &str,
+) -> Result<bool, DauthError> {
+    tracing::debug!("Checking withdraw first");
+
+    let row = sqlx::query(
+        "SELECT * FROM task_update_users_table
+        WHERE (user_id,backup_network_id)=($1,$2);",
+    )
+    .bind(user_id)
+    .bind(backup_network_id)
+    .fetch_one(transaction)
+    .await?;
+
+    Ok(row.try_get::<i64, &str>("withdraw_first")? != 0)
 }
 
 /// Removes a user id and all its backup network ids.
@@ -171,6 +196,7 @@ mod tests {
                 &format!("test_user_id_{}", row),
                 0,
                 "test_network_id_a",
+                0,
             )
             .await
             .unwrap();
@@ -179,6 +205,7 @@ mod tests {
                 &format!("test_user_id_{}", row),
                 1,
                 "test_network_id_b",
+                0,
             )
             .await
             .unwrap();
@@ -187,9 +214,77 @@ mod tests {
                 &format!("test_user_id_{}", row),
                 2,
                 "test_network_id_c",
+                0,
             )
             .await
             .unwrap();
+        }
+        transaction.commit().await.unwrap();
+    }
+
+
+    #[tokio::test]
+    async fn test_withdraw_first() {
+        let (pool, _dir) = init().await;
+        let num_rows = 10;
+
+        let mut transaction = pool.begin().await.unwrap();
+        for row in 0..num_rows {
+            for sqn_max in 0..3 {
+                user_infos::upsert(
+                    &mut transaction,
+                    &format!("test_user_id_{}", row),
+                    &[0u8, 3],
+                    &[0u8, 3],
+                    sqn_max,
+                    sqn_max,
+                )
+                .await
+                .unwrap();
+            }
+
+            tasks::update_users::add(
+                &mut transaction,
+                &format!("test_user_id_{}", row),
+                0,
+                "test_network_id_a",
+                0,
+            )
+            .await
+            .unwrap();
+            tasks::update_users::add(
+                &mut transaction,
+                &format!("test_user_id_{}", row),
+                1,
+                "test_network_id_b",
+                1,
+            )
+            .await
+            .unwrap();
+        }
+        transaction.commit().await.unwrap();
+
+
+        let mut transaction = pool.begin().await.unwrap();
+        for row in 0..num_rows {
+            assert!(
+                !tasks::update_users::withdraw_first(
+                    &mut transaction,
+                    &format!("test_user_id_{}", row),
+                    "test_network_id_a",
+                )
+                .await
+                .unwrap()
+            );
+            assert!(
+                tasks::update_users::withdraw_first(
+                    &mut transaction,
+                    &format!("test_user_id_{}", row),
+                    "test_network_id_b",
+                )
+                .await
+                .unwrap()
+            );
         }
         transaction.commit().await.unwrap();
     }
@@ -219,13 +314,13 @@ mod tests {
             .unwrap();
         }
 
-        tasks::update_users::add(&mut transaction, "test_user_id", 0, "test_network_id_a")
+        tasks::update_users::add(&mut transaction, "test_user_id", 0, "test_network_id_a", 0)
             .await
             .unwrap();
-        tasks::update_users::add(&mut transaction, "test_user_id", 1, "test_network_id_b")
+        tasks::update_users::add(&mut transaction, "test_user_id", 1, "test_network_id_b", 0)
             .await
             .unwrap();
-        tasks::update_users::add(&mut transaction, "test_user_id", 2, "test_network_id_c")
+        tasks::update_users::add(&mut transaction, "test_user_id", 2, "test_network_id_c", 0)
             .await
             .unwrap();
         transaction.commit().await.unwrap();
@@ -268,6 +363,7 @@ mod tests {
                 &format!("test_user_id_{}", row),
                 0,
                 "test_network_id_a",
+                0,
             )
             .await
             .unwrap();
@@ -276,6 +372,7 @@ mod tests {
                 &format!("test_user_id_{}", row),
                 1,
                 "test_network_id_b",
+                0,
             )
             .await
             .unwrap();
@@ -284,6 +381,7 @@ mod tests {
                 &format!("test_user_id_{}", row),
                 2,
                 "test_network_id_c",
+                0,
             )
             .await
             .unwrap();
