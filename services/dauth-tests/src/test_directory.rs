@@ -16,7 +16,7 @@ pub struct TestDirectory {
     // Actual directory context
     pub context: Arc<DirectoryContext>,
     // Join handle to stop running
-    _join_handle: JoinHandle<()>,
+    join_handle: JoinHandle<()>,
     // Must not be dropped
     _temp_dir: TempDir,
 }
@@ -57,10 +57,16 @@ impl TestDirectory {
 
         Ok(Self {
             context,
-            _join_handle: join_handle,
+            join_handle,
             _temp_dir: temp_dir,
         })
     }
+
+    /// Aborts the internal server.
+    pub fn stop(&self) {
+        self.join_handle.abort()
+    }
+
 
     /// Checks if all users in provided list exist, returns error if not.
     pub async fn check_users_exists(&self, user_ids: &Vec<String>) -> Result<(), DirectoryError> {

@@ -8,8 +8,8 @@ const NUM_USERS: usize = 10;
 #[tokio::test]
 async fn test_home_auth_successful() {
     let id = "test-network-id";
-    let test_context = TestDauth::new(id, "127.0.0.1", "127.0.0.1").await.unwrap();
-    let dir_context = TestDirectory::new("127.0.0.1").await.unwrap();
+    let dauth = TestDauth::new(id, "127.0.0.1", "127.0.0.1").await.unwrap();
+    let dir = TestDirectory::new("127.0.0.1").await.unwrap();
     tokio::time::sleep(Duration::from_secs_f32(1.0)).await;
 
     let test_core = TestCore::new("127.0.0.1").await.unwrap();
@@ -28,13 +28,30 @@ async fn test_home_auth_successful() {
         });
     }
 
-    test_context.add_users(&user_infos).await.unwrap();
+    dauth.add_users(&user_infos).await.unwrap();
     tokio::time::sleep(Duration::from_secs_f32(0.5)).await;
 
-    test_context.check_users_exists(&user_ids, 0).await.unwrap();
-    dir_context.check_users_exists(&user_ids).await.unwrap();
+    dauth.check_users_exists(&user_ids, 0).await.unwrap();
+    dir.check_users_exists(&user_ids).await.unwrap();
 
     for user_id in user_ids {
         test_core.auth_user(&user_id).await.unwrap();
     }
+
+    dauth.stop();
+    dir.stop();
+}
+
+#[tokio::test]
+async fn test_home_auth_failure() {
+    let id = "test-network-id";
+    let dauth = TestDauth::new(id, "127.0.0.2", "127.0.0.2").await.unwrap();
+    let dir = TestDirectory::new("127.0.0.2").await.unwrap();
+    tokio::time::sleep(Duration::from_secs_f32(2.0)).await;
+
+    let test_core = TestCore::new("127.0.0.2").await.unwrap();
+    assert!(test_core.auth_user("nonexistent-user").await.is_err());
+
+    dauth.stop();
+    dir.stop();
 }

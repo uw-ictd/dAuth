@@ -16,7 +16,7 @@ pub struct TestDauth {
     // Internal dauth context
     pub context: Arc<DauthContext>,
     // Join handle to stop running
-    _join_handle: JoinHandle<()>,
+    join_handle: JoinHandle<()>,
     // Must not be dropped
     _temp_dir: TempDir,
 }
@@ -79,9 +79,14 @@ impl TestDauth {
 
         Ok(Self {
             context,
-            _join_handle: join_handle,
+            join_handle,
             _temp_dir: temp_dir,
         })
+    }
+
+    /// Aborts the internal server.
+    pub fn stop(&self) {
+        self.join_handle.abort()
     }
 
     /// Adds the provided users, panics on any failure.
