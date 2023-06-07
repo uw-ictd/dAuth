@@ -166,6 +166,26 @@ pub async fn remove(
     Ok(())
 }
 
+/// Deletes a key share if found.
+#[tracing::instrument(skip(transaction), name = "database::key_shares")]
+pub async fn remove_all(
+    transaction: &mut Transaction<'_, Sqlite>,
+    user_id: &str,
+) -> Result<(), DauthError> {
+    tracing::debug!("Removing all key shares for user");
+
+    sqlx::query(
+        "DELETE FROM key_share_table
+        WHERE user_id=$1",
+    )
+    .bind(user_id)
+    .execute(transaction)
+    .await?;
+
+    Ok(())
+}
+
+
 /* Testing */
 
 #[cfg(test)]
@@ -335,6 +355,62 @@ mod tests {
                 .unwrap();
             }
         }
+
+        transaction.commit().await.unwrap();
+        let mut transaction = pool.begin().await.unwrap();
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                // should have been deleted
+                assert!(key_shares::get_from_xres_star_hash(
+                    &mut transaction,
+                    &[section * num_rows + row; XRES_STAR_LENGTH],
+                )
+                .await
+                .is_err());
+            }
+        }
+        transaction.commit().await.unwrap();
+    }
+
+
+    /// Test that deletes work
+    #[tokio::test]
+    async fn test_remove_all() {
+        let (pool, _dir) = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let num_rows = 10;
+        let num_sections = 10;
+
+        for section in 0..num_sections {
+            for row in 0..num_rows {
+                let combined_share = CombinedKeyShare {
+                    xres_star_hash: [section * num_rows + row; XRES_STAR_HASH_LENGTH],
+                    xres_hash: [section * num_rows + row; XRES_HASH_LENGTH],
+                    kseaf_share: vec![section * num_rows + row; KSEAF_LENGTH + 1]
+                        .try_into()
+                        .unwrap(),
+                    kasme_share: vec![section * num_rows + row; KSEAF_LENGTH + 1]
+                        .try_into()
+                        .unwrap(),
+                };
+                key_shares::add(&mut transaction, "test_user_id", &combined_share)
+                    .await
+                    .unwrap();
+            }
+        }
+
+        transaction.commit().await.unwrap();
+        let mut transaction = pool.begin().await.unwrap();
+
+        key_shares::remove_all(
+            &mut transaction,
+            "test_user_id",
+        )
+        .await
+        .unwrap();
 
         transaction.commit().await.unwrap();
         let mut transaction = pool.begin().await.unwrap();
