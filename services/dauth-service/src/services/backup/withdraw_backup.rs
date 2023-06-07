@@ -26,6 +26,7 @@ pub async fn withdraw_backup(
             transaction = context.local_context.database_pool.begin().await?;
             database::backup_users::remove(&mut transaction, user_id, home_network_id).await?;
             database::auth_vectors::remove_all(&mut transaction, user_id).await?;
+            database::key_shares::remove_all(&mut transaction, user_id).await?;
             transaction.commit().await?;
     
             Ok(())

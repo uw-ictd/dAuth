@@ -13,7 +13,7 @@ pub async fn add_user(
     transaction.commit().await?;
 
     // Get all backups that need to have their old vectors removed
-    let existing_backups = if user_exists{
+    let existing_backups = if user_exists {
         transaction = context.local_context.database_pool.begin().await?;
         let backups = database::backup_networks::get_all(&mut transaction, &user_info.user_id).await?;
         transaction.commit().await?;

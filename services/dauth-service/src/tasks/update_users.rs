@@ -220,6 +220,27 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
         }
     }
 
+    /* withdraw existing */
+    let mut transaction = context.local_context.database_pool.begin().await?;
+    let existing_backups = database::backup_networks::get_all(&mut transaction, user_id).await?;
+    transaction.commit().await?;
+
+    for backup_network_id in existing_backups {
+        let (address, _) = directory::lookup_network(&context, &backup_network_id).await?;
+
+        // Remove vectors and shares
+        tracing::info!(?backup_network_id, "Withdrawing existing backup");
+        backup_network::withdraw_backup(context.clone(), user_id, &backup_network_id, &address).await?;
+        
+        // Remove local state
+        let mut transaction = context.local_context.database_pool.begin().await?;
+        let xres_list = database::vector_state::get_all_by_id(&mut transaction, user_id, &backup_network_id).await?;
+        for xres in xres_list {
+            database::vector_state::remove(&mut transaction, &xres[..]).await?;
+        }
+        transaction.commit().await?;
+    }
+
     /* enroll backups */
     for (backup_network_id, _) in &user_data {
         let (address, _) = directory::lookup_network(&context, &backup_network_id)
@@ -237,14 +258,24 @@ async fn handle_user_update(context: Arc<DauthContext>, user_id: String) -> Resu
             .ok_or(DauthError::DataError("Failed to get shares".to_string()))?;
 
         
-        // Withdraw backup first if needed
-        let mut transaction = context.local_context.database_pool.begin().await?;
-        let withdraw = database::tasks::update_users::withdraw_first(&mut transaction, user_id, backup_network_id).await?;
-        transaction.commit().await?;
+        // // Withdraw backup first if needed
+        // let mut transaction = context.local_context.database_pool.begin().await?;
+        // let withdraw = database::tasks::update_users::withdraw_first(&mut transaction, user_id, backup_network_id).await?;
+        // transaction.commit().await?;
 
-        if withdraw {
-            backup_network::withdraw_backup(context.clone(), user_id, backup_network_id, &address).await?;
-        }
+        // if withdraw {
+        //     // Remove vectors and shares
+        //     tracing::info!(?backup_network_id, "Withdrawing new first");
+        //     backup_network::withdraw_backup(context.clone(), user_id, backup_network_id, &address).await?;
+            
+        //     // Remove local state
+        //     let mut transaction = context.local_context.database_pool.begin().await?;
+        //     let xres_list = database::vector_state::get_all_by_id(&mut transaction, user_id, backup_network_id).await?;
+        //     for xres in xres_list {
+        //         database::vector_state::remove(&mut transaction, &xres[..]).await?;
+        //     }
+        //     transaction.commit().await?;
+        // }
 
         tracing::info!(?backup_network_id, ?user_id, "Enrolling backup network");
         backup_network::enroll_backup_prepare(
