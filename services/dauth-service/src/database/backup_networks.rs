@@ -71,6 +71,31 @@ pub async fn get(
     .try_get::<i64, &str>("seq_num_slice")?)
 }
 
+/// Gets all backup network ids for the user.
+#[tracing::instrument(skip(transaction), name = "database::backup_networks")]
+pub async fn get_all(
+    transaction: &mut Transaction<'_, Sqlite>,
+    user_id: &str,
+) -> Result<Vec<String>, DauthError> {
+    tracing::debug!("Getting backup info");
+
+    let rows = sqlx::query(
+        "SELECT * FROM backup_networks_table
+        WHERE (user_id)=($1);",
+    )
+    .bind(user_id)
+    .fetch_all(transaction)
+    .await?;
+
+    let mut results = Vec::new();
+
+    for row in rows {
+        results.push(row.try_get::<String, &str>("backup_network_id")?);
+    }
+
+    return Ok(results)
+}
+
 /// Gets the seqnum slice for a given network and user id
 #[tracing::instrument(skip(transaction), name = "database::backup_networks")]
 pub async fn get_slice(
@@ -212,6 +237,36 @@ mod tests {
             }
         }
         transaction.commit().await.unwrap();
+    }
+
+    /// Test that deletes work
+    #[tokio::test]
+    async fn test_get_all() {
+        let (pool, _dir) = init().await;
+
+        let mut transaction = pool.begin().await.unwrap();
+
+        let num_sections = 10;
+
+        for section in 0..num_sections {
+            backup_networks::upsert(
+                &mut transaction,
+                &format!("test_user_id"),
+                &format!("test_network_id_{}", section),
+                section,
+            )
+            .await
+            .unwrap();
+        }
+        transaction.commit().await.unwrap();
+
+        let mut transaction = pool.begin().await.unwrap();
+        let results = backup_networks::get_all(&mut transaction, "test_user_id").await.unwrap();
+        transaction.commit().await.unwrap();
+
+        for section in 0..num_sections {
+            assert!(results.contains(&format!("test_network_id_{}", section)));
+        }
     }
 
     /// Test that deletes work
