@@ -5,19 +5,32 @@ use serde_yaml;
 use structopt::StructOpt;
 use tracing_subscriber::{filter, EnvFilter};
 
-use dauth_service::data::config::UserInfoConfig;
+use dauth_service::data::config::{BackupConfig, UserInfoConfig};
 use dauth_service::rpc::dauth::management::management_client::ManagementClient;
 use dauth_service::rpc::dauth::management::{add_user_req::Backup, AddUserReq};
 
 #[derive(Debug, StructOpt)]
 #[structopt(
     name = "dAuth Management CLI",
-    about = "Run management commands for a running instance of dAuth"
+    about = "Run management commands for an active instance of dAuth"
 )]
-struct CliOpt {
-    /// Yaml config file path
-    #[structopt(parse(from_os_str))]
-    pub config_path: PathBuf,
+enum CliOpt {
+    /// Adds users through the specified config file.
+    Config {
+        #[structopt(short, long, parse(from_os_str))]
+        config: PathBuf,
+    },
+
+    /// Adds a user directly through the CLI.
+    /// sqn-max is used for backups as well.
+    AddUser {
+        host_addr: String,
+        user_id: String,
+        k: String,
+        opc: String,
+        sqn_max: i64,
+        backup_ids: Vec<String>,
+    },
 }
 
 /// Holds user data from a corresponding YAML file
@@ -36,7 +49,47 @@ async fn main() {
     tracing_subscriber::fmt().with_env_filter(log_filter).init();
     tracing::info!("Running dAuth management CLI");
 
-    let config = build_config(CliOpt::from_args().config_path);
+    let config = match CliOpt::from_args() {
+        CliOpt::Config { config } => {
+            let yaml_string = std::fs::read_to_string(config).expect("Failed to read config");
+            serde_yaml::from_str(&yaml_string).expect("Failed to parse yaml")
+        }
+        CliOpt::AddUser {
+            host_addr,
+            user_id,
+            k,
+            opc,
+            sqn_max,
+            backup_ids,
+        } => {
+            let sqn_max = if sqn_max % 32 == 0 {
+                sqn_max
+            } else {
+                sqn_max + 32 - (sqn_max % 32)
+            };
+            let mut sqn_slice = 1;
+            let mut backups = Vec::new();
+            for backup_id in backup_ids {
+                backups.push(BackupConfig {
+                    backup_id,
+                    sqn_slice,
+                    sqn_max: sqn_max + sqn_slice,
+                });
+                sqn_slice += 1;
+            }
+
+            CliConfig {
+                host_addr,
+                users: vec![UserInfoConfig {
+                    user_id,
+                    k,
+                    opc,
+                    sqn_max,
+                    backups,
+                }],
+            }
+        }
+    };
 
     let mut client = ManagementClient::connect(format!("http://{}", config.host_addr))
         .await
@@ -77,9 +130,4 @@ async fn main() {
             tracing::warn!("dAuth response -- {}", res.info);
         }
     }
-}
-
-fn build_config(yaml_path: PathBuf) -> CliConfig {
-    let yaml_string = std::fs::read_to_string(yaml_path).expect("Failed to read config");
-    serde_yaml::from_str(&yaml_string).expect("Failed to parse yaml")
 }
